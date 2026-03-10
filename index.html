@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* ... (all CSS from previous version – keep unchanged) ... */
     :root{
       --teal-1:#07897a;--teal-2:#1aaa94;--teal-3:#5dd5c0;--navy:#0d4f6c;--navy-2:#083d55;
       --orange:#f48c3a;--yellow:#f5c842;--white:#ffffff;--bg:#eef4f6;--card:#ffffff;
@@ -269,7 +270,7 @@
 <body>
 <canvas id="bg-canvas"></canvas>
 
-<!-- ══════════════════ LOGIN PAGE ══════════════════ -->
+<!-- LOGIN PAGE (identical to previous) -->
 <div id="loginPage">
   <div class="lp-left">
     <div class="wave-bg"></div>
@@ -341,7 +342,7 @@
   </div>
 </div>
 
-<!-- ══════════════════ DASHBOARD ══════════════════ -->
+<!-- DASHBOARD -->
 <div id="dashboard">
   <div class="card device-list">
     <h3>Smart Devices</h3>
@@ -376,7 +377,7 @@
   </div>
 </div>
 
-<!-- ══════════════════ GRAPH MODAL ══════════════════ -->
+<!-- GRAPH MODAL (unchanged) -->
 <div id="graph-modal">
   <div id="graph-modal-inner">
     <button id="graph-close-btn" onclick="closeGraph()">&#10005;</button>
@@ -434,7 +435,7 @@
   </div>
 </div>
 
-<!-- ══════════════════ PRESSURE SETTINGS MODAL ══════════════════ -->
+<!-- PRESSURE SETTINGS MODAL (unchanged) -->
 <div id="pressure-settings-modal">
   <div id="pressure-settings-inner">
     <div id="ps-header">
@@ -490,7 +491,7 @@
   </div>
 </div>
 
-<!-- ══════════════════ RESERVOIR SETTINGS MODAL ══════════════════ -->
+<!-- RESERVOIR SETTINGS MODAL (unchanged) -->
 <div id="reservoir-settings-modal">
   <div id="reservoir-settings-inner">
     <div id="rs-header">
@@ -539,9 +540,6 @@
 var API_URL = 'https://script.google.com/macros/s/AKfycbzFsthjT1GeKCaS0EqxvnVGGTL5ulW1jIIBCQEA4T2NSxMklrdlDY90-x5I3YixdAUq/exec';
 
 // ── CORS-SAFE API HELPERS ────────────────────────────────────────
-// Both GET and "write" calls use plain GET parameters.
-// This avoids the browser preflight OPTIONS request that
-// Google Apps Script silently ignores, which was blocking login.
 function apiGet(action, params) {
   var url = API_URL + '?action=' + encodeURIComponent(action);
   if (params) {
@@ -556,7 +554,6 @@ function apiGet(action, params) {
 }
 
 function apiPost(action, data) {
-  // Sends as GET query string – no preflight, no CORS block
   data = data || {};
   data.action = action;
   var url = API_URL + '?' + Object.keys(data).map(function(k) {
@@ -823,8 +820,6 @@ function updateMap(devices) {
   devices.forEach(function(d) {
     if (!d.latitude || !d.longitude) return;
     var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
-
-    // Determine effective device type (fallback to name)
     var rawType = (d.type || '').toLowerCase().trim();
     var deviceName = (d.device || '').toLowerCase();
     var effectiveType = rawType;
@@ -833,17 +828,13 @@ function updateMap(devices) {
     } else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) {
       effectiveType = 'reservoir';
     }
-
-    var dT = effectiveType; // for any other usage
-
-    var isPres = effectiveType === 'pressure'; // can be used later
+    var isPres = effectiveType === 'pressure';
     var stat = isPres ? derivePressureStatus(d) : d.status;
-
     var f = new ol.Feature({
       geometry: new ol.geom.Point(coord),
       name: d.device,
       status: stat,
-      type: effectiveType,          // ← use the derived type
+      type: effectiveType,
       pressure: d.pressure || null,
       flow: d.flow || null,
       relay: d.relay || null,
@@ -860,16 +851,27 @@ function updateMap(devices) {
     deviceMarkers[d.device] = f;
   });
 }
+
+// ⭐️ UPDATED processOfflineQueue – checks for success object ⭐️
 function processOfflineQueue() {
-  if (!userToken||!OfflineQueue.length) return;
-  OfflineQueue.slice().forEach(function(q,i) {
-    apiPost('togglePump',{device:q.device,token:userToken}).then(function(ok){
-      if (ok) { localStorage.setItem('confirmed_'+q.device,q.state); localStorage.removeItem('desired_'+q.device); OfflineQueue.splice(i,1); localStorage.setItem('OfflineQueue',JSON.stringify(OfflineQueue)); updateDashboard(); }
-    }).catch(function(e){console.error('togglePump error:',e);});
+  if (!userToken || !OfflineQueue.length) return;
+  OfflineQueue.slice().forEach(function(q, i) {
+    apiPost('togglePump', { device: q.device, token: userToken }).then(function(res) {
+      // res is now an object { success: true, newState: 0/1 } from the fixed backend
+      if (res && res.success) {
+        localStorage.setItem('confirmed_' + q.device, q.state);
+        localStorage.removeItem('desired_' + q.device);
+        OfflineQueue.splice(i, 1);
+        localStorage.setItem('OfflineQueue', JSON.stringify(OfflineQueue));
+        updateDashboard();
+      } else {
+        console.warn('Toggle failed for', q.device, res);
+      }
+    }).catch(function(e) { console.error('togglePump error:', e); });
   });
 }
 
-// ⭐️ UPDATED DEVICE LIST FUNCTION WITH IMPROVED TOGGLE SYNC ⭐️
+// ⭐️ UPDATED device list with improved toggle sync (already provided) ⭐️
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list'); list.innerHTML = '';
   devices.forEach(function(d) {
@@ -904,7 +906,6 @@ function updateDeviceList(devices) {
       var confirmedState = localStorage.getItem('confirmed_' + d.device);
       var desiredState = localStorage.getItem('desired_' + d.device);
 
-      // If no pending desired, update confirmed from server to match reality
       if (!desiredState) {
         var newConfirmed = serverRelayOn ? 'ON' : 'OFF';
         if (confirmedState !== newConfirmed) {
@@ -922,7 +923,6 @@ function updateDeviceList(devices) {
         localStorage.setItem('desired_' + d.device, ns);
         OfflineQueue.push({device: d.device, state: ns});
         localStorage.setItem('OfflineQueue', JSON.stringify(OfflineQueue));
-        // Refresh the list using the same devices array (will show pending state)
         updateDeviceList(devices);
       });
       li.addEventListener('click', function(e){
