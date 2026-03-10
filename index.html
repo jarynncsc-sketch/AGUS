@@ -160,7 +160,7 @@
     #graph-live-left{display:flex;align-items:center;gap:8px;}
     .live-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:live-pulse 1.8s ease-out infinite;flex-shrink:0;}
     .live-dot.paused{background:#aaa;box-shadow:none;animation:none;}
-    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
+    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0));}}
     #live-label{font-weight:bold;font-size:11px;color:#004080;}
     #live-updated{font-size:11px;color:#666;}
     #live-new-badge{display:none;background:#22c55e;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:10px;}
@@ -868,6 +868,8 @@ function processOfflineQueue() {
     }).catch(function(e){console.error('togglePump error:',e);});
   });
 }
+
+// ⭐️ UPDATED DEVICE LIST FUNCTION WITH IMPROVED TOGGLE SYNC ⭐️
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list'); list.innerHTML = '';
   devices.forEach(function(d) {
@@ -896,42 +898,53 @@ function updateDeviceList(devices) {
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
       li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
-// Read relay value directly from Google Sheet
-var relayState = (d.relay == 1 || d.relay === "1") ? "ON" : "OFF";
+      // PUMP STATION – improved toggle sync
+      var serverRelay = d.relay;
+      var serverRelayOn = serverRelay == 1 || serverRelay === true || serverRelay === '1' || (typeof serverRelay === 'string' && serverRelay.toUpperCase() === 'ON');
+      var confirmedState = localStorage.getItem('confirmed_' + d.device);
+      var desiredState = localStorage.getItem('desired_' + d.device);
 
-// Always sync toggle with sheet
-localStorage.setItem('confirmed_'+d.device, relayState);
+      // If no pending desired, update confirmed from server to match reality
+      if (!desiredState) {
+        var newConfirmed = serverRelayOn ? 'ON' : 'OFF';
+        if (confirmedState !== newConfirmed) {
+          localStorage.setItem('confirmed_' + d.device, newConfirmed);
+          confirmedState = newConfirmed;
+        }
+      }
 
-var conf = relayState;
-var des = relayState;
-      li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><label class="toggle-switch"><input type="checkbox"'+(des==='ON'?' checked':'')+'><span class="slider"></span></label></div>';
+      var displayState = desiredState || confirmedState;
+
+      li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><label class="toggle-switch"><input type="checkbox"'+(displayState==='ON'?' checked':'')+'><span class="slider"></span></label></div>';
       var cb = li.querySelector('input[type="checkbox"]');
-cb.addEventListener('change', function(){
-
-  var ns = cb.checked ? 1 : 0;
-
-  // update sheet immediately
-  apiPost('setRelayState',{
-      device: d.device,
-      relay: ns,
-      token: userToken
-  }).then(function(){
-
-      localStorage.setItem('confirmed_'+d.device, ns ? "ON":"OFF");
-
-      updateDashboard();
-
-  }).catch(function(err){
-
-      console.error("Relay update error", err);
-
-  });
-
-});
-      li.addEventListener('click', function(e){if(e.target.tagName.toLowerCase()!=='input')selectDevice(d.device);});
+      cb.addEventListener('change', function(){
+        var ns = cb.checked ? 'ON' : 'OFF';
+        localStorage.setItem('desired_' + d.device, ns);
+        OfflineQueue.push({device: d.device, state: ns});
+        localStorage.setItem('OfflineQueue', JSON.stringify(OfflineQueue));
+        // Refresh the list using the same devices array (will show pending state)
+        updateDeviceList(devices);
+      });
+      li.addEventListener('click', function(e){
+        if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device);
+      });
     }
-    if (alarm) { var now=Date.now(),st=alarmSpeechState[d.device]; if(!st){alarmSpeechState[d.device]={lastSpoken:now,alarmType:alarm};speakAlarm(d.device,alarm,isRes);}else if(st.alarmType===alarm&&(now-st.lastSpoken)>=SPEECH_REPEAT_INTERVAL){st.lastSpoken=now;speakAlarm(d.device,alarm,isRes);}else if(st.alarmType!==alarm){st.alarmType=alarm;st.lastSpoken=now;speakAlarm(d.device,alarm,isRes);} }
-    else delete alarmSpeechState[d.device];
+    if (alarm) {
+      var now=Date.now(), st=alarmSpeechState[d.device];
+      if (!st) {
+        alarmSpeechState[d.device] = {lastSpoken: now, alarmType: alarm};
+        speakAlarm(d.device, alarm, isRes);
+      } else if (st.alarmType === alarm && (now - st.lastSpoken) >= SPEECH_REPEAT_INTERVAL) {
+        st.lastSpoken = now;
+        speakAlarm(d.device, alarm, isRes);
+      } else if (st.alarmType !== alarm) {
+        st.alarmType = alarm;
+        st.lastSpoken = now;
+        speakAlarm(d.device, alarm, isRes);
+      }
+    } else {
+      delete alarmSpeechState[d.device];
+    }
     list.appendChild(li);
   });
 }
