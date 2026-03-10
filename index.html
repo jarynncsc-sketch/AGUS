@@ -896,8 +896,14 @@ function updateDeviceList(devices) {
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
       li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
-      var conf = localStorage.getItem('confirmed_'+d.device)||(d.relay?'ON':'OFF');
-      var des = localStorage.getItem('desired_'+d.device)||conf;
+// Read relay value directly from Google Sheet
+var relayState = (d.relay == 1 || d.relay === "1") ? "ON" : "OFF";
+
+// Always sync toggle with sheet
+localStorage.setItem('confirmed_'+d.device, relayState);
+
+var conf = relayState;
+var des = relayState;
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><label class="toggle-switch"><input type="checkbox"'+(des==='ON'?' checked':'')+'><span class="slider"></span></label></div>';
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function(){var ns=cb.checked?'ON':'OFF';localStorage.setItem('desired_'+d.device,ns);OfflineQueue.push({device:d.device,state:ns});localStorage.setItem('OfflineQueue',JSON.stringify(OfflineQueue));updateDeviceList(devices);});
