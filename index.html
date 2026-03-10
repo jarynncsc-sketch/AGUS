@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
+    /* (styles unchanged – keep exactly as before) */
     :root{
       --teal-1:#07897a;--teal-2:#1aaa94;--teal-3:#5dd5c0;--navy:#0d4f6c;--navy-2:#083d55;
       --orange:#f48c3a;--yellow:#f5c842;--white:#ffffff;--bg:#eef4f6;--card:#ffffff;
@@ -85,7 +86,7 @@
     .status-Offline{background:#ffa500;box-shadow:0 0 8px #ffa500,0 0 12px #ff8800;}
     .status-Fault{background:#ff0033;box-shadow:0 0 8px #ff0033,0 0 12px #ff66aa;}
     .status-indicator.Fault-blink{animation:blink 1s infinite;border:1px solid #ff0000;box-shadow:0 0 12px #ff0033,0 0 18px #ff66aa;}
-    .toggle-switch{position:relative;display:inline-block;width:70px;height:33px;flex-shrink:0;}
+    .toggle-switch{position:relative;display:inline-block;width:80px;height:33px;flex-shrink:0;}
     .toggle-switch input{opacity:0;width:0;height:0;}
     .slider{position:absolute;cursor:pointer;inset:0;background:#e53935;border-radius:40px;transition:0.35s ease;box-shadow:inset 0 0 6px rgba(0,0,0,0.25);}
     .slider::after{content:"OFF";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:bold;color:white;letter-spacing:1px;transition:0.35s ease;}
@@ -536,12 +537,9 @@
 //  Apps Script → Deploy → New Deployment → Web App
 //  Execute as: Me  |  Who has access: Anyone
 // ================================================================
-var API_URL = 'https://script.google.com/macros/s/AKfycbz98ROH6jkpTU6NFZKS6xhGFVlT11yfO9OuwrfvynwSlpkWUABCtoJkQ3F1oDmvKdeB/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbykMt5O_mgB3LWtO2vTq7PcjixzZbrIlj5U9JFt2x0XcPCkBD2U34H1gf3xPmEw0r0/exec';
 
 // ── CORS-SAFE API HELPERS ────────────────────────────────────────
-// Both GET and "write" calls use plain GET parameters.
-// This avoids the browser preflight OPTIONS request that
-// Google Apps Script silently ignores, which was blocking login.
 function apiGet(action, params) {
   var url = API_URL + '?action=' + encodeURIComponent(action);
   if (params) {
@@ -556,7 +554,6 @@ function apiGet(action, params) {
 }
 
 function apiPost(action, data) {
-  // Sends as GET query string – no preflight, no CORS block
   data = data || {};
   data.action = action;
   var url = API_URL + '?' + Object.keys(data).map(function(k) {
@@ -808,16 +805,31 @@ function buildMiniRangeBar(mn, no, mx, cur) {
 
 // ── DASHBOARD ────────────────────────────────────────────────────
 function initDashboard() { updateDashboard(); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
+
+// ⭐ FIXED: updateDashboard now syncs localStorage confirmed state with server
 function updateDashboard() {
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
       if (d.minLevel||d.maxLevel) reservoirThresholdsCache[d.device]={minLevel:d.minLevel||20,maxLevel:d.maxLevel||250,updatedBy:d.reservoirUpdatedBy||null,updatedAt:d.reservoirUpdatedAt||null};
+
+      // --- NEW: Sync localStorage confirmed with server state for devices that have a relay ---
+      if (d.relay !== undefined && d.relay !== null) {
+        var desired = localStorage.getItem('desired_' + d.device);
+        if (!desired) {
+          // No pending toggle → set confirmed to the actual server value
+          localStorage.setItem('confirmed_' + d.device, d.relay ? 'ON' : 'OFF');
+        }
+      }
+      // ------------------------------------------------------------------------------------
     });
-    updateDeviceList(devices); updateMap(devices);
+
+    updateDeviceList(devices);
+    updateMap(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
   }).catch(function(err) { console.error('updateDashboard error:', err); });
 }
+
 function updateMap(devices) {
   deviceSource.clear(); deviceMarkers = {};
   devices.forEach(function(d) {
@@ -863,8 +875,16 @@ function updateMap(devices) {
 function processOfflineQueue() {
   if (!userToken||!OfflineQueue.length) return;
   OfflineQueue.slice().forEach(function(q,i) {
-    apiPost('togglePump',{device:q.device,token:userToken}).then(function(ok){
-      if (ok) { localStorage.setItem('confirmed_'+q.device,q.state); localStorage.removeItem('desired_'+q.device); OfflineQueue.splice(i,1); localStorage.setItem('OfflineQueue',JSON.stringify(OfflineQueue)); updateDashboard(); }
+    // Convert "ON"/"OFF" to numbers 1/0
+    var stateValue = q.state === 'ON' ? 1 : 0;
+    apiPost('togglePump',{device:q.device, state: stateValue, token:userToken}).then(function(ok){
+      if (ok) {
+        localStorage.setItem('confirmed_'+q.device,q.state);
+        localStorage.removeItem('desired_'+q.device);
+        OfflineQueue.splice(i,1);
+        localStorage.setItem('OfflineQueue',JSON.stringify(OfflineQueue));
+        updateDashboard();
+      }
     }).catch(function(e){console.error('togglePump error:',e);});
   });
 }
@@ -1099,7 +1119,7 @@ function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#334155',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(0,64,128,0.07)',lineWidth:1},border:{color:'rgba(0,64,128,0.15)'}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,beginAtZero:false,suggestedMin:ax.min,suggestedMax:ax.max,ticks:{color:'#334155',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#002b5c',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:ax.pos==='left'?'rgba(0,64,128,0.09)':'rgba(0,0,0,0)',lineWidth:1},border:{color:'rgba(0,64,128,0.15)'}};});
-  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act'];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 // ── RANGE BUTTONS ─────────────────────────────────────────────────
