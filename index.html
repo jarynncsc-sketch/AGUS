@@ -536,7 +536,7 @@
 //  Apps Script → Deploy → New Deployment → Web App
 //  Execute as: Me  |  Who has access: Anyone
 // ================================================================
-var API_URL = 'https://script.google.com/macros/s/AKfycbycskhf2K3FTdmbZaIWTUUcjBt2Xfpwyx_a1A-scb7kXB3mact2DBtn5iVkLLbkwAfL/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbwXZYyc2N9KXiUAV3RECFPoDL8IYCNHdg9nG8aeoDch24typQyaeLk9TD5fkV6j9v6w/exec';
 
 // ── CORS-SAFE API HELPERS ────────────────────────────────────────
 // Both GET and "write" calls use plain GET parameters.
@@ -821,13 +821,43 @@ function updateDashboard() {
 function updateMap(devices) {
   deviceSource.clear(); deviceMarkers = {};
   devices.forEach(function(d) {
-    if (!d.latitude||!d.longitude) return;
-    var coord = ol.proj.fromLonLat([parseFloat(d.longitude),parseFloat(d.latitude)]);
-    var dT = (d.type||'').toLowerCase().trim();
-    var isPres = dT==='pressure'||(d.device||'').toLowerCase().includes('pressure');
+    if (!d.latitude || !d.longitude) return;
+    var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
+
+    // Determine effective device type (fallback to name)
+    var rawType = (d.type || '').toLowerCase().trim();
+    var deviceName = (d.device || '').toLowerCase();
+    var effectiveType = rawType;
+    if (rawType !== 'pressure' && deviceName.includes('pressure')) {
+      effectiveType = 'pressure';
+    } else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) {
+      effectiveType = 'reservoir';
+    }
+
+    var dT = effectiveType; // for any other usage
+
+    var isPres = effectiveType === 'pressure'; // can be used later
     var stat = isPres ? derivePressureStatus(d) : d.status;
-    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:d.type,pressure:d.pressure||null,flow:d.flow||null,relay:d.relay||null,button:d.button||null,voltage:d.voltage||null,current:d.current||null,power:d.power||null,energy:d.energy||null,level:d.level||null,firmware:d.firmware||null,lastToggledBy:d.lastToggledBy||null});
-    deviceSource.addFeature(f); deviceMarkers[d.device] = f;
+
+    var f = new ol.Feature({
+      geometry: new ol.geom.Point(coord),
+      name: d.device,
+      status: stat,
+      type: effectiveType,          // ← use the derived type
+      pressure: d.pressure || null,
+      flow: d.flow || null,
+      relay: d.relay || null,
+      button: d.button || null,
+      voltage: d.voltage || null,
+      current: d.current || null,
+      power: d.power || null,
+      energy: d.energy || null,
+      level: d.level || null,
+      firmware: d.firmware || null,
+      lastToggledBy: d.lastToggledBy || null
+    });
+    deviceSource.addFeature(f);
+    deviceMarkers[d.device] = f;
   });
 }
 function processOfflineQueue() {
