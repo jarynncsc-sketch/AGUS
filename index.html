@@ -682,9 +682,30 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
       var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
       return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
     }
-    if (isPS) {
+if (isPS) {
       var psC = status==='Online'?'#00aa00':status==='Offline'?'#ffa500':'#ff0033';
-      var svg = '<svg viewBox="0 0 32 32" width="42" height="42" xmlns="http://www.w3.org/2000/svg"><rect x="10" y="12" width="12" height="12" rx="2" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/><circle cx="16" cy="8" r="4" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/><path d="M20 24 L24 26 L20 28 Z" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/><circle cx="22" cy="25" r="2" fill="#00aaff" stroke="#002b5c" stroke-width="1"/></svg>';
+      // Detect anomaly: Offline, Fault, button fault, or pressure out of range
+      var psAnomaly = status !== 'Online' || f.get('button');
+      var psAnomalyColor = (status==='Fault' || f.get('button')) ? '#ff0033' : '#ffa500';
+      if (!psAnomaly) {
+        var pPres = f.get('pressure');
+        var pPS = pressureSettingsCache[name] || {minPsi:20, maxPsi:80};
+        var pPN = parseFloat(pPres);
+        if (!isNaN(pPN) && (pPN < pPS.minPsi || pPN > pPS.maxPsi)) {
+          psAnomaly = true;
+          psAnomalyColor = pPN < pPS.minPsi ? '#f97316' : '#ef4444';
+          psC = psAnomalyColor;
+        }
+      }
+      var ringOp = psAnomaly ? (blinkOn ? '1' : '0') : '0';
+      var svg = '<svg viewBox="-7 -7 46 46" width="56" height="56" xmlns="http://www.w3.org/2000/svg">'
+        + '<circle cx="16" cy="16" r="24" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4.5" opacity="'+ringOp+'"/>'
+        + '<circle cx="16" cy="16" r="18" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(psAnomaly&&!blinkOn?'0.35':'0')+'"/>'
+        + '<rect x="10" y="12" width="12" height="12" rx="2" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/>'
+        + '<circle cx="16" cy="8" r="4" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/>'
+        + '<path d="M20 24 L24 26 L20 28 Z" fill="'+psC+'" stroke="#002b5c" stroke-width="1.5"/>'
+        + '<circle cx="22" cy="25" r="2" fill="#00aaff" stroke="#002b5c" stroke-width="1"/>'
+        + '</svg>';
       return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(svg),scale:1.2,anchor:[0.5,0.9]})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 16px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:25})})];
     }
     if (type === 'pressure') {
