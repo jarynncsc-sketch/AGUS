@@ -101,6 +101,7 @@
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
     #welcome-user-topright{position:absolute;top:30px;right:35px;z-index:1100;font-size:14px;font-weight:bold;color:#004080;background:white;padding:10px 15px;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.3);backdrop-filter:blur(8px);text-align:right;pointer-events:none;}
+    #datetime-display{font-size:11px;font-weight:600;color:#0891b2;margin-top:4px;letter-spacing:0.3px;}
     #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:white;padding:10px 15px;border-radius:8px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
     .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:5px;cursor:pointer;}
     .legend-circle{width:12px;height:12px;border-radius:50%;display:inline-block;}
@@ -379,7 +380,9 @@
       <div class="sheet-header"><span id="sheet-title"></span><button onclick="closeSheet()">&#10005;</button></div>
       <div class="sheet-body"><table id="sheet-table"><thead></thead><tbody></tbody></table></div>
     </div>
-    <div id="welcome-user-topright"></div>
+<div id="welcome-user-topright">
+  <div id="datetime-display"></div>
+</div>
     <div id="device-details"></div>
     <div id="legend-card">
       <div class="legend-item"><span class="legend-circle legend-Signal Status"></span>Signal Status</div>
@@ -638,6 +641,23 @@ function animate() {
   requestAnimationFrame(animate);
 }
 animate();
+  function updateDateTime() {
+  var el = document.getElementById('datetime-display');
+  if (!el) return;
+  var now = new Date();
+  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var day = days[now.getDay()];
+  var date = now.getDate();
+  var month = months[now.getMonth()];
+  var year = now.getFullYear();
+  var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  var ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12; if (h === 0) h = 12;
+  el.innerText = day + ', ' + month + ' ' + date + ' ' + year + '  |  ' + (h < 10 ? '0'+h : h) + ':' + (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s) + ' ' + ampm;
+}
+updateDateTime();
+setInterval(updateDateTime, 1000);
 window.addEventListener('resize', function() { W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
