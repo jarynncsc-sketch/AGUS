@@ -684,7 +684,7 @@ function login() {
       userToken = token; loggedInUser = user;
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
-      document.getElementById('welcome-user-topright').innerText = 'Welcome, ' + user;
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div id="datetime-display"></div>'; updateDateTime(); setInterval(updateDateTime, 1000);
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
