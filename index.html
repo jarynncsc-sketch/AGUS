@@ -548,7 +548,7 @@
 <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
-var API_URL = 'https://script.google.com/macros/s/AKfycbwmyvR3QNbWgrlZB9CTVfU7As7dlR8VgXLgh3dqKpKgPoOXq8Bg5gkA8NXReXtf0g_tbA/exec';
+var API_URL = 'https://script.google.com/macros/s/AKfycbygEBnL4A63VYCNQtcpX5CWzvM-IxDqahvFAy28bd_vy0rn4PgKCtrOw3pUskwL9piajA/exec';
 
 function apiGet(action, params) {
   var url = API_URL + '?action=' + encodeURIComponent(action);
@@ -581,12 +581,19 @@ var PUMP_PARAMS = [
   {id:'current',    label:'Current',         unit:'A',   pattern:/current/i,                                                        color:'#f43f5e', yAxis:'yRight', group:'electrical'},
   {id:'power',      label:'Power',           unit:'W',   pattern:/^power/i,                                                         color:'#f97316', yAxis:'yRight', group:'electrical'},
   {id:'energy',     label:'Energy',          unit:'kWh', pattern:/energy/i,                                                         color:'#a78bfa', yAxis:'yRight', group:'electrical'},
+  // ─── Efficiency (computed on-the-fly) ───
+  {id:'hydpower',    label:'Hydraulic Power',    unit:'kW',     computed:true, color:'#10b981', yAxis:'yLeft',  group:'efficiency'},
+  {id:'pumpeff',     label:'Overall Efficiency', unit:'%',      computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
+  {id:'powerfactor', label:'Power Factor',       unit:'',       computed:true, color:'#6366f1', yAxis:'yRight', group:'efficiency'},
+  {id:'specenergy',  label:'Spec. Energy',       unit:'kWh/m³', computed:true, color:'#ec4899', yAxis:'yRight', group:'efficiency'},
+  // ─── Control ───
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
   {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
 ];
 var PARAM_GROUPS = [
   {id:'hydraulic',  label:'💧 Hydraulic'},
   {id:'electrical', label:'⚡ Electrical'},
+  {id:'efficiency', label:'🔧 Efficiency'},
   {id:'control',    label:'🎛️ Control'}
 ];
 var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
@@ -704,6 +711,28 @@ function speakAlarm(deviceName, alarmType, isReservoir) {
   var voices = window.speechSynthesis.getVoices();
   if (voices.length > 0) { var sel = voices.find(function(v) { return ['Google UK','Google US','Samantha','Alex','Daniel'].some(function(n) { return v.name.includes(n); }) && v.lang.startsWith('en'); }); if (!sel) sel = voices.find(function(v) { return v.lang.startsWith('en'); }); if (sel) u.voice = sel; }
   var c = 0; function sn() { if (c < 5) { window.speechSynthesis.speak(u); c++; setTimeout(sn, 1000); } } sn();
+}
+  function speakPSAlarm(deviceName, alarmType) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var msgs = {
+    'offline':       deviceName + ' is offline. Please check device connection.',
+    'fault':         deviceName + ' has a fault. Immediate attention required.',
+    'low pressure':  deviceName + ' low pressure alarm. Check pump operation.',
+    'high pressure': deviceName + ' high pressure alarm. Check pipeline for obstruction.'
+  };
+  var msg = msgs[alarmType] || (deviceName + ' alarm: ' + alarmType);
+  var u2 = new SpeechSynthesisUtterance(msg);
+  u2.lang='en-US'; u2.rate=0.88; u2.pitch=1.0; u2.volume=1.0;
+  var voices2 = window.speechSynthesis.getVoices();
+  if (voices2.length > 0) {
+    var sel2 = voices2.find(function(v){
+      return ['Google UK','Google US','Samantha','Alex','Daniel'].some(function(n){return v.name.includes(n);}) && v.lang.startsWith('en');
+    });
+    if (!sel2) sel2 = voices2.find(function(v){return v.lang.startsWith('en');});
+    if (sel2) u2.voice = sel2;
+  }
+  var c2=0; function sn2(){if(c2<3){window.speechSynthesis.speak(u2);c2++;setTimeout(sn2,1300);}} sn2();
 }
 
 var map = new ol.Map({ target:'map', layers:[new ol.layer.Tile({source:new ol.source.OSM()})], view: new ol.View({center:ol.proj.fromLonLat([123.6740,10.1129]),zoom:12}) });
@@ -914,6 +943,29 @@ function updateDeviceList(devices) {
         updateDeviceList(devices);
       });
       li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
+      // ─── Pumping Station audio alarm ──────────────────────────────────
+      var psAl = null;
+      if (effSt === 'Offline') psAl = 'offline';
+      else if (effSt === 'Fault' || d.button) psAl = 'fault';
+      else {
+        var psP = parseFloat(d.pressure);
+        var psThr = pressureSettingsCache[d.device] || {minPsi:20, maxPsi:80};
+        if (!isNaN(psP)) {
+          if (psP < psThr.minPsi)      psAl = 'low pressure';
+          else if (psP > psThr.maxPsi) psAl = 'high pressure';
+        }
+      }
+      if (psAl) {
+        var psNow=Date.now(), psStt=alarmSpeechState[d.device+':ps'];
+        if (!psStt) {
+          alarmSpeechState[d.device+':ps']={lastSpoken:psNow,alarmType:psAl};
+          speakPSAlarm(d.device, psAl);
+        } else if (psStt.alarmType===psAl && (psNow-psStt.lastSpoken)>=SPEECH_REPEAT_INTERVAL) {
+          psStt.lastSpoken=psNow; speakPSAlarm(d.device, psAl);
+        } else if (psStt.alarmType!==psAl) {
+          psStt.alarmType=psAl; psStt.lastSpoken=psNow; speakPSAlarm(d.device, psAl);
+        }
+      } else { delete alarmSpeechState[d.device+':ps']; }
     }
     if (alarm) {
       var now=Date.now(), st=alarmSpeechState[d.device];
@@ -966,9 +1018,30 @@ function getFilteredData() {
   return allGraphData.filter(function(r){var t=parseSheetDate(r[window._timeKey]);return t&&t>=s&&t<=e;});
 }
 
+// Compute efficiency values from raw sensor row
+function computeEffVal(pid, row, keys) {
+  var flK=keys.find(function(k){return /flowrate|flow/i.test(k);}), prK=keys.find(function(k){return /pressure|psi/i.test(k);});
+  var pwK=keys.find(function(k){return /^power/i.test(k);}), voK=keys.find(function(k){return /voltage/i.test(k);}), cuK=keys.find(function(k){return /current/i.test(k);});
+  var fl=flK?parseFloat(row[flK]):NaN, pr=prK?parseFloat(row[prK]):NaN, pw=pwK?parseFloat(row[pwK]):NaN, vo=voK?parseFloat(row[voK]):NaN, cu=cuK?parseFloat(row[cuK]):NaN;
+  if (pid==='hydpower') { if(isNaN(fl)||isNaN(pr)||fl<=0)return null; return parseFloat((fl*pr*0.00689476).toFixed(4)); }
+  if (pid==='pumpeff')  { if(isNaN(fl)||isNaN(pr)||isNaN(pw)||pw<=0||fl<=0)return null; var e=(fl*pr*0.00689476)/(pw/1000)*100; return(e>0&&e<=100)?parseFloat(e.toFixed(2)):null; }
+  if (pid==='powerfactor') { if(isNaN(pw)||isNaN(vo)||isNaN(cu)||vo<=0||cu<=0)return null; var pf=pw/(vo*cu); return(pf>0&&pf<=1.05)?parseFloat(pf.toFixed(3)):null; }
+  if (pid==='specenergy')  { if(isNaN(pw)||isNaN(fl)||fl<=0)return null; return parseFloat((pw/(fl*3600)).toFixed(4)); }
+  return null;
+}
 function detectPumpParamKeys(rows) {
   if (!rows||!rows.length) return; var keys=Object.keys(rows[0]); pumpParamKeys={};
-  PUMP_PARAMS.forEach(function(p){if(p.isEvent){pumpParamKeys[p.id]=window._toggleKey||null;return;}var f=keys.find(function(k){return p.pattern.test(k.trim());});if(f)pumpParamKeys[p.id]=f;});
+  var hasFlow=keys.some(function(k){return /flowrate|flow/i.test(k);}), hasPres=keys.some(function(k){return /pressure|psi/i.test(k);}), hasPow=keys.some(function(k){return /^power/i.test(k);}), hasVolt=keys.some(function(k){return /voltage/i.test(k);}), hasCurr=keys.some(function(k){return /current/i.test(k);});
+  PUMP_PARAMS.forEach(function(p){
+    if (p.computed) {
+      if ((p.id==='hydpower'||p.id==='pumpeff')&&hasFlow&&hasPres) pumpParamKeys[p.id]='__computed__';
+      else if (p.id==='powerfactor'&&hasVolt&&hasCurr&&hasPow) pumpParamKeys[p.id]='__computed__';
+      else if (p.id==='specenergy'&&hasFlow&&hasPow) pumpParamKeys[p.id]='__computed__';
+      return;
+    }
+    if (p.isEvent){pumpParamKeys[p.id]=window._toggleKey||null;return;}
+    var f=keys.find(function(k){return p.pattern.test(k.trim());});if(f)pumpParamKeys[p.id]=f;
+  });
 }
 function buildParamSelector() {
   var grid=document.getElementById('param-pill-grid'); grid.innerHTML='';
@@ -1063,10 +1136,14 @@ function renderRangeChart() {
     return;
   }
   var datasets=[],leftP=[],rightP=[];
+  var _dKeys=data.length?Object.keys(data[0]):[];
   PUMP_PARAMS.forEach(function(p){
     if (!activePumpParams.has(p.id)||p.isEvent) return;
     var ck=pumpParamKeys[p.id]; if(!ck) return;
-    var vals=data.map(function(r){var v=parseFloat(r[ck]);return isNaN(v)?null:v;});
+    var vals=data.map(function(r){
+      if(p.computed) return computeEffVal(p.id, r, _dKeys);
+      var v=parseFloat(r[ck]); return isNaN(v)?null:v;
+    });
     var fill=false, bg=hexToRgba(p.color,0.08);
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
     datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
