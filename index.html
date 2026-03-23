@@ -816,47 +816,168 @@ function selectDevice(device) {
   if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
   showDeviceDetails(device);
 }
-
+// === START ===
+ 
 function showDeviceDetails(device) {
   apiGet('getDashboardData').then(function(data) {
-    var d = data.find(function(x){return x.device===device;}); if (!d) return;
+    var d = data.find(function(x){ return x.device === device; });
+    if (!d) return;
+ 
     var det = document.getElementById('device-details');
-    var dType = (d.type||'').toLowerCase().trim();
-    var isRes = dType==='reservoir' || (d.device||'').toLowerCase().includes('reservoir');
-    var isPres = dType==='pressure' || (d.device||'').toLowerCase().includes('pressure');
-    if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
-    if (d.minLevel||d.maxLevel) reservoirThresholdsCache[device]={minLevel:d.minLevel||20,maxLevel:d.maxLevel||250,updatedBy:d.reservoirUpdatedBy||null,updatedAt:d.reservoirUpdatedAt||null};
-    var s = pressureSettingsCache[device]||{minPsi:20,normalPsi:50,maxPsi:80};
-    var r = reservoirThresholdsCache[device]||{minLevel:20,maxLevel:250};
+    var dType = (d.type || '').toLowerCase().trim();
+    var isRes  = dType === 'reservoir' || (d.device || '').toLowerCase().includes('reservoir');
+    var isPres = dType === 'pressure'  || (d.device || '').toLowerCase().includes('pressure');
+ 
+    if (d.minPsi || d.normalPsi || d.maxPsi) {
+      pressureSettingsCache[device] = {
+        minPsi: d.minPsi || 20, normalPsi: d.normalPsi || 50, maxPsi: d.maxPsi || 80,
+        updatedBy: d.settingsUpdatedBy || null, updatedAt: d.settingsUpdatedAt || null
+      };
+    }
+    if (d.minLevel || d.maxLevel) {
+      reservoirThresholdsCache[device] = {
+        minLevel: d.minLevel || 20, maxLevel: d.maxLevel || 250,
+        updatedBy: d.reservoirUpdatedBy || null, updatedAt: d.reservoirUpdatedAt || null
+      };
+    }
+ 
+    var s = pressureSettingsCache[device]  || { minPsi: 20, normalPsi: 50, maxPsi: 80 };
+    var r = reservoirThresholdsCache[device] || { minLevel: 20, maxLevel: 250 };
     var effSt = isPres ? derivePressureStatus(d) : d.status;
     var fb = d.button ? '<span class="blink" style="color:red;">! Fault</span>' : '';
-    var lpsi = parseFloat(d.pressure), pC='#aaa', pT='—', pB='';
-    if (!isNaN(lpsi)) { if(lpsi<s.minPsi){pC='#f97316';pT='LOW';pB='blink-alarm';}else if(lpsi>s.maxPsi){pC='#ef4444';pT='HIGH';pB='blink-alarm';}else{pC='#0891b2';pT='NORMAL';} }
-    var llvl = parseFloat(d.level), lC='#aaa', lT='—', lB='';
-    if (!isNaN(llvl)) { if(llvl<r.minLevel){lC='#f97316';lT='LOW';lB='blink-alarm';}else if(llvl>r.maxLevel){lC='#ef4444';lT='HIGH';lB='blink-alarm';}else{lC='#0891b2';lT='NORMAL';} }
+ 
+    // Pressure colour / label
+    var lpsi = parseFloat(d.pressure), pC = '#aaa', pT = '—', pB = '';
+    if (!isNaN(lpsi)) {
+      if      (lpsi < s.minPsi) { pC = '#f97316'; pT = 'LOW';    pB = 'blink-alarm'; }
+      else if (lpsi > s.maxPsi) { pC = '#ef4444'; pT = 'HIGH';   pB = 'blink-alarm'; }
+      else                      { pC = '#0891b2'; pT = 'NORMAL'; }
+    }
+ 
+    // Reservoir level colour / label
+    var llvl = parseFloat(d.level), lC = '#aaa', lT = '—', lB = '';
+    if (!isNaN(llvl)) {
+      if      (llvl < r.minLevel) { lC = '#f97316'; lT = 'LOW';  lB = 'blink-alarm'; }
+      else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
+      else                        { lC = '#0891b2'; lT = 'NORMAL'; }
+    }
+ 
     det.style.pointerEvents = 'auto';
+ 
+    // ── RESERVOIR ────────────────────────────────────────────────
     if (isRes) {
-      det.innerHTML = '<div style="display:flex;gap:12px;min-width:460px;"><div style="flex:1;min-width:180px;"><b style="font-size:14px;color:#002b5c;">'+d.device+'</b><br><span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>Status: '+effSt+' '+fb+'<br>Water Level: <b style="color:'+lC+';">'+(d.level||'0')+' m³</b> <span class="'+lB+'" style="background:'+lC+';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">'+lT+'</span><br><button onclick="showHistoricalGraph(\''+escapeForAttr(d.device)+'\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button></div><div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;"><div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div><div class="pressure-thresholds-badge"><span class="pth-item low">🟠 Low: &lt; '+r.minLevel+' m³</span><span class="pth-item normal">🟢 Normal: '+r.minLevel+'–'+r.maxLevel+' m³</span><span class="pth-item high">🔴 Overflow: > '+r.maxLevel+' m³</span></div>'+(r.updatedBy?'<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>'+r.updatedBy+'</b>'+(r.updatedAt?' on '+r.updatedAt:'')+'</div>':'')+'<button class="rs-gear-btn" onclick="openReservoirSettings(\''+escapeForAttr(d.device)+'\')">⚙️ Edit Reservoir Thresholds</button></div></div>';
-    } else if (isPres) {
-      det.innerHTML = '<div style="display:flex;gap:12px;min-width:460px;"><div style="flex:1;min-width:180px;"><b style="font-size:14px;color:#002b5c;">'+d.device+'</b><br><span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>Status: '+effSt+' '+fb+'<br>Pressure: <b style="color:'+pC+';">'+(d.pressure||'0')+' psi</b> <span class="'+pB+'" style="background:'+pC+';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">'+pT+'</span><br><button onclick="showHistoricalGraph(\''+escapeForAttr(d.device)+'\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button></div><div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;"><div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div><div class="pressure-thresholds-badge"><span class="pth-item low">🟠 Min: '+s.minPsi+' psi</span><span class="pth-item normal">🟢 Normal: '+s.normalPsi+' psi</span><span class="pth-item high">🔴 Max: '+s.maxPsi+' psi</span></div><div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">'+buildMiniRangeBar(s.minPsi,s.normalPsi,s.maxPsi,lpsi)+'</div>'+(s.updatedBy?'<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>'+s.updatedBy+'</b>'+(s.updatedAt?' on '+s.updatedAt:'')+'</div>':'')+'<button class="ps-gear-btn" onclick="openPressureSettings(\''+escapeForAttr(d.device)+'\')">⚙️ Edit Pressure Range Settings</button></div></div>';
-    } else {
-    var _liveEff = null;
-      try {
-        var _fl = parseFloat(d.flow), _pr = parseFloat(d.pressure), _pw = parseFloat(d.power);
-        if (_fl > 0 && _pr > 0 && _pw > 0) {
-          var _calc = (_fl * _pr * 0.00689476) / (_pw / 1000) * 100;
-          if (_calc > 0 && _calc <= 100) _liveEff = _calc.toFixed(1);
-        }
-      } catch(ex) {}
-      if (_liveEff === null && d.efficiency !== null && d.efficiency !== undefined && d.efficiency !== '') {
-        try { var _eff2 = parseFloat(d.efficiency); if (_eff2 > 0 && _eff2 <= 100) _liveEff = _eff2.toFixed(1); } catch(ex) {}
+      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
+      var wc = '';
+      if (d.level !== undefined && d.level !== null && d.level !== '') {
+        var _lv = parseFloat(d.level);
+        if (_lv < r.minLevel) wc = 'low'; else if (_lv > r.maxLevel) wc = 'high'; else wc = 'normal';
       }
-      var _effBadge = _liveEff !== null
-        ? '<span style="display:inline-flex;align-items:center;gap:5px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:3px 9px;font-size:12px;font-weight:700;color:#92400e;margin-top:5px;">🔧 Pump Efficiency: <b style="color:#b45309;font-size:14px;margin-left:2px;">'+_liveEff+'%</b></span>'
-        : '<span style="display:inline-flex;align-items:center;gap:5px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:3px 9px;font-size:11px;color:#9ca3af;margin-top:5px;">🔧 Efficiency: No sensor data</span>';
-      det.innerHTML = '<div style="display:flex;gap:12px;min-width:460px;"><div style="flex:1;min-width:180px;"><b style="font-size:14px;color:#002b5c;">'+d.device+'</b><br>Status: '+effSt+' '+fb+'<br>Flow: '+(d.flow||0)+' L/s<br>Pressure: <b style="color:'+pC+';">'+(d.pressure||0)+' psi</b> <span class="'+pB+'" style="background:'+pC+';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">'+pT+'</span><br>Voltage: '+(d.voltage||0)+' V<br>Current: '+(d.current||0)+' A<br>Power: '+(d.power||0)+' W<br>Energy: '+(d.energy||0)+' kWh<br>Relay: '+(d.relay?'ON':'OFF')+'<br>'+_effBadge+'<br><button onclick="showHistoricalGraph(\''+escapeForAttr(d.device)+'\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button></div><div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;"><div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div><div class="pressure-thresholds-badge"><span class="pth-item low">🟠 Min: '+s.minPsi+' psi</span><span class="pth-item normal">🟢 Normal: '+s.normalPsi+' psi</span><span class="pth-item high">🔴 Max: '+s.maxPsi+' psi</span></div><div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">'+buildMiniRangeBar(s.minPsi,s.normalPsi,s.maxPsi,lpsi)+'</div>'+(s.updatedBy?'<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>'+s.updatedBy+'</b>'+(s.updatedAt?' on '+s.updatedAt:'')+'</div>':'')+'<button class="ps-gear-btn" onclick="openPressureSettings(\''+escapeForAttr(d.device)+'\')">⚙️ Edit Pressure Range Settings</button></div></div>';  
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:460px;">' +
+          '<div style="flex:1;min-width:180px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            '<span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+          '</div>' +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
+              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
+            '</div>' +
+            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
+            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
+          '</div>' +
+        '</div>';
+ 
+    // ── PRESSURE SENSOR ──────────────────────────────────────────
+    } else if (isPres) {
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:460px;">' +
+          '<div style="flex:1;min-width:180px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            '<span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
+            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+          '</div>' +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Min: ' + s.minPsi + ' psi</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + s.normalPsi + ' psi</span>' +
+              '<span class="pth-item high">🔴 Max: ' + s.maxPsi + ' psi</span>' +
+            '</div>' +
+            '<div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
+            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
+            '<button class="ps-gear-btn" onclick="openPressureSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Pressure Range Settings</button>' +
+          '</div>' +
+        '</div>';
+ 
+    // ── PUMPING STATION ──────────────────────────────────────────
+    } else {
+      // Live efficiency calculation (Flow × Pressure → Hydraulic Power ÷ Electrical Power)
+      var _eff = null;
+      var _fl = parseFloat(d.flow  || 0);
+      var _pr = parseFloat(d.pressure || 0);
+      var _pw = parseFloat(d.power || 0);
+      if (_fl > 0 && _pr > 0 && _pw > 0) {
+        var _hydPow = _fl * _pr * 0.00689476;   // kW
+        var _elPow  = _pw / 1000;                // kW
+        var _raw    = (_hydPow / _elPow) * 100;
+        if (_raw > 0 && _raw <= 100) _eff = _raw.toFixed(1);
+      }
+      // Fallback: use stored efficiency from sheet
+      if (_eff === null) {
+        var _stored = parseFloat(d.efficiency);
+        if (!isNaN(_stored) && _stored > 0 && _stored <= 100) _eff = _stored.toFixed(1);
+      }
+ 
+      var _effBadge = _eff !== null
+        ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
+        : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
+ 
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:460px;">' +
+          '<div style="flex:1;min-width:180px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
+            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
+            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
+            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
+            'Current: '  + (d.current  || 0) + ' A<br>' +
+            'Power: '    + (d.power    || 0) + ' W<br>' +
+            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
+            'Relay: '    + (d.relay ? 'ON' : 'OFF') + '<br>' +
+            _effBadge + '<br>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+          '</div>' +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Min: ' + s.minPsi + ' psi</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + s.normalPsi + ' psi</span>' +
+              '<span class="pth-item high">🔴 Max: ' + s.maxPsi + ' psi</span>' +
+            '</div>' +
+            '<div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
+            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
+            '<button class="ps-gear-btn" onclick="openPressureSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Pressure Range Settings</button>' +
+          '</div>' +
+        '</div>';
+    }
+ 
     det.style.display = 'block';
-    if (deviceMarkers[device]) detailsOverlay.setPosition(deviceMarkers[device].getGeometry().getCoordinates());
+    if (deviceMarkers[device]) {
+      detailsOverlay.setPosition(deviceMarkers[device].getGeometry().getCoordinates());
+    }
+ 
   }).catch(function(err) { console.error('showDeviceDetails error:', err); });
 }
 function buildMiniRangeBar(mn, no, mx, cur) {
