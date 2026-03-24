@@ -130,7 +130,7 @@
     .range-btn:hover,.range-btn.active{background:#004080;color:white;}
     #graph-download-btn{padding:5px 14px;background:#004080;color:white;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
     #graph-download-btn:hover{background:#0055aa;}
-    #graph-chart-wrap{flex-grow:1;min-height:0;background:#f8faff;border-radius:8px;padding:14px 16px 10px 16px;position:relative;border:1px solid rgba(0,64,128,0.07);overflow:hidden;}
+    #graph-chart-wrap{flex-grow:1;min-height:0;background:#f8faff;border-radius:16px;padding:14px 16px 10px 16px;position:relative;border:1px solid rgba(0,64,128,0.15);overflow:hidden;}
     #graph-chart-wrap canvas{width:100%!important;height:100%!important;}
     #graph-loading{display:none;position:absolute;inset:0;background:rgba(255,255,255,0.9);z-index:10;justify-content:center;align-items:center;border-radius:10px;flex-direction:column;gap:12px;font-size:15px;color:#004080;font-weight:700;}
     #graph-loading.visible{display:flex;}
@@ -567,7 +567,9 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 var OfflineQueue = JSON.parse(localStorage.getItem('OfflineQueue') || '[]');
 var allGraphData = [], currentDevice = '', activeRange = 14;
 var calStartMonth = new Date();
-var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 1);
+var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
+var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 var rangeStart = null, rangeEnd = null, pickingStart = true;
 var graphPollInterval = null, liveCounterInterval = null;
 var graphPollRate = 15000, livePaused = false;
