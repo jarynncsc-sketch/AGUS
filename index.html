@@ -1332,7 +1332,7 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
 });
 function updateDateRangeLabel(){if(!rangeStart||!rangeEnd)return;var fmt=function(d){return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};document.getElementById('date-range-label').innerText=fmt(rangeStart)+' – '+fmt(rangeEnd);}
 
-function renderCalendars(){var c=document.getElementById('calendar-container');c.innerHTML='';calendarMonths.forEach(function(m){c.appendChild(buildCalendarMonth(m));});}
+function renderCalendars(){var c=document.getElementById('calendar-container');c.innerHTML='';[calStartMonth,calEndMonth].forEach(function(m){c.appendChild(buildCalendarMonth(m));});}
 function buildCalendarMonth(dateObj){
   var yr=dateObj.getFullYear(),mo=dateObj.getMonth(),today=new Date();
   var wrap=document.createElement('div');wrap.className='cal-month';
@@ -1345,7 +1345,7 @@ function buildCalendarMonth(dateObj){
   for(var dd=1;dd<=dim;dd++){(function(day){var cd=new Date(yr,mo,day),el=document.createElement('div');el.className='cal-day';el.innerText=day;if(cd.toDateString()===today.toDateString())el.classList.add('today');if(rangeStart&&cd.toDateString()===rangeStart.toDateString())el.classList.add('selected-start');if(rangeEnd&&cd.toDateString()===rangeEnd.toDateString())el.classList.add('selected-end');if(rangeStart&&rangeEnd&&cd>rangeStart&&cd<rangeEnd)el.classList.add('in-range');el.addEventListener('click',function(){onCalDayClick(cd);});grid.appendChild(el);})(dd);}
   wrap.appendChild(grid);return wrap;
 }
-function shiftCalendar(dir){calendarMonths=calendarMonths.map(function(m){return new Date(m.getFullYear(),m.getMonth()+dir, 1);});renderCalendars();}
+function shiftCalendar(dir){calStartMonth=new Date(calStartMonth.getFullYear(),calStartMonth.getMonth()+dir,1);calEndMonth=new Date(calStartMonth.getFullYear(),calStartMonth.getMonth()+1,1);renderCalendars();}
 function onCalDayClick(date){
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
