@@ -567,9 +567,12 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 var OfflineQueue = JSON.parse(localStorage.getItem('OfflineQueue') || '[]');
 var allGraphData = [], currentDevice = '', activeRange = 14;
 var calStartMonth = new Date();
-var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 2, 1);
-var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1);
-var calEndMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+var today = new Date();
+var today = new Date();
+// 👇 3 months range (past → present)
+var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+var calMonth2 = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+var calMonth3 = new Date(today.getFullYear(), today.getMonth(), 1);
 var rangeStart = null, rangeEnd = null, pickingStart = true;
 var graphPollInterval = null, liveCounterInterval = null;
 var graphPollRate = 15000, livePaused = false;
@@ -1332,7 +1335,15 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
 });
 function updateDateRangeLabel(){if(!rangeStart||!rangeEnd)return;var fmt=function(d){return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};document.getElementById('date-range-label').innerText=fmt(rangeStart)+' – '+fmt(rangeEnd);}
 
-function renderCalendars(){var c=document.getElementById('calendar-container');c.innerHTML='';[calStartMonth,calEndMonth].forEach(function(m){c.appendChild(buildCalendarMonth(m));});}
+function renderCalendars() {
+  var c = document.getElementById('calendar-container');
+  c.innerHTML = '';
+
+  // 👇 NOW 3 months instead of 2
+  [calMonth1, calMonth2, calMonth3].forEach(function(m) {
+    c.appendChild(buildCalendarMonth(m));
+  });
+}
 function buildCalendarMonth(dateObj){
   var yr=dateObj.getFullYear(),mo=dateObj.getMonth(),today=new Date();
   var wrap=document.createElement('div');wrap.className='cal-month';
