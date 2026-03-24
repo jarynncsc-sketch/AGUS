@@ -566,7 +566,6 @@ var userToken = null, loggedInUser = '', selectedDevice = null;
 var deviceMarkers = {}, myChart = null, blinkOn = true;
 var OfflineQueue = JSON.parse(localStorage.getItem('OfflineQueue') || '[]');
 var allGraphData = [], currentDevice = '', activeRange = 14;
-var calStartMonth = new Date();
 var today = new Date();
 var today = new Date();
 // 👇 3 months range (past → present)
@@ -1356,7 +1355,15 @@ function buildCalendarMonth(dateObj){
   for(var dd=1;dd<=dim;dd++){(function(day){var cd=new Date(yr,mo,day),el=document.createElement('div');el.className='cal-day';el.innerText=day;if(cd.toDateString()===today.toDateString())el.classList.add('today');if(rangeStart&&cd.toDateString()===rangeStart.toDateString())el.classList.add('selected-start');if(rangeEnd&&cd.toDateString()===rangeEnd.toDateString())el.classList.add('selected-end');if(rangeStart&&rangeEnd&&cd>rangeStart&&cd<rangeEnd)el.classList.add('in-range');el.addEventListener('click',function(){onCalDayClick(cd);});grid.appendChild(el);})(dd);}
   wrap.appendChild(grid);return wrap;
 }
-function shiftCalendar(dir){calStartMonth=new Date(calStartMonth.getFullYear(),calStartMonth.getMonth()+dir,1);calEndMonth=new Date(calStartMonth.getFullYear(),calStartMonth.getMonth()+1,1);renderCalendars();}
+function shiftCalendar(dir){
+  var base = new Date(calMonth2.getFullYear(), calMonth2.getMonth() + dir, 1);
+
+  calMonth1 = new Date(base.getFullYear(), base.getMonth() - 1, 1);
+  calMonth2 = new Date(base.getFullYear(), base.getMonth(), 1);
+  calMonth3 = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+
+  renderCalendars();
+}
 function onCalDayClick(date){
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
