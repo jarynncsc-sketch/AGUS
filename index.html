@@ -76,19 +76,27 @@
     text-overflow: ellipsis !important;
     max-width: 48% !important;
   }
-#datetime-display .date-layer,
-#datetime-display .time-layer {
-    display: block !important;
-    line-height: 1.3;
+#datetime-display {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: flex-end !important;   /* keeps right alignment */
     font-size: 10px !important;
     font-weight: 600 !important;
     color: #e05555 !important;
     margin-top: 0 !important;
+    max-width: 50% !important;
+    text-align: right !important;
+    white-space: normal !important;     /* allow text to wrap */
+}
+
+#datetime-display .date-layer,
+#datetime-display .time-layer {
+    /* no special display needed, but keep other styles */
+    line-height: 1.3;
     white-space: nowrap !important;
     overflow: hidden !important;
     text-overflow: ellipsis !important;
-    max-width: 50% !important;
-    text-align: right !important;
+    max-width: 100% !important;          /* allow each line to fill the container */
 }
   /* ── Top menu bar: scrollable pill strip ── */
   #top-menu-bar {
