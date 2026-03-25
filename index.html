@@ -87,6 +87,11 @@
     max-width: 50% !important;
     text-align: right !important;
   }
+      #datetime-display .date-layer,
+#datetime-display .time-layer {
+    display: block;
+    line-height: 1.3;
+}
  
   /* ── Top menu bar: scrollable pill strip ── */
   #top-menu-bar {
@@ -997,7 +1002,7 @@
       <div class="sheet-body"><table id="sheet-table"><thead></thead><tbody></tbody></table></div>
     </div>
 <div id="welcome-user-topright">
-  <div id="datetime-display"></div>
+  <div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div>
 </div>
     <div id="device-details"></div>
     <div id="legend-card">
@@ -1265,20 +1270,29 @@ function animate() {
   requestAnimationFrame(animate);
 }
 animate();
-  function updateDateTime() {
-  var el = document.getElementById('datetime-display');
-  if (!el) return;
-  var now = new Date();
-  var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  var day = days[now.getDay()];
-  var date = now.getDate();
-  var month = months[now.getMonth()];
-  var year = now.getFullYear();
-  var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
-  var ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12; if (h === 0) h = 12;
-  el.innerText = day + ', ' + month + ' ' + date + ' ' + year + '  |  ' + (h < 10 ? '0'+h : h) + ':' + (m < 10 ? '0'+m : m) + ':' + (s < 10 ? '0'+s : s) + ' ' + ampm;
+function updateDateTime() {
+    var elContainer = document.getElementById('datetime-display');
+    if (!elContainer) return;
+    var dateEl = document.getElementById('date-display');
+    var timeEl = document.getElementById('time-display');
+    if (!dateEl || !timeEl) return;
+
+    var now = new Date();
+    var days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    var day = days[now.getDay()];
+    var date = now.getDate();
+    var month = months[now.getMonth()];
+    var year = now.getFullYear();
+    var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+    var ampm = h >= 12 ? 'PM' : 'AM';
+    h = h % 12;
+    if (h === 0) h = 12;
+
+    dateEl.innerText = day + ', ' + month + ' ' + date + ', ' + year;
+    timeEl.innerText = (h < 10 ? '0' + h : h) + ':' +
+                       (m < 10 ? '0' + m : m) + ':' +
+                       (s < 10 ? '0' + s : s) + ' ' + ampm;
 }
 updateDateTime();
 setInterval(updateDateTime, 1000);
@@ -1308,7 +1322,7 @@ function login() {
       userToken = token; loggedInUser = user;
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div id="datetime-display"></div>'; updateDateTime(); setInterval(updateDateTime, 1000);
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div>'; updateDateTime(); setInterval(updateDateTime, 1000);
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
