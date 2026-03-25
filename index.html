@@ -270,132 +270,39 @@
     .rs-gear-btn{margin-top:7px;width:100%;padding:5px 0;background:linear-gradient(135deg,#e0f2fe,#b8e1f5);color:#0369a1;border:1.5px solid #7ac7e0;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;transition:0.2s;}
     .rs-gear-btn:hover{background:linear-gradient(135deg,#c8e9fe,#a0d6f0);}
 /* Responsive adjustments for mobile (Android) */
+/* Mobile (≤768px) – wrap top menu, place welcome user below */
 @media screen and (max-width: 768px) {
-  /* Top menu bar: allow horizontal scroll if needed */
-  #top-menu-bar {
-    display: flex;
-    flex-wrap: nowrap;          /* Keep items in a row */
-    overflow-x: auto;           /* Enable horizontal scroll */
-    -webkit-overflow-scrolling: touch; /* Smooth scroll on mobile */
-    scrollbar-width: thin;      /* Slim scrollbar (Firefox) */
-    white-space: nowrap;
-    padding-bottom: 6px;        /* Space for scrollbar */
-    margin-bottom: 8px;
-  }
-
-  /* Each menu card */
-  .top-card {
-    flex: 0 0 auto;             /* Prevent shrinking */
-    width: 80px;                /* Fixed width for consistent tap area */
-    padding: 8px 4px;
-    font-size: 12px;
-    text-align: center;
-  }
-
-  /* Icons inside top cards - optional scaling */
-  .top-card svg {
-    width: 24px;
-    height: 24px;
-    display: block;
-    margin: 0 auto 4px;
-  }
-
-  /* Welcome user time/date: reposition below menu or top right with less prominence */
-  #welcome-user-topright {
-    position: relative;         /* Change from absolute to flow naturally */
-    top: auto;
-    right: auto;
-    margin: 10px 12px;
-    text-align: right;
-    font-size: 14px;
-    background: rgba(255,255,255,0.9);
-    padding: 6px 12px;
-    border-radius: 20px;
-    display: inline-block;
-    float: right;               /* Keep it at top right but within flow */
-    clear: both;
-  }
-
-  /* Ensure map container doesn't overlap */
-  #map-container {
-    position: relative;
-    padding-top: 0;
-  }
-
-  /* Optional: adjust spacing for legend to avoid overlap */
-  #legend-card {
-    bottom: 12px;
-    right: 12px;
-    background: rgba(255,255,255,0.9);
-    padding: 6px 10px;
-    font-size: 11px;
-  }
-
-  /* Make device list scrollable if needed */
-  .device-list {
-    max-height: 35vh; /* Adjust as needed */
-  }
-}
-
-/* Extra small devices (e.g., 480px and below) */
-@media screen and (max-width: 480px) {
-  .top-card {
-    width: 70px;
-    font-size: 10px;
-    padding: 6px 2px;
-  }
-
-  .top-card svg {
-    width: 20px;
-    height: 20px;
-  }
-
-  #welcome-user-topright {
-    font-size: 12px;
-    padding: 4px 10px;
-    margin: 6px 8px;
-  }
-
-  /* Hide or shorten text labels if needed – optional */
-  .top-card span {
-    font-size: 9px;
-    display: block;
-    white-space: normal;
-    word-break: break-word;
-  }
-}
-    /* Mobile (≤768px) adjustments for top menu and welcome user */
-@media screen and (max-width: 768px) {
-  /* Make map container allow vertical stacking of header elements */
+  /* Map container as flex column */
   #map-container {
     display: flex;
     flex-direction: column;
     position: relative;
   }
 
-  /* Top menu bar – horizontal scroll */
+  /* Top menu bar: wrap cards, center them */
   #top-menu-bar {
-    order: 1;                     /* Keep menu first */
+    order: 1;
     display: flex;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    white-space: nowrap;
-    padding: 8px 6px;
+    flex-wrap: wrap;           /* Cards wrap to next row */
+    justify-content: center;   /* Center cards horizontally */
+    gap: 8px 12px;             /* Row and column gaps */
+    padding: 12px 10px;
     margin: 0;
-    background: rgba(255,255,255,0.9); /* optional background for readability */
-    border-radius: 0;             /* remove radius if needed */
+    background: rgba(255,255,255,0.9);
+    border-radius: 0;
   }
 
-  /* Menu cards – fixed width for consistent tapping */
+  /* Menu cards – flexible width, auto-adjust */
   .top-card {
-    flex: 0 0 auto;
-    width: 80px;
-    padding: 8px 4px;
+    flex: 1 0 auto;            /* Allow grow/shrink, basis auto */
+    min-width: 70px;           /* Minimum tap size */
+    max-width: 110px;          /* Prevent excessive width */
+    width: auto;               /* Let width be determined by content */
+    padding: 8px 6px;
     font-size: 12px;
     text-align: center;
-    margin: 0 2px;
+    white-space: normal;       /* Allow text wrapping inside */
+    word-break: break-word;
   }
 
   /* Icons inside cards */
@@ -408,14 +315,13 @@
 
   /* Welcome user area – below the menu, right‑aligned */
   #welcome-user-topright {
-    order: 2;                     /* Place after the menu */
-    position: relative;           /* switch from absolute */
+    order: 2;
+    position: relative;
     top: auto;
     right: auto;
-    display: block;
-    width: fit-content;
-    max-width: 90%;
-    margin: 10px 12px 8px auto;   /* push to right, spacing from menu */
+    display: inline-block;     /* or block, but we want it right-aligned */
+    align-self: flex-end;      /* aligns to the right within flex container */
+    margin: 8px 16px 8px auto;
     background: rgba(255,255,255,0.95);
     padding: 6px 14px;
     border-radius: 24px;
@@ -423,7 +329,7 @@
     font-weight: 600;
     text-align: right;
     box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    clear: both;                  /* ensure no float conflict */
+    clear: both;
   }
 
   /* Map itself – take remaining space */
@@ -434,7 +340,7 @@
     width: 100%;
   }
 
-  /* Legend card – keep at bottom right but adjust spacing */
+  /* Legend card – keep bottom right but adjust spacing */
   #legend-card {
     bottom: 12px;
     right: 12px;
@@ -445,12 +351,12 @@
   }
 }
 
-/* Extra small devices (≤480px) – further reduce sizes */
+/* Extra small devices (≤480px) – further refine */
 @media screen and (max-width: 480px) {
   .top-card {
-    width: 70px;
+    min-width: 65px;
     font-size: 10px;
-    padding: 6px 2px;
+    padding: 6px 4px;
   }
   .top-card svg {
     width: 20px;
@@ -459,12 +365,10 @@
   #welcome-user-topright {
     font-size: 12px;
     padding: 4px 12px;
-    margin: 8px 8px 8px auto;
+    margin: 6px 12px 6px auto;
   }
   .top-card span {
     font-size: 9px;
-    white-space: normal;
-    word-break: break-word;
   }
 }
   </style>
