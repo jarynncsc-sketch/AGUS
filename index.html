@@ -269,6 +269,102 @@
     .ps-gear-btn:hover{background:linear-gradient(135deg,#ddeeff,#c9e0ff);}
     .rs-gear-btn{margin-top:7px;width:100%;padding:5px 0;background:linear-gradient(135deg,#e0f2fe,#b8e1f5);color:#0369a1;border:1.5px solid #7ac7e0;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;transition:0.2s;}
     .rs-gear-btn:hover{background:linear-gradient(135deg,#c8e9fe,#a0d6f0);}
+/* Responsive adjustments for mobile (Android) */
+@media screen and (max-width: 768px) {
+  /* Top menu bar: allow horizontal scroll if needed */
+  #top-menu-bar {
+    display: flex;
+    flex-wrap: nowrap;          /* Keep items in a row */
+    overflow-x: auto;           /* Enable horizontal scroll */
+    -webkit-overflow-scrolling: touch; /* Smooth scroll on mobile */
+    scrollbar-width: thin;      /* Slim scrollbar (Firefox) */
+    white-space: nowrap;
+    padding-bottom: 6px;        /* Space for scrollbar */
+    margin-bottom: 8px;
+  }
+
+  /* Each menu card */
+  .top-card {
+    flex: 0 0 auto;             /* Prevent shrinking */
+    width: 80px;                /* Fixed width for consistent tap area */
+    padding: 8px 4px;
+    font-size: 12px;
+    text-align: center;
+  }
+
+  /* Icons inside top cards - optional scaling */
+  .top-card svg {
+    width: 24px;
+    height: 24px;
+    display: block;
+    margin: 0 auto 4px;
+  }
+
+  /* Welcome user time/date: reposition below menu or top right with less prominence */
+  #welcome-user-topright {
+    position: relative;         /* Change from absolute to flow naturally */
+    top: auto;
+    right: auto;
+    margin: 10px 12px;
+    text-align: right;
+    font-size: 14px;
+    background: rgba(255,255,255,0.9);
+    padding: 6px 12px;
+    border-radius: 20px;
+    display: inline-block;
+    float: right;               /* Keep it at top right but within flow */
+    clear: both;
+  }
+
+  /* Ensure map container doesn't overlap */
+  #map-container {
+    position: relative;
+    padding-top: 0;
+  }
+
+  /* Optional: adjust spacing for legend to avoid overlap */
+  #legend-card {
+    bottom: 12px;
+    right: 12px;
+    background: rgba(255,255,255,0.9);
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+
+  /* Make device list scrollable if needed */
+  .device-list {
+    max-height: 35vh; /* Adjust as needed */
+  }
+}
+
+/* Extra small devices (e.g., 480px and below) */
+@media screen and (max-width: 480px) {
+  .top-card {
+    width: 70px;
+    font-size: 10px;
+    padding: 6px 2px;
+  }
+
+  .top-card svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  #welcome-user-topright {
+    font-size: 12px;
+    padding: 4px 10px;
+    margin: 6px 8px;
+  }
+
+  /* Hide or shorten text labels if needed – optional */
+  .top-card span {
+    font-size: 9px;
+    display: block;
+    white-space: normal;
+    word-break: break-word;
+  }
+}
+    
   </style>
 </head>
 <body>
