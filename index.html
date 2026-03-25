@@ -269,6 +269,395 @@
     .ps-gear-btn:hover{background:linear-gradient(135deg,#ddeeff,#c9e0ff);}
     .rs-gear-btn{margin-top:7px;width:100%;padding:5px 0;background:linear-gradient(135deg,#e0f2fe,#b8e1f5);color:#0369a1;border:1.5px solid #7ac7e0;border-radius:5px;cursor:pointer;font-size:12px;font-weight:700;transition:0.2s;}
     .rs-gear-btn:hover{background:linear-gradient(135deg,#c8e9fe,#a0d6f0);}
+
+    /* ============================================================
+   AGUS DASHBOARD — MOBILE RESPONSIVE CSS (Android)
+   ADD THIS ENTIRE BLOCK JUST BEFORE THE CLOSING </style> TAG
+   ============================================================ */
+
+/* ── Tablets & small laptops (≤ 900px) ── */
+@media screen and (max-width: 900px) {
+
+  /* Dashboard: stack column instead of row */
+  #dashboard {
+    flex-direction: column !important;
+    height: auto !important;
+    min-height: 100vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 0 !important;
+    gap: 0 !important;
+  }
+
+  /* Map container: full width, fixed viewport height */
+  #map-container {
+    flex: unset !important;
+    width: 100% !important;
+    height: calc(100vh - 190px) !important;
+    min-height: 300px !important;
+    border-radius: 0 !important;
+    order: 1;
+  }
+
+  /* Device list: full width compact strip below map */
+  .device-list {
+    min-width: unset !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: 190px !important;
+    border-radius: 0 !important;
+    order: 2;
+  }
+  .device-list h3 {
+    font-size: 1rem !important;
+    padding: 0.55rem 0.8rem !important;
+  }
+  .device-list li {
+    font-size: 12px !important;
+    padding: 0.5rem 0.7rem !important;
+    min-height: 38px !important;
+  }
+
+  /* ── Welcome user bar: full-width top strip ── */
+  #welcome-user-topright {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border-radius: 0 !important;
+    font-size: 12px !important;
+    padding: 5px 10px !important;
+    text-align: left !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 6px !important;
+    background: white !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15) !important;
+    z-index: 1200 !important;
+    pointer-events: none !important;
+  }
+  #welcome-username {
+    font-size: 12px !important;
+    font-weight: 700 !important;
+    color: #004080 !important;
+    white-space: nowrap !important;
+  }
+  #datetime-display {
+    font-size: 10px !important;
+    margin-top: 0 !important;
+    color: #e05555 !important;
+    white-space: nowrap !important;
+  }
+
+  /* ── Top menu bar: horizontal scroll strip ── */
+  #top-menu-bar {
+    position: absolute !important;
+    top: 36px !important;       /* sits just below the welcome bar */
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;   /* Firefox */
+    gap: 5px !important;
+    padding: 5px 6px !important;
+    background: rgba(255,255,255,0.97) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    border-bottom: 1px solid rgba(0,64,128,0.12) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 2px 8px rgba(0,64,128,0.10) !important;
+    z-index: 1100 !important;
+  }
+  /* Hide scrollbar on webkit (Chrome/Android) */
+  #top-menu-bar::-webkit-scrollbar {
+    display: none !important;
+    width: 0 !important;
+    height: 0 !important;
+  }
+
+  /* Each menu card: compact, no shrink */
+  .top-card {
+    min-width: 56px !important;
+    max-width: 56px !important;
+    width: 56px !important;
+    flex-shrink: 0 !important;
+    padding: 5px 3px !important;
+    border-radius: 7px !important;
+    align-items: center !important;
+  }
+  .top-card svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .top-card span {
+    font-size: 8px !important;
+    line-height: 1.2 !important;
+    word-break: break-word !important;
+    white-space: normal !important;
+    text-align: center !important;
+  }
+
+  /* Legend: smaller, keep visible */
+  #legend-card {
+    bottom: 8px !important;
+    right: 8px !important;
+    padding: 6px 8px !important;
+    font-size: 10px !important;
+  }
+  .legend-circle {
+    width: 10px !important;
+    height: 10px !important;
+  }
+
+  /* Sheet overlay: full width on mobile */
+  #sheet-overlay {
+    top: 80px !important;
+    left: 4px !important;
+    right: 4px !important;
+    width: calc(100% - 8px) !important;
+    max-height: calc(100vh - 90px) !important;
+    border-radius: 8px !important;
+  }
+
+  /* Graph modal: full screen on mobile */
+  #graph-modal-inner {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important; /* dynamic viewport height */
+    border-radius: 0 !important;
+    padding: 10px 8px 6px 8px !important;
+    overflow-y: auto !important;
+  }
+  #graph-modal-inner h2 {
+    font-size: 1rem !important;
+    padding-right: 30px !important;
+  }
+  #graph-meta {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 6px !important;
+    padding: 5px 8px !important;
+  }
+  #graph-live-bar {
+    width: 100% !important;
+    flex-wrap: wrap !important;
+  }
+  .range-btn {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+  }
+  #graph-download-btn {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+  }
+
+  /* Param selector: 2-column grid on mobile */
+  #param-pill-grid {
+    grid-template-columns: 1fr 1fr !important;
+    overflow-x: auto;
+  }
+  .param-group {
+    padding: 8px 10px 10px !important;
+    min-width: 120px;
+  }
+  .param-pill {
+    font-size: 10.5px !important;
+    padding: 5px 6px !important;
+  }
+
+  /* Calendar: single column on mobile */
+  #calendar-container {
+    flex-direction: column !important;
+    gap: 10px !important;
+    align-items: center !important;
+  }
+  .cal-month {
+    min-width: unset !important;
+    width: 100% !important;
+    max-width: 340px !important;
+  }
+
+  /* Pressure & Reservoir settings modals */
+  #pressure-settings-inner,
+  #reservoir-settings-inner {
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px !important;
+  }
+  .ps-input-row {
+    gap: 5px !important;
+  }
+  .ps-input-field {
+    font-size: 13px !important;
+    padding: 7px 10px !important;
+  }
+
+  /* Device details popup: full width */
+  #device-details {
+    min-width: unset !important;
+    max-width: calc(100vw - 20px) !important;
+    width: calc(100vw - 20px) !important;
+    font-size: 12px !important;
+    left: 10px !important;
+    right: 10px !important;
+    box-sizing: border-box !important;
+  }
+  #device-details div[style*="display:flex"] {
+    flex-direction: column !important;
+    min-width: unset !important;
+  }
+  #device-details div[style*="border-left"] {
+    border-left: none !important;
+    border-top: 2px solid #e5eef9 !important;
+    padding-left: 0 !important;
+    padding-top: 10px !important;
+  }
+
+  /* Toast container: full width on mobile */
+  #toast-container {
+    width: calc(100% - 20px) !important;
+    left: 10px !important;
+    transform: none !important;
+    bottom: 20px !important;
+  }
+  .toast {
+    width: 100% !important;
+    text-align: center !important;
+  }
+
+  /* Login page: stack vertically */
+  #loginPage {
+    flex-direction: column !important;
+  }
+  .lp-left {
+    width: 100% !important;
+    min-height: 220px !important;
+    padding: 24px 20px !important;
+  }
+  .lp-left .hover-menu {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+  .menu-item {
+    font-size: 1rem !important;
+    padding: 10px 14px !important;
+  }
+  .lp-right {
+    width: 100% !important;
+    padding: 30px 20px 40px !important;
+  }
+  .lp-form {
+    max-width: 100% !important;
+  }
+  .pressure-scale {
+    display: none !important;
+  }
+}
+
+/* ── Small phones (≤ 480px) ── */
+@media screen and (max-width: 480px) {
+
+  #map-container {
+    height: calc(100vh - 210px) !important;
+    min-height: 260px !important;
+  }
+
+  .device-list {
+    max-height: 210px !important;
+  }
+
+  /* Even more compact top cards */
+  .top-card {
+    min-width: 50px !important;
+    max-width: 50px !important;
+    width: 50px !important;
+    padding: 4px 2px !important;
+  }
+  .top-card svg {
+    width: 17px !important;
+    height: 17px !important;
+  }
+  .top-card span {
+    font-size: 7px !important;
+  }
+
+  /* Welcome bar */
+  #welcome-user-topright {
+    padding: 4px 8px !important;
+  }
+  #welcome-username {
+    font-size: 11px !important;
+  }
+  #datetime-display {
+    font-size: 9px !important;
+  }
+
+  /* Top menu bar top adjusted for thinner welcome bar */
+  #top-menu-bar {
+    top: 32px !important;
+  }
+
+  /* Pressure/reservoir settings stacked */
+  #ps-range-visual { padding: 12px 14px 4px !important; }
+  #ps-inputs, #rs-inputs { padding: 10px 14px 4px !important; }
+  .ps-input-group { margin-bottom: 8px !important; }
+
+  /* Graph modal adjustments */
+  .range-btn { padding: 3px 7px !important; font-size: 10px !important; }
+  .range-btn-group { gap: 4px !important; }
+  #date-range-label { font-size: 11px !important; }
+
+  /* Login form */
+  .lp-left h2 { font-size: 1.5rem !important; }
+}
+
+/* ── Very small phones (≤ 360px) ── */
+@media screen and (max-width: 360px) {
+  .top-card {
+    min-width: 46px !important;
+    max-width: 46px !important;
+    width: 46px !important;
+  }
+  .top-card svg { width: 16px !important; height: 16px !important; }
+  .top-card span { font-size: 6.5px !important; }
+
+  #welcome-username { font-size: 10px !important; }
+  #datetime-display { display: none !important; } /* hide on tiny screens to save space */
+}
+
+/* ── Touch-friendly tap targets ── */
+@media (hover: none) and (pointer: coarse) {
+  .top-card { min-height: 44px !important; }
+  .range-btn { min-height: 36px !important; padding: 6px 12px !important; }
+  .device-list li { min-height: 44px !important; }
+  .param-pill { min-height: 36px !important; }
+  .toggle-switch { width: 56px !important; height: 28px !important; }
+  .slider::before { height: 20px !important; width: 20px !important; }
+  input:checked + .slider::before { transform: translateX(28px) !important; }
+}
+
+/* ── Safe area insets (iPhone notch / Android cutout) ── */
+@supports (padding: max(0px)) {
+  #top-menu-bar {
+    padding-left: max(6px, env(safe-area-inset-left)) !important;
+    padding-right: max(6px, env(safe-area-inset-right)) !important;
+  }
+  .device-list {
+    padding-bottom: env(safe-area-inset-bottom) !important;
+  }
+}
+  
   </style>
 </head>
 <body>
