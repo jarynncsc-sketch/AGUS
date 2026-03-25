@@ -76,7 +76,10 @@
     text-overflow: ellipsis !important;
     max-width: 48% !important;
   }
-  #datetime-display {
+  #datetime-display .date-layer,
+  #datetime-display .time-layer {
+    display: block;
+    line-height: 1.3;
     font-size: 10px !important;
     font-weight: 600 !important;
     color: #e05555 !important;
@@ -87,12 +90,6 @@
     max-width: 50% !important;
     text-align: right !important;
   }
-      #datetime-display .date-layer,
-#datetime-display .time-layer {
-    display: block;
-    line-height: 1.3;
-}
- 
   /* ── Top menu bar: scrollable pill strip ── */
   #top-menu-bar {
     position: fixed !important;
