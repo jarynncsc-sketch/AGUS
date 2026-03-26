@@ -701,11 +701,11 @@
     .device-list li span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
     .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:0.5rem!important;flex-shrink:0;}
     .pressure-value{margin-left:4px;font-weight:600;color:#0066cc;background:rgba(0,102,204,0.1);padding:3px 8px;border-radius:12px;font-size:13px;font-family:'Consolas',monospace;letter-spacing:0.3px;border:1px solid rgba(0,102,204,0.2);min-width:45px;text-align:center;}
-    .waterlevel-value{margin-left:4px;font-weight:600;color:#0891b2;background:rgba(8,145,178,0.1);padding:3px 8px;border-radius:12px;font-size:13px;font-family:'Consolas',monospace;letter-spacing:0.3px;border:1px solid rgba(8,145,178,0.2);min-width:45px;text-align:center;}
+    .waterlevel-value{margin-left:4px;font-weight:600;color:#4ade80;background:rgba(8,145,178,0.1);padding:3px 8px;border-radius:12px;font-size:13px;font-family:'Consolas',monospace;letter-spacing:0.3px;border:1px solid rgba(8,145,178,0.2);min-width:45px;text-align:center;}
     .waterlevel-value.low{color:#f97316;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.2);}
-    .waterlevel-value.normal{color:#0891b2;background:rgba(8,145,178,0.1);border-color:rgba(8,145,178,0.2);}
+    .waterlevel-value.normal{color:#4ade80;background:rgba(8,145,178,0.1);border-color:rgba(8,145,178,0.2);}
     .waterlevel-value.high{color:#ef4444;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);}
-    .pressure-value.normal{color:#0891b2!important;background:rgba(8,145,178,0.1)!important;border-color:rgba(8,145,178,0.2)!important;}
+    .pressure-value.normal{color:#4ade80!important;background:rgba(8,145,178,0.1)!important;border-color:rgba(8,145,178,0.2)!important;}
     .pressure-value.low{color:#f97316;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.2);}
     .pressure-value.high{color:#ef4444;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);}
     .status-indicator{width:12px;height:12px;border-radius:50%;box-shadow:0 0 6px rgba(0,170,255,0.6);border:1px solid #00aaff;transition:0.3s;}
@@ -858,13 +858,13 @@
     #reservoir-settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:5100;justify-content:center;align-items:center;}
     #reservoir-settings-modal.visible{display:flex;}
     #reservoir-settings-inner{background:#22c55e;border-radius:18px;width:440px;max-width:95vw;box-shadow:0 32px 80px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);}
-    #rs-header{background:linear-gradient(135deg,#0891b2 0%,#0b7c9c 100%);padding:20px 24px 18px;display:flex;align-items:flex-start;justify-content:space-between;}
+    #rs-header{background:linear-gradient(135deg,#4ade80 0%,#0b7c9c 100%);padding:20px 24px 18px;display:flex;align-items:flex-start;justify-content:space-between;}
     #rs-header-left h3{margin:0 0 4px 0;font-size:1.15rem;font-weight:800;color:#ffffff;}
     #rs-device-subtitle{font-size:12px;color:rgba(255,255,255,0.75);font-family:'Consolas',monospace;font-weight:600;}
     #rs-close-btn{background:rgba(255,255,255,0.15);border:none;color:white;font-size:20px;width:32px;height:32px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     #rs-close-btn:hover{background:rgba(255,255,255,0.3);}
     #rs-user-strip{background:#f0f7ff;border-bottom:1px solid #d5e8ff;padding:10px 24px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:#004080;}
-    #rs-user-strip .user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#0891b2,#0a6b85);color:white;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+    #rs-user-strip .user-avatar{width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#4ade80,#0a6b85);color:white;font-size:13px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
     #rs-inputs{padding:20px 24px 6px;}
     #rs-validation{margin:0 24px 10px;font-size:12px;font-weight:600;padding:7px 12px;border-radius:8px;display:none;}
     #rs-validation.error{display:block;background:#fff0f0;color:#c0392b;border:1px solid #f5c6c6;}
@@ -873,7 +873,7 @@
     #rs-footer{padding:14px 24px 20px;display:flex;gap:10px;}
     #rs-cancel-btn{flex:1;padding:11px;border:2px solid #d0dcea;border-radius:10px;background:white;color:#4a6080;font-size:13.5px;font-weight:700;cursor:pointer;transition:0.2s;}
     #rs-cancel-btn:hover{background:#f0f4f9;}
-    #rs-save-btn{flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#0891b2,#0b7c9c);color:white;font-size:13.5px;font-weight:800;cursor:pointer;transition:0.2s;box-shadow:0 4px 14px rgba(8,145,178,0.35);}
+    #rs-save-btn{flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#4ade80,#0b7c9c);color:white;font-size:13.5px;font-weight:800;cursor:pointer;transition:0.2s;box-shadow:0 4px 14px rgba(8,145,178,0.35);}
     #rs-save-btn:hover{background:linear-gradient(135deg,#0a7a9c,#0c8fb0);transform:translateY(-1px);}
     #rs-save-btn:disabled{background:#c0ccd8;box-shadow:none;cursor:not-allowed;transform:none;}
     #toast-container{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;}
@@ -1202,7 +1202,7 @@ var graphPollRate = 15000, livePaused = false;
 var lastPollTime = null, lastDataCount = 0, isQuickRange = true;
 var currentDeviceType = 'pressure';
 var PUMP_PARAMS = [
-  {id:'pressure',   label:'Pressure',       unit:'psi', pattern:/pressure|psi/i,                                                   color:'#0891b2', yAxis:'yLeft',  group:'hydraulic'},
+  {id:'pressure',   label:'Pressure',       unit:'psi', pattern:/pressure|psi/i,                                                   color:'#4ade80', yAxis:'yLeft',  group:'hydraulic'},
   {id:'flowrate',   label:'Flowrate',        unit:'L/s', pattern:/flowrate|flow/i,                                                  color:'#0ea5e9', yAxis:'yLeft',  group:'hydraulic'},
   {id:'discharge',  label:'Total Discharge', unit:'m³',  pattern:/discharge|total/i,                                                color:'#8b5cf6', yAxis:'yRight', group:'hydraulic'},
   {id:'level',      label:'Water Level',     unit:'m³',  pattern:/res.*water|water.*level|reservoir level|water volume|volume m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'hydraulic'},
@@ -1382,7 +1382,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var isPS = name.toLowerCase().includes('pumping station');
     if (isRes) {
       var level = f.get('level'), wlt = (level!==null&&level!==undefined) ? level+' m³' : '-- m³';
-      var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#0891b2', rA=false;
+      var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#4ade80', rA=false;
       if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
       var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
       return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
@@ -1415,7 +1415,7 @@ if (isPS) {
     }
     if (type === 'pressure') {
       var pv = f.get('pressure'), pt = pv ? pv+' psi' : '-- psi';
-      var ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80}, pn = parseFloat(pv), pC='#0891b2', pA=false;
+      var ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80}, pn = parseFloat(pv), pC='#4ade80', pA=false;
       if (!isNaN(pn)) { if(pn<ps.minPsi){pC='#f97316';pA=true;} else if(pn>ps.maxPsi){pC='#ef4444';pA=true;} }
       var psk = new ol.style.Stroke({color:pA&&blinkOn?'#ffffff':'#002b5c',width:pA&&blinkOn?6:4});
       return [new ol.style.Style({image:new ol.style.Circle({radius:32,fill:new ol.style.Fill({color:pC}),stroke:psk}),text:new ol.style.Text({text:pt,font:'bold 16px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:4})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
@@ -1489,7 +1489,7 @@ function showDeviceDetails(device) {
     if (!isNaN(lpsi)) {
       if      (lpsi < s.minPsi) { pC = '#f97316'; pT = 'LOW';    pB = 'blink-alarm'; }
       else if (lpsi > s.maxPsi) { pC = '#ef4444'; pT = 'HIGH';   pB = 'blink-alarm'; }
-      else                      { pC = '#0891b2'; pT = 'NORMAL'; }
+      else                      { pC = '#4ade80'; pT = 'NORMAL'; }
     }
  
     // Reservoir level colour / label
@@ -1497,7 +1497,7 @@ function showDeviceDetails(device) {
     if (!isNaN(llvl)) {
       if      (llvl < r.minLevel) { lC = '#f97316'; lT = 'LOW';  lB = 'blink-alarm'; }
       else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
-      else                        { lC = '#0891b2'; lT = 'NORMAL'; }
+      else                        { lC = '#4ade80'; lT = 'NORMAL'; }
     }
  
     det.style.pointerEvents = 'auto';
@@ -1515,11 +1515,11 @@ function showDeviceDetails(device) {
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
             '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            '<span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
+            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
             'Status: ' + effSt + ' ' + fb + '<br>' +
             'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
             '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
           '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
             '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
@@ -1539,11 +1539,11 @@ function showDeviceDetails(device) {
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
             '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            '<span style="display:inline-block;background:#0891b2;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>' +
+            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>' +
             'Status: ' + effSt + ' ' + fb + '<br>' +
             'Pressure: <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
             '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#0891b2;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
           '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
             '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div>' +
@@ -1901,7 +1901,7 @@ function renderRangeChart() {
     var pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;});
     var vp=pv.filter(function(v){return v!==null;}),pmn=vp.length?Math.min.apply(null,vp):0,pmx=vp.length?Math.max.apply(null,vp):10,ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#0891b2',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#0891b2',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
+    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
     return;
   }
   var datasets=[],leftP=[],rightP=[];
