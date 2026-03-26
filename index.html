@@ -700,14 +700,74 @@
     .device-list li:hover{transform:translateY(-2px);box-shadow:0 0 15px rgba(0,170,255,0.4);background:rgba(255,255,255,0.25);}
     .device-list li span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
     .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:0.5rem!important;flex-shrink:0;}
-    .pressure-value{margin-left:4px;font-weight:600;color:#081fb2;background:rgba(0,102,204,0.1);padding:3px 8px;border-radius:12px;font-size:13px;font-family:'Consolas',monospace;letter-spacing:0.3px;border:1px solid rgba(0,102,204,0.2);min-width:45px;text-align:center;}
-    .waterlevel-value{margin-left:4px;font-weight:600;color:#4ade80;background:rgba(8,145,178,0.1);padding:3px 8px;border-radius:12px;font-size:13px;font-family:'Consolas',monospace;letter-spacing:0.3px;border:1px solid rgba(8,145,178,0.2);min-width:45px;text-align:center;}
-    .waterlevel-value.low{color:#f97316;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.2);}
-    .waterlevel-value.normal{color:#4ade80;background:rgba(8,145,178,0.1);border-color:rgba(8,145,178,0.2);}
-    .waterlevel-value.high{color:#ef4444;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);}
-    .pressure-value.normal{color:#081fb2!important;background:rgba(8,145,178,0.1)!important;border-color:rgba(8,145,178,0.2)!important;}
-    .pressure-value.low{color:#f9a616;background:rgba(249,115,22,0.1);border-color:rgba(249,115,22,0.2);}
-    .pressure-value.high{color:#ef4444;background:rgba(239,68,68,0.1);border-color:rgba(239,68,68,0.2);}
+   /* PRESSURE */
+.pressure-value{
+  margin-left:4px;
+  font-weight:600;
+  color:#1d4ed8; /* BLUE */
+  background:rgba(29,78,216,0.1);
+  padding:3px 8px;
+  border-radius:12px;
+  font-size:13px;
+  font-family:'Consolas',monospace;
+  letter-spacing:0.3px;
+  border:1px solid rgba(29,78,216,0.2);
+  min-width:45px;
+  text-align:center;
+}
+
+.pressure-value.normal{
+  color:#1d4ed8 !important; /* BLUE */
+  background:rgba(29,78,216,0.1) !important;
+  border-color:rgba(29,78,216,0.2) !important;
+}
+
+.pressure-value.low{
+  color:#f97316;
+  background:rgba(249,115,22,0.1);
+  border-color:rgba(249,115,22,0.2);
+}
+
+.pressure-value.high{
+  color:#ef4444;
+  background:rgba(239,68,68,0.1);
+  border-color:rgba(239,68,68,0.2);
+}
+
+
+/* WATER LEVEL (RESERVOIR) */
+.waterlevel-value{
+  margin-left:4px;
+  font-weight:600;
+  color:#22c55e; /* GREEN */
+  background:rgba(34,197,94,0.1);
+  padding:3px 8px;
+  border-radius:12px;
+  font-size:13px;
+  font-family:'Consolas',monospace;
+  letter-spacing:0.3px;
+  border:1px solid rgba(34,197,94,0.2);
+  min-width:45px;
+  text-align:center;
+}
+
+.waterlevel-value.normal{
+  color:#22c55e;
+  background:rgba(34,197,94,0.1);
+  border-color:rgba(34,197,94,0.2);
+}
+
+.waterlevel-value.low{
+  color:#f97316;
+  background:rgba(249,115,22,0.1);
+  border-color:rgba(249,115,22,0.2);
+}
+
+.waterlevel-value.high{
+  color:#ef4444;
+  background:rgba(239,68,68,0.1);
+  border-color:rgba(239,68,68,0.2);
+}
     .status-indicator{width:12px;height:12px;border-radius:50%;box-shadow:0 0 6px rgba(0,170,255,0.6);border:1px solid #00aaff;transition:0.3s;}
     .status-Online{background:green;box-shadow:0 0 8px green,0 0 12px #0099dd;}
     .status-Offline{background:#ffa500;box-shadow:0 0 8px #ffa500,0 0 12px #ff8800;}
@@ -1484,22 +1544,42 @@ function showDeviceDetails(device) {
     var effSt = isPres ? derivePressureStatus(d) : d.status;
     var fb = d.button ? '<span class="blink" style="color:red;">! Fault</span>' : '';
  
-    // Pressure colour / label
-    var lpsi = parseFloat(d.pressure), pC = '#aaa', pT = '—', pB = '';
-    if (!isNaN(lpsi)) {
-      if      (lpsi < s.minPsi) { pC = '#f97316'; pT = 'LOW';    pB = 'blink-alarm'; }
-      else if (lpsi > s.maxPsi) { pC = '#ef4444'; pT = 'HIGH';   pB = 'blink-alarm'; }
-      else                      { pC = '#0891b2'; pT = 'NORMAL'; }
-    }
- 
-    // Reservoir level colour / label
-    var llvl = parseFloat(d.level), lC = '#aaa', lT = '—', lB = '';
-    if (!isNaN(llvl)) {
-      if      (llvl < r.minLevel) { lC = '#f9e616'; lT = 'LOW';  lB = 'blink-alarm'; }
-      else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
-      else                        { lC = '#4ade80'; lT = 'NORMAL'; }
-    }
- 
+var lpsi = parseFloat(d.pressure), pC = '#aaa', pT = '—', pB = '';
+
+if (!isNaN(lpsi)) {
+  if (lpsi < s.minPsi) {
+    pC = '#f97316'; 
+    pT = 'LOW';
+    pB = 'blink-alarm';
+  }
+  else if (lpsi > s.maxPsi) {
+    pC = '#ef4444';
+    pT = 'HIGH';
+    pB = 'blink-alarm';
+  }
+  else {
+    pC = '#1d4ed8'; // 🔵 BLUE NORMAL
+    pT = 'NORMAL';
+  }
+}
+var llvl = parseFloat(d.level), lC = '#aaa', lT = '—', lB = '';
+
+if (!isNaN(llvl)) {
+  if (llvl < r.minLevel) {
+    lC = '#f97316';
+    lT = 'LOW';
+    lB = 'blink-alarm';
+  }
+  else if (llvl > r.maxLevel) {
+    lC = '#ef4444';
+    lT = 'HIGH';
+    lB = 'blink-alarm';
+  }
+  else {
+    lC = '#22c55e'; // 🟢 GREEN NORMAL
+    lT = 'NORMAL';
+  }
+}
     det.style.pointerEvents = 'auto';
  
     // ── RESERVOIR ────────────────────────────────────────────────
