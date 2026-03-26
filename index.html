@@ -1489,13 +1489,13 @@ function showDeviceDetails(device) {
     if (!isNaN(lpsi)) {
       if      (lpsi < s.minPsi) { pC = '#f97316'; pT = 'LOW';    pB = 'blink-alarm'; }
       else if (lpsi > s.maxPsi) { pC = '#ef4444'; pT = 'HIGH';   pB = 'blink-alarm'; }
-      else                      { pC = '#4ade80'; pT = 'NORMAL'; }
+      else                      { pC = '#0891b2'; pT = 'NORMAL'; }
     }
  
     // Reservoir level colour / label
     var llvl = parseFloat(d.level), lC = '#aaa', lT = '—', lB = '';
     if (!isNaN(llvl)) {
-      if      (llvl < r.minLevel) { lC = '#f97316'; lT = 'LOW';  lB = 'blink-alarm'; }
+      if      (llvl < r.minLevel) { lC = '#f9e616'; lT = 'LOW';  lB = 'blink-alarm'; }
       else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
       else                        { lC = '#4ade80'; lT = 'NORMAL'; }
     }
