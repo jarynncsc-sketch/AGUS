@@ -1442,8 +1442,8 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var isPS = name.toLowerCase().includes('pumping station');
     if (isRes) {
       var level = f.get('level'), wlt = (level!==null&&level!==undefined) ? level+' m³' : '-- m³';
-      var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC=#22c55e, rA=false;
-      if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
+var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#22c55e', rA=false;
+if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
       var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
       return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
     }
