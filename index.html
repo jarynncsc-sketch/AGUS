@@ -1056,7 +1056,6 @@
       <div class="top-card" data-tab="prod-history"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production History</span></div>
       <div class="top-card" data-tab="energy"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy Consumption</span></div>
       <div class="top-card" data-tab="pressure-logger"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Loggers</span></div>
-      <div class="top-card" onclick="openWaterLevelSummary()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2C6 8 4 12 4 15a8 8 0 0 0 16 0c0-3-2-7-8-13z"/></svg><span>Water Level Summary</span></div>
       <div class="top-card" data-tab="preventive-maintenance"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><span>Preventive Maintenance</span></div>
       <div class="top-card" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M4 20h16"/><path d="M12 4v12"/></svg><span>Flowmeter Calibration</span></div>
     </div>
@@ -1075,31 +1074,6 @@
       <div class="legend-item"><span class="legend-circle legend-Online"></span>Online</div>
       <div class="legend-item"><span class="legend-circle legend-Offline"></span>Offline</div>
       <div class="legend-item"><span class="legend-circle legend-Fault"></span>Fault</div>
-    </div>
-  </div>
-</div>
-
-  <!-- WATER LEVEL SUMMARY MODAL -->
-<div id="wls-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:3500;justify-content:center;align-items:center;">
-  <div id="wls-inner" style="background:linear-gradient(145deg,#d4f1f9,#e3f2fd);border-radius:22px;width:95vw;max-width:1100px;height:88vh;position:relative;display:flex;flex-direction:column;padding:22px 26px 16px;box-shadow:0 12px 30px rgba(0,0,0,0.2);overflow:hidden;">
-    <button onclick="closeWLS()" style="position:absolute;right:18px;top:14px;border:none;background:none;font-size:26px;cursor:pointer;color:#004080;font-weight:bold;opacity:0.7;">✕</button>
-    <h2 style="color:#002b5c;margin:0 0 10px 0;font-size:1.35rem;font-weight:700;">💧 Water Level Summary 2025</h2>
-    <div style="display:flex;align-items:center;gap:12px;background:#f0f8ff;padding:8px 14px;border-radius:8px;border:1px solid #cfe4ff;margin-bottom:10px;flex-wrap:wrap;">
-      <label style="font-size:13px;font-weight:700;color:#002b5c;">📍 Select Station:</label>
-      <select id="wls-station-select" onchange="wlsSelectedStation=this.value;renderWLSChart();" style="padding:6px 14px;border:1.5px solid #004080;border-radius:7px;font-size:13px;font-weight:600;color:#004080;background:white;cursor:pointer;min-width:180px;"></select>
-      <div style="display:flex;gap:14px;margin-left:auto;align-items:center;flex-wrap:wrap;">
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#1d4ed8;"><span style="width:14px;height:14px;background:rgba(29,78,216,0.75);border-radius:3px;display:inline-block;"></span>Pumping Water Level</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;color:#0891b2;"><span style="width:14px;height:14px;background:rgba(6,182,212,0.65);border-radius:3px;display:inline-block;"></span>Static Water Level</span>
-        <span style="display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#f97316;">— — Pump Setting</span>
-      </div>
-    </div>
-    <div id="wls-loading" style="display:flex;position:absolute;inset:0;background:rgba(255,255,255,0.9);z-index:10;justify-content:center;align-items:center;flex-direction:column;gap:12px;font-size:15px;color:#004080;font-weight:700;border-radius:22px;">
-      <div class="spinner"></div><span>Loading data…</span>
-    </div>
-    <div id="wls-content" style="display:none;flex:1;flex-direction:column;min-height:0;">
-      <div style="flex:1;background:#f8faff;border-radius:16px;padding:14px;border:1px solid rgba(0,64,128,0.15);min-height:0;position:relative;">
-        <canvas id="wlsChart" style="width:100%;height:100%;"></canvas>
-      </div>
     </div>
   </div>
 </div>
@@ -2216,150 +2190,6 @@ document.getElementById('reservoir-settings-modal').addEventListener('click',fun
   lh.addEventListener('mousedown',function(e){initR(e,'left');});
   rh.addEventListener('mousedown',function(e){initR(e,'right');});
 })();
-
-  // ── WATER LEVEL SUMMARY ──────────────────────────────────────────────────────
-var wlsChart = null, wlsData = null, wlsStations = [], wlsSelectedStation = '';
-
-function openWaterLevelSummary() {
-  document.getElementById('wls-modal').style.display = 'flex';
-  document.getElementById('wls-loading').style.display = 'flex';
-  document.getElementById('wls-content').style.display = 'none';
-  apiGet('getSheetTabData', {sheet: 'Water Level Summary'})
-    .then(function(rows) {
-      parseWLSData(rows);
-      document.getElementById('wls-loading').style.display = 'none';
-      document.getElementById('wls-content').style.display = 'flex';
-    })
-    .catch(function(err) { console.error('WLS error:', err); });
-}
-
-function parseWLSData(rows) {
-  if (!rows || !rows.length) return;
-  var pumpingStart = -1, staticStart = -1;
-  for (var i = 0; i < rows.length; i++) {
-    var c = String(rows[i][0] || '').trim();
-    if (/pumping water level/i.test(c)) pumpingStart = i;
-    if (/static water level/i.test(c))  staticStart  = i;
-  }
-  if (pumpingStart === -1) return;
-
-  // Stations from header row
-  wlsStations = rows[pumpingStart].slice(1).map(function(s){ return String(s||'').trim(); }).filter(Boolean);
-
-  var pumpingData = {}, staticData = {}, pumpSettings = {}, months = [];
-
-  // Parse Pumping Water Level section
-  var end1 = staticStart > -1 ? staticStart : rows.length;
-  for (var i = pumpingStart + 1; i < end1; i++) {
-    var row = rows[i], label = String(row[0]||'').trim();
-    if (!label) continue;
-    if (/pump setting/i.test(label)) {
-      wlsStations.forEach(function(st, idx) { pumpSettings[st] = parseFloat(row[idx+1]) || null; });
-    } else {
-      if (months.indexOf(label) === -1) months.push(label);
-      wlsStations.forEach(function(st, idx) {
-        if (!pumpingData[st]) pumpingData[st] = {};
-        var v = parseFloat(row[idx+1]); pumpingData[st][label] = isNaN(v) ? null : v;
-      });
-    }
-  }
-
-  // Parse Static Water Level section
-  if (staticStart > -1) {
-    for (var i = staticStart + 1; i < rows.length; i++) {
-      var row = rows[i], label = String(row[0]||'').trim();
-      if (!label || /pump setting|static water/i.test(label)) continue;
-      wlsStations.forEach(function(st, idx) {
-        if (!staticData[st]) staticData[st] = {};
-        var v = parseFloat(row[idx+1]); staticData[st][label] = isNaN(v) ? null : v;
-      });
-    }
-  }
-
-  wlsData = { pumpingData: pumpingData, staticData: staticData, pumpSettings: pumpSettings, months: months };
-
-  var sel = document.getElementById('wls-station-select');
-  sel.innerHTML = '';
-  wlsStations.forEach(function(st) {
-    var opt = document.createElement('option'); opt.value = st; opt.textContent = st; sel.appendChild(opt);
-  });
-  wlsSelectedStation = wlsStations[0] || '';
-  renderWLSChart();
-}
-
-function renderWLSChart() {
-  if (!wlsData || !wlsSelectedStation) return;
-  var st = wlsSelectedStation, months = wlsData.months;
-  var pumpVals = months.map(function(m){ return wlsData.pumpingData[st] ? wlsData.pumpingData[st][m] : null; });
-  var statVals = months.map(function(m){ return wlsData.staticData[st]  ? wlsData.staticData[st][m]  : null; });
-  var pumpSetting = wlsData.pumpSettings[st] || null;
-
-  var allVals = pumpVals.concat(statVals).filter(function(v){ return v !== null; });
-  if (pumpSetting) allVals.push(pumpSetting);
-  var minV = allVals.length ? Math.min.apply(null, allVals) : 0;
-  var maxV = allVals.length ? Math.max.apply(null, allVals) : 70;
-  var pad = Math.max((maxV - minV) * 0.18, 3);
-
-  var annotations = {};
-  if (pumpSetting) {
-    annotations.pumpLine = {
-      type: 'line', yMin: pumpSetting, yMax: pumpSetting,
-      borderColor: '#f97316', borderWidth: 2.5, borderDash: [8, 5],
-      label: { display: true, content: '🔧 Pump Setting: ' + pumpSetting + ' m',
-        position: 'end', backgroundColor: 'rgba(249,115,22,0.92)', color: 'white',
-        font: { size: 11, weight: '700' }, padding: { top: 3, bottom: 3, left: 8, right: 8 }, borderRadius: 5 }
-    };
-  }
-
-  if (wlsChart) { wlsChart.destroy(); wlsChart = null; }
-  var ctx = document.getElementById('wlsChart').getContext('2d');
-  wlsChart = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels: months,
-      datasets: [
-        { label: 'Pumping Water Level (m)', data: pumpVals,
-          backgroundColor: 'rgba(29,78,216,0.75)', borderColor: '#1d4ed8',
-          borderWidth: 1.5, borderRadius: 5 },
-        { label: 'Static Water Level (m)', data: statVals,
-          backgroundColor: 'rgba(6,182,212,0.60)', borderColor: '#06b6d4',
-          borderWidth: 1.5, borderRadius: 5 }
-      ]
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      scales: {
-        x: { ticks: { color: '#334155', font: { size: 12, weight: '600' } }, grid: { color: 'rgba(0,64,128,0.07)' } },
-        y: { min: Math.max(0, minV - pad), max: maxV + pad,
-          ticks: { color: '#334155', font: { size: 12 }, callback: function(v){ return v.toFixed(1)+' m'; } },
-          title: { display: true, text: 'Water Level (m)', color: '#002b5c', font: { size: 13, weight: '700' } },
-          grid: { color: 'rgba(0,64,128,0.09)' } }
-      },
-      plugins: {
-        legend: { display: true, position: 'top',
-          labels: { color: '#002b5c', font: { size: 12, weight: '600' }, padding: 16, usePointStyle: true } },
-        tooltip: {
-          backgroundColor: 'rgba(0,20,70,0.94)', titleColor: '#7dd3fc',
-          bodyColor: '#f1f5f9', padding: 12, cornerRadius: 8,
-          callbacks: {
-            label: function(item){ return '  '+item.dataset.label+':  '+(item.parsed.y !== null ? item.parsed.y.toFixed(2)+' m' : 'N/A'); },
-            afterBody: function(){ return pumpSetting ? ['', '  🔧 Pump Setting:  '+pumpSetting+' m'] : []; }
-          }
-        },
-        annotation: { annotations: annotations }
-      }
-    }
-  });
-}
-
-function closeWLS() {
-  document.getElementById('wls-modal').style.display = 'none';
-  if (wlsChart) { wlsChart.destroy(); wlsChart = null; }
-}
-document.getElementById('wls-modal').addEventListener('click', function(e){
-  if (e.target === document.getElementById('wls-modal')) closeWLS();
-});
 </script>
 </body>
 </html>
