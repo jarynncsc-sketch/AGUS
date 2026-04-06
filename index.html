@@ -1070,7 +1070,8 @@
 </div>
     <div id="device-details"></div>
 <div id="legend-card" style="display: flex; flex-wrap: wrap; gap: 16px; background: white; border-radius: 8px; padding: 10px 15px; box-shadow: 0 3px 10px rgba(0,0,0,0.3);">
-  <!-- Signal Status column -->
+  
+  <!-- Column 1: Signal Status -->
   <div style="min-width: 100px;">
     <div style="font-size: 12px; font-weight: bold; color: #004080; margin-bottom: 6px;">📡 Signal Status</div>
     <div class="legend-item"><span class="legend-circle legend-Online"></span>Online</div>
@@ -1078,21 +1079,31 @@
     <div class="legend-item"><span class="legend-circle legend-Fault"></span>Fault</div>
   </div>
 
-  <!-- Pressure Gauge column -->
+  <!-- Column 2: Pressure Gauge -->
   <div style="min-width: 110px;">
     <div style="font-size: 12px; font-weight: bold; color: #004080; margin-bottom: 6px;">📊 Pressure Gauge</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #1d4ed8;"></span>Normal</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #f97316;"></span>Low</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #ef4444;"></span>High</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #1d4ed8;"></span>Normal (blue)</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #f97316;"></span>Low (orange)</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #ef4444;"></span>High (red)</div>
   </div>
 
-  <!-- Reservoir column -->
+  <!-- Column 3: Reservoir -->
   <div style="min-width: 110px;">
     <div style="font-size: 12px; font-weight: bold; color: #004080; margin-bottom: 6px;">💧 Reservoir</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #22c55e;"></span>Normal</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #f97316;"></span>Low</div>
-    <div class="legend-item"><span class="legend-circle" style="background: #ef4444;"></span>High</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #22c55e;"></span>Normal (green)</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #f97316;"></span>Low (orange)</div>
+    <div class="legend-item"><span class="legend-circle" style="background: #ef4444;"></span>High/Overflow (red)</div>
   </div>
+
+  <!-- Column 4: Pumping Station -->
+  <div style="min-width: 110px;">
+    <div style="font-size: 12px; font-weight: bold; color: #004080; margin-bottom: 6px;">⚙️ Pumping Station</div>
+    <div class="legend-item"><span class="legend-circle legend-Online"></span>Online</div>
+    <div class="legend-item"><span class="legend-circle legend-Offline"></span>Offline</div>
+    <div class="legend-item"><span class="legend-circle legend-Fault"></span>Fault / Button Alarm</div>
+    <div class="legend-item" style="margin-top: 4px;"><span class="legend-circle" style="background: #f59e0b;"></span>Efficiency (optional)</div>
+  </div>
+
 </div>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
