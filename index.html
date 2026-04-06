@@ -1442,7 +1442,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var isPS = name.toLowerCase().includes('pumping station');
     if (isRes) {
       var level = f.get('level'), wlt = (level!==null&&level!==undefined) ? level+' m³' : '-- m³';
-      var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#4ade80', rA=false;
+      var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC=#22c55e, rA=false;
       if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
       var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
       return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
@@ -1475,7 +1475,7 @@ if (isPS) {
     }
     if (type === 'pressure') {
       var pv = f.get('pressure'), pt = pv ? pv+' psi' : '-- psi';
-      var ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80}, pn = parseFloat(pv), pC='#4ade80', pA=false;
+      var ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80}, pn = parseFloat(pv), pC='#1d4ed8', pA=false;
       if (!isNaN(pn)) { if(pn<ps.minPsi){pC='#f97316';pA=true;} else if(pn>ps.maxPsi){pC='#ef4444';pA=true;} }
       var psk = new ol.style.Stroke({color:pA&&blinkOn?'#ffffff':'#002b5c',width:pA&&blinkOn?6:4});
       return [new ol.style.Style({image:new ol.style.Circle({radius:32,fill:new ol.style.Fill({color:pC}),stroke:psk}),text:new ol.style.Text({text:pt,font:'bold 16px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:4})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
