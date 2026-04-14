@@ -1565,7 +1565,7 @@ if (isRes) {
              : 0;
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // ─── SVG dimensions (wider to fit full device name) ────────
+  // ─── SVG dimensions ────────────────────────────────────────
   var _W = 110, _tX = 10, _tY = 8, _tW = 90, _tH = 65;
   var _totalH = _tY + _tH + 28;
   var _fillH  = Math.round((_pct / 100) * _tH);
@@ -1594,17 +1594,23 @@ if (isRes) {
            + '" clip-path="url(#' + _cId + ')"/>';
   }
 
-  // Scale grid lines
+  // ─── Grid lines at every 10 units up to maxLevel ──────────
   var _grid = '';
-  if (_hasThresh) {
-    _grid = [0.25, 0.5, 0.75].map(function(p) {
-      var gy     = Math.round(_tY + _tH * (1 - p));
-      var gLabel = Math.round(p * _maxLvl);
+  if (_hasThresh && _maxLvl >= 10) {
+    var steps = [];
+    for (var v = 10; v <= _maxLvl; v += 10) {
+      steps.push(v);
+    }
+    _grid = steps.map(function(vol) {
+      var pct = (vol / _maxLvl) * 100;
+      if (pct > 100) return '';
+      var gy = Math.round(_tY + _tH * (1 - pct / 100));
+      if (gy < _tY + 2 || gy > _tY + _tH - 2) return '';
       return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
-           + '" stroke="rgba(100,150,200,0.25)" stroke-width="0.8"/>'
+           + '" stroke="rgba(100,150,200,0.3)" stroke-width="0.8"/>'
            + '<text x="' + (_tX + 3) + '" y="' + (gy - 2)
-           + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="8" fill="rgba(0,43,92,0.50)">'
-           + gLabel + '</text>';
+           + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="7.5" fill="rgba(0,43,92,0.6)" font-weight="500">'
+           + vol + '</text>';
     }).join('');
   }
 
@@ -1619,14 +1625,10 @@ if (isRes) {
                     + (status === 'Fault' ? '<circle cx="' + (_W - 12) + '" cy="12" r="8" fill="none" stroke="' + statusColor + '" stroke-width="1.5" opacity="0.6"/>' : '');
 
   var _bw  = 2.5;
-  var _nd  = name;  // Full device name
-
-  // ─── Device label font size (matching pressure devices) ─────
-  // Pressure devices use 11.5px for names ≤25 chars, 10px for longer.
-  // Reservoirs have slightly narrower SVG, so we use 11px / 10px.
+  var _nd  = name;
   var _nameFontSize = (name.length <= 25) ? 11 : 10;
 
-  // Dashed water‑level line
+  // Dashed water‑level line (alarm colour)
   var _wline = (_fillH > 1 && _fillH < _tH)
     ? '<line x1="' + _tX + '" y1="' + _fillY
     + '" x2="' + (_tX + _tW) + '" y2="' + _fillY
@@ -1652,7 +1654,7 @@ if (isRes) {
     // Water fill
     + _wfill
 
-    // Scale grid
+    // Grid lines (10,20,30,... up to maxLevel)
     + _grid
 
     // Tank border (signal status colour)
@@ -1660,7 +1662,7 @@ if (isRes) {
     + '" width="' + _tW + '" height="' + _tH + '" rx="4"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
 
-    // Water‑level dashed line
+    // Dashed water‑level line
     + _wline
 
     // Volume text
@@ -1675,7 +1677,7 @@ if (isRes) {
     + ' fill="' + _pctColor + '" stroke="white" stroke-width="2.5" paint-order="stroke">'
     + _pctLabel + '</text>'
 
-    // Device name (full, font size matches pressure devices)
+    // Device name (full, no truncation)
     + '<text x="' + (_W / 2) + '" y="' + (_totalH - 4) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
     + ' fill="#0f172a" stroke="white" stroke-width="2" paint-order="stroke">'
