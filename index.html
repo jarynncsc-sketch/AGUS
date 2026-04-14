@@ -1539,42 +1539,46 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 if (isRes) {
   var level = f.get('level');
   var lv    = parseFloat(level);
+  var status = f.get('status') || 'Offline';
 
-  // Per-reservoir thresholds — set via the Reservoir Threshold modal
+  // ─── Signal status colours ─────────────────────────────────
+  var statusColor = '#22c55e';  // Online
+  if (status === 'Offline') statusColor = '#f97316';
+  else if (status === 'Fault') statusColor = '#ef4444';
+
+  // ─── Water level thresholds & alarm ────────────────────────
   var _thr    = reservoirThresholdsCache[name];
   var _minLvl = (_thr && _thr.minLevel != null) ? parseFloat(_thr.minLevel) : null;
   var _maxLvl = (_thr && _thr.maxLevel != null) ? parseFloat(_thr.maxLevel) : null;
 
-  // Status colour — only evaluate alarm when both thresholds are known
-  var rfC = '#22c55e', rA = false;
+  var alarmActive = false;
+  var alarmColor  = '#22c55e';
   if (!isNaN(lv) && _minLvl !== null && _maxLvl !== null) {
-    if      (lv < _minLvl) { rfC = '#f97316'; rA = true; }
-    else if (lv > _maxLvl) { rfC = '#ef4444'; rA = true; }
+    if (lv < _minLvl)      { alarmColor = '#f97316'; alarmActive = true; }
+    else if (lv > _maxLvl) { alarmColor = '#ef4444'; alarmActive = true; }
   }
 
-  // Fill % — maxLevel = "full tank" for this reservoir
-  // If threshold not configured yet, show an empty tank with a "?" label
+  // ─── Fill percentage (based on maxLevel) ───────────────────
   var _hasThresh = (_maxLvl !== null && _maxLvl > 0);
   var _pct = (_hasThresh && !isNaN(lv))
              ? Math.min(100, Math.max(0, (lv / _maxLvl) * 100))
              : 0;
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // SVG tank dimensions
-  var _W = 90, _tX = 5, _tY = 8, _tW = 80, _tH = 65;
-  var _totalH = _tY + _tH + 20;
+  // ─── SVG dimensions (wider to fit full device name) ────────
+  var _W = 110, _tX = 10, _tY = 8, _tW = 90, _tH = 65;
+  var _totalH = _tY + _tH + 28;
   var _fillH  = Math.round((_pct / 100) * _tH);
   var _fillY  = _tY + _tH - _fillH;
 
   // Water colour
-  var _wC = !rA
+  var _wC = !alarmActive
     ? 'rgba(96,200,240,0.72)'
     : (lv < _minLvl ? 'rgba(249,115,22,0.50)' : 'rgba(239,68,68,0.50)');
 
-  // Unique clipPath id per device
   var _cId = 'rc' + name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
 
-  // Water body with wavy top surface
+  // Water fill with wavy top
   var _wfill = '';
   if (_fillH > 1) {
     var _wy    = _fillY;
@@ -1590,39 +1594,49 @@ if (isRes) {
            + '" clip-path="url(#' + _cId + ')"/>';
   }
 
-  // Scale grid lines — values come from per-reservoir maxLevel, not hardcoded
+  // Scale grid lines
   var _grid = '';
   if (_hasThresh) {
     _grid = [0.25, 0.5, 0.75].map(function(p) {
       var gy     = Math.round(_tY + _tH * (1 - p));
-      var gLabel = Math.round(p * _maxLvl);        // e.g. 25% of THIS reservoir's max
+      var gLabel = Math.round(p * _maxLvl);
       return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
            + '" stroke="rgba(100,150,200,0.25)" stroke-width="0.8"/>'
            + '<text x="' + (_tX + 3) + '" y="' + (gy - 2)
-           + '" font-family="Arial" font-size="8" fill="rgba(0,43,92,0.40)">'
+           + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="8" fill="rgba(0,43,92,0.50)">'
            + gLabel + '</text>';
     }).join('');
   }
 
   // Alarm blink ring
-  var _ring = (rA && blinkOn)
-    ? '<rect x="1" y="3" width="' + (_W - 2) + '" height="' + (_tH + 8) + '"'
-    +   ' rx="7" fill="none" stroke="' + rfC + '" stroke-width="3.5" opacity="0.75"/>'
+  var _ring = (alarmActive && blinkOn)
+    ? '<rect x="2" y="3" width="' + (_W - 4) + '" height="' + (_tH + 8) + '"'
+    +   ' rx="7" fill="none" stroke="' + alarmColor + '" stroke-width="3.5" opacity="0.75"/>'
     : '';
 
-  var _bw  = (rA && blinkOn) ? 3.5 : 2.5;
-  var _nd  = name.length > 16 ? name.slice(0, 14) + '..' : name;
+  // Status indicator circle (top‑right)
+  var _statusCircle = '<circle cx="' + (_W - 12) + '" cy="12" r="5" fill="' + statusColor + '"/>'
+                    + (status === 'Fault' ? '<circle cx="' + (_W - 12) + '" cy="12" r="8" fill="none" stroke="' + statusColor + '" stroke-width="1.5" opacity="0.6"/>' : '');
 
-  // Dashed water-level line when partially filled
+  var _bw  = 2.5;
+  var _nd  = name;  // Full device name – no truncation
+
+  // Dynamic font size based on name length
+  var _nameFontSize = 11;
+  if (name.length > 20) _nameFontSize = 9;
+  if (name.length > 28) _nameFontSize = 8;
+  if (name.length > 35) _nameFontSize = 7;
+
+  // Dashed water‑level line
   var _wline = (_fillH > 1 && _fillH < _tH)
     ? '<line x1="' + _tX + '" y1="' + _fillY
     + '" x2="' + (_tX + _tW) + '" y2="' + _fillY
-    + '" stroke="' + rfC + '" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.7"/>'
+    + '" stroke="' + alarmColor + '" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.7"/>'
     : '';
 
-  // Percentage label — "Not configured" when threshold modal hasn't been saved yet
   var _pctLabel = _hasThresh ? (Math.round(_pct) + '% full') : 'Set threshold';
-  var _pctColor = _hasThresh ? '#334155' : '#94a3b8';
+  var _pctColor = _hasThresh ? '#1e293b' : '#94a3b8';
+  var _fontStack = "'DM Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
   var _svg =
       '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '"'
@@ -1630,41 +1644,42 @@ if (isRes) {
     + ' xmlns="http://www.w3.org/2000/svg">'
 
     + _ring
+    + _statusCircle
 
     // Tank background
     + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="4" fill="#f0f9ff"/>'
+    + '" width="' + _tW + '" height="' + _tH + '" rx="4" fill="#f8fafc"/>'
 
     // Water fill
     + _wfill
 
-    // Scale grid (per-reservoir m³ values)
+    // Scale grid
     + _grid
 
-    // Tank border
+    // Tank border (signal status colour)
     + '<rect x="' + _tX + '" y="' + _tY
     + '" width="' + _tW + '" height="' + _tH + '" rx="4"'
-    + ' fill="none" stroke="' + rfC + '" stroke-width="' + _bw + '"/>'
+    + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
 
-    // Water-level dashed line
+    // Water‑level dashed line
     + _wline
 
-    // Volume text  e.g. "95 m³"
+    // Volume text
     + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 5) + '"'
-    + ' text-anchor="middle" font-family="Arial" font-size="13" font-weight="800"'
-    + ' fill="#002b5c" stroke="white" stroke-width="3" paint-order="stroke">'
+    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="13" font-weight="800"'
+    + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
     + _wlt + '</text>'
 
-    // Percentage text — uses per-reservoir maxLevel
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 19) + '"'
-    + ' text-anchor="middle" font-family="Arial" font-size="10"'
+    // Percentage text
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 20) + '"'
+    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="10" font-weight="600"'
     + ' fill="' + _pctColor + '" stroke="white" stroke-width="2.5" paint-order="stroke">'
     + _pctLabel + '</text>'
 
-    // Device name
+    // Device name (full, no truncation, dynamic font size)
     + '<text x="' + (_W / 2) + '" y="' + (_totalH - 4) + '"'
-    + ' text-anchor="middle" font-family="Arial" font-size="11" font-weight="700"'
-    + ' fill="#004080" stroke="white" stroke-width="2" paint-order="stroke">'
+    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
+    + ' fill="#0f172a" stroke="white" stroke-width="2" paint-order="stroke">'
     + _nd + '</text>'
 
     + '</svg>';
