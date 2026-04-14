@@ -1552,7 +1552,13 @@ if (isPS) {
   var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
   var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _nameD=(name.length>22?name.slice(0,20)+'..':name).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  
+  // Improved name truncation: allow up to 32 chars total, show first 30 + ".." if longer
+  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _nameD = _rawName.length > 32 ? _rawName.slice(0,30) + '..' : _rawName;
+  // Dynamic font size: 10.5 for short names, 9 for longer names ( > 25 chars)
+  var _nameFontSize = _rawName.length > 25 ? 9 : 10.5;
+  
   var _psiC='#1d4ed8';
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
   var _W=172,_cY=28,_cH=120,_tH=_cY+_cH+8;
@@ -1562,10 +1568,8 @@ if (isPS) {
     +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="27" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    // Tint rect adjusted for new name position (y=55, height 8)
     +'<rect x="1" y="'+(_cY+27)+'" width="'+(_W-2)+'" height="8" fill="'+psC+'" opacity="0.12"/>'
-    // Name moved down to y=_cY+27 (55) – well below gear circle
-    +'<text x="'+(_W/2)+'" y="'+(_cY+27)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+27)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
     +'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="5" fill="'+psC+'"/>'
     +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="15" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
