@@ -1528,13 +1528,157 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     var isPS = name.toLowerCase().includes('pumping station');
-    if (isRes) {
-      var level = f.get('level'), wlt = (level!==null&&level!==undefined) ? level+' m³' : '-- m³';
-var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#22c55e', rA=false;
-if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
-      var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
-      return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// REPLACE the entire  if (isRes) { ... }  block in the clusterLayer style.
+//
+// All thresholds come from  reservoirThresholdsCache[name]  — populated by
+// initReservoirThresholdsFromServer() and the Reservoir Threshold modal.
+// Nothing is hardcoded. Each reservoir uses its own maxLevel / minLevel.
+// ─────────────────────────────────────────────────────────────────────────────
+
+if (isRes) {
+  var level = f.get('level');
+  var lv    = parseFloat(level);
+
+  // Per-reservoir thresholds — set via the Reservoir Threshold modal
+  var _thr    = reservoirThresholdsCache[name];
+  var _minLvl = (_thr && _thr.minLevel != null) ? parseFloat(_thr.minLevel) : null;
+  var _maxLvl = (_thr && _thr.maxLevel != null) ? parseFloat(_thr.maxLevel) : null;
+
+  // Status colour — only evaluate alarm when both thresholds are known
+  var rfC = '#22c55e', rA = false;
+  if (!isNaN(lv) && _minLvl !== null && _maxLvl !== null) {
+    if      (lv < _minLvl) { rfC = '#f97316'; rA = true; }
+    else if (lv > _maxLvl) { rfC = '#ef4444'; rA = true; }
+  }
+
+  // Fill % — maxLevel = "full tank" for this reservoir
+  // If threshold not configured yet, show an empty tank with a "?" label
+  var _hasThresh = (_maxLvl !== null && _maxLvl > 0);
+  var _pct = (_hasThresh && !isNaN(lv))
+             ? Math.min(100, Math.max(0, (lv / _maxLvl) * 100))
+             : 0;
+  var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
+
+  // SVG tank dimensions
+  var _W = 90, _tX = 5, _tY = 8, _tW = 80, _tH = 65;
+  var _totalH = _tY + _tH + 20;
+  var _fillH  = Math.round((_pct / 100) * _tH);
+  var _fillY  = _tY + _tH - _fillH;
+
+  // Water colour
+  var _wC = !rA
+    ? 'rgba(96,200,240,0.72)'
+    : (lv < _minLvl ? 'rgba(249,115,22,0.50)' : 'rgba(239,68,68,0.50)');
+
+  // Unique clipPath id per device
+  var _cId = 'rc' + name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
+
+  // Water body with wavy top surface
+  var _wfill = '';
+  if (_fillH > 1) {
+    var _wy    = _fillY;
+    var _wpath = 'M ' + _tX + ',' + _wy
+               + ' q ' + Math.round(_tW * 0.25) + ',-5 ' + Math.round(_tW * 0.5) + ',0'
+               + ' q ' + Math.round(_tW * 0.25) + ',5 '  + Math.round(_tW * 0.5) + ',0'
+               + ' V ' + (_tY + _tH) + ' H ' + _tX + ' Z';
+    _wfill = '<clipPath id="' + _cId + '">'
+           +   '<rect x="' + _tX + '" y="' + _tY
+           +   '" width="' + _tW + '" height="' + _tH + '" rx="4"/>'
+           + '</clipPath>'
+           + '<path d="' + _wpath + '" fill="' + _wC
+           + '" clip-path="url(#' + _cId + ')"/>';
+  }
+
+  // Scale grid lines — values come from per-reservoir maxLevel, not hardcoded
+  var _grid = '';
+  if (_hasThresh) {
+    _grid = [0.25, 0.5, 0.75].map(function(p) {
+      var gy     = Math.round(_tY + _tH * (1 - p));
+      var gLabel = Math.round(p * _maxLvl);        // e.g. 25% of THIS reservoir's max
+      return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
+           + '" stroke="rgba(100,150,200,0.25)" stroke-width="0.8"/>'
+           + '<text x="' + (_tX + 3) + '" y="' + (gy - 2)
+           + '" font-family="Arial" font-size="8" fill="rgba(0,43,92,0.40)">'
+           + gLabel + '</text>';
+    }).join('');
+  }
+
+  // Alarm blink ring
+  var _ring = (rA && blinkOn)
+    ? '<rect x="1" y="3" width="' + (_W - 2) + '" height="' + (_tH + 8) + '"'
+    +   ' rx="7" fill="none" stroke="' + rfC + '" stroke-width="3.5" opacity="0.75"/>'
+    : '';
+
+  var _bw  = (rA && blinkOn) ? 3.5 : 2.5;
+  var _nd  = name.length > 16 ? name.slice(0, 14) + '..' : name;
+
+  // Dashed water-level line when partially filled
+  var _wline = (_fillH > 1 && _fillH < _tH)
+    ? '<line x1="' + _tX + '" y1="' + _fillY
+    + '" x2="' + (_tX + _tW) + '" y2="' + _fillY
+    + '" stroke="' + rfC + '" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.7"/>'
+    : '';
+
+  // Percentage label — "Not configured" when threshold modal hasn't been saved yet
+  var _pctLabel = _hasThresh ? (Math.round(_pct) + '% full') : 'Set threshold';
+  var _pctColor = _hasThresh ? '#334155' : '#94a3b8';
+
+  var _svg =
+      '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '"'
+    + ' width="' + _W + '" height="' + _totalH + '"'
+    + ' xmlns="http://www.w3.org/2000/svg">'
+
+    + _ring
+
+    // Tank background
+    + '<rect x="' + _tX + '" y="' + _tY
+    + '" width="' + _tW + '" height="' + _tH + '" rx="4" fill="#f0f9ff"/>'
+
+    // Water fill
+    + _wfill
+
+    // Scale grid (per-reservoir m³ values)
+    + _grid
+
+    // Tank border
+    + '<rect x="' + _tX + '" y="' + _tY
+    + '" width="' + _tW + '" height="' + _tH + '" rx="4"'
+    + ' fill="none" stroke="' + rfC + '" stroke-width="' + _bw + '"/>'
+
+    // Water-level dashed line
+    + _wline
+
+    // Volume text  e.g. "95 m³"
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 5) + '"'
+    + ' text-anchor="middle" font-family="Arial" font-size="13" font-weight="800"'
+    + ' fill="#002b5c" stroke="white" stroke-width="3" paint-order="stroke">'
+    + _wlt + '</text>'
+
+    // Percentage text — uses per-reservoir maxLevel
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 19) + '"'
+    + ' text-anchor="middle" font-family="Arial" font-size="10"'
+    + ' fill="' + _pctColor + '" stroke="white" stroke-width="2.5" paint-order="stroke">'
+    + _pctLabel + '</text>'
+
+    // Device name
+    + '<text x="' + (_W / 2) + '" y="' + (_totalH - 4) + '"'
+    + ' text-anchor="middle" font-family="Arial" font-size="11" font-weight="700"'
+    + ' fill="#004080" stroke="white" stroke-width="2" paint-order="stroke">'
+    + _nd + '</text>'
+
+    + '</svg>';
+
+  return [new ol.style.Style({
+    image: new ol.style.Icon({
+      src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
+      scale: 1,
+      anchor: [0.5, 1],
+      anchorXUnits: 'fraction',
+      anchorYUnits: 'fraction'
+    })
+  })];
+}
 //Pumping Station map icon
 if (isPS) {
   var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
