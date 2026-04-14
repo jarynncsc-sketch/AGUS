@@ -1530,7 +1530,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var isPS = name.toLowerCase().includes('pumping station');
     
 //Reservoir Pin
- if (isRes) {
+if (isRes) {
   var level = f.get('level');
   var lv    = parseFloat(level);
   var status = f.get('status') || 'Offline';
@@ -1561,7 +1561,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 
   // ─── SVG dimensions – 15% smaller (180px → 153px) ──────────
   var _W = 153, _tX = 14, _tY = 12, _tW = 126, _tH = 92;
-  var _totalH = _tY + _tH + 39;  // 12 + 92 + 39 = 143
+  var _totalH = _tY + _tH + 39;
   var _fillH  = Math.round((_pct / 100) * _tH);
   var _fillY  = _tY + _tH - _fillH;
 
@@ -1590,7 +1590,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 
   // ─── Helper: get nice step size for grid labels ───────────
   function getNiceStep(maxVal) {
-    var targetSteps = 7; // fewer labels to avoid overflow
+    var targetSteps = 7;
     var rawStep = maxVal / targetSteps;
     var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
     var residual = rawStep / magnitude;
@@ -1649,11 +1649,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + '" stroke="' + alarmColor + '" stroke-width="2" stroke-dasharray="6,4" opacity="0.85"/>'
     : '';
 
-  var _pctLabel = _hasThresh ? (Math.round(_pct) + '% full') : 'Set threshold';
-  var _pctColor = _hasThresh ? '#1e293b' : '#94a3b8';
   var _fontStack = "'DM Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-
-  // Center of tank for text positioning
   var _centerY = _tY + _tH / 2;
 
   var _svg =
@@ -1682,19 +1678,13 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     // Dashed water‑level line
     + _wline
 
-    // Volume text
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 8) + '"'
+    // Volume text (only m³, no percentage)
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="18" font-weight="800"'
     + ' fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
     + _wlt + '</text>'
 
-    // Percentage text
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 28) + '"'
-    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="14" font-weight="700"'
-    + ' fill="' + _pctColor + '" stroke="white" stroke-width="3" paint-order="stroke">'
-    + _pctLabel + '</text>'
-
-    // Device name (full, no truncation)
+    // Device name
     + '<text x="' + (_W / 2) + '" y="' + (_totalH - 6) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
     + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
