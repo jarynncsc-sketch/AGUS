@@ -1582,7 +1582,7 @@ if (isPS) {
   var _W = Math.max(110, Math.min(170, _screenW * 0.085));
   var _cY = Math.round(_W * 0.17);
   var _cH = Math.round(_W * 0.70);
-  var _tH = _cY + _cH + 8;
+  var _tH = _cY + _cH + 16; // extra bottom space
 
   var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
 
@@ -1609,7 +1609,7 @@ if (isPS) {
     +'<text x="10" y="'+(_cY+(_W*0.74))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.085)+'" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.62))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">CURRENT</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.74))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.085)+'" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    +'<text x="10" y="'+(_cY+_cH-6)+'" font-family="Arial,sans-serif" font-size="'+(_W*0.06)+'" fill="#475569">By: '+_togStr+'</text>'
+    +'<text x="10" y="'+(_cY+_cH-12)+'" font-family="Arial,sans-serif" font-size="'+(_W*0.065)+'" fill="#475569">By: '+_togStr+'</text>'
     +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
     +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
     +'</svg>';
