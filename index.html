@@ -1551,7 +1551,6 @@ if (isPS) {
   var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
   var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
-  // Truncate to 10 characters instead of 16 to fit longer label
   var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _nameD=(name.length>22?name.slice(0,20)+'..':name).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _psiC='#1d4ed8';
@@ -1563,8 +1562,10 @@ if (isPS) {
     +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="27" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    +'<rect x="1" y="'+(_cY+17)+'" width="'+(_W-2)+'" height="10" fill="'+psC+'" opacity="0.12"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+17)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+    // Tint rect adjusted for new name position (y=55, height 8)
+    +'<rect x="1" y="'+(_cY+27)+'" width="'+(_W-2)+'" height="8" fill="'+psC+'" opacity="0.12"/>'
+    // Name moved down to y=_cY+27 (55) – well below gear circle
+    +'<text x="'+(_W/2)+'" y="'+(_cY+27)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="10.5" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
     +'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="5" fill="'+psC+'"/>'
     +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="15" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
@@ -1581,7 +1582,6 @@ if (isPS) {
     +'<text x="10" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+81)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    // Changed label from "By:" to "Last toggle by:" and reduced font size slightly
     +'<text x="10" y="'+(_cY+112)+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
     +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
     +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
