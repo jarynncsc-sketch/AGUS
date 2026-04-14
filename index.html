@@ -1554,7 +1554,7 @@ if (isPS) {
   var _nameD=(name.length>22?name.slice(0,20)+'..':name).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _psiC='#1d4ed8';
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
-  var _W=172,_cY=28,_cH=120,_tH=_cY+_cH+8;
+  var _W=140,_cY=24,_cH=98,_tH=_cY+_cH+8;
   var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="22" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
@@ -1583,7 +1583,7 @@ if (isPS) {
     +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
     +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
     +'</svg>';
-  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:0.9,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
     if (type === 'pressure') {
       var pv = f.get('pressure'), pt = pv ? pv+' psi' : '-- psi';
