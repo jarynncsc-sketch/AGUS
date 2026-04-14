@@ -1565,9 +1565,9 @@ if (isRes) {
              : 0;
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // ─── SVG dimensions ────────────────────────────────────────
-  var _W = 110, _tX = 10, _tY = 8, _tW = 90, _tH = 65;
-  var _totalH = _tY + _tH + 28;
+  // ─── SVG dimensions – 10% larger (was 110px → 121px) ───────
+  var _W = 121, _tX = 11, _tY = 9, _tW = 99, _tH = 72;
+  var _totalH = _tY + _tH + 30;
   var _fillH  = Math.round((_pct / 100) * _tH);
   var _fillY  = _tY + _tH - _fillH;
 
@@ -1583,12 +1583,12 @@ if (isRes) {
   if (_fillH > 1) {
     var _wy    = _fillY;
     var _wpath = 'M ' + _tX + ',' + _wy
-               + ' q ' + Math.round(_tW * 0.25) + ',-5 ' + Math.round(_tW * 0.5) + ',0'
-               + ' q ' + Math.round(_tW * 0.25) + ',5 '  + Math.round(_tW * 0.5) + ',0'
+               + ' q ' + Math.round(_tW * 0.25) + ',-6 ' + Math.round(_tW * 0.5) + ',0'
+               + ' q ' + Math.round(_tW * 0.25) + ',6 '  + Math.round(_tW * 0.5) + ',0'
                + ' V ' + (_tY + _tH) + ' H ' + _tX + ' Z';
     _wfill = '<clipPath id="' + _cId + '">'
            +   '<rect x="' + _tX + '" y="' + _tY
-           +   '" width="' + _tW + '" height="' + _tH + '" rx="4"/>'
+           +   '" width="' + _tW + '" height="' + _tH + '" rx="5"/>'
            + '</clipPath>'
            + '<path d="' + _wpath + '" fill="' + _wC
            + '" clip-path="url(#' + _cId + ')"/>';
@@ -1607,32 +1607,32 @@ if (isRes) {
       var gy = Math.round(_tY + _tH * (1 - pct / 100));
       if (gy < _tY + 2 || gy > _tY + _tH - 2) return '';
       return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
-           + '" stroke="rgba(100,150,200,0.3)" stroke-width="0.8"/>'
-           + '<text x="' + (_tX + 3) + '" y="' + (gy - 2)
-           + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="7.5" fill="rgba(0,43,92,0.6)" font-weight="500">'
+           + '" stroke="rgba(100,150,200,0.35)" stroke-width="1"/>'
+           + '<text x="' + (_tX + 4) + '" y="' + (gy - 3)
+           + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="9" fill="rgba(0,43,92,0.65)" font-weight="600">'
            + vol + '</text>';
     }).join('');
   }
 
-  // Alarm blink ring
+  // Alarm blink ring (scaled)
   var _ring = (alarmActive && blinkOn)
-    ? '<rect x="2" y="3" width="' + (_W - 4) + '" height="' + (_tH + 8) + '"'
-    +   ' rx="7" fill="none" stroke="' + alarmColor + '" stroke-width="3.5" opacity="0.75"/>'
+    ? '<rect x="2" y="3" width="' + (_W - 4) + '" height="' + (_tH + 9) + '"'
+    +   ' rx="8" fill="none" stroke="' + alarmColor + '" stroke-width="4" opacity="0.75"/>'
     : '';
 
-  // Status indicator circle (top‑right)
-  var _statusCircle = '<circle cx="' + (_W - 12) + '" cy="12" r="5" fill="' + statusColor + '"/>'
-                    + (status === 'Fault' ? '<circle cx="' + (_W - 12) + '" cy="12" r="8" fill="none" stroke="' + statusColor + '" stroke-width="1.5" opacity="0.6"/>' : '');
+  // Status indicator circle (top‑right, slightly larger)
+  var _statusCircle = '<circle cx="' + (_W - 13) + '" cy="13" r="6" fill="' + statusColor + '"/>'
+                    + (status === 'Fault' ? '<circle cx="' + (_W - 13) + '" cy="13" r="9" fill="none" stroke="' + statusColor + '" stroke-width="1.8" opacity="0.6"/>' : '');
 
-  var _bw  = 2.5;
+  var _bw  = 2.8;
   var _nd  = name;
-  var _nameFontSize = (name.length <= 25) ? 11 : 10;
+  var _nameFontSize = (name.length <= 25) ? 12 : 10.5;
 
-  // Dashed water‑level line (alarm colour)
-  var _wline = (_fillH > 1 && _fillH < _tH)
+  // Dashed water‑level line
+  var _wline = (_fillH > 2 && _fillH < _tH - 2)
     ? '<line x1="' + _tX + '" y1="' + _fillY
     + '" x2="' + (_tX + _tW) + '" y2="' + _fillY
-    + '" stroke="' + alarmColor + '" stroke-width="1.2" stroke-dasharray="4,2" opacity="0.7"/>'
+    + '" stroke="' + alarmColor + '" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.8"/>'
     : '';
 
   var _pctLabel = _hasThresh ? (Math.round(_pct) + '% full') : 'Set threshold';
@@ -1649,7 +1649,7 @@ if (isRes) {
 
     // Tank background
     + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="4" fill="#f8fafc"/>'
+    + '" width="' + _tW + '" height="' + _tH + '" rx="5" fill="#f8fafc"/>'
 
     // Water fill
     + _wfill
@@ -1659,28 +1659,28 @@ if (isRes) {
 
     // Tank border (signal status colour)
     + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="4"'
+    + '" width="' + _tW + '" height="' + _tH + '" rx="5"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
 
     // Dashed water‑level line
     + _wline
 
-    // Volume text
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 5) + '"'
-    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="13" font-weight="800"'
-    + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
+    // Volume text (larger, bolder)
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 6) + '"'
+    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="14" font-weight="800"'
+    + ' fill="#0f172a" stroke="white" stroke-width="3.5" paint-order="stroke">'
     + _wlt + '</text>'
 
     // Percentage text
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 20) + '"'
-    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="10" font-weight="600"'
+    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_tY + _tH / 2 + 22) + '"'
+    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="11" font-weight="600"'
     + ' fill="' + _pctColor + '" stroke="white" stroke-width="2.5" paint-order="stroke">'
     + _pctLabel + '</text>'
 
     // Device name (full, no truncation)
-    + '<text x="' + (_W / 2) + '" y="' + (_totalH - 4) + '"'
+    + '<text x="' + (_W / 2) + '" y="' + (_totalH - 5) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
-    + ' fill="#0f172a" stroke="white" stroke-width="2" paint-order="stroke">'
+    + ' fill="#0f172a" stroke="white" stroke-width="2.5" paint-order="stroke">'
     + _nd + '</text>'
 
     + '</svg>';
