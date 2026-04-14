@@ -1577,36 +1577,33 @@ if (isPS) {
     }
   }
 
-  // ---------- responsive size & overlap prevention ----------
+  // ---------- responsive sizing – compact but safe ----------
   var _screenW = window.innerWidth || 1920;
   var _W = Math.max(130, Math.min(170, _screenW * 0.085));
 
-  // Increased top margin to avoid name overlapping the gear icon
-  var _cY = Math.round(_W * 0.32);       // was 0.22
-  var _row = Math.round(_W * 0.19);      // slightly taller rows
-  var _cH = _row * 4 + 24;               // extra bottom padding
-  var _tH = _cY + _cH + 12;
+  var _cY = Math.round(_W * 0.28);       // top margin (gear icon area)
+  var _row = Math.round(_W * 0.18);      // row height
+  var _cH = _row * 4 + 12;               // total card height (reduced bottom gap)
+  var _tH = _cY + _cH + 10;              // total SVG height
 
   var r1 = _cY + _row;
   var r2 = r1 + _row;
   var r3 = r2 + _row;
-  var r4 = r3 + _row - 4;                // moved up a bit to avoid bottom arrow
+  var r4 = r3 + _row * 0.65;             // "By:" line – much closer to Current row
 
-  // Font sizes adjusted for small screens
-  var titleFontSize = Math.min(_W * 0.075, 12);
+  // Font sizes (clamped for narrow screens)
+  var titleFontSize = Math.min(_W * 0.07, 11);
   var valueFontSize = Math.min(_W * 0.085, 13);
   var labelFontSize = Math.min(_W * 0.05, 8);
   var byFontSize = Math.min(_W * 0.055, 9);
   var gearFontSize = Math.min(_W * 0.085, 14);
 
-  // Column widths (left: 45%, right: 45%, with 10% gap)
+  // Column positions (left / right)
   var leftColX = 6;
   var rightColX = _W * 0.55;
-  var maxValueWidth = rightColX - leftColX - 8; // available width for each value
+  var maxValueWidth = rightColX - leftColX - 8;
 
-  // Helper to truncate long value strings (e.g., "123.4 psi" → "123.4…" if needed)
   function truncateValue(str, maxWidthPx, fontSize) {
-    // Rough estimation: average char width ~ fontsize * 0.6
     var approxLen = Math.floor(maxWidthPx / (fontSize * 0.6));
     if (str.length > approxLen && approxLen > 3) {
       return str.slice(0, approxLen - 1) + '…';
@@ -1621,43 +1618,41 @@ if (isPS) {
 
   var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _tH + '" width="' + _W + '" height="' + _tH + '" xmlns="http://www.w3.org/2000/svg">'
 
-    // Card background
     + '<rect x="1" y="' + _cY + '" width="' + (_W - 2) + '" height="' + _cH + '" rx="10" fill="white" stroke="' + psC + '" stroke-width="2"/>'
 
-    // Top colored band
-    + '<rect x="1" y="' + _cY + '" width="' + (_W - 2) + '" height="' + (_row - 8) + '" rx="10" fill="' + psC + '" opacity="0.12"/>'
+    + '<rect x="1" y="' + _cY + '" width="' + (_W - 2) + '" height="' + (_row - 6) + '" rx="10" fill="' + psC + '" opacity="0.12"/>'
 
-    // Pump name – placed safely below gear circle
-    + '<text x="' + (_W / 2) + '" y="' + (_cY + _row * 0.7) + '" text-anchor="middle" font-size="' + titleFontSize + '" font-weight="900" fill="' + psC + '">' + _nameD + '</text>'
+    // Pump name (positioned safely below gear)
+    + '<text x="' + (_W / 2) + '" y="' + (_cY + _row * 0.65) + '" text-anchor="middle" font-size="' + titleFontSize + '" font-weight="900" fill="' + psC + '">' + _nameD + '</text>'
 
-    // Gear icon circle – moved up slightly and kept away from name
-    + '<circle cx="' + (_W / 2) + '" cy="' + (_cY + 8) + '" r="' + (_W * 0.09) + '" fill="' + psC + '" stroke="white" stroke-width="2.5"/>'
-    + '<text x="' + (_W / 2) + '" y="' + (_cY + 12) + '" text-anchor="middle" font-size="' + gearFontSize + '" fill="white">\u2699</text>'
+    // Gear icon
+    + '<circle cx="' + (_W / 2) + '" cy="' + (_cY + 6) + '" r="' + (_W * 0.09) + '" fill="' + psC + '" stroke="white" stroke-width="2.5"/>'
+    + '<text x="' + (_W / 2) + '" y="' + (_cY + 10) + '" text-anchor="middle" font-size="' + gearFontSize + '" fill="white">\u2699</text>'
 
-    // Vertical divider line
-    + '<line x1="' + (_W / 2) + '" y1="' + (_cY + _row) + '" x2="' + (_W / 2) + '" y2="' + (_cY + _cH - (_row * 0.8)) + '" stroke="#e2e8f0"/>'
+    // Vertical divider
+    + '<line x1="' + (_W / 2) + '" y1="' + (_cY + _row) + '" x2="' + (_W / 2) + '" y2="' + (_cY + _cH - 12) + '" stroke="#e2e8f0"/>'
     // Horizontal separators
     + '<line x1="6" y1="' + (_cY + _row * 1.5) + '" x2="' + (_W - 6) + '" y2="' + (_cY + _row * 1.5) + '" stroke="#e2e8f0"/>'
     + '<line x1="6" y1="' + (_cY + _row * 2.5) + '" x2="' + (_W - 6) + '" y2="' + (_cY + _row * 2.5) + '" stroke="#e2e8f0"/>'
 
-    // Row 1: Pressure (left) & Flow (right)
+    // Row 1: Pressure & Flow
     + '<text x="' + leftColX + '" y="' + (r1 - 6) + '" font-size="' + labelFontSize + '" fill="#94a3b8">PRESSURE</text>'
     + '<text x="' + leftColX + '" y="' + r1 + '" font-size="' + valueFontSize + '" fill="' + _psiC + '" font-weight="800">' + _psiDisplay + '</text>'
 
     + '<text x="' + rightColX + '" y="' + (r1 - 6) + '" font-size="' + labelFontSize + '" fill="#94a3b8">FLOW</text>'
     + '<text x="' + rightColX + '" y="' + r1 + '" font-size="' + valueFontSize + '" fill="#0ea5e9">' + _lpsDisplay + '</text>'
 
-    // Row 2: Voltage (left) & Current (right)
+    // Row 2: Voltage & Current
     + '<text x="' + leftColX + '" y="' + (r2 - 6) + '" font-size="' + labelFontSize + '" fill="#94a3b8">VOLTAGE</text>'
     + '<text x="' + leftColX + '" y="' + r2 + '" font-size="' + valueFontSize + '" fill="#16a34a">' + _voltDisplay + '</text>'
 
     + '<text x="' + rightColX + '" y="' + (r2 - 6) + '" font-size="' + labelFontSize + '" fill="#94a3b8">CURRENT</text>'
     + '<text x="' + rightColX + '" y="' + r2 + '" font-size="' + valueFontSize + '" fill="#ea580c">' + _ampDisplay + '</text>'
 
-    // Row 3: Toggled by (full width, truncated if too long)
+    // "By:" line – now much closer to Current row, no big gap
     + '<text x="' + leftColX + '" y="' + r4 + '" font-size="' + byFontSize + '" fill="#475569">By: ' + _togStr + '</text>'
 
-    // Bottom pointer arrow
+    // Bottom arrow
     + '<polygon points="' + (_W / 2 - 7) + ',' + (_cY + _cH) + ' ' + (_W / 2 + 7) + ',' + (_cY + _cH) + ' ' + (_W / 2) + ',' + (_cY + _cH + 8) + '" fill="white"/>'
     + '<polyline points="' + (_W / 2 - 7) + ',' + (_cY + _cH) + ' ' + (_W / 2) + ',' + (_cY + _cH + 8) + ' ' + (_W / 2 + 7) + ',' + (_cY + _cH) + '" fill="none" stroke="' + psC + '" stroke-width="2"/>'
 
