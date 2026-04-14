@@ -1535,12 +1535,12 @@ if (isRes) {
   var lv    = parseFloat(level);
   var status = f.get('status') || 'Offline';
 
-  // Status colours
+  // ─── Status colours ───────────────────────────────────────
   var statusColor = '#22c55e';
   if (status === 'Offline') statusColor = '#f97316';
   else if (status === 'Fault') statusColor = '#ef4444';
 
-  // Thresholds
+  // ─── Thresholds ───────────────────────────────────────────
   var _thr    = reservoirThresholdsCache[name];
   var _minLvl = (_thr && _thr.minLevel != null) ? parseFloat(_thr.minLevel) : null;
   var _maxLvl = (_thr && _thr.maxLevel != null) ? parseFloat(_thr.maxLevel) : null;
@@ -1553,7 +1553,7 @@ if (isRes) {
     else if (lv > _maxLvl) { alarmColor = '#ef4444'; alarmActive = true; }
   }
 
-  // Fill percentage
+  // ─── Fill percentage ──────────────────────────────────────
   var _hasThresh = (_maxLvl !== null && _maxLvl > 0);
   var _pct = (_hasThresh && !isNaN(lv))
              ? Math.min(100, Math.max(0, (lv / _maxLvl) * 100))
@@ -1561,9 +1561,16 @@ if (isRes) {
 
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // Layout
-  var _W = 160, _tX = 14, _tY = 12, _tW = 132, _tH = 90;
-  var _totalH = _tY + _tH + 39;
+  // ─── SVG LAYOUT (UPDATED TANK HEIGHT) ─────────────────────
+  var _W = 160;
+
+  var _tX = 14;
+  var _tY = 12;
+
+  var _tW = 138;     // widened tank
+  var _tH = 125;     // ⬅ INCREASED HEIGHT (MAIN CHANGE)
+
+  var _totalH = _tY + _tH + 55;
 
   var _fillH  = Math.round((_pct / 100) * _tH);
   var _fillY  = _tY + _tH - _fillH;
@@ -1574,7 +1581,7 @@ if (isRes) {
 
   var _cId = 'rc' + name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
 
-  // ───────── animated wave at actual level ─────────
+  // ─── WATER FILL (WAVE AT ACTUAL LEVEL) ────────────────────
   var _wfill = '';
 
   if (_fillH > 2) {
@@ -1586,8 +1593,8 @@ if (isRes) {
     var wavePath =
       'M ' + _tX + ',' + waveY +
       ' q ' + (waveLen*0.25) + ',-' + waveH + ' ' + (waveLen*0.5) + ',0' +
-      ' q ' + (waveLen*0.25) + ',' + waveH + ' ' + (waveLen*0.5) + ',0' +
-      ' V ' + (_tY+_tH) +
+      ' q ' + (waveLen*0.25) + ',' + waveH + ' '  + (waveLen*0.5) + ',0' +
+      ' V ' + (_tY + _tH) +
       ' H ' + _tX +
       ' Z';
 
@@ -1600,71 +1607,58 @@ if (isRes) {
       '</defs>' +
 
       '<use href="#'+_cId+'_wave" fill="'+_wC+'" clip-path="url(#'+_cId+')">' +
-      '<animateTransform attributeName="transform" type="translate" from="0 0" to="-'+(waveLen/2)+' 0" dur="2s" repeatCount="indefinite"/>' +
+      '<animateTransform attributeName="transform" type="translate" from="0 0" to="-'+(_tW/2)+' 0" dur="2s" repeatCount="indefinite"/>' +
       '</use>';
   }
 
-  // nice step
-  function getNiceStep(maxVal) {
-    var target = 5;
-    var raw = maxVal / target;
-    var mag = Math.pow(10, Math.floor(Math.log10(raw)));
-    var res = raw / mag;
-    if (res < 1.5) return mag;
-    else if (res < 3.5) return 2 * mag;
-    else if (res < 7.5) return 5 * mag;
-    else return 10 * mag;
-  }
-
-  // grid labels
+  // ─── GRID (clean, no threshold labels) ─────────────────────
   var _grid = '';
 
   if (_hasThresh) {
+
+    function getNiceStep(maxVal) {
+      var target = 5;
+      var raw = maxVal / target;
+      var mag = Math.pow(10, Math.floor(Math.log10(raw)));
+      var res = raw / mag;
+      if (res < 1.5) return mag;
+      else if (res < 3.5) return 2 * mag;
+      else if (res < 7.5) return 5 * mag;
+      else return 10 * mag;
+    }
+
     var step = getNiceStep(_maxLvl);
 
     for (var v = step; v <= _maxLvl; v += step) {
 
-      var gy = _tY + _tH - (_tH*(v/_maxLvl));
+      var gy = _tY + _tH - (_tH * (v / _maxLvl));
 
       _grid +=
-      '<line x1="'+_tX+'" y1="'+gy+'" x2="'+(_tX+_tW)+'" y2="'+gy+'" stroke="rgba(100,150,200,0.35)" stroke-width="1"/>'
+      '<line x1="'+_tX+'" y1="'+gy+'" x2="'+(_tX+_tW)+'" y2="'+gy+'" stroke="rgba(100,150,200,0.35)" stroke-width="1"/>' +
 
-      +'<text x="'+(_tX+5)+'" y="'+(gy-2)+'"'
-      +' font-family="DM Sans,Arial"'
-      +' font-size="14"'
-      +' font-weight="700"'
-      +' fill="#0f172a"'
-      +' stroke="white"'
-      +' stroke-width="2"'
-      +' paint-order="stroke">'
-      + v +
-      '</text>';
+      '<text x="'+(_tX+5)+'" y="'+(gy-2)+'" font-family="Arial" font-size="9.5" font-weight="700" fill="#0f172a" stroke="white" stroke-width="2" paint-order="stroke">'+v+'</text>';
     }
   }
 
-  // dashed water level
+  // ─── WATER LEVEL LINE ─────────────────────────────────────
   var _wline =
-    '<line x1="'+_tX+'" y1="'+_fillY+'"'
-    +' x2="'+(_tX+_tW)+'" y2="'+_fillY+'"'
-    +' stroke="'+alarmColor+'"'
-    +' stroke-width="2"'
-    +' stroke-dasharray="6,4"'
-    +' opacity="0.85"/>';
+    '<line x1="'+_tX+'" y1="'+_fillY+'" x2="'+(_tX+_tW)+'" y2="'+_fillY+'"'
+    +' stroke="'+alarmColor+'" stroke-width="2" stroke-dasharray="6,4" opacity="0.85"/>';
 
-  // alarm ring
+  // ─── ALARM RING ───────────────────────────────────────────
   var _ring = (alarmActive && blinkOn)
     ? '<rect x="3" y="4" width="'+(_W-6)+'" height="'+(_tH+12)+'" rx="10" fill="none" stroke="'+alarmColor+'" stroke-width="5" opacity="0.75"/>'
     : '';
 
-  // status circle
+  // ─── STATUS DOT ───────────────────────────────────────────
   var _statusCircle =
     '<circle cx="'+(_W-17)+'" cy="17" r="9" fill="'+statusColor+'"/>';
 
-  var _fontStack =
-  "'DM Sans','Segoe UI',Roboto,Helvetica,Arial,sans-serif";
+  var _fontStack = "'DM Sans','Segoe UI',Roboto,Arial,sans-serif";
 
   var _centerY = _tY + _tH/2;
 
+  // ─── SVG ──────────────────────────────────────────────────
   var _svg =
   '<svg viewBox="0 0 '+_W+' '+_totalH+'" width="'+_W+'" height="'+_totalH+'" xmlns="http://www.w3.org/2000/svg">'
   + _ring
@@ -1675,27 +1669,11 @@ if (isRes) {
   + '<rect x="'+_tX+'" y="'+_tY+'" width="'+_tW+'" height="'+_tH+'" rx="6" fill="none" stroke="'+statusColor+'" stroke-width="3"/>'
   + _wline
 
-  + '<text x="'+(_tX+_tW/2)+'" y="'+(_centerY+6)+'"'
-  +' text-anchor="middle"'
-  +' font-family="'+_fontStack+'"'
-  +' font-size="18"'
-  +' font-weight="800"'
-  +' fill="#0f172a"'
-  +' stroke="white"'
-  +' stroke-width="4"'
-  +' paint-order="stroke">'
+  + '<text x="'+(_tX+_tW/2)+'" y="'+(_centerY+6)+'" text-anchor="middle" font-family="'+_fontStack+'" font-size="18" font-weight="800" fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
   + _wlt +
   '</text>'
 
-  + '<text x="'+(_W/2)+'" y="'+(_totalH-6)+'"'
-  +' text-anchor="middle"'
-  +' font-family="'+_fontStack+'"'
-  +' font-size="12"'
-  +' font-weight="700"'
-  +' fill="#0f172a"'
-  +' stroke="white"'
-  +' stroke-width="3"'
-  +' paint-order="stroke">'
+  + '<text x="'+(_W/2)+'" y="'+(_totalH-8)+'" text-anchor="middle" font-family="'+_fontStack+'" font-size="12" font-weight="700" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
   + name +
   '</text>'
 
@@ -1710,99 +1688,6 @@ if (isRes) {
       anchorYUnits: 'fraction'
     })
   })];
-}
-//Pumping Station map icon
-if (isPS) {
-  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
-  var psAnomaly = status !== 'Online' || f.get('button');
-  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
-  if (!psAnomaly) {
-    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
-    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
-      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
-    }
-  }
-  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy');
-  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
-  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
-  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
-  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
-  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  
-  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _nameD = _rawName.length > 32 ? _rawName.slice(0,30) + '..' : _rawName;
-  var _nameFontSize = _rawName.length > 25 ? 9 : 10.5;
-  
-  var _psiC='#1d4ed8';
-  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
-  
-  // Increased card height from 120 to 130
-  var _W=172,_cY=28,_cH=130,_tH=_cY+_cH+8;
-  var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
-  
-  // Data section shifted down by 8px
-  var _dataOffset = 8;
-  var _presLabelY = _cY+40+_dataOffset;     // was 40 -> 48
-  var _presValueY = _cY+57+_dataOffset;     // was 57 -> 65
-  var _flowLabelY = _cY+40+_dataOffset;     // 48
-  var _flowValueY = _cY+57+_dataOffset;     // 65
-  var _voltLabelY = _cY+81+_dataOffset;     // was 81 -> 89
-  var _voltValueY = _cY+97+_dataOffset;     // was 97 -> 105
-  var _currLabelY = _cY+81+_dataOffset;     // 89
-  var _currValueY = _cY+97+_dataOffset;     // 105
-  var _toggleY = _cY+112+_dataOffset;       // was 112 -> 120
-  
-  // Divider lines adjusted
-  var _line1Y = _cY+69+_dataOffset;         // was 69 -> 77
-  var _line2Y = _cY+105+_dataOffset;        // was 105 -> 113
-  
-  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="22" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
-    +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="27" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    +'<rect x="1" y="'+(_cY+27)+'" width="'+(_W-2)+'" height="8" fill="'+psC+'" opacity="0.12"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+27)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
-    +'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="5" fill="'+psC+'"/>'
-    +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="15" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="white">\u2699</text>'
-    
-    // First horizontal divider (below name, above pressure)
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+27)+'" x2="'+(_W/2)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+_line1Y+'" x2="'+(_W-8)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    
-    // Second horizontal divider (between pressure/flow and voltage/current)
-    +'<line x1="'+(_W/2)+'" y1="'+_line1Y+'" x2="'+(_W/2)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+_line2Y+'" x2="'+(_W-8)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    
-    // Third horizontal divider (below voltage/current)
-    +'<line x1="'+(_W/2)+'" y1="'+_line2Y+'" x2="'+(_W/2)+'" y2="'+(_cY+_cH-8)+'" stroke="#e2e8f0" stroke-width="1"/>'
-    
-    // PRESSURE
-    +'<text x="10" y="'+_presLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">PRESSURE</text>'
-    +'<text x="10" y="'+_presValueY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-    
-    // FLOW
-    +'<text x="'+(_W/2+6)+'" y="'+_flowLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_flowValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-    
-    // VOLTAGE
-    +'<text x="10" y="'+_voltLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">VOLTAGE</text>'
-    +'<text x="10" y="'+_voltValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-    
-    // CURRENT
-    +'<text x="'+(_W/2+6)+'" y="'+_currLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_currValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    
-    // LAST TOGGLE BY
-    +'<text x="10" y="'+_toggleY+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
-    
-    // Bottom pointer
-    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
-    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
-    +'</svg>';
-  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
 //Pressure map icon
     if (type === 'pressure') {
