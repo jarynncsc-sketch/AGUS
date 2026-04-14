@@ -1562,7 +1562,7 @@ if (isRes) {
   // ─── SVG dimensions with internal padding to avoid overflow ─
   var _W = 153, _tX = 14, _tY = 12, _tW = 126, _tH = 92;
   var _topMargin = 4;           // extra space above water fill
-  var _innerPadding = 6;        // pixels from top/bottom for text labels
+  var _innerPadding = 4;        // reduced from 6 to give more space for max label
   var _fillableH = _tH - _topMargin;
   var _totalH = _tY + _tH + 39;
   var _fillH  = Math.round((_pct / 100) * _fillableH);
@@ -1615,23 +1615,27 @@ if (isRes) {
     for (var v = firstLabel; v < _maxLvl; v += step) {
       labels.push(v);
     }
+    // Always add the max level label
     if (labels[labels.length-1] !== _maxLvl) {
       labels.push(_maxLvl);
     }
-    // Available vertical space for grid labels (excluding top/bottom padding)
     var gridTopY = _tY + _innerPadding;
     var gridBottomY = _tY + _tH - _innerPadding;
     var gridHeight = gridBottomY - gridTopY;
     _grid = labels.map(function(vol) {
       var pct = (vol / _maxLvl) * 100;
       if (pct > 100) return '';
-      // Map percentage to Y within padded area
       var gy = gridTopY + gridHeight * (1 - pct / 100);
       gy = Math.round(gy);
-      if (gy < gridTopY + 2 || gy > gridBottomY - 2) return '';
+      // Allow labels exactly at the top and bottom boundaries
+      if (gy < gridTopY || gy > gridBottomY) return '';
+      // Adjust text Y position: for top label (gy == gridTopY) shift text slightly down
+      var textY = gy - 4;
+      if (gy === gridTopY) textY = gy + 2;   // prevent text from being cut off at top
+      if (gy === gridBottomY) textY = gy - 2;
       return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
            + '" stroke="rgba(100,150,200,0.4)" stroke-width="1.3"/>'
-           + '<text x="' + (_tX + 7) + '" y="' + (gy - 4)
+           + '<text x="' + (_tX + 7) + '" y="' + textY
            + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="11" fill="rgba(0,43,92,0.75)" font-weight="700">'
            + vol + '</text>';
     }).join('');
@@ -1676,7 +1680,7 @@ if (isRes) {
     // Water fill
     + _wfill
 
-    // Grid lines (with internal padding, never touch top/bottom border)
+    // Grid lines (dynamic step, always includes max level)
     + _grid
 
     // Tank border (signal status colour)
@@ -1687,7 +1691,7 @@ if (isRes) {
     // Dashed water‑level line
     + _wline
 
-    // Volume text (safely inside, no overflow)
+    // Volume text (only m³)
     + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="18" font-weight="800"'
     + ' fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
