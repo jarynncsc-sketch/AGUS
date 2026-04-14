@@ -1535,6 +1535,7 @@ if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLe
       var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
       return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
     }
+//Pumping Station map icon
 if (isPS) {
   var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
   var psAnomaly = status !== 'Online' || f.get('button');
@@ -1576,35 +1577,37 @@ if (isPS) {
     }
   }
 
-  // ================= AUTO RESPONSIVE SIZE =================
+  // ================= AUTO RESPONSIVE SIZE (FINAL FIX) =================
   var _screenW = window.innerWidth || 1920;
 
-  var _W = Math.max(110, Math.min(170, _screenW * 0.085));
-  var _cY = Math.round(_W * 0.17);
-  var _cH = Math.round(_W * 0.70);
-  var _tH = _cY + _cH + 16; // extra bottom space
+  var _W = Math.max(120, Math.min(180, _screenW * 0.09));
+
+  var _topPad = Math.round(_W * 0.18);
+  var _cY = _topPad + Math.round(_W * 0.10);
+  var _cH = Math.round(_W * 0.72);
+  var _tH = _cY + _cH + 16;
 
   var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
 
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.16)+'" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.14)+'" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
     +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+(_W*0.19)+'" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    +'<rect x="1" y="'+(_cY+(_W*0.12))+'" width="'+(_W-2)+'" height="10" fill="'+psC+'" opacity="0.12"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+(_W*0.12))+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+(_W*0.075)+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+(_W*0.22)+'" rx="10" fill="'+psC+'" opacity="0.12"/>'
+    +'<rect x="1" y="'+(_cY+(_W*0.14))+'" width="'+(_W-2)+'" height="10" fill="'+psC+'" opacity="0.12"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+(_W*0.15))+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+(_W*0.075)+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
     +'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="5" fill="'+psC+'"/>'
     +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.11)+'" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+(_W*0.10)+'" fill="white">\u2699</text>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+27)+'" x2="'+(_W/2)+'" y2="'+(_cY+(_W*0.50))+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.10)+'" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+4)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+(_W*0.095)+'" fill="white">\u2699</text>'
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+(_W*0.16))+'" x2="'+(_W/2)+'" y2="'+(_cY+(_W*0.50))+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="8" y1="'+(_cY+(_W*0.50))+'" x2="'+(_W-8)+'" y2="'+(_cY+(_W*0.50))+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="'+(_W/2)+'" y1="'+(_cY+(_W*0.50))+'" x2="'+(_W/2)+'" y2="'+(_cY+(_W*0.78))+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="8" y1="'+(_cY+(_W*0.78))+'" x2="'+(_W-8)+'" y2="'+(_cY+(_W*0.78))+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<text x="10" y="'+(_cY+(_W*0.29))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">PRESSURE</text>'
-    +'<text x="10" y="'+(_cY+(_W*0.41))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.095)+'" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.29))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.41))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.095)+'" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+    +'<text x="10" y="'+(_cY+(_W*0.30))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">PRESSURE</text>'
+    +'<text x="10" y="'+(_cY+(_W*0.42))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.095)+'" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.30))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.42))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.095)+'" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
     +'<text x="10" y="'+(_cY+(_W*0.62))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">VOLTAGE</text>'
     +'<text x="10" y="'+(_cY+(_W*0.74))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.085)+'" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+(_W*0.62))+'" font-family="Arial,sans-serif" font-size="'+(_W*0.055)+'" fill="#94a3b8" font-weight="700">CURRENT</text>'
@@ -1626,6 +1629,7 @@ if (isPS) {
     })
   })];
 }
+//Pressure map icon
     if (type === 'pressure') {
       var pv = f.get('pressure'), pt = pv ? pv+' psi' : '-- psi';
       var ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80}, pn = parseFloat(pv), pC='#1d4ed8', pA=false;
