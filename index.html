@@ -1551,7 +1551,8 @@ if (isPS) {
   var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
   var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
-  var _togStr=(_togRaw?String(_togRaw).slice(0,16):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  // Truncate to 10 characters instead of 16 to fit longer label
+  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _nameD=(name.length>22?name.slice(0,20)+'..':name).replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _psiC='#1d4ed8';
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
@@ -1580,7 +1581,8 @@ if (isPS) {
     +'<text x="10" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+81)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    +'<text x="10" y="'+(_cY+112)+'" font-family="Arial,sans-serif" font-size="9.5" fill="#475569">By: '+_togStr+'</text>'
+    // Changed label from "By:" to "Last toggle by:" and reduced font size slightly
+    +'<text x="10" y="'+(_cY+112)+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
     +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
     +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
     +'</svg>';
