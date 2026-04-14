@@ -1535,12 +1535,12 @@ if (isRes) {
   var lv    = parseFloat(level);
   var status = f.get('status') || 'Offline';
 
-  // ─── Status colours ───────────────────────────────────────
+  // Status colours
   var statusColor = '#22c55e';
   if (status === 'Offline') statusColor = '#f97316';
   else if (status === 'Fault') statusColor = '#ef4444';
 
-  // ─── Thresholds ───────────────────────────────────────────
+  // Thresholds
   var _thr    = reservoirThresholdsCache[name];
   var _minLvl = (_thr && _thr.minLevel != null) ? parseFloat(_thr.minLevel) : null;
   var _maxLvl = (_thr && _thr.maxLevel != null) ? parseFloat(_thr.maxLevel) : null;
@@ -1553,7 +1553,7 @@ if (isRes) {
     else if (lv > _maxLvl) { alarmColor = '#ef4444'; alarmActive = true; }
   }
 
-  // ─── Fill percentage ──────────────────────────────────────
+  // Fill percentage
   var _hasThresh = (_maxLvl !== null && _maxLvl > 0);
   var _pct = (_hasThresh && !isNaN(lv))
              ? Math.min(100, Math.max(0, (lv / _maxLvl) * 100))
@@ -1561,7 +1561,7 @@ if (isRes) {
 
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // ─── SVG Layout ───────────────────────────────────────────
+  // Layout
   var _W = 160, _tX = 14, _tY = 12, _tW = 132, _tH = 96;
   var _totalH = _tY + _tH + 39;
 
@@ -1574,23 +1574,37 @@ if (isRes) {
 
   var _cId = 'rc' + name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
 
-  // ─── Water fill ───────────────────────────────────────────
+  // ───────── animated wave at actual level ─────────
   var _wfill = '';
+
   if (_fillH > 2) {
-    var _wpath =
-      'M ' + _tX + ',' + _fillY +
-      ' q ' + (_tW*0.25) + ',-8 ' + (_tW*0.5) + ',0' +
-      ' q ' + (_tW*0.25) + ',8 '  + (_tW*0.5) + ',0' +
-      ' V ' + (_tY+_tH) + ' H ' + _tX + ' Z';
+
+    var waveH = 6;
+    var waveLen = _tW;
+    var waveY = _fillY;
+
+    var wavePath =
+      'M ' + _tX + ',' + waveY +
+      ' q ' + (waveLen*0.25) + ',-' + waveH + ' ' + (waveLen*0.5) + ',0' +
+      ' q ' + (waveLen*0.25) + ',' + waveH + ' ' + (waveLen*0.5) + ',0' +
+      ' V ' + (_tY+_tH) +
+      ' H ' + _tX +
+      ' Z';
 
     _wfill =
-      '<clipPath id="'+_cId+'">'+
-      '<rect x="'+_tX+'" y="'+_tY+'" width="'+_tW+'" height="'+_tH+'" rx="6"/>'+
-      '</clipPath>'+
-      '<path d="'+_wpath+'" fill="'+_wC+'" clip-path="url(#'+_cId+')"/>';
+      '<defs>' +
+      '<clipPath id="'+_cId+'">' +
+      '<rect x="'+_tX+'" y="'+_tY+'" width="'+_tW+'" height="'+_tH+'" rx="6"/>' +
+      '</clipPath>' +
+      '<path id="'+_cId+'_wave" d="'+wavePath+'" />' +
+      '</defs>' +
+
+      '<use href="#'+_cId+'_wave" fill="'+_wC+'" clip-path="url(#'+_cId+')">' +
+      '<animateTransform attributeName="transform" type="translate" from="0 0" to="-'+(waveLen/2)+' 0" dur="2s" repeatCount="indefinite"/>' +
+      '</use>';
   }
 
-  // ─── Nice step ────────────────────────────────────────────
+  // nice step
   function getNiceStep(maxVal) {
     var target = 5;
     var raw = maxVal / target;
@@ -1602,72 +1616,33 @@ if (isRes) {
     else return 10 * mag;
   }
 
-  // ─── Grid + labels ────────────────────────────────────────
+  // grid labels
   var _grid = '';
-  var _minLine = '';
 
   if (_hasThresh) {
-
     var step = getNiceStep(_maxLvl);
-    var labels = [];
 
-    for (var v = step; v < _maxLvl; v += step) labels.push(v);
+    for (var v = step; v <= _maxLvl; v += step) {
 
-    if (_minLvl !== null) labels.push(_minLvl);
-    labels.push(_maxLvl);
+      var gy = _tY + _tH - (_tH*(v/_maxLvl));
 
-    labels = labels.filter((v,i,a)=>a.indexOf(v)===i)
-                   .sort((a,b)=>a-b);
+      _grid +=
+      '<line x1="'+_tX+'" y1="'+gy+'" x2="'+(_tX+_tW)+'" y2="'+gy+'" stroke="rgba(100,150,200,0.35)" stroke-width="1"/>'
 
-    _grid = labels.map(function(vol){
-
-      var gy = _tY + _tH - (_tH*(vol/_maxLvl));
-
-      var isMin = (_minLvl!==null && Math.abs(vol-_minLvl)<0.001);
-      var isMax = Math.abs(vol-_maxLvl)<0.001;
-
-      var color = isMin ? '#f97316'
-                : isMax ? '#2563eb'
-                : 'rgba(100,150,200,0.35)';
-
-      var dash = isMin ? ' stroke-dasharray="6,4"' : '';
-
-      var label =
-        (isMin?'MIN ':'')+
-        (isMax?'MAX ':'')+
-        vol+' m³';
-
-      return ''
-      +'<line x1="'+_tX+'" y1="'+gy+'" x2="'+(_tX+_tW)+'" y2="'+gy+'"'
-      +' stroke="'+color+'" stroke-width="1.4"'+dash+'/>'
-      +'<text x="'+(_tX+6)+'" y="'+(gy-3)+'"'
+      +'<text x="'+(_tX+5)+'" y="'+(gy-2)+'"'
       +' font-family="DM Sans,Arial"'
-      +' font-size="11.5"'
-      +' font-weight="800"'
-      +' fill="'+(isMin?'#f97316':'#0f172a')+'"'
+      +' font-size="9.5"'
+      +' font-weight="700"'
+      +' fill="#0f172a"'
       +' stroke="white"'
-      +' stroke-width="2.5"'
+      +' stroke-width="2"'
       +' paint-order="stroke">'
-      +label+
+      + v +
       '</text>';
-
-    }).join('');
-
-    // blinking MIN line
-    if (_minLvl !== null) {
-      var minY = _tY + _tH - (_tH*(_minLvl/_maxLvl));
-      _minLine =
-        '<line x1="'+_tX+'" y1="'+minY+'"'
-        +' x2="'+(_tX+_tW)+'" y2="'+minY+'"'
-        +' stroke="#f97316"'
-        +' stroke-width="2"'
-        +' stroke-dasharray="5,4"'
-        +(alarmActive && blinkOn ? ' opacity="1"' : ' opacity="0.45"')
-        +'/>';
     }
   }
 
-  // ─── Water level dashed line ──────────────────────────────
+  // dashed water level
   var _wline =
     '<line x1="'+_tX+'" y1="'+_fillY+'"'
     +' x2="'+(_tX+_tW)+'" y2="'+_fillY+'"'
@@ -1676,14 +1651,12 @@ if (isRes) {
     +' stroke-dasharray="6,4"'
     +' opacity="0.85"/>';
 
-  // ─── Alarm ring ───────────────────────────────────────────
+  // alarm ring
   var _ring = (alarmActive && blinkOn)
-    ? '<rect x="3" y="4" width="'+(_W-6)+'" height="'+(_tH+12)+'"'
-      +' rx="10" fill="none" stroke="'+alarmColor+'"'
-      +' stroke-width="5" opacity="0.75"/>'
+    ? '<rect x="3" y="4" width="'+(_W-6)+'" height="'+(_tH+12)+'" rx="10" fill="none" stroke="'+alarmColor+'" stroke-width="5" opacity="0.75"/>'
     : '';
 
-  // ─── Status circle ─────────────────────────────────────────
+  // status circle
   var _statusCircle =
     '<circle cx="'+(_W-17)+'" cy="17" r="9" fill="'+statusColor+'"/>';
 
@@ -1699,7 +1672,6 @@ if (isRes) {
   + '<rect x="'+_tX+'" y="'+_tY+'" width="'+_tW+'" height="'+_tH+'" rx="6" fill="#f8fafc"/>'
   + _wfill
   + _grid
-  + _minLine
   + '<rect x="'+_tX+'" y="'+_tY+'" width="'+_tW+'" height="'+_tH+'" rx="6" fill="none" stroke="'+statusColor+'" stroke-width="3"/>'
   + _wline
 
@@ -1718,7 +1690,7 @@ if (isRes) {
   + '<text x="'+(_W/2)+'" y="'+(_totalH-6)+'"'
   +' text-anchor="middle"'
   +' font-family="'+_fontStack+'"'
-  +' font-size="13"'
+  +' font-size="12"'
   +' font-weight="700"'
   +' fill="#0f172a"'
   +' stroke="white"'
