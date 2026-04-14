@@ -1528,15 +1528,9 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     var isPS = name.toLowerCase().includes('pumping station');
-// ─────────────────────────────────────────────────────────────────────────────
-// REPLACE the entire  if (isRes) { ... }  block in the clusterLayer style.
-//
-// All thresholds come from  reservoirThresholdsCache[name]  — populated by
-// initReservoirThresholdsFromServer() and the Reservoir Threshold modal.
-// Nothing is hardcoded. Each reservoir uses its own maxLevel / minLevel.
-// ─────────────────────────────────────────────────────────────────────────────
-
-if (isRes) {
+    
+//Reservoir Pin
+    if (isRes) {
   var level = f.get('level');
   var lv    = parseFloat(level);
   var status = f.get('status') || 'Offline';
@@ -1716,7 +1710,99 @@ if (isRes) {
     })
   })];
 }
+//Pumping Station map icon
+if (isPS) {
+  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
+  var psAnomaly = status !== 'Online' || f.get('button');
+  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
+  if (!psAnomaly) {
+    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
+    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
+      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
+    }
+  }
+  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy');
+  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
+  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
+  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
+  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
+  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  
+  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _nameD = _rawName.length > 32 ? _rawName.slice(0,30) + '..' : _rawName;
+  var _nameFontSize = _rawName.length > 25 ? 9 : 10.5;
+  
+  var _psiC='#1d4ed8';
+  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
+  
+  // Increased card height from 120 to 130
+  var _W=172,_cY=28,_cH=130,_tH=_cY+_cH+8;
+  var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
+  
+  // Data section shifted down by 8px
+  var _dataOffset = 8;
+  var _presLabelY = _cY+40+_dataOffset;     // was 40 -> 48
+  var _presValueY = _cY+57+_dataOffset;     // was 57 -> 65
+  var _flowLabelY = _cY+40+_dataOffset;     // 48
+  var _flowValueY = _cY+57+_dataOffset;     // 65
+  var _voltLabelY = _cY+81+_dataOffset;     // was 81 -> 89
+  var _voltValueY = _cY+97+_dataOffset;     // was 97 -> 105
+  var _currLabelY = _cY+81+_dataOffset;     // 89
+  var _currValueY = _cY+97+_dataOffset;     // 105
+  var _toggleY = _cY+112+_dataOffset;       // was 112 -> 120
+  
+  // Divider lines adjusted
+  var _line1Y = _cY+69+_dataOffset;         // was 69 -> 77
+  var _line2Y = _cY+105+_dataOffset;        // was 105 -> 113
+  
+  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="22" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
+    +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="27" rx="10" fill="'+psC+'" opacity="0.12"/>'
+    +'<rect x="1" y="'+(_cY+27)+'" width="'+(_W-2)+'" height="8" fill="'+psC+'" opacity="0.12"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+27)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+    +'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="5" fill="'+psC+'"/>'
+    +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="15" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="white">\u2699</text>'
     
+    // First horizontal divider (below name, above pressure)
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+27)+'" x2="'+(_W/2)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_line1Y+'" x2="'+(_W-8)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // Second horizontal divider (between pressure/flow and voltage/current)
+    +'<line x1="'+(_W/2)+'" y1="'+_line1Y+'" x2="'+(_W/2)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_line2Y+'" x2="'+(_W-8)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // Third horizontal divider (below voltage/current)
+    +'<line x1="'+(_W/2)+'" y1="'+_line2Y+'" x2="'+(_W/2)+'" y2="'+(_cY+_cH-8)+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // PRESSURE
+    +'<text x="10" y="'+_presLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">PRESSURE</text>'
+    +'<text x="10" y="'+_presValueY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+    
+    // FLOW
+    +'<text x="'+(_W/2+6)+'" y="'+_flowLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_flowValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+    
+    // VOLTAGE
+    +'<text x="10" y="'+_voltLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">VOLTAGE</text>'
+    +'<text x="10" y="'+_voltValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
+    
+    // CURRENT
+    +'<text x="'+(_W/2+6)+'" y="'+_currLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_currValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+    
+    // LAST TOGGLE BY
+    +'<text x="10" y="'+_toggleY+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
+    
+    // Bottom pointer
+    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
+    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
+    +'</svg>';
+  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+}
 //Pressure map icon
     if (type === 'pressure') {
       var pv = f.get('pressure'), pt = pv ? pv+' psi' : '-- psi';
@@ -1827,8 +1913,8 @@ if (!isNaN(llvl)) {
 }
     det.style.pointerEvents = 'auto';
  
-// ── RESERVOIR ────────────────────────────────────────────────
-if (isRes) {
+    // ── RESERVOIR ────────────────────────────────────────────────
+    if (isRes) {
       var wv = (d.level !== undefined && d.level !== null && d.level !== '')
                ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
       var wc = '';
@@ -1857,7 +1943,8 @@ if (isRes) {
             '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
           '</div>' +
         '</div>';
-// ── PRESSURE SENSOR ──────────────────────────────────────────
+ 
+    // ── PRESSURE SENSOR ──────────────────────────────────────────
     } else if (isPres) {
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
