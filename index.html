@@ -1737,87 +1737,36 @@ if (!isNaN(llvl)) {
 }
     det.style.pointerEvents = 'auto';
  
-    // ── RESERVOIR ────────────────────────────────────────────────
 // ── RESERVOIR ────────────────────────────────────────────────
-if (isRes) {
-  var wv = (d.level !== undefined && d.level !== null && d.level !== '')
-           ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
-  var wc = '';
-  var fillPercent = 0;
-  var fillColor = '#94a3b8'; // default gray
-  var levelNum = null;
-
-  if (d.level !== undefined && d.level !== null && d.level !== '') {
-    var _lv = parseFloat(d.level);
-    levelNum = _lv;
-    // Determine status and fill color
-    if (_lv < r.minLevel) {
-      wc = 'low';
-      fillColor = '#f97316'; // orange
-    } else if (_lv > r.maxLevel) {
-      wc = 'high';
-      fillColor = '#ef4444'; // red
-    } else {
-      wc = 'normal';
-      fillColor = '#3b82f6'; // blue
-    }
-    // Fill percentage based on MAXIMUM CAPACITY (r.maxLevel)
-    // Realistic water level: 0% at 0 m³, 100% at r.maxLevel m³
-    var maxCap = r.maxLevel;
-    if (maxCap > 0) {
-      var clampedLevel = Math.min(maxCap, Math.max(0, _lv));
-      fillPercent = (clampedLevel / maxCap) * 100;
-    } else {
-      fillPercent = 0;
-    }
-    fillPercent = Math.min(100, Math.max(0, fillPercent));
-  }
-
-  det.innerHTML =
-    '<div style="display:flex;gap:12px;min-width:460px;">' +
-      '<div style="flex:1;min-width:180px;">' +
-        '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-        '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
-        'Status: ' + effSt + ' ' + fb + '<br>' +
-        'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
-        '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-
-        // === REALISTIC WATER LEVEL FILL BAR ===
-        '<div style="margin-top:8px; margin-bottom:10px;">' +
-          '<div style="display:flex; justify-content:space-between; font-size:10px; color:#3b5c8a; margin-bottom:3px;">' +
-            '<span>⬜ 0 m³</span>' +
-            '<span>💧 Min threshold: ' + r.minLevel + ' m³</span>' +
-            '<span>🟦 Max capacity: ' + r.maxLevel + ' m³</span>' +
+    if (isRes) {
+      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
+      var wc = '';
+      if (d.level !== undefined && d.level !== null && d.level !== '') {
+        var _lv = parseFloat(d.level);
+        if (_lv < r.minLevel) wc = 'low'; else if (_lv > r.maxLevel) wc = 'high'; else wc = 'normal';
+      }
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:460px;">' +
+          '<div style="flex:1;min-width:180px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
-          '<div style="background:#e2e8f0; border-radius:20px; overflow:hidden; height:18px; width:100%; box-shadow:inset 0 1px 2px rgba(0,0,0,0.1); position:relative;">' +
-            // The water fill
-            '<div style="width:' + fillPercent + '%; height:100%; background:' + fillColor + '; border-radius:20px 0 0 20px; transition:width 0.2s ease;"></div>' +
-            // Optional: a small marker for the min threshold line
-            (r.minLevel > 0 && r.maxLevel > 0 ? 
-              '<div style="position:absolute; top:0; left:' + ((r.minLevel / r.maxLevel) * 100) + '%; width:2px; height:100%; background:#f97316; opacity:0.8; box-shadow:0 0 2px orange;"></div>' 
-            : '') +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
+              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
+            '</div>' +
+            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
+            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
           '</div>' +
-          '<div style="display:flex; justify-content:space-between; margin-top:4px; font-size:10px; font-weight:600;">' +
-            '<span style="color:#334155;">' + Math.round(fillPercent) + '% full</span>' +
-            '<span style="color:#f97316;">⚠️ Low warning</span>' +
-          '</div>' +
-        '</div>' +
-        // ======================================================
-
-        '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
-      '</div>' +
-      '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
-        '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
-        '<div class="pressure-thresholds-badge">' +
-          '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
-          '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
-          '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
-        '</div>' +
-        (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
-        '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
-      '</div>' +
-    '</div>';
-}
+        '</div>';
     // ── PRESSURE SENSOR ──────────────────────────────────────────
     } else if (isPres) {
       det.innerHTML =
