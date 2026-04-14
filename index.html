@@ -1619,13 +1619,12 @@ if (isRes) {
                     + (status === 'Fault' ? '<circle cx="' + (_W - 12) + '" cy="12" r="8" fill="none" stroke="' + statusColor + '" stroke-width="1.5" opacity="0.6"/>' : '');
 
   var _bw  = 2.5;
-  var _nd  = name;  // Full device name – no truncation
+  var _nd  = name;  // Full device name
 
-  // Dynamic font size based on name length
-  var _nameFontSize = 11;
-  if (name.length > 20) _nameFontSize = 9;
-  if (name.length > 28) _nameFontSize = 8;
-  if (name.length > 35) _nameFontSize = 7;
+  // ─── Device label font size (matching pressure devices) ─────
+  // Pressure devices use 11.5px for names ≤25 chars, 10px for longer.
+  // Reservoirs have slightly narrower SVG, so we use 11px / 10px.
+  var _nameFontSize = (name.length <= 25) ? 11 : 10;
 
   // Dashed water‑level line
   var _wline = (_fillH > 1 && _fillH < _tH)
@@ -1676,7 +1675,7 @@ if (isRes) {
     + ' fill="' + _pctColor + '" stroke="white" stroke-width="2.5" paint-order="stroke">'
     + _pctLabel + '</text>'
 
-    // Device name (full, no truncation, dynamic font size)
+    // Device name (full, font size matches pressure devices)
     + '<text x="' + (_W / 2) + '" y="' + (_totalH - 4) + '"'
     + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
     + ' fill="#0f172a" stroke="white" stroke-width="2" paint-order="stroke">'
