@@ -1559,10 +1559,10 @@ if (isRes) {
              : 0;
   var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
 
-  // ─── SVG dimensions with internal padding ──────────────────
-  var _W = 153, _tX = 14, _tY = 12, _tW = 126, _tH = 92;
+  // ─── SVG dimensions – slightly larger to accommodate labels ─
+  var _W = 160, _tX = 14, _tY = 12, _tW = 132, _tH = 96;
   var _topMargin = 4;           // extra space above water fill
-  var _innerPadding = 6;        // padding from top/bottom for text labels
+  var _innerPadding = 8;        // padding from top/bottom for text labels
   var _fillableH = _tH - _topMargin;
   var _totalH = _tY + _tH + 39;
   var _fillH  = Math.round((_pct / 100) * _fillableH);
@@ -1593,7 +1593,7 @@ if (isRes) {
 
   // ─── Helper: get nice step size for grid labels ───────────
   function getNiceStep(maxVal) {
-    var targetSteps = 6; // fewer labels to avoid clutter
+    var targetSteps = 5; // even fewer labels to avoid clutter
     var rawStep = maxVal / targetSteps;
     var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
     var residual = rawStep / magnitude;
@@ -1605,7 +1605,7 @@ if (isRes) {
     return niceStep;
   }
 
-  // ─── Grid lines – always include max level ─────────────────
+  // ─── Grid lines – always include max level, with safe text positioning ─
   var _grid = '';
   if (_hasThresh && _maxLvl >= 10) {
     var step = getNiceStep(_maxLvl);
@@ -1634,10 +1634,15 @@ if (isRes) {
       // Line
       var linePart = '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
                    + '" stroke="rgba(100,150,200,0.4)" stroke-width="1.3"/>';
-      // Text Y: shift for top/bottom to avoid cutting off
-      var textY = gy - 4;
-      if (gy === gridTopY) textY = gy + 4;
-      if (gy === gridBottomY) textY = gy - 4;
+      // Text Y: ensure it stays inside the tank
+      var textY = gy - 5;
+      if (gy === gridTopY) {
+        textY = gy + 10;  // push down for top label
+      } else if (gy === gridBottomY) {
+        textY = gy - 5;
+      }
+      // Additional safety: never go above top or below bottom
+      textY = Math.min(gridBottomY + 4, Math.max(gridTopY - 2, textY));
       var textPart = '<text x="' + (_tX + 7) + '" y="' + textY
                    + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="11" fill="rgba(0,43,92,0.75)" font-weight="700">'
                    + vol + '</text>';
