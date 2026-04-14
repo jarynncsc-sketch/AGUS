@@ -1669,53 +1669,6 @@ function selectDevice(device) {
   if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
   showDeviceDetails(device);
 }
-  // Reservoir map icon with dynamic water fill
-if (isRes) {
-  var levelRaw = f.get('level');
-  var level = (levelRaw !== null && levelRaw !== undefined && !isNaN(parseFloat(levelRaw))) ? parseFloat(levelRaw) : 0;
-  var thr = reservoirThresholdsCache[name] || { minLevel: 20, maxLevel: 250 };
-  var minLvl = thr.minLevel;
-  var maxLvl = thr.maxLevel;
-  
-  // Fill percentage based on max threshold (e.g., 130 m³ max, 90 actual = 69%)
-  var fillPercent = (maxLvl > 0) ? Math.min(100, Math.max(0, (level / maxLvl) * 100)) : 0;
-  
-  // Color based on thresholds
-  var fillColor = '#22c55e'; // normal green
-  var alarmActive = false;
-  if (level < minLvl) {
-    fillColor = '#f97316'; // orange low
-    alarmActive = true;
-  } else if (level > maxLvl) {
-    fillColor = '#ef4444'; // red overflow
-    alarmActive = true;
-  }
-  
-  // Blinking border if alarm active (uses global blinkOn)
-  var borderColor = (alarmActive && window.blinkOn) ? '#ffffff' : fillColor;
-  
-  // SVG tank dimensions
-  var tankW = 80, tankH = 70;
-  var waterH = (fillPercent / 100) * tankH;
-  var waterY = tankH - waterH;
-  
-  var svg = '<svg width="' + tankW + '" height="' + (tankH + 25) + '" viewBox="0 0 ' + tankW + ' ' + (tankH + 25) + '">' +
-    '<rect x="4" y="4" width="' + (tankW - 8) + '" height="' + tankH + '" rx="6" fill="rgba(255,255,255,0.95)" stroke="' + borderColor + '" stroke-width="2"/>' +
-    '<rect x="6" y="' + waterY + '" width="' + (tankW - 12) + '" height="' + waterH + '" rx="3" fill="' + fillColor + '" opacity="0.85"/>' +
-    '<text x="' + (tankW/2) + '" y="' + (tankH/2 + 4) + '" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e293b">' + Math.round(level) + ' m³</text>' +
-    '<text x="' + (tankW/2) + '" y="' + (tankH + 18) + '" text-anchor="middle" font-size="9" font-weight="bold" fill="#004080">' + name + '</text>' +
-    '</svg>';
-  
-  return [new ol.style.Style({
-    image: new ol.style.Icon({
-      src: 'data:image/svg+xml,' + encodeURIComponent(svg),
-      scale: 1,
-      anchor: [0.5, 1],
-      anchorXUnits: 'fraction',
-      anchorYUnits: 'fraction'
-    })
-  })];
-}
 // === START ===
  
 function showDeviceDetails(device) {
