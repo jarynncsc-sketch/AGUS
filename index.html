@@ -1577,63 +1577,59 @@ if (isPS) {
     }
   }
 
-  // ===== RESPONSIVE SIZE =====
+  // ---------- responsive size ----------
   var _screenW = window.innerWidth || 1920;
-  var _W = Math.max(125, Math.min(175, _screenW * 0.09));
+  var _W = Math.max(130, Math.min(170, _screenW * 0.085));
 
-  var _topPad = Math.round(_W * 0.20);
-  var _cY = _topPad;
-  var _row = Math.round(_W * 0.20);
-  var _cH = Math.round(_row * 4.2);
-  var _tH = _cY + _cH + 14;
+  var _cY = Math.round(_W * 0.22);
+  var _row = Math.round(_W * 0.18);
+  var _cH = _row * 4 + 18;
+  var _tH = _cY + _cH + 12;
 
-  // ===== GRID ROWS (LOCKED) =====
-  var r1 = _cY + _row * 0.9;
-  var r2 = _cY + _row * 1.9;
-  var r3 = _cY + _row * 2.9;
-  var r4 = _cY + _row * 3.7;
-
-  var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
+  var r1 = _cY + _row;
+  var r2 = r1 + _row;
+  var r3 = r2 + _row;
+  var r4 = r3 + _row - 6;
 
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.14)+'" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+(_row*0.8)+'" rx="10" fill="'+psC+'" opacity="0.12"/>'
 
-    +'<text x="'+(_W/2)+'" y="'+(_cY+(_row*0.55))+'" text-anchor="middle" font-family="Arial" font-size="'+(_W*0.075)+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+  +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2"/>'
 
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.10)+'" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+4)+'" text-anchor="middle" font-size="'+(_W*0.09)+'" fill="white">\u2699</text>'
+  +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+(_row-6)+'" rx="10" fill="'+psC+'" opacity="0.12"/>'
 
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+_row)+'" x2="'+(_W/2)+'" y2="'+(_cY+_cH-(_row*0.9))+'" stroke="#e2e8f0"/>'
-    +'<line x1="6" y1="'+(_cY+_row*1.4)+'" x2="'+(_W-6)+'" y2="'+(_cY+_row*1.4)+'" stroke="#e2e8f0"/>'
-    +'<line x1="6" y1="'+(_cY+_row*2.4)+'" x2="'+(_W-6)+'" y2="'+(_cY+_row*2.4)+'" stroke="#e2e8f0"/>'
+  +'<text x="'+(_W/2)+'" y="'+(_cY+_row/2)+'" text-anchor="middle" font-size="'+(_W*0.075)+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
 
-    +'<text x="8" y="'+(r1-10)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">PRESSURE</text>'
-    +'<text x="8" y="'+r1+'" font-size="'+(_W*0.09)+'" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+  +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="'+(_W*0.10)+'" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
+  +'<text x="'+(_W/2)+'" y="'+(_cY+4)+'" text-anchor="middle" font-size="'+(_W*0.09)+'" fill="white">\u2699</text>'
 
-    +'<text x="'+(_W/2+6)+'" y="'+(r1-10)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+r1+'" font-size="'+(_W*0.09)+'" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+  +'<line x1="'+(_W/2)+'" y1="'+(_cY+_row)+'" x2="'+(_W/2)+'" y2="'+(_cY+_cH-(_row*0.8))+'" stroke="#e2e8f0"/>'
+  +'<line x1="6" y1="'+(_cY+_row*1.5)+'" x2="'+(_W-6)+'" y2="'+(_cY+_row*1.5)+'" stroke="#e2e8f0"/>'
+  +'<line x1="6" y1="'+(_cY+_row*2.5)+'" x2="'+(_W-6)+'" y2="'+(_cY+_row*2.5)+'" stroke="#e2e8f0"/>'
 
-    +'<text x="8" y="'+(r2-10)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">VOLTAGE</text>'
-    +'<text x="8" y="'+r2+'" font-size="'+(_W*0.085)+'" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
+  +'<text x="8" y="'+(r1-8)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">PRESSURE</text>'
+  +'<text x="8" y="'+r1+'" font-size="'+(_W*0.09)+'" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
 
-    +'<text x="'+(_W/2+6)+'" y="'+(r2-10)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">CURRENT</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+r2+'" font-size="'+(_W*0.085)+'" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+  +'<text x="'+(_W/2+6)+'" y="'+(r1-8)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">FLOW</text>'
+  +'<text x="'+(_W/2+6)+'" y="'+r1+'" font-size="'+(_W*0.09)+'" fill="#0ea5e9">'+_lpsStr+'</text>'
 
-    +'<text x="8" y="'+r4+'" font-size="'+(_W*0.06)+'" fill="#475569">By: '+_togStr+'</text>'
+  +'<text x="8" y="'+(r2-8)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">VOLTAGE</text>'
+  +'<text x="8" y="'+r2+'" font-size="'+(_W*0.085)+'" fill="#16a34a">'+_voltStr+'</text>'
 
-    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
-    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
-    +'</svg>';
+  +'<text x="'+(_W/2+6)+'" y="'+(r2-8)+'" font-size="'+(_W*0.05)+'" fill="#94a3b8">CURRENT</text>'
+  +'<text x="'+(_W/2+6)+'" y="'+r2+'" font-size="'+(_W*0.085)+'" fill="#ea580c">'+_ampStr+'</text>'
+
+  +'<text x="8" y="'+r4+'" font-size="'+(_W*0.06)+'" fill="#475569">By: '+_togStr+'</text>'
+
+  +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
+  +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
+
+  +'</svg>';
 
   return [new ol.style.Style({
     image:new ol.style.Icon({
       src:'data:image/svg+xml,'+encodeURIComponent(_svg),
       scale:0.9,
-      anchor:[0.5,1],
-      anchorXUnits:'fraction',
-      anchorYUnits:'fraction'
+      anchor:[0.5,1]
     })
   })];
 }
