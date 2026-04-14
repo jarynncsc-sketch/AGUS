@@ -1553,16 +1553,33 @@ if (isPS) {
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
   var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   
-  // Improved name truncation: allow up to 32 chars total, show first 30 + ".." if longer
   var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _nameD = _rawName.length > 32 ? _rawName.slice(0,30) + '..' : _rawName;
-  // Dynamic font size: 10.5 for short names, 9 for longer names ( > 25 chars)
   var _nameFontSize = _rawName.length > 25 ? 9 : 10.5;
   
   var _psiC='#1d4ed8';
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
-  var _W=172,_cY=28,_cH=120,_tH=_cY+_cH+8;
+  
+  // Increased card height from 120 to 130
+  var _W=172,_cY=28,_cH=130,_tH=_cY+_cH+8;
   var _rOp=psAnomaly?(blinkOn?'0.9':'0'):'0';
+  
+  // Data section shifted down by 8px
+  var _dataOffset = 8;
+  var _presLabelY = _cY+40+_dataOffset;     // was 40 -> 48
+  var _presValueY = _cY+57+_dataOffset;     // was 57 -> 65
+  var _flowLabelY = _cY+40+_dataOffset;     // 48
+  var _flowValueY = _cY+57+_dataOffset;     // 65
+  var _voltLabelY = _cY+81+_dataOffset;     // was 81 -> 89
+  var _voltValueY = _cY+97+_dataOffset;     // was 97 -> 105
+  var _currLabelY = _cY+81+_dataOffset;     // 89
+  var _currValueY = _cY+97+_dataOffset;     // 105
+  var _toggleY = _cY+112+_dataOffset;       // was 112 -> 120
+  
+  // Divider lines adjusted
+  var _line1Y = _cY+69+_dataOffset;         // was 69 -> 77
+  var _line2Y = _cY+105+_dataOffset;        // was 105 -> 113
+  
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="22" fill="none" stroke="'+psAnomalyColor+'" stroke-width="3.5" opacity="'+_rOp+'"/>'
     +'<rect x="3" y="'+(_cY+2)+'" width="'+(_W-4)+'" height="'+_cH+'" rx="10" fill="rgba(0,40,100,0.08)"/>'
@@ -1574,19 +1591,38 @@ if (isPS) {
     +(psAnomaly&&blinkOn?'<circle cx="'+(_W-13)+'" cy="'+(_cY+10)+'" r="8" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.75"/>':'')
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="15" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
     +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="white">\u2699</text>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+27)+'" x2="'+(_W/2)+'" y2="'+(_cY+69)+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+(_cY+69)+'" x2="'+(_W-8)+'" y2="'+(_cY+69)+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+69)+'" x2="'+(_W/2)+'" y2="'+(_cY+105)+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+(_cY+105)+'" x2="'+(_W-8)+'" y2="'+(_cY+105)+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<text x="10" y="'+(_cY+40)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">PRESSURE</text>'
-    +'<text x="10" y="'+(_cY+57)+'" font-family="Arial,sans-serif" font-size="14" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+40)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+57)+'" font-family="Arial,sans-serif" font-size="14" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-    +'<text x="10" y="'+(_cY+81)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">VOLTAGE</text>'
-    +'<text x="10" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+81)+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cY+97)+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    +'<text x="10" y="'+(_cY+112)+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
+    
+    // First horizontal divider (below name, above pressure)
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+27)+'" x2="'+(_W/2)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_line1Y+'" x2="'+(_W-8)+'" y2="'+_line1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // Second horizontal divider (between pressure/flow and voltage/current)
+    +'<line x1="'+(_W/2)+'" y1="'+_line1Y+'" x2="'+(_W/2)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_line2Y+'" x2="'+(_W-8)+'" y2="'+_line2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // Third horizontal divider (below voltage/current)
+    +'<line x1="'+(_W/2)+'" y1="'+_line2Y+'" x2="'+(_W/2)+'" y2="'+(_cY+_cH-8)+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // PRESSURE
+    +'<text x="10" y="'+_presLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">PRESSURE</text>'
+    +'<text x="10" y="'+_presValueY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+    
+    // FLOW
+    +'<text x="'+(_W/2+6)+'" y="'+_flowLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_flowValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+    
+    // VOLTAGE
+    +'<text x="10" y="'+_voltLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">VOLTAGE</text>'
+    +'<text x="10" y="'+_voltValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
+    
+    // CURRENT
+    +'<text x="'+(_W/2+6)+'" y="'+_currLabelY+'" font-family="Arial,sans-serif" font-size="8" fill="#94a3b8" font-weight="700">CURRENT</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_currValueY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+    
+    // LAST TOGGLE BY
+    +'<text x="10" y="'+_toggleY+'" font-family="Arial,sans-serif" font-size="8.5" fill="#475569">Last toggle by: '+_togStr+'</text>'
+    
+    // Bottom pointer
     +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
     +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
     +'</svg>';
