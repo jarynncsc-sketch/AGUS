@@ -1042,7 +1042,7 @@
 <!-- DASHBOARD -->
 <div id="dashboard">
   <div class="card device-list">
-    <h3>Smart Devices</h3>
+    <h3>Smart Devices</h3> <div id="device-filter-bar">   <button onclick="toggleFilter('pressure')" id="filter-pressure" class="filter-pill active pres">📊 Pressure</button>   <button onclick="toggleFilter('reservoir')" id="filter-reservoir" class="filter-pill active res">💧 Reservoir</button>   <button onclick="toggleFilter('pumping')" id="filter-pumping" class="filter-pill active pump">⚙️ Pump Stn</button> </div>
     <div class="device-list-scroll"><ul id="device-list"></ul></div>
   </div>
   <div id="map-container" class="card">
@@ -1165,6 +1165,12 @@
       min-width: 90px !important;
     }
   }
+  .filter-pill{padding:4px 10px;border-radius:20px;border:1.5px solid rgba(0,64,128,0.25);background:white;color:#004080;font-size:11px;font-weight:700;cursor:pointer;transition:0.18s;white-space:nowrap;}
+.filter-pill.active{background:#004080;color:white;border-color:#004080;}
+.filter-pill.active.pres{background:#1d4ed8;border-color:#1d4ed8;}
+.filter-pill.active.res{background:#22c55e;border-color:#22c55e;}
+.filter-pill.active.pump{background:#f97316;border-color:#f97316;}
+#device-filter-bar{display:flex;gap:4px;padding:6px 8px 6px;border-bottom:1px solid rgba(0,64,128,0.10);flex-wrap:wrap;background:rgba(240,248,255,0.6);}
 </style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
@@ -1321,6 +1327,13 @@
 <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
 <script>
+  var activeFilters = new Set(['pressure','reservoir','pumping']);
+function toggleFilter(type){
+  if(activeFilters.has(type)) activeFilters.delete(type); else activeFilters.add(type);
+  var btn=document.getElementById('filter-'+type);
+  if(btn){ btn.classList.toggle('active', activeFilters.has(type)); }
+  updateDashboard();
+}
 var API_URL = 'https://script.google.com/macros/s/AKfycbynsfU43pQB7ZnNnWRl4VDqLivyrcc66srnxxI7Mv64_MgmEfbBrg-zadecRgve6IBQ5A/exec';
 
 function apiGet(action, params) {
@@ -1528,180 +1541,13 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     var isPS = name.toLowerCase().includes('pumping station');
-//reservior 
     if (isRes) {
-  var level = f.get('level');
-  var lv    = parseFloat(level);
-  var status = f.get('status') || 'Offline';
-
-  // ─── Signal status colours ─────────────────────────────────
-  var statusColor = '#22c55e';  // Online
-  if (status === 'Offline') statusColor = '#f97316';
-  else if (status === 'Fault') statusColor = '#ef4444';
-
-  // ─── Water level thresholds & alarm ────────────────────────
-  var _thr    = reservoirThresholdsCache[name];
-  var _minLvl = (_thr && _thr.minLevel != null) ? parseFloat(_thr.minLevel) : null;
-  var _maxLvl = (_thr && _thr.maxLevel != null) ? parseFloat(_thr.maxLevel) : null;
-
-  var alarmActive = false;
-  var alarmColor  = '#22c55e';
-  if (!isNaN(lv) && _minLvl !== null && _maxLvl !== null) {
-    if (lv < _minLvl)      { alarmColor = '#f97316'; alarmActive = true; }
-    else if (lv > _maxLvl) { alarmColor = '#ef4444'; alarmActive = true; }
-  }
-
-  // ─── Fill percentage (based on maxLevel) ───────────────────
-  var _hasThresh = (_maxLvl !== null && _maxLvl > 0);
-  var _pct = (_hasThresh && !isNaN(lv))
-             ? Math.min(100, Math.max(0, (lv / _maxLvl) * 100))
-             : 0;
-  var _wlt = !isNaN(lv) ? lv + ' m\u00B3' : '-- m\u00B3';
-
-  // ─── SVG dimensions with internal padding ──────────────────
-  var _W = 153, _tX = 14, _tY = 12, _tW = 126, _tH = 92;
-  var _topMargin = 4;           // extra space above water fill
-  var _innerPadding = 6;        // padding from top/bottom for text labels
-  var _fillableH = _tH - _topMargin;
-  var _totalH = _tY + _tH + 39;
-  var _fillH  = Math.round((_pct / 100) * _fillableH);
-  var _fillY  = _tY + _topMargin + _fillableH - _fillH;
-
-  // Water colour
-  var _wC = !alarmActive
-    ? 'rgba(96,200,240,0.72)'
-    : (lv < _minLvl ? 'rgba(249,115,22,0.50)' : 'rgba(239,68,68,0.50)');
-
-  var _cId = 'rc' + name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 12);
-
-  // Water fill with wavy top
-  var _wfill = '';
-  if (_fillH > 2) {
-    var _wy    = _fillY;
-    var _wpath = 'M ' + _tX + ',' + _wy
-               + ' q ' + Math.round(_tW * 0.25) + ',-8 ' + Math.round(_tW * 0.5) + ',0'
-               + ' q ' + Math.round(_tW * 0.25) + ',8 '  + Math.round(_tW * 0.5) + ',0'
-               + ' V ' + (_tY + _tH) + ' H ' + _tX + ' Z';
-    _wfill = '<clipPath id="' + _cId + '">'
-           +   '<rect x="' + _tX + '" y="' + _tY
-           +   '" width="' + _tW + '" height="' + _tH + '" rx="6"/>'
-           + '</clipPath>'
-           + '<path d="' + _wpath + '" fill="' + _wC
-           + '" clip-path="url(#' + _cId + ')"/>';
-  }
-
-  // ─── Helper: get nice step size for grid labels ───────────
-  function getNiceStep(maxVal) {
-    var targetSteps = 6; // fewer labels to avoid clutter
-    var rawStep = maxVal / targetSteps;
-    var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
-    var residual = rawStep / magnitude;
-    var niceStep;
-    if (residual < 1.5) niceStep = magnitude;
-    else if (residual < 3.5) niceStep = 2 * magnitude;
-    else if (residual < 7.5) niceStep = 5 * magnitude;
-    else niceStep = 10 * magnitude;
-    return niceStep;
-  }
-
-  // ─── Grid lines – always include max level ─────────────────
-  var _grid = '';
-  if (_hasThresh && _maxLvl >= 10) {
-    var step = getNiceStep(_maxLvl);
-    var firstLabel = Math.ceil(10 / step) * step;
-    if (firstLabel < 10) firstLabel = step;
-    var labels = [];
-    for (var v = firstLabel; v < _maxLvl; v += step) {
-      labels.push(v);
+      var level = f.get('level'), wlt = (level!==null&&level!==undefined) ? level+' m³' : '-- m³';
+var thr = reservoirThresholdsCache[name]||{minLevel:20,maxLevel:250}, rfC='#22c55e', rA=false;
+if (level!==null&&level!==undefined) { var lv=parseFloat(level); if(lv<thr.minLevel){rfC='#f97316';rA=true;} else if(lv>thr.maxLevel){rfC='#ef4444';rA=true;} }
+      var rsk = new ol.style.Stroke({color:rA&&blinkOn?'#ffffff':'#002b5c', width:rA&&blinkOn?6:3});
+      return [new ol.style.Style({image:new ol.style.RegularShape({points:4,radius:45,angle:Math.PI/4,fill:new ol.style.Fill({color:rfC}),stroke:rsk}),text:new ol.style.Text({text:wlt,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#ffffff'}),stroke:new ol.style.Stroke({color:'#002b5c',width:3})})}),new ol.style.Style({text:new ol.style.Text({text:name,font:'bold 14px Arial',fill:new ol.style.Fill({color:'#004080'}),stroke:new ol.style.Stroke({color:'#ffffff',width:3}),offsetY:55})})];
     }
-    // Always add the max level label
-    labels.push(_maxLvl);
-    
-    var gridTopY = _tY + _innerPadding;
-    var gridBottomY = _tY + _tH - _innerPadding;
-    var gridHeight = gridBottomY - gridTopY;
-    
-    _grid = labels.map(function(vol) {
-      var pct = (vol / _maxLvl) * 100;
-      pct = Math.min(100, Math.max(0, pct));
-      var gy = gridTopY + gridHeight * (1 - pct / 100);
-      gy = Math.round(gy);
-      // Clamp to padded area
-      if (gy < gridTopY) gy = gridTopY;
-      if (gy > gridBottomY) gy = gridBottomY;
-      
-      // Line
-      var linePart = '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
-                   + '" stroke="rgba(100,150,200,0.4)" stroke-width="1.3"/>';
-      // Text Y: shift for top/bottom to avoid cutting off
-      var textY = gy - 4;
-      if (gy === gridTopY) textY = gy + 4;
-      if (gy === gridBottomY) textY = gy - 4;
-      var textPart = '<text x="' + (_tX + 7) + '" y="' + textY
-                   + '" font-family="\'DM Sans\', \'Segoe UI\', Arial, sans-serif" font-size="11" fill="rgba(0,43,92,0.75)" font-weight="700">'
-                   + vol + '</text>';
-      return linePart + textPart;
-    }).join('');
-  }
-
-  // Alarm blink ring
-  var _ring = (alarmActive && blinkOn)
-    ? '<rect x="3" y="4" width="' + (_W - 6) + '" height="' + (_tH + 12) + '"'
-    +   ' rx="10" fill="none" stroke="' + alarmColor + '" stroke-width="5" opacity="0.75"/>'
-    : '';
-
-  // Status indicator circle (top‑right)
-  var _statusCircle = '<circle cx="' + (_W - 17) + '" cy="17" r="9" fill="' + statusColor + '"/>'
-                    + (status === 'Fault' ? '<circle cx="' + (_W - 17) + '" cy="17" r="12" fill="none" stroke="' + statusColor + '" stroke-width="2.5" opacity="0.6"/>' : '');
-
-  var _bw  = 3.5;
-  var _nd  = name;
-  var _nameFontSize = (name.length <= 25) ? 14 : 12;
-
-  // Dashed water‑level line (alarm only)
-  var _wline = (_fillH > 3 && _fillH < _fillableH - 2)
-    ? '<line x1="' + _tX + '" y1="' + _fillY
-    + '" x2="' + (_tX + _tW) + '" y2="' + _fillY
-    + '" stroke="' + alarmColor + '" stroke-width="2" stroke-dasharray="6,4" opacity="0.85"/>'
-    : '';
-
-  var _fontStack = "'DM Sans', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-  var _centerY = _tY + _tH / 2;
-
-  var _svg =
-      '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '"'
-    + ' width="' + _W + '" height="' + _totalH + '"'
-    + ' xmlns="http://www.w3.org/2000/svg">'
-    + _ring
-    + _statusCircle
-    + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="6" fill="#f8fafc"/>'
-    + _wfill
-    + _grid
-    + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="6"'
-    + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
-    + _wline
-    + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
-    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="18" font-weight="800"'
-    + ' fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
-    + _wlt + '</text>'
-    + '<text x="' + (_W / 2) + '" y="' + (_totalH - 6) + '"'
-    + ' text-anchor="middle" font-family="' + _fontStack + '" font-size="' + _nameFontSize + '" font-weight="700"'
-    + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
-    + _nd + '</text>'
-    + '</svg>';
-
-  return [new ol.style.Style({
-    image: new ol.style.Icon({
-      src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
-      scale: 1,
-      anchor: [0.5, 1],
-      anchorXUnits: 'fraction',
-      anchorYUnits: 'fraction'
-    })
-  })];
-}
 //Pumping Station map icon
 if (isPS) {
   var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
@@ -2047,6 +1893,9 @@ function updateMap(devices) {
     var rawType = (d.type || '').toLowerCase().trim();
     var deviceName = (d.device || '').toLowerCase();
     var effectiveType = rawType;
+    if (effectiveType==='reservoir' && !activeFilters.has('reservoir')) return;
+if (effectiveType==='pressure'  && !activeFilters.has('pressure'))  return;
+if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.has('pumping')) return;
     if (rawType !== 'pressure' && deviceName.includes('pressure')) effectiveType = 'pressure';
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
     var isPres = effectiveType === 'pressure';
@@ -2080,7 +1929,7 @@ function updateDeviceList(devices) {
     var isRes = (d.type&&d.type.toLowerCase().trim()==='reservoir')||name.includes('reservoir');
     var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
     var isPS = name.includes('pumping station');
-    if (!isPres&&!isPS&&!isRes) return;
+    if (!isPres&&!isPS&&!isRes) return; if (isRes && !activeFilters.has('reservoir')) return; if (isPres && !activeFilters.has('pressure')) return; if (isPS && !activeFilters.has('pumping')) return;
     var effSt = (isPres||isRes) ? derivePressureStatus(d) : d.status;
     var sc = effSt==='Online'?'status-Online':effSt==='Offline'?'status-Offline':'status-Fault';
     var fi = d.button?'<span class="blink" title="Fault">!</span>':'', fb = d.button?'Fault-blink':'';
