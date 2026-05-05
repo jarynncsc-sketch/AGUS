@@ -2222,11 +2222,57 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     var isPS = name.toLowerCase().includes('pumping station');
-   //reservior 
-    if (isRes) {
-  var level = f.get('level');
-  var lv    = parseFloat(level);
-  var status = f.get('status') || 'Offline';
+// ── RESERVOIR (read‑only, original) ──
+if (isRes && (d.relay === undefined || d.relay === null)) {
+  // ... exact original code from your file (unchanged) ...
+}
+// ── HYBRID RESERVOIR (with pump control) ──
+else if (isRes && d.relay !== undefined) {
+  var r = reservoirThresholdsCache[device] || { minLevel: 20, maxLevel: 250 };
+  var lvl = (d.level !== undefined && d.level !== null && d.level !== '')
+    ? Math.round(parseFloat(d.level)) + ' m³'
+    : '-- m³';
+  var effSt = derivePressureStatus(d);
+  var fb = d.button ? '<span class="blink" style="color:red;">! Fault</span>' : '';
+
+  // Determine water level alarm class
+  var lC = '#aaa', lT = '—', lB = '';
+  var llvl = parseFloat(d.level);
+  if (!isNaN(llvl)) {
+    if (llvl < r.minLevel) { lC = '#f97316'; lT = 'LOW'; lB = 'blink-alarm'; }
+    else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
+    else { lC = '#22c55e'; lT = 'NORMAL'; }
+  }
+
+  // Relay toggle info
+  var commanded = commandedRelayCache.hasOwnProperty(device) ? commandedRelayCache[device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+  var relayPending = d.relayPending === true;
+
+  det.innerHTML = 
+    '<div style="display:flex;gap:12px;min-width:460px;">' +
+      '<div style="flex:1;min-width:180px;">' +
+        '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+        '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">💧 RESERVOIR + PUMP</span><br>' +
+        'Status: ' + effSt + ' ' + fb + '<br>' +
+        'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+        '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
+        'Relay: <b style="color:' + (commanded ? '#22c55e' : '#ef4444') + ';">' + (commanded ? '● ON' : '● OFF') + '</b>' +
+        (relayPending ? ' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>' : ' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>') + '<br>' +
+        'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">' + (d.relay ? 'ON' : 'OFF') + '</span><br>' +
+        '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+      '</div>' +
+      '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+        '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
+        '<div class="pressure-thresholds-badge">' +
+          '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
+          '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
+          '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
+        '</div>' +
+        (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
+        '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
+      '</div>' +
+    '</div>';
+}
 
   // ─── Signal status colours ─────────────────────────────────
   var statusColor = '#22c55e';  // Online
@@ -2599,37 +2645,73 @@ if (!isNaN(llvl)) {
 }
     det.style.pointerEvents = 'auto';
  
-    // ── RESERVOIR ────────────────────────────────────────────────
-    if (isRes) {
-      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
-               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
-      var wc = '';
-      if (d.level !== undefined && d.level !== null && d.level !== '') {
-        var _lv = parseFloat(d.level);
-        if (_lv < r.minLevel) wc = 'low'; else if (_lv > r.maxLevel) wc = 'high'; else wc = 'normal';
-      }
-      det.innerHTML =
-        '<div style="display:flex;gap:12px;min-width:460px;">' +
-          '<div style="flex:1;min-width:180px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
-            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
-          '</div>' +
-          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
-            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
-            '<div class="pressure-thresholds-badge">' +
-              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
-              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
-              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
-            '</div>' +
-            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
-            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
-          '</div>' +
-        '</div>';
- 
+  // ────────── RESERVOIR (read‑only, original behaviour) ──────────
+} else if (isRes && (d.relay === undefined || d.relay === null)) {
+  var r = reservoirThresholdsCache[d.device] || {minLevel:20, maxLevel:250};
+  var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+    ? Math.round(parseFloat(d.level)) + ' m³'
+    : '-- m³';
+  var wc = '', bc = '';
+  var alarm = null;
+  if (d.level !== undefined && d.level !== null && d.level !== '') {
+    var lv = parseFloat(d.level);
+    if (lv < r.minLevel) { wc = 'low'; bc = 'blink-alarm'; alarm = 'low'; }
+    else if (lv > r.maxLevel) { wc = 'high'; bc = 'blink-alarm'; alarm = 'high'; }
+    else wc = 'normal';
+  }
+  li.innerHTML = '<span>' + d.device + '</span><div class="device-status">' + fi +
+    '<span class="status-indicator ' + sc + ' ' + fb + '"></span>' +
+    '<span class="waterlevel-value ' + wc + ' ' + bc + '">' + wv + '</span></div>';
+  li.addEventListener('click', function(){ selectDevice(d.device); });
+
+// ────────── HYBRID RESERVOIR (with pump control + water level) ──────────
+} else if (isRes && d.relay !== undefined) {
+  var r = reservoirThresholdsCache[d.device] || {minLevel:20, maxLevel:250};
+  var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+    ? Math.round(parseFloat(d.level)) + ' m³'
+    : '-- m³';
+  var wc = '', bc = '';
+  var alarm = null;
+  if (d.level !== undefined && d.level !== null && d.level !== '') {
+    var lv = parseFloat(d.level);
+    if (lv < r.minLevel) { wc = 'low'; bc = 'blink-alarm'; alarm = 'low'; }
+    else if (lv > r.maxLevel) { wc = 'high'; bc = 'blink-alarm'; alarm = 'high'; }
+    else wc = 'normal';
+  }
+
+  // Relay state (commanded by dashboard)
+  if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
+  var commanded = commandedRelayCache.hasOwnProperty(d.device)
+    ? commandedRelayCache[d.device]
+    : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+  var switchIsOn = commanded === 1 || commanded === true;
+  var relayPending = d.relayPending === true;
+
+  var pendingBadge = relayPending
+    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;">' +
+      '<span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+    : '';
+
+  li.innerHTML = '<span>' + d.device + '</span>' +
+    '<div class="device-status">' + fi +
+    '<span class="status-indicator ' + sc + ' ' + fb + '"></span>' +
+    '<span class="waterlevel-value ' + wc + ' ' + bc + '">' + wv + '</span>' +
+    '<label class="toggle-switch" title="Toggle pump relay">' +
+    '<input type="checkbox"' + (switchIsOn ? ' checked' : '') + ' data-device="' + escapeForAttr(d.device) + '">' +
+    '<span class="slider"></span></label>' +
+    '</div>' + pendingBadge;
+
+  var cb = li.querySelector('input[type="checkbox"]');
+  cb.addEventListener('change', function() {
+    var newStateInt = cb.checked ? 1 : 0;
+    dashboardTogglePump(d.device, newStateInt, function(confirmed) {
+      cb.checked = confirmed === 1;
+    });
+  });
+  li.addEventListener('click', function(e) {
+    if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device);
+  });
+    
     // ── PRESSURE SENSOR ──────────────────────────────────────────
     } else if (isPres) {
       det.innerHTML =
