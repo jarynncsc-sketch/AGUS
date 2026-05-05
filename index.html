@@ -4303,6 +4303,25 @@ function generateAIReport() {
 </div>
 <button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant" style="display:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
 
+<!-- ═══ Standalone Voice Mic FAB — always visible after login ═══ -->
+<button id="ai-voice-fab" onclick="startVoiceInputFab()" title="Speak to AI Assistant 🎤"
+  style="display:none;position:fixed;bottom:90px;right:24px;width:54px;height:54px;border-radius:50%;
+         background:linear-gradient(135deg,#16a34a,#22c55e);border:none;color:white;font-size:24px;
+         cursor:pointer;box-shadow:0 6px 20px rgba(22,163,74,0.45);z-index:8999;
+         align-items:center;justify-content:center;transition:transform 0.15s;">🎤</button>
+
+<style>
+  #ai-voice-fab:hover { transform:scale(1.12); }
+  #ai-voice-fab.pulse-listen {
+    animation: voiceFabPulse 1s ease-in-out infinite;
+    background: linear-gradient(135deg,#dc2626,#ef4444) !important;
+  }
+  @keyframes voiceFabPulse {
+    0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,0.5); }
+    70%    { box-shadow:0 0 0 14px rgba(220,38,38,0); }
+  }
+</style>
+
 <!-- ========== AI MODULES JAVASCRIPT ========== -->
 <script>
 // ============================================================
@@ -4645,6 +4664,21 @@ function startVoiceInput() {
   try { _voiceRecognition.start(); } catch(e) { stopVoiceInput(); }
 }
 
+function startVoiceInputFab() {
+  // Ensure chat panel is open so the response is visible
+  var panel = document.getElementById('ai-chat-panel');
+  var fab = document.getElementById('ai-chat-fab');
+  if (panel && panel.style.display === 'none') {
+    aiChatVisible = true;
+    panel.style.display = 'flex';
+    if (fab) fab.style.display = 'none';
+  }
+  // Pulse the mic FAB
+  var voiceFab = document.getElementById('ai-voice-fab');
+  if (voiceFab) voiceFab.classList.add('pulse-listen');
+  startVoiceInput();
+}
+
 function stopVoiceInput() {
   _voiceActive = false;
   if (_voiceRecognition) { try { _voiceRecognition.abort(); } catch(e){} _voiceRecognition = null; }
@@ -4652,6 +4686,8 @@ function stopVoiceInput() {
   if (overlay) overlay.classList.remove('active');
   var micBtn = document.getElementById('ai-mic-btn');
   if (micBtn) micBtn.classList.remove('listening');
+  var voiceFab = document.getElementById('ai-voice-fab');
+  if (voiceFab) voiceFab.classList.remove('pulse-listen');
 }
 
 // ============================================================
@@ -4847,6 +4883,8 @@ Use plain English. Each recommendation 1–2 sentences.
       setTimeout(function() {
         var fab = document.getElementById('ai-chat-fab');
         if (fab) fab.style.display = 'flex';
+        var voiceFab = document.getElementById('ai-voice-fab');
+        if (voiceFab) voiceFab.style.display = 'flex';
       }, 1000);
       return result;
     };
