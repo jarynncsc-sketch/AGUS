@@ -4301,10 +4301,10 @@ function generateAIReport() {
     <button onclick="sendAIMessage()" style="padding:9px 14px;background:#004080;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Send</button>
   </div>
 </div>
-<button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant" style="display:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
+<button id="ai-chat-fab" data-agus-trusted="1" onclick="toggleAIChat()" title="Open AI Assistant" style="display:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
 
 <!-- ═══ Standalone Voice Mic FAB — always visible after login ═══ -->
-<button id="ai-voice-fab" onclick="startVoiceInputFab()" title="Speak to AI Assistant 🎤"
+<button id="ai-voice-fab" data-agus-trusted="1" onclick="startVoiceInputFab()" title="Speak to AI Assistant 🎤"
   style="display:none;position:fixed;bottom:90px;right:24px;width:54px;height:54px;border-radius:50%;
          background:linear-gradient(135deg,#16a34a,#22c55e);border:none;color:white;font-size:24px;
          cursor:pointer;box-shadow:0 6px 20px rgba(22,163,74,0.45);z-index:8999;
@@ -4889,6 +4889,38 @@ Use plain English. Each recommendation 1–2 sentences.
       return result;
     };
   }
+
+  // ── Backup: MutationObserver watches dashboard visibility ──
+  // This fires whenever login() shows the dashboard, no matter
+  // how the login flow is wired, guaranteeing the FABs appear.
+  (function() {
+    function showFABs() {
+      var fab = document.getElementById('ai-chat-fab');
+      var voiceFab = document.getElementById('ai-voice-fab');
+      if (fab) fab.style.display = 'flex';
+      if (voiceFab) voiceFab.style.display = 'flex';
+    }
+    function attachObserver() {
+      var dashboard = document.getElementById('dashboard');
+      if (!dashboard) return;
+      var obs = new MutationObserver(function(mutations) {
+        mutations.forEach(function(m) {
+          if (m.type === 'attributes' && m.attributeName === 'style') {
+            var d = document.getElementById('dashboard');
+            if (d && d.style.display !== 'none' && d.style.display !== '') {
+              showFABs();
+            }
+          }
+        });
+      });
+      obs.observe(dashboard, { attributes: true, attributeFilter: ['style'] });
+    }
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', attachObserver);
+    } else {
+      attachObserver();
+    }
+  })();
 })();
 </script>
 
