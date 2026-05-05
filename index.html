@@ -335,81 +335,6 @@
   body.dark-mode .top-card { background:#1e293b!important; }
   @keyframes spin { to { transform: rotate(360deg); } }
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
-
-  /* ── Google Home–style Voice UI ── */
-  #voice-overlay {
-    display:none; position:fixed; inset:0; z-index:10000;
-    background:rgba(0,0,0,0.70); backdrop-filter:blur(6px);
-    flex-direction:column; align-items:center; justify-content:center;
-    font-family:'DM Sans',sans-serif;
-  }
-  #voice-overlay.active { display:flex; }
-  .voice-ring-wrap { position:relative; width:160px; height:160px; margin-bottom:28px; }
-  .voice-ring {
-    position:absolute; border-radius:50%;
-    border: 3px solid transparent; animation: voiceRingPulse 1.6s ease-in-out infinite;
-  }
-  .voice-ring:nth-child(1){ inset:0;  border-color:#4285f4; animation-delay:0s; }
-  .voice-ring:nth-child(2){ inset:12px; border-color:#ea4335; animation-delay:0.2s; }
-  .voice-ring:nth-child(3){ inset:24px; border-color:#fbbc05; animation-delay:0.4s; }
-  .voice-ring:nth-child(4){ inset:36px; border-color:#34a853; animation-delay:0.6s; }
-  .voice-center-btn {
-    position:absolute; inset:50px;
-    background:linear-gradient(135deg,#004080,#0066cc);
-    border-radius:50%; display:flex; align-items:center; justify-content:center;
-    cursor:pointer; box-shadow:0 0 0 0 rgba(0,102,204,0.5);
-    animation: voiceCenterPulse 1.4s ease-in-out infinite;
-    border:none; color:#fff;
-  }
-  @keyframes voiceRingPulse {
-    0%,100%{ transform:scale(1); opacity:0.6; }
-    50%     { transform:scale(1.15); opacity:1; }
-  }
-  @keyframes voiceCenterPulse {
-    0%,100%{ box-shadow:0 0 0 0 rgba(0,102,204,0.5); }
-    70%     { box-shadow:0 0 0 18px rgba(0,102,204,0); }
-  }
-  .voice-bars { display:flex; align-items:flex-end; gap:5px; height:40px; margin-bottom:18px; }
-  .voice-bar {
-    width:6px; background:#4285f4; border-radius:3px;
-    animation: voiceBarBounce 0.8s ease-in-out infinite alternate;
-  }
-  .voice-bar:nth-child(1){ height:12px; animation-delay:0.0s; background:#4285f4; }
-  .voice-bar:nth-child(2){ height:28px; animation-delay:0.1s; background:#ea4335; }
-  .voice-bar:nth-child(3){ height:40px; animation-delay:0.2s; background:#fbbc05; }
-  .voice-bar:nth-child(4){ height:28px; animation-delay:0.3s; background:#34a853; }
-  .voice-bar:nth-child(5){ height:12px; animation-delay:0.4s; background:#4285f4; }
-  @keyframes voiceBarBounce {
-    from{ transform:scaleY(0.4); } to{ transform:scaleY(1); }
-  }
-  .voice-state-label {
-    color:#fff; font-size:18px; font-weight:700; letter-spacing:0.5px; margin-bottom:8px;
-  }
-  .voice-transcript-label {
-    color:rgba(255,255,255,0.75); font-size:14px; max-width:320px;
-    text-align:center; min-height:22px; font-style:italic;
-  }
-  .voice-cancel-btn {
-    margin-top:28px; padding:10px 28px;
-    background:rgba(255,255,255,0.12); border:1.5px solid rgba(255,255,255,0.25);
-    color:#fff; border-radius:24px; font-size:14px; font-weight:600;
-    cursor:pointer; letter-spacing:0.3px;
-  }
-  .voice-cancel-btn:hover { background:rgba(255,255,255,0.22); }
-  /* mic btn in chat */
-  #ai-mic-btn {
-    padding:9px 11px; background:#f0f7ff; border:1.5px solid #d0e4f7;
-    color:#004080; border-radius:8px; font-size:16px; cursor:pointer;
-    transition:background 0.2s, transform 0.15s;
-  }
-  #ai-mic-btn:hover { background:#dbeafe; transform:scale(1.08); }
-  #ai-mic-btn.listening { background:#004080; color:#fff; animation:micPulse 1s ease-in-out infinite; }
-  @keyframes micPulse { 0%,100%{box-shadow:0 0 0 0 rgba(0,64,128,0.4);} 70%{box-shadow:0 0 0 8px rgba(0,64,128,0);} }
-  /* speaking animation on status bar */
-  .ai-speaking-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#4CAF50; margin:0 2px; animation:speakDot 0.8s ease-in-out infinite alternate; }
-  .ai-speaking-dot:nth-child(2){ animation-delay:0.2s; background:#2196F3; }
-  .ai-speaking-dot:nth-child(3){ animation-delay:0.4s; background:#FFC107; }
-  @keyframes speakDot { from{transform:scaleY(0.4);} to{transform:scaleY(1.4);} }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
@@ -1774,37 +1699,6 @@
       <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Fault / Button</span>
     </div>
   </div>
-
-  <!-- Column 5: AI Assistant Buttons -->
-  <div style="min-width:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1.5px solid rgba(0,64,128,0.12);padding-left:18px;gap:10px;">
-    <div style="font-size:11px;font-weight:700;color:#0b4f6c;letter-spacing:0.3px;text-align:center;margin-bottom:2px;">🤖 AI Assistant</div>
-    <!-- Voice button -->
-    <button id="ai-voice-fab"
-      data-agus-trusted="1"
-      onclick="startVoiceInputFab()"
-      title="Speak to AI — just like Google Home"
-      style="display:flex;align-items:center;justify-content:center;gap:6px;
-             width:100%;padding:8px 10px;border-radius:10px;
-             background:linear-gradient(135deg,#16a34a,#22c55e);
-             border:none;color:white;font-size:13px;font-weight:700;
-             cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,0.35);
-             transition:transform 0.15s,box-shadow 0.15s;white-space:nowrap;">
-      🎤 Speak
-    </button>
-    <!-- Chat button -->
-    <button id="ai-chat-fab"
-      data-agus-trusted="1"
-      onclick="toggleAIChat()"
-      title="Open AI Chat"
-      style="display:flex;align-items:center;justify-content:center;gap:6px;
-             width:100%;padding:8px 10px;border-radius:10px;
-             background:linear-gradient(135deg,#004080,#0066cc);
-             border:none;color:white;font-size:13px;font-weight:700;
-             cursor:pointer;box-shadow:0 3px 10px rgba(0,64,128,0.30);
-             transition:transform 0.15s,box-shadow 0.15s;white-space:nowrap;">
-      🤖 Chat
-    </button>
-  </div>
 </div>
 
 <style>
@@ -2222,57 +2116,11 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     var isPS = name.toLowerCase().includes('pumping station');
-// ── RESERVOIR (read‑only, original) ──
-if (isRes && (d.relay === undefined || d.relay === null)) {
-  // ... exact original code from your file (unchanged) ...
-}
-// ── HYBRID RESERVOIR (with pump control) ──
-else if (isRes && d.relay !== undefined) {
-  var r = reservoirThresholdsCache[device] || { minLevel: 20, maxLevel: 250 };
-  var lvl = (d.level !== undefined && d.level !== null && d.level !== '')
-    ? Math.round(parseFloat(d.level)) + ' m³'
-    : '-- m³';
-  var effSt = derivePressureStatus(d);
-  var fb = d.button ? '<span class="blink" style="color:red;">! Fault</span>' : '';
-
-  // Determine water level alarm class
-  var lC = '#aaa', lT = '—', lB = '';
-  var llvl = parseFloat(d.level);
-  if (!isNaN(llvl)) {
-    if (llvl < r.minLevel) { lC = '#f97316'; lT = 'LOW'; lB = 'blink-alarm'; }
-    else if (llvl > r.maxLevel) { lC = '#ef4444'; lT = 'HIGH'; lB = 'blink-alarm'; }
-    else { lC = '#22c55e'; lT = 'NORMAL'; }
-  }
-
-  // Relay toggle info
-  var commanded = commandedRelayCache.hasOwnProperty(device) ? commandedRelayCache[device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-  var relayPending = d.relayPending === true;
-
-  det.innerHTML = 
-    '<div style="display:flex;gap:12px;min-width:460px;">' +
-      '<div style="flex:1;min-width:180px;">' +
-        '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-        '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">💧 RESERVOIR + PUMP</span><br>' +
-        'Status: ' + effSt + ' ' + fb + '<br>' +
-        'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
-        '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-        'Relay: <b style="color:' + (commanded ? '#22c55e' : '#ef4444') + ';">' + (commanded ? '● ON' : '● OFF') + '</b>' +
-        (relayPending ? ' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>' : ' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>') + '<br>' +
-        'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">' + (d.relay ? 'ON' : 'OFF') + '</span><br>' +
-        '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
-      '</div>' +
-      '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
-        '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
-        '<div class="pressure-thresholds-badge">' +
-          '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
-          '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
-          '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
-        '</div>' +
-        (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
-        '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
-      '</div>' +
-    '</div>';
-}
+   //reservior 
+    if (isRes) {
+  var level = f.get('level');
+  var lv    = parseFloat(level);
+  var status = f.get('status') || 'Offline';
 
   // ─── Signal status colours ─────────────────────────────────
   var statusColor = '#22c55e';  // Online
@@ -2645,73 +2493,37 @@ if (!isNaN(llvl)) {
 }
     det.style.pointerEvents = 'auto';
  
-  // ────────── RESERVOIR (read‑only, original behaviour) ──────────
-} else if (isRes && (d.relay === undefined || d.relay === null)) {
-  var r = reservoirThresholdsCache[d.device] || {minLevel:20, maxLevel:250};
-  var wv = (d.level !== undefined && d.level !== null && d.level !== '')
-    ? Math.round(parseFloat(d.level)) + ' m³'
-    : '-- m³';
-  var wc = '', bc = '';
-  var alarm = null;
-  if (d.level !== undefined && d.level !== null && d.level !== '') {
-    var lv = parseFloat(d.level);
-    if (lv < r.minLevel) { wc = 'low'; bc = 'blink-alarm'; alarm = 'low'; }
-    else if (lv > r.maxLevel) { wc = 'high'; bc = 'blink-alarm'; alarm = 'high'; }
-    else wc = 'normal';
-  }
-  li.innerHTML = '<span>' + d.device + '</span><div class="device-status">' + fi +
-    '<span class="status-indicator ' + sc + ' ' + fb + '"></span>' +
-    '<span class="waterlevel-value ' + wc + ' ' + bc + '">' + wv + '</span></div>';
-  li.addEventListener('click', function(){ selectDevice(d.device); });
-
-// ────────── HYBRID RESERVOIR (with pump control + water level) ──────────
-} else if (isRes && d.relay !== undefined) {
-  var r = reservoirThresholdsCache[d.device] || {minLevel:20, maxLevel:250};
-  var wv = (d.level !== undefined && d.level !== null && d.level !== '')
-    ? Math.round(parseFloat(d.level)) + ' m³'
-    : '-- m³';
-  var wc = '', bc = '';
-  var alarm = null;
-  if (d.level !== undefined && d.level !== null && d.level !== '') {
-    var lv = parseFloat(d.level);
-    if (lv < r.minLevel) { wc = 'low'; bc = 'blink-alarm'; alarm = 'low'; }
-    else if (lv > r.maxLevel) { wc = 'high'; bc = 'blink-alarm'; alarm = 'high'; }
-    else wc = 'normal';
-  }
-
-  // Relay state (commanded by dashboard)
-  if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
-  var commanded = commandedRelayCache.hasOwnProperty(d.device)
-    ? commandedRelayCache[d.device]
-    : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-  var switchIsOn = commanded === 1 || commanded === true;
-  var relayPending = d.relayPending === true;
-
-  var pendingBadge = relayPending
-    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;">' +
-      '<span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
-    : '';
-
-  li.innerHTML = '<span>' + d.device + '</span>' +
-    '<div class="device-status">' + fi +
-    '<span class="status-indicator ' + sc + ' ' + fb + '"></span>' +
-    '<span class="waterlevel-value ' + wc + ' ' + bc + '">' + wv + '</span>' +
-    '<label class="toggle-switch" title="Toggle pump relay">' +
-    '<input type="checkbox"' + (switchIsOn ? ' checked' : '') + ' data-device="' + escapeForAttr(d.device) + '">' +
-    '<span class="slider"></span></label>' +
-    '</div>' + pendingBadge;
-
-  var cb = li.querySelector('input[type="checkbox"]');
-  cb.addEventListener('change', function() {
-    var newStateInt = cb.checked ? 1 : 0;
-    dashboardTogglePump(d.device, newStateInt, function(confirmed) {
-      cb.checked = confirmed === 1;
-    });
-  });
-  li.addEventListener('click', function(e) {
-    if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device);
-  });
-    
+    // ── RESERVOIR ────────────────────────────────────────────────
+    if (isRes) {
+      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
+      var wc = '';
+      if (d.level !== undefined && d.level !== null && d.level !== '') {
+        var _lv = parseFloat(d.level);
+        if (_lv < r.minLevel) wc = 'low'; else if (_lv > r.maxLevel) wc = 'high'; else wc = 'normal';
+      }
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:460px;">' +
+          '<div style="flex:1;min-width:180px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
+            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+          '</div>' +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Water Level Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
+              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
+            '</div>' +
+            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
+            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
+          '</div>' +
+        '</div>';
+ 
     // ── PRESSURE SENSOR ──────────────────────────────────────────
     } else if (isPres) {
       det.innerHTML =
@@ -4365,55 +4177,20 @@ function generateAIReport() {
 </script>
 
 <!-- ========== AI CHAT ASSISTANT PANEL ========== -->
-<!-- ═══ Google Home–style Voice Overlay ═══ -->
-<div id="voice-overlay">
-  <div class="voice-ring-wrap">
-    <div class="voice-ring"></div>
-    <div class="voice-ring"></div>
-    <div class="voice-ring"></div>
-    <div class="voice-ring"></div>
-    <button class="voice-center-btn" onclick="stopVoiceInput()" title="Tap to cancel">
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
-        <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
-        <line x1="12" y1="19" x2="12" y2="23"/>
-        <line x1="8" y1="23" x2="16" y2="23"/>
-      </svg>
-    </button>
-  </div>
-  <div class="voice-bars">
-    <div class="voice-bar"></div>
-    <div class="voice-bar"></div>
-    <div class="voice-bar"></div>
-    <div class="voice-bar"></div>
-    <div class="voice-bar"></div>
-  </div>
-  <div class="voice-state-label" id="voice-state-label">Listening…</div>
-  <div class="voice-transcript-label" id="voice-transcript-label">Speak now — I'm listening</div>
-  <button class="voice-cancel-btn" onclick="stopVoiceInput()">Cancel</button>
-</div>
-
-<!-- ═══ AI Chat Panel ═══ -->
-<div id="ai-chat-panel" style="display:none;position:fixed;bottom:24px;right:24px;width:390px;max-height:540px;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);z-index:9000;flex-direction:column;overflow:hidden;">
+<div id="ai-chat-panel" style="display:none;position:fixed;bottom:24px;right:24px;width:380px;max-height:520px;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);z-index:9000;flex-direction:column;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#004080,#0066cc);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
-    <div>
-      <div style="color:white;font-weight:800;font-size:14px;">&#9889; AGUS AI Assistant</div>
-      <div style="color:rgba(255,255,255,0.7);font-size:11px;" id="ai-chat-status">Ready &mdash; ask or tap 🎤 to speak</div>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px;">
-      <button id="ai-voice-header-btn" onclick="startVoiceInput()" title="Voice input" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;">🎤</button>
-      <button onclick="toggleAIChat()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;">&#10005;</button>
-    </div>
+    <div><div style="color:white;font-weight:800;font-size:14px;">&#9889; AGUS AI Assistant</div><div style="color:rgba(255,255,255,0.7);font-size:11px;" id="ai-chat-status">Ready &mdash; ask about your system</div></div>
+    <button onclick="toggleAIChat()" style="background:rgba(255,255,255,0.15);border:none;color:white;width:28px;height:28px;border-radius:50%;font-size:16px;cursor:pointer;">&#10005;</button>
   </div>
-  <div id="ai-chat-messages" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:330px;">
-    <div class="ai-msg ai-msg-bot">Hello! I have access to live sensor data. Ask me about pressure trends, alarms, pump status, or energy efficiency.<br><br><span style="font-size:11px;color:#7a8fa6;">💡 Tap 🎤 or the mic button to speak — just like Google Home!</span></div>
+  <div id="ai-chat-messages" style="flex:1;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-height:200px;max-height:320px;">
+    <div class="ai-msg ai-msg-bot">Hello! I have access to live sensor data. Ask me about pressure trends, alarms, pump status, or energy efficiency.</div>
   </div>
-  <div style="padding:10px 12px;border-top:1px solid #e5eef9;display:flex;gap:8px;align-items:center;">
-    <button id="ai-mic-btn" onclick="startVoiceInput()" title="Voice input — speak your question">🎤</button>
-    <input id="ai-chat-input" type="text" placeholder="e.g. Average pressure in pumping station?" style="flex:1;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendAIMessage()">
+  <div style="padding:10px 12px;border-top:1px solid #e5eef9;display:flex;gap:8px;">
+    <input id="ai-chat-input" type="text" placeholder="e.g. Which device has the highest pressure?" style="flex:1;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;" onkeydown="if(event.key==='Enter')sendAIMessage()">
     <button onclick="sendAIMessage()" style="padding:9px 14px;background:#004080;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Send</button>
   </div>
 </div>
+<button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant" style="display:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
 
 <!-- ========== AI MODULES JAVASCRIPT ========== -->
 <script>
@@ -4565,36 +4342,24 @@ var AI_MODEL = 'claude-sonnet-4-20250514';
 function toggleAIChat() {
   aiChatVisible = !aiChatVisible;
   var panel = document.getElementById('ai-chat-panel');
-  if (panel) panel.style.display = aiChatVisible ? 'flex' : 'none';
-  // Update Chat button label in legend
   var fab = document.getElementById('ai-chat-fab');
-  if (fab) fab.innerHTML = aiChatVisible ? '✕ Close' : '🤖 Chat';
+  if (panel) panel.style.display = aiChatVisible ? 'flex' : 'none';
+  if (fab) fab.style.display = aiChatVisible ? 'none' : 'flex';
 }
 function buildAISystemContext(devices) {
-  var lines = ['You are the AI assistant for AGUS — Autonomous Groundwater Utility System. You have real-time sensor data. Answer concisely (max 3 sentences). When asked about average pressure in pumping stations, calculate it from the data provided and state it clearly in psi.'];
-  var pumpPressures = [];
+  var lines = ['You are the AI assistant for AGUS — Autonomous Groundwater Utility System. You have real-time sensor data. Answer concisely (max 3 sentences).'];
   (devices || []).forEach(function(d) {
     var type = (d.type || '').toLowerCase();
-    var isPump = d.device && d.device.toLowerCase().includes('pumping station');
-    var isPress = type === 'pressure' || (d.device||'').toLowerCase().includes('pressure');
-    var isRes = type === 'reservoir' || (d.device||'').toLowerCase().includes('reservoir');
-    if (isPump) {
-      var pv = parseFloat(d.pressure);
-      if (!isNaN(pv) && pv > 0) pumpPressures.push(pv);
-      lines.push('• ' + d.device + ' [Pump Station] — pressure: ' + (d.pressure||'N/A') + ' psi | flow: ' + (d.flow||'N/A') + ' L/s | relay: ' + (d.relay?'ON':'OFF') + ' | status: ' + (d.status||'Unknown'));
-    } else if (isRes) {
-      lines.push('• ' + d.device + ' [Reservoir] — ' + (d.level||'N/A') + ' m³ | Status: ' + (d.status||'Unknown'));
-    } else if (isPress) {
+    if (type === 'pressure' || (d.device||'').toLowerCase().includes('pressure')) {
       lines.push('• ' + d.device + ' [Pressure] — ' + (d.pressure||'N/A') + ' psi | Status: ' + (d.status||'Unknown'));
+    } else if (type === 'reservoir' || (d.device||'').toLowerCase().includes('reservoir')) {
+      lines.push('• ' + d.device + ' [Reservoir] — ' + (d.level||'N/A') + ' m³ | Status: ' + (d.status||'Unknown'));
     } else {
-      lines.push('• ' + d.device + ' — pressure: ' + (d.pressure||'N/A') + ' psi | flow: ' + (d.flow||'N/A') + ' L/s | status: ' + (d.status||'Unknown'));
+      lines.push('• ' + d.device + ' [Pump Station] — pressure: ' + (d.pressure||'N/A') + ' psi | flow: ' + (d.flow||'N/A') + ' L/s | relay: ' + (d.relay?'ON':'OFF') + ' | status: ' + (d.status||'Unknown'));
     }
   });
-  if (pumpPressures.length > 0) {
-    var avg = (pumpPressures.reduce(function(a,b){return a+b;},0) / pumpPressures.length).toFixed(2);
-    lines.push('\nSUMMARY: Average pressure across ' + pumpPressures.length + ' pumping station(s) = ' + avg + ' psi. Min = ' + Math.min.apply(null,pumpPressures).toFixed(2) + ' psi. Max = ' + Math.max.apply(null,pumpPressures).toFixed(2) + ' psi.');
-  }
-  return lines.join('\n');
+  return lines.join('
+');
 }
 function addAIChatMessage(text, role) {
   var box = document.getElementById('ai-chat-messages');
@@ -4626,162 +4391,11 @@ function sendAIMessage() {
     var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
     aiChatHistory.push({ role: 'assistant', content: reply });
     if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
-    var statusEl = document.getElementById('ai-chat-status');
-    // speak the response
-    speakAIResponse(reply, statusEl);
+    document.getElementById('ai-chat-status').innerText = 'Ready';
   }).catch(function(err) {
     if (typingEl) { typingEl.innerText = '⚠ Error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
     document.getElementById('ai-chat-status').innerText = 'Error — try again';
   });
-}
-
-// ── Text-to-Speech for AI responses ─────────────────────────────
-function speakAIResponse(text, statusEl) {
-  if (!window.speechSynthesis) {
-    if (statusEl) statusEl.innerText = 'Ready';
-    return;
-  }
-  window.speechSynthesis.cancel();
-  // Strip markdown for cleaner speech
-  var clean = text
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/#{1,3}\s/g, '')
-    .replace(/`(.+?)`/g, '$1')
-    .replace(/\n+/g, '. ')
-    .replace(/\.\.+/g, '.')
-    .substring(0, 600); // cap length
-
-  var u = new SpeechSynthesisUtterance(clean);
-  u.lang = 'en-US'; u.rate = 0.90; u.pitch = 1.05; u.volume = 1.0;
-
-  // Prefer a natural voice
-  function applyVoice() {
-    var voices = window.speechSynthesis.getVoices();
-    if (voices.length) {
-      var preferred = voices.find(function(v) {
-        return ['Google US English','Samantha','Google UK English Female','Microsoft Aria'].some(function(n){return v.name.includes(n);}) && v.lang.startsWith('en');
-      }) || voices.find(function(v){ return v.lang.startsWith('en-US') && !v.localService===false; })
-        || voices.find(function(v){ return v.lang.startsWith('en'); });
-      if (preferred) u.voice = preferred;
-    }
-  }
-  applyVoice();
-  window.speechSynthesis.onvoiceschanged = applyVoice;
-
-  if (statusEl) {
-    statusEl.innerHTML = '<span class="ai-speaking-dot"></span><span class="ai-speaking-dot"></span><span class="ai-speaking-dot"></span>&nbsp;Speaking…';
-  }
-  u.onend = function() {
-    if (statusEl) statusEl.innerText = 'Ready — ask or tap 🎤 to speak';
-  };
-  u.onerror = function() {
-    if (statusEl) statusEl.innerText = 'Ready — ask or tap 🎤 to speak';
-  };
-  window.speechSynthesis.speak(u);
-}
-
-// ── Google Home–style Voice Input ───────────────────────────────
-var _voiceRecognition = null;
-var _voiceActive = false;
-
-function startVoiceInput() {
-  var SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SpeechRec) {
-    showNotification('🎤 Voice input is not supported in this browser. Please use Chrome.', 'info');
-    return;
-  }
-  if (_voiceActive) { stopVoiceInput(); return; }
-
-  // Show the overlay
-  var overlay = document.getElementById('voice-overlay');
-  var stateLabel = document.getElementById('voice-state-label');
-  var transcriptLabel = document.getElementById('voice-transcript-label');
-  if (overlay) overlay.classList.add('active');
-  if (stateLabel) stateLabel.textContent = 'Listening…';
-  if (transcriptLabel) transcriptLabel.textContent = 'Speak now — I\'m listening';
-
-  var micBtn = document.getElementById('ai-mic-btn');
-  if (micBtn) micBtn.classList.add('listening');
-  _voiceActive = true;
-
-  // Cancel any ongoing speech
-  if (window.speechSynthesis) window.speechSynthesis.cancel();
-
-  _voiceRecognition = new SpeechRec();
-  _voiceRecognition.lang = 'en-US';
-  _voiceRecognition.interimResults = true;
-  _voiceRecognition.maxAlternatives = 1;
-  _voiceRecognition.continuous = false;
-
-  _voiceRecognition.onresult = function(event) {
-    var interim = '', final = '';
-    for (var i = event.resultIndex; i < event.results.length; i++) {
-      var t = event.results[i][0].transcript;
-      if (event.results[i].isFinal) final += t; else interim += t;
-    }
-    if (transcriptLabel) transcriptLabel.textContent = '"' + (final || interim) + '"';
-    if (final) {
-      // Populate input and auto-send
-      var chatInput = document.getElementById('ai-chat-input');
-      if (chatInput) chatInput.value = final.trim();
-      stopVoiceInput();
-      setTimeout(function() { sendAIMessage(); }, 300);
-    }
-  };
-
-  _voiceRecognition.onspeechstart = function() {
-    if (stateLabel) stateLabel.textContent = 'Hearing you…';
-  };
-
-  _voiceRecognition.onspeechend = function() {
-    if (stateLabel) stateLabel.textContent = 'Processing…';
-    if (transcriptLabel) transcriptLabel.textContent = 'Just a moment…';
-  };
-
-  _voiceRecognition.onerror = function(e) {
-    stopVoiceInput();
-    var msgs = {
-      'no-speech': 'No speech detected. Please try again.',
-      'audio-capture': 'Microphone not found.',
-      'not-allowed': 'Microphone permission denied. Please allow microphone access.',
-      'network': 'Network error during recognition.'
-    };
-    showNotification('🎤 ' + (msgs[e.error] || 'Voice error: ' + e.error), 'info');
-  };
-
-  _voiceRecognition.onend = function() {
-    // If ended without final result (silence timeout etc.)
-    stopVoiceInput();
-  };
-
-  try { _voiceRecognition.start(); } catch(e) { stopVoiceInput(); }
-}
-
-function startVoiceInputFab() {
-  // Ensure chat panel is open so the response is visible
-  var panel = document.getElementById('ai-chat-panel');
-  if (panel && panel.style.display === 'none') {
-    aiChatVisible = true;
-    panel.style.display = 'flex';
-    var fab = document.getElementById('ai-chat-fab');
-    if (fab) fab.innerHTML = '✕ Close';
-  }
-  // Show listening state on the Speak button
-  var voiceFab = document.getElementById('ai-voice-fab');
-  if (voiceFab) { voiceFab.innerHTML = '🔴 Listening'; voiceFab.style.background = 'linear-gradient(135deg,#dc2626,#ef4444)'; }
-  startVoiceInput();
-}
-
-function stopVoiceInput() {
-  _voiceActive = false;
-  if (_voiceRecognition) { try { _voiceRecognition.abort(); } catch(e){} _voiceRecognition = null; }
-  var overlay = document.getElementById('voice-overlay');
-  if (overlay) overlay.classList.remove('active');
-  var micBtn = document.getElementById('ai-mic-btn');
-  if (micBtn) micBtn.classList.remove('listening');
-  var voiceFab = document.getElementById('ai-voice-fab');
-  if (voiceFab) { voiceFab.innerHTML = '🎤 Speak'; voiceFab.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)'; }
 }
 
 // ============================================================
@@ -4977,44 +4591,10 @@ Use plain English. Each recommendation 1–2 sentences.
       setTimeout(function() {
         var fab = document.getElementById('ai-chat-fab');
         if (fab) fab.style.display = 'flex';
-        var voiceFab = document.getElementById('ai-voice-fab');
-        if (voiceFab) voiceFab.style.display = 'flex';
       }, 1000);
       return result;
     };
   }
-
-  // ── Backup: MutationObserver watches dashboard visibility ──
-  // This fires whenever login() shows the dashboard, no matter
-  // how the login flow is wired, guaranteeing the FABs appear.
-  (function() {
-    function showFABs() {
-      var fab = document.getElementById('ai-chat-fab');
-      var voiceFab = document.getElementById('ai-voice-fab');
-      if (fab) fab.style.display = 'flex';
-      if (voiceFab) voiceFab.style.display = 'flex';
-    }
-    function attachObserver() {
-      var dashboard = document.getElementById('dashboard');
-      if (!dashboard) return;
-      var obs = new MutationObserver(function(mutations) {
-        mutations.forEach(function(m) {
-          if (m.type === 'attributes' && m.attributeName === 'style') {
-            var d = document.getElementById('dashboard');
-            if (d && d.style.display !== 'none' && d.style.display !== '') {
-              showFABs();
-            }
-          }
-        });
-      });
-      obs.observe(dashboard, { attributes: true, attributeFilter: ['style'] });
-    }
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', attachObserver);
-    } else {
-      attachObserver();
-    }
-  })();
 })();
 </script>
 
