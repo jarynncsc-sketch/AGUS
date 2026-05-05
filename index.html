@@ -1774,6 +1774,37 @@
       <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Fault / Button</span>
     </div>
   </div>
+
+  <!-- Column 5: AI Assistant Buttons -->
+  <div style="min-width:100px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-left:1.5px solid rgba(0,64,128,0.12);padding-left:18px;gap:10px;">
+    <div style="font-size:11px;font-weight:700;color:#0b4f6c;letter-spacing:0.3px;text-align:center;margin-bottom:2px;">🤖 AI Assistant</div>
+    <!-- Voice button -->
+    <button id="ai-voice-fab"
+      data-agus-trusted="1"
+      onclick="startVoiceInputFab()"
+      title="Speak to AI — just like Google Home"
+      style="display:flex;align-items:center;justify-content:center;gap:6px;
+             width:100%;padding:8px 10px;border-radius:10px;
+             background:linear-gradient(135deg,#16a34a,#22c55e);
+             border:none;color:white;font-size:13px;font-weight:700;
+             cursor:pointer;box-shadow:0 3px 10px rgba(22,163,74,0.35);
+             transition:transform 0.15s,box-shadow 0.15s;white-space:nowrap;">
+      🎤 Speak
+    </button>
+    <!-- Chat button -->
+    <button id="ai-chat-fab"
+      data-agus-trusted="1"
+      onclick="toggleAIChat()"
+      title="Open AI Chat"
+      style="display:flex;align-items:center;justify-content:center;gap:6px;
+             width:100%;padding:8px 10px;border-radius:10px;
+             background:linear-gradient(135deg,#004080,#0066cc);
+             border:none;color:white;font-size:13px;font-weight:700;
+             cursor:pointer;box-shadow:0 3px 10px rgba(0,64,128,0.30);
+             transition:transform 0.15s,box-shadow 0.15s;white-space:nowrap;">
+      🤖 Chat
+    </button>
+  </div>
 </div>
 
 <style>
@@ -4301,26 +4332,6 @@ function generateAIReport() {
     <button onclick="sendAIMessage()" style="padding:9px 14px;background:#004080;color:white;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">Send</button>
   </div>
 </div>
-<button id="ai-chat-fab" data-agus-trusted="1" onclick="toggleAIChat()" title="Open AI Assistant" style="display:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
-
-<!-- ═══ Standalone Voice Mic FAB — always visible after login ═══ -->
-<button id="ai-voice-fab" data-agus-trusted="1" onclick="startVoiceInputFab()" title="Speak to AI Assistant 🎤"
-  style="display:none;position:fixed;bottom:90px;right:24px;width:54px;height:54px;border-radius:50%;
-         background:linear-gradient(135deg,#16a34a,#22c55e);border:none;color:white;font-size:24px;
-         cursor:pointer;box-shadow:0 6px 20px rgba(22,163,74,0.45);z-index:8999;
-         align-items:center;justify-content:center;transition:transform 0.15s;">🎤</button>
-
-<style>
-  #ai-voice-fab:hover { transform:scale(1.12); }
-  #ai-voice-fab.pulse-listen {
-    animation: voiceFabPulse 1s ease-in-out infinite;
-    background: linear-gradient(135deg,#dc2626,#ef4444) !important;
-  }
-  @keyframes voiceFabPulse {
-    0%,100%{ box-shadow:0 0 0 0 rgba(220,38,38,0.5); }
-    70%    { box-shadow:0 0 0 14px rgba(220,38,38,0); }
-  }
-</style>
 
 <!-- ========== AI MODULES JAVASCRIPT ========== -->
 <script>
@@ -4472,9 +4483,10 @@ var AI_MODEL = 'claude-sonnet-4-20250514';
 function toggleAIChat() {
   aiChatVisible = !aiChatVisible;
   var panel = document.getElementById('ai-chat-panel');
-  var fab = document.getElementById('ai-chat-fab');
   if (panel) panel.style.display = aiChatVisible ? 'flex' : 'none';
-  if (fab) fab.style.display = aiChatVisible ? 'none' : 'flex';
+  // Update Chat button label in legend
+  var fab = document.getElementById('ai-chat-fab');
+  if (fab) fab.innerHTML = aiChatVisible ? '✕ Close' : '🤖 Chat';
 }
 function buildAISystemContext(devices) {
   var lines = ['You are the AI assistant for AGUS — Autonomous Groundwater Utility System. You have real-time sensor data. Answer concisely (max 3 sentences). When asked about average pressure in pumping stations, calculate it from the data provided and state it clearly in psi.'];
@@ -4667,15 +4679,15 @@ function startVoiceInput() {
 function startVoiceInputFab() {
   // Ensure chat panel is open so the response is visible
   var panel = document.getElementById('ai-chat-panel');
-  var fab = document.getElementById('ai-chat-fab');
   if (panel && panel.style.display === 'none') {
     aiChatVisible = true;
     panel.style.display = 'flex';
-    if (fab) fab.style.display = 'none';
+    var fab = document.getElementById('ai-chat-fab');
+    if (fab) fab.innerHTML = '✕ Close';
   }
-  // Pulse the mic FAB
+  // Show listening state on the Speak button
   var voiceFab = document.getElementById('ai-voice-fab');
-  if (voiceFab) voiceFab.classList.add('pulse-listen');
+  if (voiceFab) { voiceFab.innerHTML = '🔴 Listening'; voiceFab.style.background = 'linear-gradient(135deg,#dc2626,#ef4444)'; }
   startVoiceInput();
 }
 
@@ -4687,7 +4699,7 @@ function stopVoiceInput() {
   var micBtn = document.getElementById('ai-mic-btn');
   if (micBtn) micBtn.classList.remove('listening');
   var voiceFab = document.getElementById('ai-voice-fab');
-  if (voiceFab) voiceFab.classList.remove('pulse-listen');
+  if (voiceFab) { voiceFab.innerHTML = '🎤 Speak'; voiceFab.style.background = 'linear-gradient(135deg,#16a34a,#22c55e)'; }
 }
 
 // ============================================================
