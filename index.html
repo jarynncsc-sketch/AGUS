@@ -2713,8 +2713,33 @@ function updateDeviceList(devices) {
       var wv = (d.level!==undefined&&d.level!==null&&d.level!=='') ? Math.round(parseFloat(d.level))+' m³' : '-- m³';
       var wc='', bc='';
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
-      li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
-      li.addEventListener('click', function(){selectDevice(d.device);});
+      // ── Relay toggle for "Reservoir Booster" only ───────────────────────
+      var isResBooster = d.device === 'Reservoir Booster';
+      if (isResBooster) {
+        if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
+        var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+        var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
+        var resRelayPending = d.relayPending === true;
+        var resPendingBadge = resRelayPending
+          ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+          : '';
+        li.innerHTML = '<span>'+d.device+'</span>'
+          + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
+          + '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
+          + '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
+          + '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
+          + '<span class="slider"></span></label></div>'
+          + resPendingBadge;
+        var resCb = li.querySelector('input[type="checkbox"]');
+        resCb.addEventListener('change', function() {
+          var newStateInt = resCb.checked ? 1 : 0;
+          dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
+        });
+        li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
+      } else {
+        li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
+        li.addEventListener('click', function(){selectDevice(d.device);});
+      }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
       var pv = d.pressure ? Math.round(parseFloat(d.pressure))+' psi' : '-- psi', pc='', bc='';
