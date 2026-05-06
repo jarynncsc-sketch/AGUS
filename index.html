@@ -2572,37 +2572,60 @@ if (!isNaN(llvl)) {
         ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
         : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
  
+      // ── Build relay state display ──────────────────────────────
+      var _relayColor  = d.commandedRelay ? '#22c55e' : '#ef4444';
+      var _relayLabel  = d.commandedRelay ? 'ON' : 'OFF';
+      var _relayConfirm = d.relayPending
+        ? '<span style="font-size:10px;color:#d97706;font-weight:700;">⏳ Confirming…</span>'
+        : '<span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>';
+      var _lastTogBy = d.lastToggledBy || '—';
+
       det.innerHTML =
-        '<div style="display:flex;gap:12px;min-width:460px;">' +
-          '<div style="flex:1;min-width:180px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
-            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
-            'Current: '  + (d.current  || 0) + ' A<br>' +
-            'Power: '    + (d.power    || 0) + ' W<br>' +
-            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
-            // ★ v3: show commanded (dashboard) vs actual (Smart Device)
-            'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
-              +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
-            +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            _effBadge + '<br>' +
-            '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+        '<div style="min-width:320px;max-width:400px;font-family:\'DM Sans\',sans-serif;">' +
+
+          // ── Header ──────────────────────────────────────────────
+          '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid #e5eef9;">' +
+            '<div style="width:10px;height:10px;border-radius:50%;background:' + (effSt==='Online'?'#22c55e':effSt==='Fault'?'#ef4444':'#f97316') + ';flex-shrink:0;"></div>' +
+            '<b style="font-size:14px;color:#002b5c;flex:1;">' + d.device + '</b>' +
+            '<span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:10px;background:' + (effSt==='Online'?'#dcfce7':effSt==='Fault'?'#fee2e2':'#ffedd5') + ';color:' + (effSt==='Online'?'#16a34a':effSt==='Fault'?'#dc2626':'#d97706') + ';">' + effSt + (fb?' ⚠':'') + '</span>' +
           '</div>' +
-          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
-            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div>' +
-            '<div class="pressure-thresholds-badge">' +
-              '<span class="pth-item low">🟠 Min: ' + s.minPsi + ' psi</span>' +
-              '<span class="pth-item normal">🟢 Normal: ' + s.normalPsi + ' psi</span>' +
-              '<span class="pth-item high">🔴 Max: ' + s.maxPsi + ' psi</span>' +
+
+          // ── Stats grid ──────────────────────────────────────────
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px 12px;margin-bottom:10px;">' +
+
+            // Pressure
+            '<div style="background:#f0f7ff;border-radius:8px;padding:7px 10px;">' +
+              '<div style="font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Pressure</div>' +
+              '<div style="display:flex;align-items:center;gap:5px;">' +
+                '<span style="font-size:16px;font-weight:800;color:' + pC + ';">' + (d.pressure || '0') + ' <span style="font-size:11px;font-weight:600;">psi</span></span>' +
+                '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:9px;padding:1px 5px;border-radius:8px;font-weight:700;">' + pT + '</span>' +
+              '</div>' +
             '</div>' +
-            '<div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
-            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
-            '<button class="ps-gear-btn" onclick="openPressureSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Pressure Range Settings</button>' +
+
+            // Flow
+            '<div style="background:#f0fdf4;border-radius:8px;padding:7px 10px;">' +
+              '<div style="font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Flow</div>' +
+              '<span style="font-size:16px;font-weight:800;color:#0ea5e9;">' + (d.flow || '0') + ' <span style="font-size:11px;font-weight:600;">L/s</span></span>' +
+            '</div>' +
+
+            // Voltage
+            '<div style="background:#fefce8;border-radius:8px;padding:7px 10px;">' +
+              '<div style="font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Voltage</div>' +
+              '<span style="font-size:16px;font-weight:800;color:#ca8a04;">' + (d.voltage || '0') + ' <span style="font-size:11px;font-weight:600;">V</span></span>' +
+            '</div>' +
+
+            // Relay
+            '<div style="background:' + (d.commandedRelay ? '#f0fdf4' : '#fef2f2') + ';border-radius:8px;padding:7px 10px;">' +
+              '<div style="font-size:9px;font-weight:800;color:#94a3b8;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:2px;">Relay</div>' +
+              '<div style="display:flex;align-items:center;gap:5px;">' +
+                '<span style="font-size:16px;font-weight:800;color:' + _relayColor + ';">● ' + _relayLabel + '</span>' +
+                _relayConfirm +
+              '</div>' +
+            '</div>' +
+
           '</div>' +
-        '</div>';
+
+          // 
     }
  
     det.style.display = 'block';
@@ -2723,12 +2746,17 @@ function updateDeviceList(devices) {
         var resPendingBadge = resRelayPending
           ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
           : '';
-        li.innerHTML = '<span>'+d.device+'</span>'
-          + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
-          + '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
-          + '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
+        li.innerHTML =
+          '<span style="font-weight:700;font-size:11.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-bottom:3px;">'+d.device+'</span>'
+          + '<div class="device-status" style="display:flex;flex-direction:row;align-items:center;gap:4px;">'
+          + fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
+          + '<div style="display:flex;flex-direction:column;align-items:center;gap:2px;">'
+          + '<span class="waterlevel-value '+wc+' '+bc+'" style="display:block;text-align:center;">'+wv+'</span>'
+          + '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF" style="margin:0;">'
           + '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
-          + '<span class="slider"></span></label></div>'
+          + '<span class="slider"></span></label>'
+          + '</div>'
+          + '</div>'
           + resPendingBadge;
         var resCb = li.querySelector('input[type="checkbox"]');
         resCb.addEventListener('change', function() {
