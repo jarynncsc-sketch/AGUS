@@ -2714,7 +2714,7 @@ function updateDeviceList(devices) {
       var wc='', bc='';
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
       // ── Relay toggle for "Reservoir Booster" only ───────────────────────
-      var isResBooster = d.hasRelay === true && isRes;
+     var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
       if (isResBooster) {
         if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
         var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
