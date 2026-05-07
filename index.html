@@ -2724,14 +2724,13 @@ if (isResBooster) {
     ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
     : '';
 
+  // All in one row: device name, water level, status circle, toggle switch
   li.innerHTML = ''
-    // Row 1: water level (right‑aligned, above the toggle)
-    + '<div style="text-align:right; margin-bottom:6px;">'
-    +   '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
-    + '</div>'
-    // Row 2: device name (left) + status circle & toggle (right)
-    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">'
-    +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
+    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
+    +   '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">'
+    +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
+    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="white-space:nowrap;">'+wv+'</span>'
+    +   '</div>'
     +   '<div style="display:flex; align-items:center; gap:6px;">'
     +     (fi ? fi : '')
     +     '<span class="status-indicator '+sc+' '+fb+'"></span>'
