@@ -2724,23 +2724,23 @@ if (isResBooster) {
     ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
     : '';
 
-  // All in one row: device name, water level, status circle, toggle switch
+  // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = ''
-    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-    +   '<div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">'
+    + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
+    +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap;">'+wv+'</span>'
+    +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
     +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
-    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="white-space:nowrap;">'+wv+'</span>'
+    +     '<div style="display:flex; align-items:center; gap:6px;">'
+    +       (fi ? fi : '')
+    +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +       '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
+    +         '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
+    +         '<span class="slider"></span>'
+    +       '</label>'
+    +     '</div>'
     +   '</div>'
-    +   '<div style="display:flex; align-items:center; gap:6px;">'
-    +     (fi ? fi : '')
-    +     '<span class="status-indicator '+sc+' '+fb+'"></span>'
-    +     '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
-    +       '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
-    +       '<span class="slider"></span>'
-    +     '</label>'
-    +   '</div>'
-    + '</div>'
-    + (resPendingBadge ? '<div style="margin-top:4px; text-align:right;">'+resPendingBadge+'</div>' : '');
+    +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
+    + '</div>';
 
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
