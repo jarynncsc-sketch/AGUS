@@ -2715,7 +2715,7 @@ function updateDeviceList(devices) {
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
       // ── Relay toggle for "Reservoir Booster" only ───────────────────────
      var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
-  if (isResBooster) {
+ if (isResBooster) {
   if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
@@ -2724,15 +2724,21 @@ function updateDeviceList(devices) {
     ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
     : '';
 
-  // New layout: status circle aligned with device name, water level above toggle
-  li.innerHTML = '<div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">'
-    +   (fi ? fi : '') + '<span class="status-indicator '+sc+' '+fb+'"></span>'
-    +   '<span style="font-weight:600; color:#004080;">'+d.device+'</span>'
+  li.innerHTML = ''
+    // Row 1: Device name (left) + Status circle & fault indicator (right)
+    + '<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">'
+    +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
+    +   '<div style="display:flex; align-items:center; gap:4px;">'
+    +     (fi ? fi : '')
+    +     '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +   '</div>'
     + '</div>'
-    + '<div style="margin-bottom:8px;">'
+    // Row 2: Water level (m³)
+    + '<div style="margin:6px 0 4px 0; text-align:center;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
     + '</div>'
-    + '<div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">'
+    // Row 3: Toggle switch + pending badge
+    + '<div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">'
     +   '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
     +     '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
     +     '<span class="slider"></span>'
