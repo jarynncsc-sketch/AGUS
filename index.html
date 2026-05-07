@@ -2725,11 +2725,11 @@ if (isResBooster) {
     : '';
 
   li.innerHTML = ''
-    // Line 1: Water level – right‑aligned with extra bottom spacing
-    + '<div style="text-align:right; margin-bottom:12px;">'   // Increased from 6px to 12px
+    // Line 1: Water level (right aligned)
+    + '<div style="text-align:right; margin-bottom:6px;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
     + '</div>'
-    // Line 2: Device name (left) + status circle & fault + toggle switch (right)
+    // Line 2: Device name (left) + status circle & fault + toggle switch (all on same line)
     + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">'
     +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
     +   '<div style="display:flex; align-items:center; gap:6px;">'
