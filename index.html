@@ -2696,9 +2696,16 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
 
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list'); list.innerHTML = '';
+  
+  // Hidden internal sheets — never render in device list
+  var HIDDEN_DEVICES = ['ReservoirPumpLinks','AutoShutoffLog','EventLog','Summary','DailyTotals','DeviceInfo','LoginHistory'];
+
   devices.forEach(function(d) {
     if (!d.device) return;
+    if (HIDDEN_DEVICES.indexOf(d.device) !== -1) return; // ← add this line
+    
     var name = d.device.toLowerCase();
+    // ... rest of your existing code unchanged
     if (name.endsWith('pressurelog')||name.endsWith('reservoirlog')) return;
     var isRes = (d.type&&d.type.toLowerCase().trim()==='reservoir')||name.includes('reservoir');
     var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
