@@ -2725,11 +2725,11 @@ if (isResBooster) {
     : '';
 
   li.innerHTML = ''
-    // Line 1: Water level (right aligned)
-    + '<div style="text-align:right; margin-bottom:6px;">'
+    // Water level: right-aligned, no extra margin bottom (tight but readable)
+    + '<div style="text-align:right; margin-bottom:4px;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
     + '</div>'
-    // Line 2: Device name (left) + status circle & fault + toggle switch (all on same line)
+    // Device name + status + toggle on one line
     + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">'
     +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
     +   '<div style="display:flex; align-items:center; gap:6px;">'
@@ -2741,7 +2741,7 @@ if (isResBooster) {
     +     '</label>'
     +   '</div>'
     + '</div>'
-    + (resPendingBadge ? '<div style="margin-top:4px;">'+resPendingBadge+'</div>' : '');
+    + (resPendingBadge ? '<div style="margin-top:4px; text-align:right;">'+resPendingBadge+'</div>' : '');
 
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
