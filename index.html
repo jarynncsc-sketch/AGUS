@@ -2715,7 +2715,7 @@ function updateDeviceList(devices) {
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
       // ── Relay toggle for "Reservoir Booster" only ───────────────────────
      var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
- if (isResBooster) {
+if (isResBooster) {
   if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
@@ -2725,26 +2725,23 @@ function updateDeviceList(devices) {
     : '';
 
   li.innerHTML = ''
-    // Row 1: Device name (left) + Status circle & fault indicator (right)
-    + '<div style="display:flex; justify-content:space-between; align-items:center; width:100%;">'
-    +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
-    +   '<div style="display:flex; align-items:center; gap:4px;">'
-    +     (fi ? fi : '')
-    +     '<span class="status-indicator '+sc+' '+fb+'"></span>'
-    +   '</div>'
-    + '</div>'
-    // Row 2: Water level (m³)
-    + '<div style="margin:6px 0 4px 0; text-align:center;">'
+    // Line 1: Water level – right‑aligned with extra bottom spacing
+    + '<div style="text-align:right; margin-bottom:12px;">'   // Increased from 6px to 12px
     +   '<span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span>'
     + '</div>'
-    // Row 3: Toggle switch + pending badge
-    + '<div style="display:flex; align-items:center; justify-content:center; gap:8px; flex-wrap:wrap;">'
-    +   '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
-    +     '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
-    +     '<span class="slider"></span>'
-    +   '</label>'
-    +   resPendingBadge
-    + '</div>';
+    // Line 2: Device name (left) + status circle & fault + toggle switch (right)
+    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">'
+    +   '<span style="font-weight:600; color:#004080; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">'+d.device+'</span>'
+    +   '<div style="display:flex; align-items:center; gap:6px;">'
+    +     (fi ? fi : '')
+    +     '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +     '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
+    +       '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
+    +       '<span class="slider"></span>'
+    +     '</label>'
+    +   '</div>'
+    + '</div>'
+    + (resPendingBadge ? '<div style="margin-top:4px;">'+resPendingBadge+'</div>' : '');
 
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
