@@ -2112,6 +2112,7 @@ function login() {
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
+      initPumpLinksAndDisplay();
     })
     .catch(function(err) {
       errEl.innerText = 'Login failed. Check your API_URL in the code or try again.';
@@ -2679,6 +2680,8 @@ function updateDashboard() {
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
+    // Force badge update after dashboard refresh
+    setTimeout(_updateAutoShutoffBadges, 100);
   }).catch(function(err) { console.error('updateDashboard error:', err); });
 }
 function updateMap(devices) {
@@ -6020,6 +6023,85 @@ function loadForecast() {
         +'</div>';
     }
   }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
+}
+  // ============================================================
+// FIX: Load auto-shutoff state from server and display badges
+// ============================================================
+
+// Override the autoShutoffPumps function to ensure badges are shown
+var originalAutoShutoffPumps = window.autoShutoffPumps;
+window.autoShutoffPumps = function(devices) {
+  if (originalAutoShutoffPumps) originalAutoShutoffPumps(devices);
+  // Force badge update after auto-shutoff check
+  setTimeout(_updateAutoShutoffBadges, 100);
+};
+
+// Ensure pump links are loaded on dashboard init
+function initPumpLinksAndDisplay() {
+  if (typeof loadPumpLinksFromGAS === 'function') {
+    loadPumpLinksFromGAS(function() {
+      console.log("✅ Initial pump links loaded from GAS:", pumpLinkConfigs.length);
+      _updatePumpLinksBadge();
+      // Also load any existing auto-shutoff state from localStorage and apply to UI
+      var savedState = localStorage.getItem('reservoirAutoShutoff');
+      if (savedState) {
+        reservoirAutoShutoffState = JSON.parse(savedState);
+        _updateAutoShutoffBadges();
+      }
+    });
+  }
+}
+
+// Call this after login - modify the login function
+// Add to your login success callback:
+// initPumpLinksAndDisplay();
+
+// Also add a refresh button to the dashboard top bar next to Pump Links
+var pumpLinksCard = document.querySelector('.top-card[data-tab="pump-links"]');
+if (pumpLinksCard) {
+  // Add a refresh indicator - this shows the badge
+  setInterval(function() {
+    if (pumpLinkConfigs && pumpLinkConfigs.length > 0) {
+      _updatePumpLinksBadge();
+    }
+  }, 30000); // Check every 30 seconds
+}
+
+// Force refresh function accessible from console for debugging
+window.forceRefreshPumpLinks = function() {
+  loadPumpLinksFromGAS(function() {
+    console.log("Manual refresh - links loaded:", pumpLinkConfigs);
+    _renderLinkCards();
+    _updatePumpLinksBadge();
+    updateDashboard();
+    showNotification("Pump links refreshed: " + pumpLinkConfigs.length + " active", "success");
+  });
+};
+
+// Also fix the pump link modal's refresh button to actually work
+if (typeof _refreshPumpLinksUI !== 'undefined') {
+  window._refreshPumpLinksUI = function() {
+    var cardsEl = document.getElementById('pl-link-cards');
+    if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">⏳ Refreshing from Google Sheet…</div>';
+    loadPumpLinksFromGAS(function() { 
+      _renderLinkCards(); 
+      _updatePumpLinksBadge();
+      updateDashboard();
+      showNotification('🔄 Links refreshed from ReservoirPumpLinks sheet.', 'info');
+    });
+  };
+}
+
+// Override loadPumpLinksFromGAS to ensure it updates UI after load
+var originalLoadPumpLinks = window.loadPumpLinksFromGAS;
+if (originalLoadPumpLinks) {
+  window.loadPumpLinksFromGAS = function(cb) {
+    originalLoadPumpLinks(function() {
+      console.log("Pump links loaded, count:", pumpLinkConfigs.length);
+      _updatePumpLinksBadge();
+      if (cb) cb();
+    });
+  };
 }
 </script>
 
