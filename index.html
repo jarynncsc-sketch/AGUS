@@ -1912,7 +1912,8 @@ function apiPost(action, data) {
   return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
 }
 
-var sessionToken = null; // set on login for GAS authenticated calls
+var userToken = null, loggedInUser = '', selectedDevice = null;
+var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
 
 var deviceMarkers = {}, myChart = null, blinkOn = true;
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
@@ -3104,11 +3105,14 @@ function _buildPumpLinkHTML() {
     +     '</div>'
     +   '</div>'
     +   '<div id="pl-add-validation" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:8px;"></div>'
-    +   '<button onclick="addPumpLink()" style="padding:9px 22px;background:linear-gradient(135deg,#0c4a6e,#0369a1);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%;">➕ Add Link</button>'
+    +   '<button id="pl-add-btn" onclick="addPumpLink()" style="padding:9px 22px;background:linear-gradient(135deg,#0c4a6e,#0369a1);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%;">➕ Add Link</button>'
     + '</div>'
     // ── Existing links ──────────────────────────────────────────────────
     + '<div style="flex:1;overflow-y:auto;padding:14px 20px;" id="pl-cards-area">'
-    +   '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">📋 Configured Links</div>'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    +     '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.5px;">📋 Configured Links</div>'
+    +     '<button onclick="_refreshPumpLinksUI()" style="padding:4px 10px;background:#eff6ff;color:#0369a1;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Refresh</button>'
+    +   '</div>'
     +   '<div id="pl-link-cards"></div>'
     + '</div>'
     // ── Footer ─────────────────────────────────────────────────────────
@@ -3205,14 +3209,21 @@ function _renderLinkCards() {
 }
 
 function _setManualOverride(id, val) {
-  apiGet('updatePumpLink', { action:'updatePumpLink', token: sessionToken||'', linkId: id, manualOverride: val?'true':'false' })
-    .then(function(resp) {
-      if (!resp || !resp.success) { showNotification('⚠ Override update failed: '+(resp&&resp.error?resp.error:'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
-      var cfg = pumpLinkConfigs.find(function(c){ return c.id===id; });
-      if (cfg) cfg.manualOverride = val;
-      _renderLinkCards();
-      showNotification(val ? '🖐 Manual override ON — GAS auto-shutoff bypassed for this link.' : '🤖 Auto mode restored.', 'info');
-    }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
+  var tok = sessionToken || userToken || '';
+  var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id) + '&manualOverride=' + (val ? 'true' : 'false');
+  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+    if (!resp || !resp.success) { showNotification('⚠ Override update failed: '+(resp&&resp.error?resp.error:'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
+    var cfg = pumpLinkConfigs.find(function(c){ return c.id===id; });
+    if (cfg) cfg.manualOverride = val;
+    _renderLinkCards();
+    showNotification(val ? '🖐 Manual override ON — GAS auto-shutoff bypassed.' : '🤖 Auto mode restored.', 'info');
+  }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
+}
+
+function _refreshPumpLinksUI() {
+  var cardsEl = document.getElementById('pl-link-cards');
+  if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">⏳ Refreshing from Google Sheet…</div>';
+  loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); showNotification('🔄 Links refreshed from ReservoirPumpLinks sheet.', 'info'); });
 }
 
 function addPumpLink() {
@@ -3228,57 +3239,73 @@ function addPumpLink() {
   if (isNaN(resume)  || resume < 0) { val.textContent = '⚠ Enter a valid resume level.'; return; }
   if (resume >= shutoff)            { val.textContent = '⚠ Resume level must be less than shutoff level.'; return; }
 
-  var addBtn = document.querySelector('#pl-inner button[onclick="addPumpLink()"]');
-  if (addBtn) { addBtn.disabled = true; addBtn.textContent = '⏳ Saving…'; }
+  var tok = sessionToken || userToken || '';
+  if (!tok) { val.textContent = '⚠ Not authenticated — please log out and log in again.'; return; }
+
+  var addBtn = document.getElementById('pl-add-btn');
+  if (addBtn) { addBtn.disabled = true; addBtn.textContent = '⏳ Saving to Sheet…'; }
   val.textContent = '';
 
-  var params = {
-    action: 'addPumpLink', token: sessionToken || '',
-    reservoir: res, pump: pump,
-    shutoffLevel: shutoff, resumeLevel: resume,
-    manualOverride: 'false'
-  };
-  apiGet('addPumpLink', params).then(function(resp) {
-    if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
-    if (!resp || !resp.success) {
-      val.textContent = '⚠ ' + (resp && resp.error ? resp.error : 'Server error saving link.');
-      return;
-    }
-    document.getElementById('pl-res-select').value    = '';
-    document.getElementById('pl-pump-select').value   = '';
-    document.getElementById('pl-shutoff-input').value = '';
-    document.getElementById('pl-resume-input').value  = '';
-    loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
-    showNotification('✅ Link saved to server: ' + res + ' → ' + pump, 'success');
-  }).catch(function(err) {
-    if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
-    val.textContent = '⚠ Network error: ' + err;
-  });
+  var url = API_URL
+    + '?action=addPumpLink'
+    + '&token='        + encodeURIComponent(tok)
+    + '&reservoir='    + encodeURIComponent(res)
+    + '&pump='         + encodeURIComponent(pump)
+    + '&shutoffLevel=' + encodeURIComponent(shutoff)
+    + '&resumeLevel='  + encodeURIComponent(resume)
+    + '&manualOverride=false';
+
+  fetch(url)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(resp) {
+      if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
+      if (!resp || !resp.success) {
+        val.style.color = '#dc2626';
+        val.textContent = '⚠ GAS error: ' + (resp && resp.error ? resp.error : 'Unknown. Check GAS execution logs.');
+        return;
+      }
+      document.getElementById('pl-res-select').value    = '';
+      document.getElementById('pl-pump-select').value   = '';
+      document.getElementById('pl-shutoff-input').value = '';
+      document.getElementById('pl-resume-input').value  = '';
+      val.style.color   = '#16a34a';
+      val.textContent   = '✅ Saved to ReservoirPumpLinks sheet!';
+      setTimeout(function(){ if(val){ val.textContent=''; val.style.color='#dc2626'; } }, 3500);
+      loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
+      showNotification('✅ Link saved: ' + res + ' → ' + pump, 'success');
+    })
+    .catch(function(err) {
+      if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
+      val.style.color = '#dc2626';
+      val.textContent = '⚠ Network error: ' + String(err) + '. Verify the GAS Web App URL is deployed as "Anyone".';
+    });
 }
 
 function deletePumpLink(id) {
-  if (!confirm('Remove this reservoir–pump link from the server?')) return;
-  apiGet('deletePumpLink', { action: 'deletePumpLink', token: sessionToken || '', linkId: id })
-    .then(function(resp) {
-      if (!resp || !resp.success) { showNotification('⚠ Delete failed: ' + (resp && resp.error ? resp.error : 'Unknown error'), 'warning'); return; }
-      Object.keys(reservoirAutoShutoffState).forEach(function(k) {
-        if (reservoirAutoShutoffState[k] && reservoirAutoShutoffState[k].linkId === id) delete reservoirAutoShutoffState[k];
-      });
-      localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-      loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
-      showNotification('Link removed from server.', 'info');
-    }).catch(function(err) { showNotification('⚠ Network error deleting link: ' + err, 'warning'); });
+  if (!confirm('Remove this reservoir–pump link from Google Sheet?')) return;
+  var tok = sessionToken || userToken || '';
+  var url = API_URL + '?action=deletePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id);
+  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+    if (!resp || !resp.success) { showNotification('⚠ Delete failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); return; }
+    Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+      if (reservoirAutoShutoffState[k] && reservoirAutoShutoffState[k].linkId === id) delete reservoirAutoShutoffState[k];
+    });
+    localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+    loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
+    showNotification('Link removed from ReservoirPumpLinks sheet.', 'info');
+  }).catch(function(err) { showNotification('⚠ Network error deleting link: ' + err, 'warning'); });
 }
 
 function togglePumpLink(id, enabled) {
-  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || '', linkId: id, enabled: enabled ? 'true' : 'false' })
-    .then(function(resp) {
-      if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
-      var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
-      if (cfg) cfg.enabled = enabled;
-      _renderLinkCards();
-      showNotification((enabled ? '✅ Link enabled.' : '⏸ Link disabled.'), 'info');
-    }).catch(function() { showNotification('⚠ Network error toggling link.', 'warning'); });
+  var tok = sessionToken || userToken || '';
+  var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id) + '&enabled=' + (enabled ? 'true' : 'false');
+  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+    if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
+    var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
+    if (cfg) cfg.enabled = enabled;
+    _renderLinkCards();
+    showNotification((enabled ? '✅ Link enabled in Sheet.' : '⏸ Link disabled in Sheet.'), 'info');
+  }).catch(function() { showNotification('⚠ Network error toggling link.', 'warning'); });
 }
 
 function editPumpLink(id) {
@@ -3290,12 +3317,12 @@ function editPumpLink(id) {
   if (newResume === null) return;
   var s = parseFloat(newShutoff), r = parseFloat(newResume);
   if (isNaN(s) || isNaN(r) || r >= s) { alert('⚠ Invalid values. Resume must be less than shutoff.'); return; }
-  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || '', linkId: id, shutoffLevel: s, resumeLevel: r })
+  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || userToken || '', linkId: id, shutoffLevel: s, resumeLevel: r })
     .then(function(resp) {
       if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); return; }
       cfg.shutoffLevel = s; cfg.resumeLevel = r; cfg.updatedAt = new Date().toLocaleString();
       _renderLinkCards();
-      showNotification('✅ Link updated on server.', 'success');
+      showNotification('✅ Link updated in Google Sheet.', 'success');
     }).catch(function() { showNotification('⚠ Network error updating link.', 'warning'); });
 }
 
