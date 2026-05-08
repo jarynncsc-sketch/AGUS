@@ -1895,6 +1895,13 @@ function toggleFilter(type){
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
 
 function apiGet(action, params) {
+  // If params already contains 'action', use it as the primary query string (for pump link CRUD calls)
+  if (params && params.action) {
+    var url = API_URL + '?' + Object.keys(params).map(function(k) {
+      var v = params[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : v);
+    }).join('&');
+    return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  }
   var url = API_URL + '?action=' + encodeURIComponent(action);
   if (params) { Object.keys(params).forEach(function(k) { url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }); }
   return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
@@ -1905,7 +1912,8 @@ function apiPost(action, data) {
   return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
 }
 
-var userToken = null, loggedInUser = '', selectedDevice = null;
+var sessionToken = null; // set on login for GAS authenticated calls
+
 var deviceMarkers = {}, myChart = null, blinkOn = true;
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
@@ -1949,13 +1957,50 @@ var reservoirThresholdsCache = {}, reservoirSettingsModalDev = '';
 var alarmSpeechState = {};
 var SPEECH_REPEAT_INTERVAL = 5 * 60 * 1000, ONLINE_THRESHOLD_MINUTES = 30;
 
-// ── Reservoir–Pump Link (fully user-configurable) ─────────────────────────
-// pumpLinkConfigs: array of link objects
-// { id, reservoir, pump, shutoffLevel, resumeLevel, enabled, createdBy, updatedAt }
-var pumpLinkConfigs     = JSON.parse(localStorage.getItem('pumpLinkConfigs')    || '[]');
+// ── Reservoir–Pump Link — GAS-backed (ReservoirPumpLinks sheet) ──────────
+// pumpLinkConfigs: array of link objects from GAS
+// { linkId, reservoir, pump, shutoff, resume, enabled, manualOverride, createdBy, updatedAt, lastTriggered, triggerCount }
+var pumpLinkConfigs           = [];
+var _pumpLinksLoaded          = false;
+var _pumpLinksLoading         = false;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
 var autoShutoffSuppressNotify = {}; // debounce toasts
-var _autoShutoffLog     = JSON.parse(localStorage.getItem('autoShutoffLog')     || '[]');
+var _autoShutoffLog           = []; // loaded from GAS on demand
+
+// ── Normalise GAS link object → internal format ───────────────────────────
+function _normLink(l) {
+  return {
+    id:            l.linkId || l.id || '',
+    reservoir:     l.reservoir  || '',
+    pump:          l.pump       || '',
+    shutoffLevel:  parseFloat(l.shutoff  || l.shutoffLevel)  || 0,
+    resumeLevel:   parseFloat(l.resume   || l.resumeLevel)   || 0,
+    enabled:       l.enabled    !== false,
+    manualOverride:!!l.manualOverride,
+    createdBy:     l.createdBy  || '',
+    updatedAt:     l.updatedAt  || '',
+    lastTriggered: l.lastTriggered || null,
+    triggerCount:  l.triggerCount  || 0
+  };
+}
+
+// ── Load all links from GAS and cache locally ─────────────────────────────
+function loadPumpLinksFromGAS(cb) {
+  if (_pumpLinksLoading) { if (cb) setTimeout(function(){ loadPumpLinksFromGAS(cb); }, 400); return; }
+  _pumpLinksLoading = true;
+  apiGet('getPumpLinks').then(function(data) {
+    pumpLinkConfigs  = (Array.isArray(data) ? data : []).map(_normLink);
+    _pumpLinksLoaded = true;
+    _pumpLinksLoading = false;
+    if (cb) cb();
+  }).catch(function(err) {
+    console.error('loadPumpLinksFromGAS error:', err);
+    _pumpLinksLoading = false;
+    if (cb) cb();
+  });
+}
+
+function savePumpLinkConfigs() { /* no-op: GAS is source of truth */ }
 
 // ── Coordinate cache: preserves last known lat/lng per device so every
 //    togglePump call includes them (fixes missing coords after toggle) ───────
@@ -2058,7 +2103,7 @@ function login() {
   apiPost('checkLogin', {user: user, pass: pass})
     .then(function(token) {
       if (!token) { errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
-      userToken = token; loggedInUser = user;
+      userToken = token; sessionToken = token; loggedInUser = user;
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
@@ -2619,7 +2664,7 @@ function buildMiniRangeBar(mn, no, mx, cur) {
   return '<div style="position:absolute;inset:0;display:flex;"><div style="width:'+lw+'%;background:linear-gradient(90deg,#ff6b35,#ffa040);"></div><div style="width:'+nw+'%;background:linear-gradient(90deg,#22c55e,#4ade80);"></div><div style="flex:1;background:linear-gradient(90deg,#ef4444,#dc2626);"></div></div>'+ind;
 }
 
-function initDashboard() { updateDashboard(); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
+function initDashboard() { updateDashboard(); loadPumpLinksFromGAS(function(){}); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
 function updateDashboard() {
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
@@ -2861,9 +2906,6 @@ if (isResBooster) {
 // ║  RESERVOIR–PUMP AUTO-CONTROL ENGINE  (fully user-configurable)          ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
-function savePumpLinkConfigs() {
-  localStorage.setItem('pumpLinkConfigs', JSON.stringify(pumpLinkConfigs));
-}
 
 function autoShutoffPumps(devices) {
   if (!devices || !devices.length || !pumpLinkConfigs.length) return;
@@ -3000,7 +3042,16 @@ function _updateAutoShutoffBadges() {
 function _addAutoShutoffLog(entry) {
   _autoShutoffLog.unshift(entry);
   if (_autoShutoffLog.length > 200) _autoShutoffLog.pop();
-  localStorage.setItem('autoShutoffLog', JSON.stringify(_autoShutoffLog));
+  // GAS auto-shutoff is written server-side; client list is UI-only cache
+}
+
+function _updatePumpLinksBadge() {
+  var activeShutoffs = Object.keys(reservoirAutoShutoffState).length;
+  var plBadge = document.getElementById('pump-links-badge');
+  if (plBadge) {
+    if (activeShutoffs > 0) { plBadge.style.display = 'flex'; plBadge.textContent = activeShutoffs; }
+    else plBadge.style.display = 'none';
+  }
 }
 
 // ── Pump Link Settings Modal ────────────────────────────────────────────────
@@ -3015,7 +3066,9 @@ function openPumpLinkSettings() {
   ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
   _populatePumpLinkDeviceDropdowns();
-  _renderLinkCards();
+  var cardsEl = document.getElementById('pl-link-cards');
+  if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#64748b;font-size:13px;">⏳ Loading links from server…</div>';
+  loadPumpLinksFromGAS(function() { _renderLinkCards(); });
 }
 
 function _buildPumpLinkHTML() {
@@ -3104,22 +3157,27 @@ function _populatePumpLinkDeviceDropdowns() {
 function _renderLinkCards() {
   var area = document.getElementById('pl-link-cards'); if (!area) return;
   if (!pumpLinkConfigs.length) {
-    area.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#94a3b8;font-size:13px;">No links configured yet. Add one above to enable automatic pump control.</div>';
+    area.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#94a3b8;font-size:13px;">No links configured yet.<br>Add one above to enable automatic pump control.</div>';
     return;
   }
-  area.innerHTML = pumpLinkConfigs.map(function(cfg, i) {
+  area.innerHTML = pumpLinkConfigs.map(function(cfg) {
     var autoState = reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
-    var resData   = _plDashDevices.find(function(d) { return d.device === cfg.reservoir; });
+    var resData   = _plDashDevices ? _plDashDevices.find(function(d) { return d.device === cfg.reservoir; }) : null;
     var curLevel  = resData ? parseFloat(resData.level) : NaN;
     var pctFull   = (!isNaN(curLevel) && cfg.shutoffLevel) ? Math.min(100, Math.round(curLevel / cfg.shutoffLevel * 100)) : null;
     var levelBar  = pctFull !== null
       ? '<div style="margin:8px 0 4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:3px;"><span>Current: ' + curLevel.toFixed(0) + ' m³</span><span>' + pctFull + '% of shutoff</span></div>'
         + '<div style="height:7px;background:#e5eef9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + pctFull + '%;background:' + (pctFull >= 100 ? '#dc2626' : pctFull >= 85 ? '#f97316' : '#22c55e') + ';border-radius:4px;transition:width .4s;"></div></div></div>'
       : '';
-    var statusBadge = autoState
-      ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🛑 PUMP HALTED</span>'
-      : '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">✅ ACTIVE</span>';
-    return '<div style="background:' + (autoState ? '#fef2f2' : '#f8fbff') + ';border:1.5px solid ' + (autoState ? '#fca5a5' : '#bfdbfe') + ';border-radius:13px;padding:13px 15px;margin-bottom:10px;">'
+    var statusBadge = cfg.manualOverride
+      ? '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🖐 MANUAL OVERRIDE</span>'
+      : (autoState
+        ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🛑 PUMP HALTED</span>'
+        : '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">✅ ACTIVE</span>');
+    var triggerInfo = cfg.triggerCount > 0
+      ? '<div style="font-size:10px;color:#94a3b8;margin-top:4px;">Triggered ' + cfg.triggerCount + ' time' + (cfg.triggerCount!==1?'s':'') + (cfg.lastTriggered ? ' · Last: ' + cfg.lastTriggered : '') + '</div>'
+      : '';
+    return '<div style="background:' + (cfg.manualOverride?'#fefce8':autoState?'#fef2f2':'#f8fbff') + ';border:1.5px solid ' + (cfg.manualOverride?'#fde047':autoState?'#fca5a5':'#bfdbfe') + ';border-radius:13px;padding:13px 15px;margin-bottom:10px;">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
       +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
       +     '<span style="font-size:12px;font-weight:800;color:#0c4a6e;">💧 ' + cfg.reservoir + '</span>'
@@ -3127,8 +3185,9 @@ function _renderLinkCards() {
       +     '<span style="font-size:12px;font-weight:800;color:#064e3b;">⚙️ ' + cfg.pump + '</span>'
       +     statusBadge
       +   '</div>'
-      +   '<div style="display:flex;align-items:center;gap:6px;">'
-      +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#475569;cursor:pointer;"><input type="checkbox" ' + (cfg.enabled ? 'checked' : '') + ' onchange="togglePumpLink(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#0369a1;cursor:pointer;"> Enabled</label>'
+      +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+      +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#475569;cursor:pointer;"><input type="checkbox" ' + (cfg.enabled?'checked':'') + ' onchange="togglePumpLink(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#0369a1;cursor:pointer;"> Enabled</label>'
+      +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#854d0e;cursor:pointer;title="When ON, GAS auto-shutoff is skipped for this link"><input type="checkbox" ' + (cfg.manualOverride?'checked':'') + ' onchange="_setManualOverride(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#eab308;cursor:pointer;"> Manual</label>'
       +     '<button onclick="editPumpLink(\'' + cfg.id + '\')" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Edit</button>'
       +     '<button onclick="deletePumpLink(\'' + cfg.id + '\')" style="padding:4px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🗑</button>'
       +   '</div>'
@@ -3137,62 +3196,89 @@ function _renderLinkCards() {
       + '<div style="display:flex;gap:16px;margin-top:7px;flex-wrap:wrap;">'
       +   '<div style="font-size:11px;color:#374151;"><span style="color:#dc2626;font-weight:800;">🛑 Shutoff:</span> ≥ <b>' + cfg.shutoffLevel + ' m³</b></div>'
       +   '<div style="font-size:11px;color:#374151;"><span style="color:#16a34a;font-weight:800;">✅ Resume:</span> ≤ <b>' + cfg.resumeLevel + ' m³</b></div>'
+      +   (cfg.createdBy ? '<div style="font-size:10px;color:#94a3b8;">By: ' + cfg.createdBy + '</div>' : '')
       +   (autoState ? '<div style="font-size:10.5px;color:#b91c1c;">Auto-OFF since: ' + autoState.timestamp + '</div>' : '')
       + '</div>'
+      + triggerInfo
       + '</div>';
   }).join('');
 }
 
-function addPumpLink() {
-  var res      = document.getElementById('pl-res-select').value;
-  var pump     = document.getElementById('pl-pump-select').value;
-  var shutoff  = parseFloat(document.getElementById('pl-shutoff-input').value);
-  var resume   = parseFloat(document.getElementById('pl-resume-input').value);
-  var val      = document.getElementById('pl-add-validation');
-  val.textContent = '';
-  if (!res)               { val.textContent = '⚠ Please select a reservoir.'; return; }
-  if (!pump)              { val.textContent = '⚠ Please select a pump station.'; return; }
-  if (isNaN(shutoff) || shutoff <= 0) { val.textContent = '⚠ Enter a valid shutoff level.'; return; }
-  if (isNaN(resume)  || resume < 0)   { val.textContent = '⚠ Enter a valid resume level.'; return; }
-  if (resume >= shutoff)  { val.textContent = '⚠ Resume level must be less than shutoff level.'; return; }
-  // Duplicate check
-  var dup = pumpLinkConfigs.find(function(c) { return c.reservoir === res && c.pump === pump; });
-  if (dup) { val.textContent = '⚠ A link between these two devices already exists.'; return; }
+function _setManualOverride(id, val) {
+  apiGet('updatePumpLink', { action:'updatePumpLink', token: sessionToken||'', linkId: id, manualOverride: val?'true':'false' })
+    .then(function(resp) {
+      if (!resp || !resp.success) { showNotification('⚠ Override update failed: '+(resp&&resp.error?resp.error:'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
+      var cfg = pumpLinkConfigs.find(function(c){ return c.id===id; });
+      if (cfg) cfg.manualOverride = val;
+      _renderLinkCards();
+      showNotification(val ? '🖐 Manual override ON — GAS auto-shutoff bypassed for this link.' : '🤖 Auto mode restored.', 'info');
+    }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
+}
 
-  pumpLinkConfigs.push({
-    id: 'lnk_' + Date.now(),
+function addPumpLink() {
+  var res     = document.getElementById('pl-res-select').value;
+  var pump    = document.getElementById('pl-pump-select').value;
+  var shutoff = parseFloat(document.getElementById('pl-shutoff-input').value);
+  var resume  = parseFloat(document.getElementById('pl-resume-input').value);
+  var val     = document.getElementById('pl-add-validation');
+  val.textContent = '';
+  if (!res)                         { val.textContent = '⚠ Please select a reservoir.'; return; }
+  if (!pump)                        { val.textContent = '⚠ Please select a pump station.'; return; }
+  if (isNaN(shutoff) || shutoff<=0) { val.textContent = '⚠ Enter a valid shutoff level.'; return; }
+  if (isNaN(resume)  || resume < 0) { val.textContent = '⚠ Enter a valid resume level.'; return; }
+  if (resume >= shutoff)            { val.textContent = '⚠ Resume level must be less than shutoff level.'; return; }
+
+  var addBtn = document.querySelector('#pl-inner button[onclick="addPumpLink()"]');
+  if (addBtn) { addBtn.disabled = true; addBtn.textContent = '⏳ Saving…'; }
+  val.textContent = '';
+
+  var params = {
+    action: 'addPumpLink', token: sessionToken || '',
     reservoir: res, pump: pump,
     shutoffLevel: shutoff, resumeLevel: resume,
-    enabled: true, createdBy: loggedInUser || 'User',
-    updatedAt: new Date().toLocaleString()
+    manualOverride: 'false'
+  };
+  apiGet('addPumpLink', params).then(function(resp) {
+    if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
+    if (!resp || !resp.success) {
+      val.textContent = '⚠ ' + (resp && resp.error ? resp.error : 'Server error saving link.');
+      return;
+    }
+    document.getElementById('pl-res-select').value    = '';
+    document.getElementById('pl-pump-select').value   = '';
+    document.getElementById('pl-shutoff-input').value = '';
+    document.getElementById('pl-resume-input').value  = '';
+    loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
+    showNotification('✅ Link saved to server: ' + res + ' → ' + pump, 'success');
+  }).catch(function(err) {
+    if (addBtn) { addBtn.disabled = false; addBtn.textContent = '➕ Add Link'; }
+    val.textContent = '⚠ Network error: ' + err;
   });
-  savePumpLinkConfigs();
-  document.getElementById('pl-res-select').value  = '';
-  document.getElementById('pl-pump-select').value = '';
-  document.getElementById('pl-shutoff-input').value = '';
-  document.getElementById('pl-resume-input').value  = '';
-  _renderLinkCards();
-  showNotification('✅ Link saved: ' + res + ' → ' + pump, 'success');
 }
 
 function deletePumpLink(id) {
-  if (!confirm('Remove this reservoir–pump link?')) return;
-  pumpLinkConfigs = pumpLinkConfigs.filter(function(c) { return c.id !== id; });
-  // Also clear any active shutoff state for this link
-  Object.keys(reservoirAutoShutoffState).forEach(function(k) {
-    if (reservoirAutoShutoffState[k].linkId === id) delete reservoirAutoShutoffState[k];
-  });
-  localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-  savePumpLinkConfigs();
-  _renderLinkCards();
-  showNotification('Link removed.', 'info');
+  if (!confirm('Remove this reservoir–pump link from the server?')) return;
+  apiGet('deletePumpLink', { action: 'deletePumpLink', token: sessionToken || '', linkId: id })
+    .then(function(resp) {
+      if (!resp || !resp.success) { showNotification('⚠ Delete failed: ' + (resp && resp.error ? resp.error : 'Unknown error'), 'warning'); return; }
+      Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+        if (reservoirAutoShutoffState[k] && reservoirAutoShutoffState[k].linkId === id) delete reservoirAutoShutoffState[k];
+      });
+      localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+      loadPumpLinksFromGAS(function() { _renderLinkCards(); _updatePumpLinksBadge(); });
+      showNotification('Link removed from server.', 'info');
+    }).catch(function(err) { showNotification('⚠ Network error deleting link: ' + err, 'warning'); });
 }
 
 function togglePumpLink(id, enabled) {
-  var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
-  if (cfg) { cfg.enabled = enabled; cfg.updatedAt = new Date().toLocaleString(); savePumpLinkConfigs(); }
-  _renderLinkCards();
-  showNotification((enabled ? '✅ Link enabled.' : '⏸ Link disabled.'), 'info');
+  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || '', linkId: id, enabled: enabled ? 'true' : 'false' })
+    .then(function(resp) {
+      if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
+      var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
+      if (cfg) cfg.enabled = enabled;
+      _renderLinkCards();
+      showNotification((enabled ? '✅ Link enabled.' : '⏸ Link disabled.'), 'info');
+    }).catch(function() { showNotification('⚠ Network error toggling link.', 'warning'); });
 }
 
 function editPumpLink(id) {
@@ -3204,26 +3290,17 @@ function editPumpLink(id) {
   if (newResume === null) return;
   var s = parseFloat(newShutoff), r = parseFloat(newResume);
   if (isNaN(s) || isNaN(r) || r >= s) { alert('⚠ Invalid values. Resume must be less than shutoff.'); return; }
-  cfg.shutoffLevel = s; cfg.resumeLevel = r; cfg.updatedAt = new Date().toLocaleString();
-  savePumpLinkConfigs();
-  _renderLinkCards();
-  showNotification('✅ Link updated.', 'success');
+  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || '', linkId: id, shutoffLevel: s, resumeLevel: r })
+    .then(function(resp) {
+      if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); return; }
+      cfg.shutoffLevel = s; cfg.resumeLevel = r; cfg.updatedAt = new Date().toLocaleString();
+      _renderLinkCards();
+      showNotification('✅ Link updated on server.', 'success');
+    }).catch(function() { showNotification('⚠ Network error updating link.', 'warning'); });
 }
 
 function openAutoShutoffLog() {
   var old = document.getElementById('autolog-overlay'); if (old) old.remove();
-  var logs = JSON.parse(localStorage.getItem('autoShutoffLog') || '[]');
-  var rows = logs.length ? logs.map(function(e) {
-    var ac = e.action === 'AUTO-OFF' ? '#dc2626' : (e.action === 'AUTO-RESUME' ? '#16a34a' : (e.action === 'RESUME-ELIGIBLE' ? '#16a34a' : '#0ea5e9'));
-    return '<tr style="border-bottom:1px solid #e5eef9;">'
-      + '<td style="padding:7px 10px;font-size:11.5px;color:#475569;">' + e.timestamp + '</td>'
-      + '<td style="padding:7px 10px;font-size:11.5px;font-weight:800;color:' + ac + ';">' + e.action + '</td>'
-      + '<td style="padding:7px 10px;font-size:11.5px;color:#002b5c;">' + e.pump + '</td>'
-      + '<td style="padding:7px 10px;font-size:11.5px;color:#0369a1;">' + e.reservoir + '</td>'
-      + '<td style="padding:7px 10px;font-size:11.5px;text-align:right;">' + (e.level !== undefined ? parseFloat(e.level).toFixed(0) : '--') + ' m³</td>'
-      + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + (e.shutoffLevel ? '≥' + e.shutoffLevel : (e.resumeLevel ? '≤' + e.resumeLevel : '—')) + ' m³</td>'
-      + '</tr>';
-  }).join('') : '<tr><td colspan="6" style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;">No events recorded yet.</td></tr>';
   var ov = document.createElement('div');
   ov.id = 'autolog-overlay';
   ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.78);z-index:6300;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;';
@@ -3232,21 +3309,63 @@ function openAutoShutoffLog() {
     + '<div><div style="color:#fff;font-weight:800;font-size:1.1rem;">🛑 Auto-Control Event Log</div><div style="color:rgba(255,255,255,0.8);font-size:12px;margin-top:2px;">Reservoir-triggered pump shutoff and resume history</div></div>'
     + '<button onclick="document.getElementById(\'autolog-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;">✕</button>'
     + '</div>'
-    + '<div style="flex:1;overflow-y:auto;"><table style="width:100%;border-collapse:collapse;">'
-    + '<thead><tr style="background:#f8fbff;position:sticky;top:0;">'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Time</th>'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Action</th>'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Pump</th>'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Reservoir</th>'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:right;text-transform:uppercase;">Level</th>'
-    + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Threshold</th>'
-    + '</tr></thead><tbody>' + rows + '</tbody></table></div>'
+    + '<div id="autolog-body" style="flex:1;overflow-y:auto;display:flex;align-items:center;justify-content:center;padding:30px;"><span style="color:#64748b;font-size:13px;">⏳ Loading from server…</span></div>'
     + '<div style="padding:11px 18px;border-top:1px solid #e5eef9;display:flex;gap:8px;background:#f8fbff;">'
-    + '<button onclick="_autoShutoffLog=[];localStorage.removeItem(\'autoShutoffLog\');document.getElementById(\'autolog-overlay\').remove();showNotification(\'Log cleared.\',\'info\');" style="padding:7px 16px;background:#fee2e2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑 Clear Log</button>'
+    + '<button id="autolog-clear-btn" onclick="_clearAutoShutoffLogGAS()" style="padding:7px 16px;background:#fee2e2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🗑 Clear Log</button>'
     + '<button onclick="document.getElementById(\'autolog-overlay\').remove()" style="margin-left:auto;padding:7px 18px;background:linear-gradient(135deg,#002b5c,#1d4ed8);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Close</button>'
     + '</div></div>';
   ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
+
+  apiGet('getAutoShutoffLog').then(function(logs) {
+    var body = document.getElementById('autolog-body');
+    if (!body) return;
+    if (!logs || !logs.length) {
+      body.innerHTML = '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:13px;">No events recorded yet.</div>';
+      return;
+    }
+    var rows = logs.map(function(e) {
+      var ac = e.action==='AUTO-OFF'?'#dc2626':(e.action==='AUTO-RESUME'?'#16a34a':'#0ea5e9');
+      var lvl = e['level (m³)'] || e.level || '--';
+      var thr = e.threshold || '--';
+      return '<tr style="border-bottom:1px solid #e5eef9;">'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#475569;">' + (e.timestamp||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;font-weight:800;color:'+ac+';">' + (e.action||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#002b5c;">' + (e.pump||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#0369a1;">' + (e.reservoir||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;text-align:right;">' + (isNaN(parseFloat(lvl)) ? lvl : parseFloat(lvl).toFixed(0)) + ' m³</td>'
+        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + thr + ' m³</td>'
+        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + (e.triggeredby||'System') + '</td>'
+        + '</tr>';
+    }).join('');
+    body.style.padding = '0';
+    body.style.display = 'block';
+    body.innerHTML = '<table style="width:100%;border-collapse:collapse;">'
+      + '<thead><tr style="background:#f8fbff;position:sticky;top:0;">'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Time</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Action</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Pump</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Reservoir</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:right;text-transform:uppercase;">Level</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Threshold</th>'
+      + '<th style="padding:9px 10px;font-size:10.5px;color:#5575a0;font-weight:800;text-align:left;text-transform:uppercase;">Triggered By</th>'
+      + '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }).catch(function() {
+    var body = document.getElementById('autolog-body');
+    if (body) body.innerHTML = '<div style="text-align:center;padding:30px;color:#b91c1c;font-size:13px;">⚠ Failed to load log from server.</div>';
+  });
+}
+
+function _clearAutoShutoffLogGAS() {
+  if (!confirm('Clear all auto-shutoff log entries from the server?')) return;
+  var btn = document.getElementById('autolog-clear-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Clearing…'; }
+  apiGet('clearAutoShutoffLog', { action: 'clearAutoShutoffLog', token: sessionToken || '' })
+    .then(function(resp) {
+      if (!resp || !resp.success) { showNotification('⚠ Clear failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); if (btn) { btn.disabled = false; btn.textContent = '🗑 Clear Log'; } return; }
+      document.getElementById('autolog-overlay').remove();
+      showNotification('Log cleared on server.', 'info');
+    }).catch(function() { showNotification('⚠ Network error clearing log.', 'warning'); if (btn) { btn.disabled = false; btn.textContent = '🗑 Clear Log'; } });
 }
 
 function openSheet(sn, title) {
