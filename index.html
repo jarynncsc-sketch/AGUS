@@ -3317,7 +3317,10 @@ function editPumpLink(id) {
   if (newResume === null) return;
   var s = parseFloat(newShutoff), r = parseFloat(newResume);
   if (isNaN(s) || isNaN(r) || r >= s) { alert('⚠ Invalid values. Resume must be less than shutoff.'); return; }
-  function savePumpLinkLevels(id, s, r) {
+  savePumpLinkLevels(id, s, r);  // ← CALL it
+}  // ← CLOSE editPumpLink here
+
+function savePumpLinkLevels(id, s, r) {
   var tok = sessionToken || userToken || '';
   var url = API_URL
     + '?action=updatePumpLink'
@@ -3341,7 +3344,7 @@ function editPumpLink(id) {
     });
 }
 
-function openAutoShutoffLog() {
+function openAutoShutoffLog() {  // ← now correctly at top level
   var old = document.getElementById('autolog-overlay'); if (old) old.remove();
   var ov = document.createElement('div');
   ov.id = 'autolog-overlay';
