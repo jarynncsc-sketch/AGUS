@@ -3317,13 +3317,28 @@ function editPumpLink(id) {
   if (newResume === null) return;
   var s = parseFloat(newShutoff), r = parseFloat(newResume);
   if (isNaN(s) || isNaN(r) || r >= s) { alert('⚠ Invalid values. Resume must be less than shutoff.'); return; }
-  apiGet('updatePumpLink', { action: 'updatePumpLink', token: sessionToken || userToken || '', linkId: id, shutoffLevel: s, resumeLevel: r })
+  function savePumpLinkLevels(id, s, r) {
+  var tok = sessionToken || userToken || '';
+  var url = API_URL
+    + '?action=updatePumpLink'
+    + '&token='        + encodeURIComponent(tok)
+    + '&linkId='       + encodeURIComponent(id)
+    + '&shutoffLevel=' + encodeURIComponent(s)
+    + '&resumeLevel='  + encodeURIComponent(r);
+
+  fetch(url)
+    .then(function(r) { return r.json(); })
     .then(function(resp) {
-      if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); return; }
-      cfg.shutoffLevel = s; cfg.resumeLevel = r; cfg.updatedAt = new Date().toLocaleString();
-      _renderLinkCards();
-      showNotification('✅ Link updated in Google Sheet.', 'success');
-    }).catch(function() { showNotification('⚠ Network error updating link.', 'warning'); });
+      if (resp && resp.success) {
+        showNotification('✅ Levels updated.', 'success');
+        loadPumpLinksFromGAS(function() { _renderLinkCards(); });
+      } else {
+        showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning');
+      }
+    })
+    .catch(function(err) {
+      showNotification('⚠ Network error: ' + err, 'warning');
+    });
 }
 
 function openAutoShutoffLog() {
