@@ -327,6 +327,7 @@
   <!-- ═══ END SECURITY SHIELD LAYER 2 ═══ -->
   <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AGUS%22%2C%22short_name%22%3A%22AGUS%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23004080%22%7D">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
   /* ── DARK MODE ── */
   body.dark-mode { filter: invert(1) hue-rotate(180deg); }
@@ -1055,55 +1056,77 @@
 .lp-wave-3{animation:waveMove 6s linear infinite;bottom:5px;opacity:0.6;}
 @keyframes waveMove{0%{transform:translateX(0);}100%{transform:translateX(-50%);}}
     .lp-byline strong{color:var(--teal-1);font-weight:600;}
-    body{margin:0;font-family:'Consolas','Courier New',monospace;height:100vh;overflow:hidden;background:#000;}
+    body{margin:0;font-family:'DM Sans','Segoe UI',sans-serif;height:100vh;overflow:hidden;background:#000;}
     #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
     #dashboard{display:none;flex-direction:row;gap:1rem;padding:1rem;height:100vh;overflow:hidden;position:relative;z-index:5;color:#000;}
-    #top-menu-bar{position:absolute;top:10px;left:35px;display:flex;gap:12px;z-index:1000;}
-    .top-card{display:flex;flex-direction:column;align-items:center;width:70px;padding:8px;border-radius:10px;background:white;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2);transition:0.25s ease;font-weight:bold;color:#004080;position:relative;}
-    .top-card:hover{transform:translateY(-3px);background:#e3f0ff;}
-    .top-card span{opacity:1;position:relative;top:0;left:0;transform:none;background:none;color:#004080;font-size:13px;font-weight:600;padding:4px 0;border-radius:0;white-space:normal;pointer-events:none;text-align:center;}
-    .top-card.active{background:#cfe4ff;box-shadow:0 4px 10px rgba(0,120,255,0.35);}
-    .device-list{width:auto;min-width:286px;max-width:calc(286px * 1.40);max-height:100%;border-radius:12px;background:rgba(255,255,255,0.15);padding:0;box-shadow:0 6px 20px rgba(0,170,255,0.2);display:flex;flex-direction:column;overflow:hidden;color:#00faff;font-family:'Consolas','Courier New',monospace;backdrop-filter:blur(8px);}
-    .device-list h3{margin:0;padding:1rem;font-size:1.4rem;background:rgba(255,255,255,0.2);border-bottom:1px solid rgba(0,170,255,0.3);position:sticky;top:0;z-index:10;text-align:center;color:#004080;font-weight:bold;}
-    .device-list-scroll{flex:1;overflow-y:auto;padding:0.5rem;-ms-overflow-style:none;scrollbar-width:none;}
+
+    /* ── TOP MENU BAR: grouped strip ── */
+    #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
+    .nav-group-sep{width:1px;background:rgba(0,64,128,0.12);align-self:stretch;margin:0 3px;border-radius:1px;}
+    .nav-group-wrap{display:flex;flex-direction:column;gap:2px;}
+    .nav-group-label{font-size:9px;font-weight:600;color:#8aa5af;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:0 2px;}
+    .nav-group-cards{display:flex;gap:4px;}
+    .top-card{display:flex;flex-direction:column;align-items:center;width:58px;padding:6px 4px 5px;border-radius:9px;background:transparent;cursor:pointer;transition:background .15s ease,transform .15s ease;font-weight:500;color:#004080;position:relative;border:1px solid transparent;}
+    .top-card:hover{background:#eef4fb;transform:translateY(-1px);}
+    .top-card span{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;color:#4a6572;padding:2px 0 0;white-space:normal;pointer-events:none;text-align:center;line-height:1.25;}
+    .top-card.active{background:#dbeafe;border-color:#93c5fd;}
+    .top-card.active span{color:#1e40af;}
+    /* Color groups */
+    .top-card.grp-data:hover,.top-card.grp-data.active{background:#e0f2fe;border-color:#7dd3fc;}
+    .top-card.grp-data:hover span,.top-card.grp-data.active span{color:#075985;}
+    .top-card.grp-data:hover svg,.top-card.grp-data.active svg{stroke:#0369a1;}
+    .top-card.grp-ctrl:hover,.top-card.grp-ctrl.active{background:#dcfce7;border-color:#86efac;}
+    .top-card.grp-ctrl:hover span,.top-card.grp-ctrl.active span{color:#14532d;}
+    .top-card.grp-ctrl:hover svg,.top-card.grp-ctrl.active svg{stroke:#16a34a;}
+    .top-card.grp-ai:hover,.top-card.grp-ai.active{background:#ede9fe;border-color:#c4b5fd;}
+    .top-card.grp-ai:hover span,.top-card.grp-ai.active span{color:#4c1d95;}
+    .top-card.grp-ai:hover svg,.top-card.grp-ai.active svg{stroke:#7c3aed;}
+    .top-card.grp-sys:hover,.top-card.grp-sys.active{background:#f1f5f9;border-color:#cbd5e1;}
+    .top-card.grp-sys:hover span,.top-card.grp-sys.active span{color:#334155;}
+    .top-card svg{transition:stroke .15s;}
+
+    /* ── DEVICE LIST: clean white panel ── */
+    .device-list{width:auto;min-width:290px;max-width:calc(290px * 1.40);max-height:100%;border-radius:14px;background:rgba(255,255,255,0.97);padding:0;box-shadow:0 6px 24px rgba(0,40,100,0.14);display:flex;flex-direction:column;overflow:hidden;color:#1a2e35;font-family:'DM Sans','Segoe UI',sans-serif;border:1px solid rgba(0,64,128,0.08);}
+    .device-list h3{margin:0;padding:.75rem 1rem;font-size:1rem;font-weight:700;background:#f0f7ff;border-bottom:1px solid rgba(0,64,128,0.09);position:sticky;top:0;z-index:10;text-align:left;color:#002b5c;display:flex;align-items:center;gap:8px;letter-spacing:.01em;}
+    .device-list-scroll{flex:1;overflow-y:auto;padding:6px;-ms-overflow-style:none;scrollbar-width:none;}
     .device-list-scroll::-webkit-scrollbar{width:0;background:transparent;}
     .device-list ul{list-style:none;margin:0;padding:0;}
-    .device-list li{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:0.8rem!important;margin-bottom:0.5rem;border-radius:10px;cursor:pointer;background:rgba(255,255,255,0.15);box-shadow:0 4px 10px rgba(0,170,255,0.15);color:#004080;font-size:14px;transition:transform 0.2s ease,box-shadow 0.2s ease,background 0.2s ease;width:100%;box-sizing:border-box;min-height:45px!important;}
-    .device-list li:hover{transform:translateY(-2px);box-shadow:0 0 15px rgba(0,170,255,0.4);background:rgba(255,255,255,0.25);}
-    .device-list li span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:180px;}
-    .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:0.5rem!important;flex-shrink:0;}
-   /* PRESSURE */
+    .device-list li{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:9px 10px!important;margin-bottom:4px;border-radius:9px;cursor:pointer;background:#fff;border:1px solid rgba(0,64,128,0.07);color:#1a2e35;font-size:13px;font-family:'DM Sans','Segoe UI',sans-serif;transition:background .15s ease,border-color .15s ease,transform .12s ease;width:100%;box-sizing:border-box;min-height:44px!important;}
+    .device-list li:hover{background:#f0f7ff;border-color:rgba(0,100,200,0.18);transform:translateY(-1px);}
+    .device-list li span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;font-weight:500;color:#1a2e35;}
+    .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:6px!important;flex-shrink:0;}
+/* PRESSURE */
 .pressure-value{
   margin-left:4px;
   font-weight:600;
-  color:#1d4ed8; /* BLUE */
-  background:rgba(29,78,216,0.1);
-  padding:3px 8px;
-  border-radius:12px;
-  font-size:13px;
-  font-family:'Consolas',monospace;
-  letter-spacing:0.3px;
-  border:1px solid rgba(29,78,216,0.2);
-  min-width:45px;
+  color:#185FA5;
+  background:#E6F1FB;
+  padding:2px 8px;
+  border-radius:20px;
+  font-size:12px;
+  font-family:'DM Sans','Segoe UI',sans-serif;
+  letter-spacing:0.2px;
+  border:1px solid rgba(24,95,165,0.2);
+  min-width:44px;
   text-align:center;
 }
 
 .pressure-value.normal{
-  color:#1d4ed8 !important; /* BLUE */
-  background:rgba(29,78,216,0.1) !important;
-  border-color:rgba(29,78,216,0.2) !important;
+  color:#185FA5 !important;
+  background:#E6F1FB !important;
+  border-color:rgba(24,95,165,0.2) !important;
 }
 
 .pressure-value.low{
-  color:#f97316;
-  background:rgba(249,115,22,0.1);
-  border-color:rgba(249,115,22,0.2);
+  color:#633806;
+  background:#FAEEDA;
+  border-color:rgba(186,117,23,0.25);
 }
 
 .pressure-value.high{
-  color:#ef4444;
-  background:rgba(239,68,68,0.1);
-  border-color:rgba(239,68,68,0.2);
+  color:#7f1d1d;
+  background:#FCEBEB;
+  border-color:rgba(226,75,74,0.25);
 }
 
 
@@ -1111,57 +1134,58 @@
 .waterlevel-value{
   margin-left:4px;
   font-weight:600;
-  color:#22c55e; /* GREEN */
-  background:rgba(34,197,94,0.1);
-  padding:3px 8px;
-  border-radius:12px;
-  font-size:13px;
-  font-family:'Consolas',monospace;
-  letter-spacing:0.3px;
-  border:1px solid rgba(34,197,94,0.2);
-  min-width:45px;
+  color:#0F6E56;
+  background:#E1F5EE;
+  padding:2px 8px;
+  border-radius:20px;
+  font-size:12px;
+  font-family:'DM Sans','Segoe UI',sans-serif;
+  letter-spacing:0.2px;
+  border:1px solid rgba(15,110,86,0.2);
+  min-width:44px;
   text-align:center;
 }
 
 .waterlevel-value.normal{
-  color:#22c55e;
-  background:rgba(34,197,94,0.1);
-  border-color:rgba(34,197,94,0.2);
+  color:#0F6E56;
+  background:#E1F5EE;
+  border-color:rgba(15,110,86,0.2);
 }
 
 .waterlevel-value.low{
-  color:#f97316;
-  background:rgba(249,115,22,0.1);
-  border-color:rgba(249,115,22,0.2);
+  color:#633806;
+  background:#FAEEDA;
+  border-color:rgba(186,117,23,0.25);
 }
 
 .waterlevel-value.high{
-  color:#ef4444;
-  background:rgba(239,68,68,0.1);
-  border-color:rgba(239,68,68,0.2);
+  color:#7f1d1d;
+  background:#FCEBEB;
+  border-color:rgba(226,75,74,0.25);
 }
-    .status-indicator{width:12px;height:12px;border-radius:50%;box-shadow:0 0 6px rgba(0,170,255,0.6);border:1px solid #00aaff;transition:0.3s;}
-    .status-Online{background:green;box-shadow:0 0 8px green,0 0 12px #0099dd;}
-    .status-Offline{background:#ffa500;box-shadow:0 0 8px #ffa500,0 0 12px #ff8800;}
-    .status-Fault{background:#ff0033;box-shadow:0 0 8px #ff0033,0 0 12px #ff66aa;}
-    .status-indicator.Fault-blink{animation:blink 1s infinite;border:1px solid #ff0000;box-shadow:0 0 12px #ff0033,0 0 18px #ff66aa;}
-    .toggle-switch{position:relative;display:inline-block;width:69px;height:33px;flex-shrink:0;}
+    .status-indicator{width:10px;height:10px;border-radius:50%;transition:0.3s;flex-shrink:0;}
+    .status-Online{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,0.18);}
+    .status-Offline{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.18);}
+    .status-Fault{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.18);}
+    .status-indicator.Fault-blink{animation:blink 1s infinite;box-shadow:0 0 0 4px rgba(220,38,38,0.25);}
+    .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;}
     .toggle-switch input{opacity:0;width:0;height:0;}
-    .slider{position:absolute;cursor:pointer;inset:0;background:#e53935;border-radius:40px;transition:0.35s ease;box-shadow:inset 0 0 6px rgba(0,0,0,0.25);}
-    .slider::after{content:"OFF";position:absolute;right:12px;top:50%;transform:translateY(-50%);font-size:12px;font-weight:bold;color:white;letter-spacing:1px;transition:0.35s ease;}
-    .slider::before{content:"⚡";position:absolute;height:25px;width:25px;left:4px;top:4px;background:radial-gradient(circle at top left,#ff7b7b,#b71c1c);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;color:white;transition:0.35s ease;box-shadow:inset 0 0 4px rgba(255,255,255,0.3),0 0 8px rgba(0,0,0,0.45);}
-    .toggle-switch input:checked + .slider{background:#9ccc3c;}
-    .toggle-switch input:checked + .slider::after{content:"ON";right:auto;left:12px;}
-    .toggle-switch input:checked + .slider::before{transform:translateX(38px);background:radial-gradient(circle at top left,#7dff9c,#1b5e20);box-shadow:inset 0 0 4px rgba(255,255,255,0.4),0 0 10px rgba(76,175,80,0.8);}
+    .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.25s ease;}
+    .slider::after{content:"OFF";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:.5px;transition:0.25s ease;font-family:'DM Sans',sans-serif;}
+    .slider::before{content:"";position:absolute;height:22px;width:22px;left:4px;top:4px;background:#fff;border-radius:50%;transition:transform 0.25s ease,background 0.25s ease;box-shadow:0 1px 4px rgba(0,0,0,0.22);}
+    .toggle-switch input:checked + .slider{background:#16a34a;}
+    .toggle-switch input:checked + .slider::after{content:"ON";right:auto;left:9px;}
+    .toggle-switch input:checked + .slider::before{transform:translateX(30px);}
     #map-container{position:relative;flex:3;}
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
-    #welcome-user-topright{position:absolute;top:30px;right:35px;z-index:1100;font-size:16px;font-weight:bold;color:#004080;background:white;padding:10px 15px;border-radius:8px;box-shadow:0 3px 10px rgba(0,0,0,0.3);backdrop-filter:blur(8px);text-align:right;pointer-events:none;}
-    #datetime-display{font-size:14px;font-weight:600;color:#e05555;margin-top:4px;letter-spacing:0.3px;}
-    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:white;padding:10px 15px;border-radius:8px;font-size:13px;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
-    .legend-item{display:flex;align-items:center;gap:6px;margin-bottom:5px;cursor:pointer;}
-    .legend-circle{width:12px;height:12px;border-radius:50%;display:inline-block;}
-    .legend-Online{background:green;}.legend-Offline{background:orange;}.legend-Fault{background:red;}
+    #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
+    #welcome-username{font-size:12px;font-weight:600;color:#002b5c;display:block;margin-bottom:1px;}
+    #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
+    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);}
+    .legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:#1a2e35;}
+    .legend-circle{width:10px;height:10px;border-radius:50%;display:inline-block;}
+    .legend-Online{background:#16a34a;}.legend-Offline{background:#ea580c;}.legend-Fault{background:#dc2626;}
     #sheet-overlay{position:absolute;top:90px;right:40px;width:620px;max-height:70%;background:white;border-radius:10px;box-shadow:0 8px 25px rgba(0,0,0,0.35);z-index:2000;display:flex;flex-direction:column;}
     #sheet-overlay.hidden{display:none;}
     #sheet-overlay .resize-handle{position:absolute;top:0;width:12px;height:100%;cursor:ew-resize;z-index:2100;transition:background 0.2s;}
@@ -1590,27 +1614,61 @@
   <div id="map-container" class="card">
     <div id="map"></div>
     <div id="top-menu-bar">
-      <div class="top-card" data-tab="map"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
-      <div class="top-card" data-tab="analytics"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
-      <div class="top-card" data-tab="reports"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
-      <div class="top-card" data-tab="alarm"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span></div>
-      <div class="top-card" data-tab="Pump/Motor Efficiency"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Pump/Motor Efficiency</span></div>
-      <div class="top-card" data-tab="prod-history"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production History</span></div>
-      <div class="top-card" data-tab="energy"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy Consumption</span></div>
-      <div class="top-card" data-tab="pressure-logger"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Loggers</span></div>
-      <div class="top-card" data-tab="preventive-maintenance"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg><span>Preventive Maintenance</span></div>
-      <div class="top-card" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M4 20h16"/><path d="M12 4v12"/></svg><span>Flowmeter Calibration</span></div>
-      <div class="top-card" data-tab="kpi" onclick="openKPIDashboard()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI Dashboard</span></div>
-      <div class="top-card" data-tab="alarm-center" onclick="openAlarmCenter()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Alarm Center</span><span id="alarm-center-badge" style="display:none;position:absolute;top:4px;right:4px;background:#ef4444;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:800;align-items:center;justify-content:center;">0</span></div>
-      <div class="top-card" data-tab="water-quality" onclick="openWaterQuality()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2 C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg><span>Water Quality</span></div>
-      <div class="top-card" data-tab="logbook" onclick="openLogbook()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
-      <div class="top-card" data-tab="maint-calendar" onclick="openMaintenanceCalendar()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
-      <div class="top-card" data-tab="water-loss" onclick="openWaterLoss()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss / NRW</span></div>
-      <div class="top-card" data-tab="benchmark" onclick="openBenchmark()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmarking</span></div>
-      <div class="top-card" data-tab="forecast" onclick="openForecastPanel()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg><span>24h Forecast</span></div>
-      <div class="top-card" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#0369a1" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:4px;right:4px;background:#dc2626;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:16px;text-align:center;">0</span></div>
-      <div class="top-card" id="dark-mode-btn" onclick="toggleDarkMode()"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
-      <div class="top-card" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span style="color:#7c3aed;font-weight:800;">ML Risk AI</span><span id="ml-risk-badge" style="display:none;position:absolute;top:4px;right:4px;background:#7c3aed;color:white;border-radius:50%;width:16px;height:16px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:16px;text-align:center;">!</span></div>
+      <!-- Data group -->
+      <div class="nav-group-wrap">
+        <div class="nav-group-label">Data</div>
+        <div class="nav-group-cards">
+          <div class="top-card grp-data" data-tab="map"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
+          <div class="top-card grp-data" data-tab="analytics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
+          <div class="top-card grp-data" data-tab="reports"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
+          <div class="top-card grp-data" data-tab="prod-history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span></div>
+          <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
+          <div class="top-card grp-data" data-tab="pressure-logger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
+          <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
+          <div class="top-card grp-data" data-tab="benchmark" onclick="openBenchmark()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmark</span></div>
+        </div>
+      </div>
+      <div class="nav-group-sep"></div>
+      <!-- Control group -->
+      <div class="nav-group-wrap">
+        <div class="nav-group-label">Control</div>
+        <div class="nav-group-cards">
+          <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
+          <div class="top-card grp-ctrl" data-tab="energy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
+          <div class="top-card grp-ctrl" data-tab="Pump/Motor Efficiency"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
+          <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLoss()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
+          <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
+        </div>
+      </div>
+      <div class="nav-group-sep"></div>
+      <!-- Monitoring group -->
+      <div class="nav-group-wrap">
+        <div class="nav-group-label">Monitoring</div>
+        <div class="nav-group-cards">
+          <div class="top-card grp-ctrl" data-tab="alarm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span></div>
+          <div class="top-card grp-ctrl" data-tab="alarm-center" onclick="openAlarmCenter()" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Alarm Center</span><span id="alarm-center-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;">0</span></div>
+          <div class="top-card grp-ctrl" data-tab="water-quality" onclick="openWaterQuality()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2 C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg><span>Water Quality</span></div>
+          <div class="top-card grp-ctrl" data-tab="preventive-maintenance"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span></div>
+          <div class="top-card grp-ctrl" data-tab="maint-calendar" onclick="openMaintenanceCalendar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
+          <div class="top-card grp-ctrl" data-tab="logbook" onclick="openLogbook()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
+        </div>
+      </div>
+      <div class="nav-group-sep"></div>
+      <!-- AI group -->
+      <div class="nav-group-wrap">
+        <div class="nav-group-label">AI</div>
+        <div class="nav-group-cards">
+          <div class="top-card grp-ai" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span>ML Risk</span><span id="ml-risk-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">!</span></div>
+        </div>
+      </div>
+      <div class="nav-group-sep"></div>
+      <!-- System group -->
+      <div class="nav-group-wrap">
+        <div class="nav-group-label">System</div>
+        <div class="nav-group-cards">
+          <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+        </div>
+      </div>
     </div>
     <div id="sheet-overlay" class="hidden">
       <div class="resize-handle left"></div>
@@ -1619,85 +1677,43 @@
       <div class="sheet-body"><table id="sheet-table"><thead></thead><tbody></tbody></table></div>
     </div>
 <div id="welcome-user-topright">
-  <div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div>
+  <span id="welcome-username"></span>
+  <div id="datetime-display">
+    <span id="date-display" class="date-layer"></span>
+    <span id="time-display" class="time-layer"></span>
+  </div>
 </div>
     <div id="device-details"></div>
-<div id="legend-card" style="display: flex; flex-wrap: wrap; gap: 20px; background: rgba(255, 255, 255, 0.96); backdrop-filter: blur(2px); border-radius: 20px; padding: 16px 24px; box-shadow: 0 8px 24px rgba(0, 64, 128, 0.12), 0 1px 2px rgba(0, 0, 0, 0.05); font-family: 'DM Sans', sans-serif; border: 1px solid rgba(0, 170, 255, 0.2); transition: all 0.2s ease;">
-  
-  <!-- Column 1: Signal Status -->
-  <div style="min-width: 105px;">
-    <div style="font-size: 13px; font-weight: 700; color: #0b4f6c; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-      <span style="font-size: 16px;">📡</span> Signal Status
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #22c55e; border-radius: 50%; box-shadow: 0 0 0 1px rgba(34,197,94,0.3);"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Online</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #f97316; border-radius: 50%; box-shadow: 0 0 0 1px rgba(249,115,22,0.3);"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Offline</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px;">
-      <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 50%; box-shadow: 0 0 0 1px rgba(239,68,68,0.3); animation: gentlePulse 1.5s infinite;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Fault</span>
-    </div>
+<div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
+
+  <!-- Device status -->
+  <div style="min-width:96px;">
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Device Status</div>
+    <div class="legend-item"><span class="legend-circle legend-Online"></span><span>Online</span></div>
+    <div class="legend-item"><span class="legend-circle legend-Offline"></span><span>Offline</span></div>
+    <div class="legend-item"><span class="legend-circle legend-Fault" style="animation:gentlePulse 1.5s infinite;"></span><span>Fault</span></div>
   </div>
 
-  <!-- Column 2: Pressure Gauge -->
-  <div style="min-width: 115px;">
-    <div style="font-size: 13px; font-weight: 700; color: #0b4f6c; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-      <span style="font-size: 16px;">📊</span> Pressure
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #1d4ed8; border-radius: 3px; box-shadow: 0 0 0 1px rgba(29,78,216,0.2);"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Normal (blue)</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #f97316; border-radius: 3px;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Low (orange)</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px;">
-      <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 3px;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">High (red)</span>
-    </div>
+  <!-- Separator -->
+  <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
+
+  <!-- Pressure -->
+  <div style="min-width:108px;">
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pressure</div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#185FA5;border-radius:3px;display:inline-block;"></span><span>Normal</span></div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#BA7517;border-radius:3px;display:inline-block;"></span><span>Low</span></div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#A32D2D;border-radius:3px;display:inline-block;"></span><span>High</span></div>
   </div>
 
-  <!-- Column 3: Reservoir -->
-  <div style="min-width: 125px;">
-    <div style="font-size: 13px; font-weight: 700; color: #0b4f6c; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-      <span style="font-size: 16px;">💧</span> Reservoir
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #22c55e; border-radius: 3px;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Normal (green)</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #f97316; border-radius: 3px;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Low (orange)</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px;">
-      <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 3px;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">High / Overflow</span>
-    </div>
-  </div>
+  <!-- Separator -->
+  <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
 
-  <!-- Column 4: Pumping Station -->
-  <div style="min-width: 125px;">
-    <div style="font-size: 13px; font-weight: 700; color: #0b4f6c; letter-spacing: 0.3px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-      <span style="font-size: 16px;">⚙️</span> Pump Station
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #22c55e; border-radius: 50%;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Online</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
-      <span style="width: 12px; height: 12px; background: #f97316; border-radius: 50%;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Offline</span>
-    </div>
-    <div class="legend-item" style="display: flex; align-items: center; gap: 10px;">
-      <span style="width: 12px; height: 12px; background: #ef4444; border-radius: 50%;"></span>
-      <span style="font-size: 12.5px; font-weight: 500; color: #1e293b;">Fault / Button</span>
-    </div>
+  <!-- Reservoir -->
+  <div style="min-width:108px;">
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Reservoir</div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#0F6E56;border-radius:3px;display:inline-block;"></span><span>Normal</span></div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#BA7517;border-radius:3px;display:inline-block;"></span><span>Low</span></div>
+    <div class="legend-item"><span style="width:10px;height:10px;background:#A32D2D;border-radius:3px;display:inline-block;"></span><span>Overflow</span></div>
   </div>
 </div>
 
@@ -1718,12 +1734,12 @@
       min-width: 90px !important;
     }
   }
-  .filter-pill{padding:4px 10px;border-radius:20px;border:1.5px solid rgba(0,64,128,0.25);background:white;color:#004080;font-size:11px;font-weight:700;cursor:pointer;transition:0.18s;white-space:nowrap;}
-.filter-pill.active{background:#004080;color:white;border-color:#004080;}
-.filter-pill.active.pres{background:#1d4ed8;border-color:#1d4ed8;}
-.filter-pill.active.res{background:#22c55e;border-color:#22c55e;}
-.filter-pill.active.pump{background:#f97316;border-color:#f97316;}
-#device-filter-bar{display:flex;gap:4px;padding:6px 8px 6px;border-bottom:1px solid rgba(0,64,128,0.10);flex-wrap:wrap;background:rgba(240,248,255,0.6);}
+  .filter-pill{padding:4px 11px;border-radius:20px;border:1px solid rgba(0,64,128,0.18);background:white;color:#4a6572;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:.15s;white-space:nowrap;}
+.filter-pill.active{background:#185FA5;color:white;border-color:#185FA5;}
+.filter-pill.active.pres{background:#185FA5;border-color:#185FA5;}
+.filter-pill.active.res{background:#0F6E56;border-color:#0F6E56;}
+.filter-pill.active.pump{background:#854F0B;border-color:#854F0B;}
+#device-filter-bar{display:flex;gap:5px;padding:8px 10px 8px;border-bottom:1px solid rgba(0,64,128,0.08);flex-wrap:wrap;background:#f8fbff;}
 </style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
