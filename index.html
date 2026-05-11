@@ -2552,8 +2552,7 @@ if (isPS) {
         // Current value arc (needle arc)
         + _arcPath(_cx, _cy, _r, -175, Math.max(-175, Math.min(5, _curAngle)), 1)
         + ' stroke="' + _pC + '" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.9"/>'
-        // Center circle
-        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + _ir + '" fill="white" stroke="' + _pC + '" stroke-width="2.5"/>'
+        // Center circle (removed for clear number visibility)
         // Needle with shadow (starts outside text area)
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
