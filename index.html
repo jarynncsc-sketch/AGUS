@@ -1690,7 +1690,11 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">AI</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-ai" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span>ML Risk</span><span id="ml-risk-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">!</span></div>
+          <div class="top-card grp-ai" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine — RUL & anomaly scoring"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span>ML Risk</span><span id="ml-risk-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">!</span></div>
+          <div class="top-card grp-ai" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
+          <div class="top-card grp-ai" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
+          <div class="top-card grp-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
+          <div class="top-card grp-ai" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -3937,22 +3941,7 @@ function toggleAISKey() {
   var inp = document.getElementById('ais-api-key');
   if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
 }
-function saveAISettings() {
-  var endpoint = document.getElementById('ais-endpoint').value.trim();
-  var apiKey = document.getElementById('ais-api-key').value.trim();
-  var model = document.getElementById('ais-model').value.trim();
-  if (!endpoint) { document.getElementById('ais-validation').textContent = 'Please enter an API endpoint URL.'; return; }
-  if (!model) { document.getElementById('ais-validation').textContent = 'Please enter a model name.'; return; }
-  AI_ENDPOINT = endpoint;
-  AI_API_KEY = apiKey;
-  AI_MODEL = model;
-  localStorage.setItem('agus_ai_endpoint', endpoint);
-  localStorage.setItem('agus_ai_api_key', apiKey);
-  localStorage.setItem('agus_ai_model', model);
-  document.getElementById('ais-validation').textContent = '';
-  showNotification('✅ AI settings saved. API key ' + (apiKey ? 'configured' : 'cleared'), 'success');
-  closeAISettings();
-}
+function saveAISettings(){var endpoint=document.getElementById('ais-endpoint').value.trim();var apiKey=document.getElementById('ais-api-key').value.trim();var model=document.getElementById('ais-model').value.trim();if(!endpoint){document.getElementById('ais-validation').textContent='Please enter an API endpoint URL.';return;}if(!model){document.getElementById('ais-validation').textContent='Please enter a model name.';return;}AI_ENDPOINT=endpoint;AI_API_KEY=apiKey;AI_MODEL=model;localStorage.setItem('agus_ai_endpoint',endpoint);localStorage.setItem('agus_ai_api_key',apiKey);localStorage.setItem('agus_ai_model',model);document.getElementById('ais-validation').textContent='';var dot=document.getElementById('ai-key-status-dot');if(dot){dot.style.display=apiKey?'block':'none';}var lbl=document.getElementById('ai-config-lbl');if(lbl)lbl.textContent=apiKey?'AI Active':'AI Config';var legacyDot=document.getElementById('ai-config-dot');if(legacyDot)legacyDot.style.background=apiKey?'#22c55e':'#f97316';showNotification(apiKey?'✅ AI key saved — Claude integration active':'⚠ AI key cleared — using local fallback',apiKey?'success':'warning');closeAISettings();}
 document.getElementById('ai-settings-modal').addEventListener('click',function(e){if(e.target===document.getElementById('ai-settings-modal'))closeAISettings();});
 // Add AI settings button to the control group
 (function addAISettingsBtn() {
@@ -4145,6 +4134,7 @@ function openTabModal(tabKey) {
     + '</div>'
     // Chart area
     + '<div style="flex:1;overflow-y:auto;padding:14px 18px 16px;">'
+    +   (isAITab ? '<div id="tab-modal-live-banner" style="display:none;margin-bottom:14px;background:linear-gradient(135deg,#f0fbff,#e8f4fd);border:1.5px solid #bae6fd;border-radius:12px;padding:12px 16px;"></div>' : '')
     +   '<div id="tab-modal-loading" style="text-align:center;padding:50px 0;color:#7a8fa6;display:flex;flex-direction:column;align-items:center;gap:10px;">'
     +     '<div class="spinner"></div><span>Loading devices…</span>'
     +   '</div>'
@@ -4166,6 +4156,45 @@ function openTabModal(tabKey) {
   overlay.addEventListener('click', function(e){ if(e.target===overlay) closeTabModal(); });
 
   // Populate device dropdown — include ALL device types when allDevices flag set
+  // Also inject a live system-health banner immediately so the panel is never empty
+  if (isAITab) {
+    apiGet('getDashboardData').then(function(liveDevices) {
+      var banner = document.getElementById('tab-modal-live-banner');
+      if (!banner) return;
+      var online  = liveDevices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
+      var fault   = liveDevices.filter(function(d){ return (d.status||'').toLowerCase()==='fault' || d.button; });
+      var offline = liveDevices.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; });
+      var pres    = liveDevices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='pressure'||n.includes('pressure'); });
+      var res     = liveDevices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
+      var pumps   = liveDevices.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
+      var uptime  = liveDevices.length ? ((online.length/liveDevices.length)*100).toFixed(0) : '—';
+      var totalFlow = pumps.reduce(function(s,d){ return s+parseFloat(d.flow||0); }, 0).toFixed(1);
+      var avgPres = pres.length ? (pres.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pres.length).toFixed(1) : '—';
+      var avgLvl  = res.length  ? (res.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/res.length).toFixed(1)  : '—';
+      function sc(icon,lbl,val,unit,col) {
+        return '<div style="background:'+col+'12;border:1.5px solid '+col+'40;border-radius:10px;padding:9px 12px;min-width:90px;text-align:center;">'
+          +'<div style="font-size:16px;">'+icon+'</div>'
+          +'<div style="font-size:18px;font-weight:800;color:'+col+';">'+val+'<span style="font-size:11px;font-weight:600;"> '+unit+'</span></div>'
+          +'<div style="font-size:10px;font-weight:700;color:#7a8fa6;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">'+lbl+'</div>'
+          +'</div>';
+      }
+      var faultHtml = fault.length
+        ? '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;color:#b91c1c;">⚠ Fault/Alert: '
+          + fault.map(function(d){return d.device;}).join(', ') + '</div>' : '';
+      banner.innerHTML =
+        '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">⚡ Live System Snapshot</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+        +sc('🟢','Uptime',uptime,'%','#22c55e')
+        +sc('⚙️','Flow',totalFlow,'L/s','#0ea5e9')
+        +sc('📊','Avg Press.',avgPres,'psi','#1d4ed8')
+        +sc('💧','Avg Level',avgLvl,'m³','#06b6d4')
+        +sc('🔴','Faults',fault.length,'','#ef4444')
+        +sc('🟠','Offline',offline.length,'','#f97316')
+        +'</div>'
+        +faultHtml;
+      banner.style.display = 'block';
+    }).catch(function(){});
+  }
   apiGet('getDashboardData').then(function(devices) {
     var filteredDevices;
     if (cfg.allDevices) {
@@ -6984,6 +7013,269 @@ function autoScheduleMaintenance(analysed) {
     showNotification('🔧 ML Engine auto-scheduled ' + scheduled + ' maintenance task(s) based on RUL analysis.', 'warning');
   }
 }
+
+// ============================================================
+// AI ENHANCEMENTS — Top Cards, Map Health Card, Diagnostics
+// ============================================================
+
+/* ── 1. AI group label glow animation ── */
+(function addAIGroupGlow() {
+  var style = document.createElement('style');
+  style.setAttribute('data-agus-trusted','1');
+  style.textContent = [
+    '@keyframes aiPulse{0%,100%{box-shadow:0 0 0 0 rgba(124,58,237,0.0);}50%{box-shadow:0 0 0 6px rgba(124,58,237,0.18);}}',
+    '.grp-ai .nav-group-label{color:#7c3aed!important;font-weight:800!important;}',
+    '.top-card.grp-ai{animation:aiPulse 3s ease-in-out infinite;}',
+    '.top-card.grp-ai:hover{animation:none;}',
+    /* AI Health Card on map */
+    '#ai-health-card{position:absolute;top:58px;right:16px;z-index:1200;background:rgba(255,255,255,0.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1.5px solid rgba(124,58,237,0.22);border-radius:14px;padding:10px 14px;min-width:192px;box-shadow:0 6px 22px rgba(60,0,180,0.13);font-family:"DM Sans",sans-serif;cursor:pointer;transition:box-shadow .2s;}',
+    '#ai-health-card:hover{box-shadow:0 8px 30px rgba(60,0,180,0.20);}',
+    '#ai-health-score{font-size:28px;font-weight:800;line-height:1;}',
+    '#ai-health-bar{height:5px;border-radius:3px;margin:5px 0 4px;overflow:hidden;background:#ede9fe;}',
+    '#ai-health-fill{height:100%;border-radius:3px;transition:width .6s ease;}',
+    /* Diagnostics panel */
+    '#ai-diag-panel{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:6500;width:540px;max-width:94vw;max-height:86vh;background:#fff;border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,0.42);overflow:hidden;flex-direction:column;}',
+    '#ai-diag-panel.open{display:flex;}',
+    '#ai-diag-body{flex:1;overflow-y:auto;padding:18px 22px;}',
+    '.ai-diag-section{margin-bottom:16px;}',
+    '.ai-diag-section h4{font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.6px;color:#5575a0;margin:0 0 8px;}',
+    '.ai-diag-row{display:flex;align-items:center;justify-content:space-between;padding:6px 10px;border-radius:8px;margin-bottom:4px;background:#f8fbff;font-size:12.5px;}',
+    '.ai-diag-chip{border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700;}',
+    /* AI chat quick chips */
+    '#ai-chat-chips{display:flex;gap:5px;flex-wrap:wrap;padding:8px 12px 4px;}',
+    '.ai-chip-q{padding:4px 11px;background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:.12s;}',
+    '.ai-chip-q:hover{background:#ddd6fe;}'
+  ].join('');
+  document.head.appendChild(style);
+})();
+
+/* ── 2. AI System Health Card on map ── */
+function _buildAIHealthCard() {
+  var old = document.getElementById('ai-health-card');
+  if (old) return; // already exists
+  var mc = document.getElementById('map-container');
+  if (!mc) return;
+  var card = document.createElement('div');
+  card.id = 'ai-health-card';
+  card.title = 'Click to run AI System Diagnostics';
+  card.onclick = openAIDiagnostics;
+  card.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+    +'<div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:.6px;">🤖 AI Health Score</div>'
+    +'<div style="width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);" id="ai-health-dot"></div>'
+    +'</div>'
+    +'<div id="ai-health-score" style="color:#7c3aed;">—</div>'
+    +'<div id="ai-health-bar"><div id="ai-health-fill" style="width:0%;background:#7c3aed;"></div></div>'
+    +'<div id="ai-health-label" style="font-size:11px;color:#64748b;margin-bottom:5px;">Initialising…</div>'
+    +'<div style="font-size:10px;font-weight:700;color:#a78bfa;">▸ Click for AI Diagnostics</div>';
+  mc.appendChild(card);
+}
+
+function _updateAIHealthCard(devices) {
+  var scoreEl = document.getElementById('ai-health-score');
+  var fillEl  = document.getElementById('ai-health-fill');
+  var lblEl   = document.getElementById('ai-health-label');
+  var dotEl   = document.getElementById('ai-health-dot');
+  if (!scoreEl || !devices) return;
+  var total   = devices.length || 1;
+  var online  = devices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; }).length;
+  var fault   = devices.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; }).length;
+  var offline = devices.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; }).length;
+  // Score: start at 100, deduct for faults/offline
+  var score = Math.round(Math.max(0, 100 - (fault * 14) - (offline * 7)));
+  var color = score >= 85 ? '#22c55e' : score >= 60 ? '#f97316' : '#ef4444';
+  var label = score >= 85 ? 'System Healthy' : score >= 60 ? 'Attention Needed' : 'Critical Issues';
+  scoreEl.textContent = score;
+  scoreEl.style.color = color;
+  if (fillEl) { fillEl.style.width = score + '%'; fillEl.style.background = color; }
+  if (lblEl)  { lblEl.textContent = label + ' · ' + online + '/' + total + ' online'; lblEl.style.color = color; }
+  if (dotEl)  { dotEl.style.background = color; dotEl.style.boxShadow = '0 0 0 3px '+color+'33'; }
+}
+
+/* ── 3. AI Diagnostics full panel ── */
+function openAIDiagnostics() {
+  var old = document.getElementById('ai-diag-panel');
+  if (old) { old.classList.toggle('open'); return; }
+  var panel = document.createElement('div');
+  panel.id = 'ai-diag-panel';
+  panel.innerHTML =
+    '<div style="background:linear-gradient(135deg,#4c1d95,#7c3aed);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+    +'<div><div style="color:#fff;font-weight:800;font-size:1.1rem;">🤖 AI System Diagnostics</div>'
+    +'<div style="color:rgba(255,255,255,.72);font-size:11px;margin-top:2px;">Live analysis · anomaly detection · recommendations</div></div>'
+    +'<button onclick="document.getElementById(\'ai-diag-panel\').classList.remove(\'open\')" style="background:rgba(255,255,255,.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">✕</button>'
+    +'</div>'
+    +'<div id="ai-diag-body">'
+    +'<div style="text-align:center;padding:48px 0;color:#7a8fa6;"><div class="spinner" style="margin:0 auto 14px;"></div>Running diagnostics…</div>'
+    +'</div>'
+    +'<div style="padding:12px 20px;border-top:1px solid #ede9fe;background:#faf5ff;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0;">'
+    +'<button onclick="runAIDiagnostics()" style="padding:7px 16px;background:linear-gradient(135deg,#5b21b6,#7c3aed);color:white;border:none;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">🔄 Re-run Diagnostics</button>'
+    +'<button onclick="document.getElementById(\'ai-diag-panel\').classList.remove(\'open\')" style="margin-left:auto;padding:7px 16px;background:#ede9fe;color:#5b21b6;border:1.5px solid #c4b5fd;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">Close</button>'
+    +'</div>';
+  document.body.appendChild(panel);
+  setTimeout(function(){ panel.classList.add('open'); runAIDiagnostics(); }, 50);
+}
+
+function runAIDiagnostics() {
+  var body = document.getElementById('ai-diag-body');
+  if (!body) return;
+  body.innerHTML = '<div style="text-align:center;padding:40px 0;color:#7a8fa6;"><div class="spinner" style="margin:0 auto 14px;"></div>Fetching device data…</div>';
+  apiGet('getDashboardData').then(function(devices) {
+    var online  = devices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
+    var fault   = devices.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; });
+    var offline = devices.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; });
+    var pres    = devices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='pressure'||n.includes('pressure'); });
+    var res     = devices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
+    var pumps   = devices.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
+    var score   = Math.max(0, 100 - fault.length*14 - offline.length*7);
+    var scoreColor = score>=85?'#22c55e':score>=60?'#f97316':'#ef4444';
+
+    function diagRow(icon, label, value, status, statusColor) {
+      return '<div class="ai-diag-row">'
+        +'<span>'+icon+' <span style="font-weight:600;color:#002b5c;">'+label+'</span></span>'
+        +'<div style="display:flex;align-items:center;gap:8px;">'
+        +'<span style="font-weight:700;color:#334155;">'+value+'</span>'
+        +'<span class="ai-diag-chip" style="background:'+statusColor+'18;color:'+statusColor+';">'+status+'</span>'
+        +'</div></div>';
+    }
+
+    var html = '';
+    // Health score banner
+    html += '<div style="background:linear-gradient(135deg,'+scoreColor+'12,'+scoreColor+'06);border:1.5px solid '+scoreColor+'44;border-radius:12px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;">'
+      +'<div style="font-size:40px;font-weight:800;color:'+scoreColor+';">'+score+'</div>'
+      +'<div><div style="font-weight:800;color:#002b5c;font-size:14px;">Overall System Health</div>'
+      +'<div style="font-size:12px;color:#64748b;margin-top:2px;">'+online.length+'/'+devices.length+' devices online · '+fault.length+' fault(s) · '+offline.length+' offline</div>'
+      +'<div style="height:6px;border-radius:3px;background:#f0f0f0;margin-top:6px;overflow:hidden;"><div style="height:100%;width:'+score+'%;background:'+scoreColor+';border-radius:3px;"></div></div>'
+      +'</div></div>';
+
+    // Device status section
+    html += '<div class="ai-diag-section"><h4>Device Status</h4>';
+    html += diagRow('🖥️','Total Devices', devices.length, 'All', '#64748b');
+    html += diagRow('🟢','Online', online.length, online.length===devices.length?'All Clear':online.length+'/'+devices.length, '#22c55e');
+    if (fault.length) html += diagRow('🔴','Fault', fault.length, fault.map(function(d){return d.device;}).join(', '), '#ef4444');
+    if (offline.length) html += diagRow('🟠','Offline', offline.length, offline.map(function(d){return d.device;}).join(', '), '#f97316');
+    html += '</div>';
+
+    // Per-category metrics
+    if (pres.length) {
+      var avgP = (pres.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pres.length).toFixed(1);
+      var presOk = pres.filter(function(d){ return (d.pressureStatus||'normal').toLowerCase()==='normal'; }).length;
+      html += '<div class="ai-diag-section"><h4>Pressure Devices ('+pres.length+')</h4>';
+      html += diagRow('📊','Avg Pressure', avgP+' psi', presOk===pres.length?'Normal':'Check Required', presOk===pres.length?'#22c55e':'#f97316');
+      html += '</div>';
+    }
+    if (res.length) {
+      var avgL = (res.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/res.length).toFixed(1);
+      html += '<div class="ai-diag-section"><h4>Reservoirs ('+res.length+')</h4>';
+      html += diagRow('💧','Avg Water Level', avgL+' m³', 'Monitoring', '#06b6d4');
+      html += '</div>';
+    }
+    if (pumps.length) {
+      var pumpsOn = pumps.filter(function(d){return d.relay==1||d.relay==='1'||d.relay===true;}).length;
+      var totalFlow = pumps.reduce(function(s,d){return s+parseFloat(d.flow||0);},0).toFixed(1);
+      var totalPow  = pumps.reduce(function(s,d){return s+parseFloat(d.power||0);},0).toFixed(0);
+      html += '<div class="ai-diag-section"><h4>Pump Stations ('+pumps.length+')</h4>';
+      html += diagRow('⚙️','Pumps Running', pumpsOn+'/'+pumps.length, pumpsOn>0?'Active':'All Stopped', pumpsOn>0?'#22c55e':'#f97316');
+      html += diagRow('💧','Total Flow', totalFlow+' L/s', 'Live', '#0ea5e9');
+      html += diagRow('⚡','Total Power', totalPow+' W', 'Live', '#f97316');
+      html += '</div>';
+    }
+
+    // AI Recommendations section
+    html += '<div class="ai-diag-section"><h4>🤖 AI Recommendations</h4>'
+      +'<div id="ai-diag-recs" style="background:#faf5ff;border:1.5px solid #ede9fe;border-radius:10px;padding:12px 14px;font-size:12.5px;color:#1e293b;line-height:1.7;">'
+      +'<div class="spinner" style="width:18px;height:18px;border-width:2px;display:inline-block;margin-right:8px;"></div> Generating AI recommendations…</div>'
+      +'</div>';
+
+    body.innerHTML = html;
+    _updateAIHealthCard(devices);
+
+    // Now generate AI recommendations
+    var prompt = 'You are the AI diagnostics engine for AGUS (Autonomous Groundwater Utility System).\n\n'
+      +'System snapshot:\n'
+      +'- '+devices.length+' total devices: '+online.length+' online, '+fault.length+' fault, '+offline.length+' offline\n'
+      +(pres.length?'- Pressure devices: '+(pres.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pres.length).toFixed(1)+' psi avg\n':'')
+      +(res.length?'- Reservoirs: '+(res.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/res.length).toFixed(1)+' m³ avg level\n':'')
+      +(pumps.length?'- Pump stations: '+(pumps.filter(function(d){return d.relay==1;}).length)+'/'+pumps.length+' running, '+(pumps.reduce(function(s,d){return s+parseFloat(d.flow||0);},0).toFixed(1))+' L/s total flow\n':'')
+      +(fault.length?'- FAULT devices: '+fault.map(function(d){return d.device;}).join(', ')+'\n':'')
+      +(offline.length?'- OFFLINE devices: '+offline.map(function(d){return d.device;}).join(', ')+'\n':'')
+      +'\nProvide 3 concise, numbered, actionable recommendations for operations staff. Each recommendation max 2 sentences. Focus on the most critical issues first. Use plain English.';
+
+    aiCall('You are the AGUS AI diagnostics engine.', prompt).then(function(data) {
+      var t = data.content&&data.content[0]?data.content[0].text.trim():'No recommendations available.';
+      var recEl = document.getElementById('ai-diag-recs');
+      if (recEl) {
+        recEl.innerHTML = t
+          .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+          .replace(/^\d+\.\s(.+)$/gm,'<div style="margin:6px 0;display:flex;gap:8px;"><span style="font-weight:800;color:#7c3aed;flex-shrink:0;">▸</span><span>$1</span></div>')
+          .replace(/\n/g,'<br>');
+      }
+    }).catch(function(err) {
+      var recEl = document.getElementById('ai-diag-recs');
+      if (recEl) recEl.innerHTML = '<span style="color:#94a3b8;">⚠ AI offline — configure API key in AI Config for live recommendations.</span>';
+    });
+  }).catch(function(e) {
+    body.innerHTML = '<p style="color:#ef4444;padding:20px;">⚠ Failed to load device data: '+(e.message||e)+'</p>';
+  });
+}
+
+/* ── 4. Quick-question chips in AI Chat ── */
+(function addAIChatChips() {
+  function _inject() {
+    var panel = document.getElementById('ai-chat-panel');
+    if (!panel || document.getElementById('ai-chat-chips')) return;
+    var chips = document.createElement('div');
+    chips.id = 'ai-chat-chips';
+    var questions = [
+      'System status?',
+      'Any alarms?',
+      'Highest pressure?',
+      'Lowest reservoir?',
+      'Energy usage?'
+    ];
+    chips.innerHTML = questions.map(function(q) {
+      return '<button class="ai-chip-q" onclick="document.getElementById(\'ai-chat-input\').value=\''+q+'\';sendAIMessage();">'+q+'</button>';
+    }).join('');
+    var msgBox = document.getElementById('ai-chat-messages');
+    if (msgBox && msgBox.parentNode) {
+      msgBox.parentNode.insertBefore(chips, msgBox.nextSibling);
+    }
+  }
+  // Try immediately and after a short delay (panel may be hidden)
+  _inject();
+  setTimeout(_inject, 2000);
+})();
+
+/* ── 5. Hook into dashboard update to refresh AI health card ── */
+(function patchDashboardForAIHealth() {
+  var _origUpdate = window.updateDashboard;
+  window.updateDashboard = function() {
+    if (_origUpdate) _origUpdate.apply(this, arguments);
+    _buildAIHealthCard();
+    apiGet('getDashboardData').then(function(devices) {
+      _updateAIHealthCard(devices);
+    }).catch(function(){});
+  };
+  // Also build the card after login
+  var _origLogin = window.login;
+  if (_origLogin) {
+    window.login = function() {
+      var r = _origLogin.apply(this, arguments);
+      setTimeout(function() { _buildAIHealthCard(); }, 1500);
+      return r;
+    };
+  }
+})();
+
+/* ── 6. On load — restore AI key status dot if key already stored ── */
+(function restoreAIKeyStatusOnLoad() {
+  var storedKey = localStorage.getItem('agus_ai_api_key') || '';
+  if (storedKey) {
+    var dot = document.getElementById('ai-key-status-dot');
+    if (dot) dot.style.display = 'block';
+    var lbl = document.getElementById('ai-config-lbl');
+    if (lbl) lbl.textContent = 'AI Active';
+  }
+})();
 
 // Hook into ML analysis
 var _origRunML = window.runMLAnalysis;
