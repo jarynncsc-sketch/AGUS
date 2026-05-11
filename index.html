@@ -2527,10 +2527,13 @@ if (isPS) {
       }
       var _cx = 75, _cy = 62, _r = 45, _ir = 32;
       var _totalH = 130, _W = 150;
-      // Needle tip
+      // Needle tip (start outside text area to avoid covering number)
       var _needleLen = 38;
+      var _needleStart = 14;
       var _nx = _cx + _needleLen * Math.cos(_curAngle * Math.PI / 180);
       var _ny = _cy + _needleLen * Math.sin(_curAngle * Math.PI / 180);
+      var _sx = _cx + _needleStart * Math.cos(_curAngle * Math.PI / 180);
+      var _sy = _cy + _needleStart * Math.sin(_curAngle * Math.PI / 180);
       var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '" width="' + _W + '" height="' + _totalH + '" xmlns="http://www.w3.org/2000/svg">'
         // Outer glow ring
         + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
@@ -2551,15 +2554,15 @@ if (isPS) {
         + ' stroke="' + _pC + '" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.9"/>'
         // Center circle
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + _ir + '" fill="white" stroke="' + _pC + '" stroke-width="2.5"/>'
-        // Needle with shadow
-        + '<line x1="' + _cx + '" y1="' + _cy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
-        + '<line x1="' + _cx + '" y1="' + _cy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
+        // Needle with shadow (starts outside text area)
+        + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
+        + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="8" fill="#f8fafc" stroke="' + _pC + '" stroke-width="3"/>'
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="3" fill="' + _pC + '"/>'
-        // Center value inline with psi
-        + '<text x="' + _cx + '" y="' + (_cy + 5) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="900" fill="#002b5c">'
-        + (_pv || '--')
-        + '<tspan font-size="13" font-weight="800" fill="#475569" dx="4" dy="-6"> psi</tspan></text>'
+        // Center value
+        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="#002b5c">' + (_pv || '--') + '</text>'
+        // Unit below
+        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="#475569">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA && blinkOn ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="0.7"/>' : '')
