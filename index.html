@@ -2537,7 +2537,8 @@ if (isPS) {
       var _statusC = status === 'Online' ? '#22c55e' : status === 'Offline' ? '#f97316' : '#ef4444';
       var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '" width="' + _W + '" height="' + _totalH + '" xmlns="http://www.w3.org/2000/svg">'
         // Outer status ring
-        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 8) + '" fill="none" stroke="' + _statusC + '" stroke-width="3" opacity="0.5"/>'
+        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 9) + '" fill="none" stroke="' + _statusC + '" stroke-width="5" opacity="0.8"/>'
+        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 13) + '" fill="none" stroke="' + _statusC + '" stroke-width="2" opacity="0.3"/>'
         // Outer glow ring
         + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
         // Background arc (gray track)
@@ -6508,5 +6509,4 @@ function loadForecast() {
     _fcChart=new Chart(canvas.getContext('2d'),{
       type:'line',
       data:{labels:labels,datasets:[
-        {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',borderWidth:2,pointRadius:0,fill:true,tension:0.35},
-        {label:'AI Forecast',data:forecastVals,borderColor:'rgba(245,158,11,0.9)',backgroundColo
+        {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',bo
