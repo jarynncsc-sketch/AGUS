@@ -2534,7 +2534,10 @@ if (isPS) {
       var _ny = _cy + _needleLen * Math.sin(_curAngle * Math.PI / 180);
       var _sx = _cx + _needleStart * Math.cos(_curAngle * Math.PI / 180);
       var _sy = _cy + _needleStart * Math.sin(_curAngle * Math.PI / 180);
+      var _statusC = status === 'Online' ? '#22c55e' : status === 'Offline' ? '#f97316' : '#ef4444';
       var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '" width="' + _W + '" height="' + _totalH + '" xmlns="http://www.w3.org/2000/svg">'
+        // Outer status ring
+        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 8) + '" fill="none" stroke="' + _statusC + '" stroke-width="3" opacity="0.5"/>'
         // Outer glow ring
         + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
         // Background arc (gray track)
@@ -2557,10 +2560,10 @@ if (isPS) {
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
         // Center bullseye removed for clean look
-        // Center value
-        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="#002b5c">' + (_pv || '--') + '</text>'
+        // Center value (blinks + follows anomaly color when out of range)
+        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="' + _pC + '" opacity="' + (_pA && blinkOn ? '0.2' : '1') + '">' + (_pv || '--') + '</text>'
         // Unit below
-        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="#475569">psi</text>'
+        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="' + _pC + '" opacity="' + (_pA && blinkOn ? '0.2' : '0.8') + '">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA && blinkOn ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="0.7"/>' : '')
@@ -4823,22 +4826,85 @@ function injectForecastDataset() {
 var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.anthropic.com/v1/messages';
 var AI_API_KEY  = localStorage.getItem('agus_ai_api_key') || '';
 var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'claude-sonnet-4-20250514';
+var AI_CACHE = {};
+var AI_FALLBACK_ENDPOINTS = ['https://api.anthropic.com/v1/messages'];
 
-function aiFetch(bodyOverrides) {
+function aiCacheKey(body) {
+  var s = JSON.stringify(body);
+  var h = 0, i, chr;
+  for (i = 0; i < s.length; i++) { chr = s.charCodeAt(i); h = ((h << 5) - h) + chr; h |= 0; }
+  return 'ac_' + h;
+}
+
+function aiFetch(bodyOverrides, retries) {
+  retries = retries || 2;
   var body = bodyOverrides || {};
   if (!body.model) body.model = AI_MODEL;
+  var ck = aiCacheKey(body);
+  if (AI_CACHE[ck] && Date.now() - AI_CACHE[ck].ts < 120000) {
+    return Promise.resolve(JSON.parse(JSON.stringify(AI_CACHE[ck].data)));
+  }
   var headers = { 'Content-Type': 'application/json' };
   if (AI_API_KEY) headers['x-api-key'] = AI_API_KEY;
   return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
     .then(function(r) {
       if (!r.ok) throw new Error('API ' + r.status);
       return r.json();
+    }).then(function(data) {
+      AI_CACHE[ck] = { data: data, ts: Date.now() };
+      return data;
+    }).catch(function(err) {
+      if (retries > 0) return aiFetch(bodyOverrides, retries - 1);
+      return aiLocalFallback(JSON.stringify(body), body.messages ? body.messages.map(function(m){return m.content;}).join(' ') : '');
+    });
+}
+
+function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
+  var body = bodyOverrides || {};
+  if (!body.model) body.model = AI_MODEL;
+  body.stream = true;
+  var headers = { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' };
+  if (AI_API_KEY) headers['x-api-key'] = AI_API_KEY;
+  var fullText = '';
+  fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
+    .then(function(r) {
+      if (!r.ok) throw new Error('API ' + r.status);
+      var reader = r.body.getReader();
+      var decoder = new TextDecoder();
+      function readChunk() {
+        reader.read().then(function(result) {
+          if (result.done) { onDone(fullText); return; }
+          var text = decoder.decode(result.value, { stream: true });
+          var lines = text.split('\n');
+          lines.forEach(function(line) {
+            if (line.startsWith('data: ')) {
+              var data = line.slice(6).trim();
+              if (data === '[DONE]') return;
+              try {
+                var parsed = JSON.parse(data);
+                var delta = parsed.delta || (parsed.content && parsed.content[0]) || {};
+                var token = delta.text || '';
+                if (token) { fullText += token; onToken(token); }
+              } catch(e) {}
+            }
+          });
+          readChunk();
+        }).catch(function(e) { if (onError) onError(e); else onDone(fullText); });
+      }
+      readChunk();
+    }).catch(function(err) {
+      if (onError) onError(err);
+      else {
+        aiLocalFallback(JSON.stringify(body), 'Stream fallback').then(function(data) {
+          fullText = data.content[0].text;
+          onToken(fullText);
+          onDone(fullText);
+        });
+      }
     });
 }
 
 function aiLocalFallback(context, promptText) {
-  // Statistical local analysis when no API key is configured.
-  // Returns a promise with a mock response structure matching Anthropic's format.
   return new Promise(function(resolve) {
     setTimeout(function() {
       var localResponse = '';
@@ -4931,20 +4997,49 @@ function sendAIMessage() {
   if (input) input.value = '';
   addAIChatMessage(question, 'user');
   aiChatHistory.push({ role: 'user', content: question });
-  var typingEl = addAIChatMessage('Thinking…', 'bot');
+  var typingEl = addAIChatMessage('', 'bot');
   if (typingEl) typingEl.classList.add('ai-msg-typing');
   document.getElementById('ai-chat-status').innerText = 'AI is thinking…';
   apiGet('getDashboardData').then(function(devices) {
     var sysPrompt = buildAISystemContext(devices);
-    return aiFetch({ model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory });
-  }).then(function(data) {
-    var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
-    aiChatHistory.push({ role: 'assistant', content: reply });
-    if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
-    document.getElementById('ai-chat-status').innerText = 'Ready';
-  }).catch(function(err) {
-    if (typingEl) { typingEl.innerText = '⚠ Error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
-    document.getElementById('ai-chat-status').innerText = 'Error — try again';
+    if (AI_API_KEY) {
+      var fullReply = '';
+      aiFetchStream(
+        { model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory },
+        function(token) {
+          fullReply += token;
+          if (typingEl) { typingEl.innerText = fullReply; typingEl.classList.remove('ai-msg-typing'); }
+          document.getElementById('ai-chat-status').innerText = 'Streaming…';
+        },
+        function(fullText) {
+          if (!fullText) fullText = 'Sorry, I could not generate a response.';
+          aiChatHistory.push({ role: 'assistant', content: fullText });
+          if (typingEl) { typingEl.innerText = fullText; typingEl.classList.remove('ai-msg-typing'); }
+          document.getElementById('ai-chat-status').innerText = 'Ready';
+        },
+        function(err) {
+          aiFetch({ model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory }).then(function(data) {
+            var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
+            aiChatHistory.push({ role: 'assistant', content: reply });
+            if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
+            document.getElementById('ai-chat-status').innerText = 'Ready';
+          }).catch(function(e) {
+            if (typingEl) { typingEl.innerText = '⚠ Error: ' + (e.message || e); typingEl.classList.remove('ai-msg-typing'); }
+            document.getElementById('ai-chat-status').innerText = 'Error — try again';
+          });
+        }
+      );
+    } else {
+      aiCall(sysPrompt, question).then(function(data) {
+        var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
+        aiChatHistory.push({ role: 'assistant', content: reply });
+        if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
+        document.getElementById('ai-chat-status').innerText = 'Ready';
+      }).catch(function(err) {
+        if (typingEl) { typingEl.innerText = '⚠ Error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
+        document.getElementById('ai-chat-status').innerText = 'Error — try again';
+      });
+    }
   });
 }
 
@@ -6414,104 +6509,4 @@ function loadForecast() {
       type:'line',
       data:{labels:labels,datasets:[
         {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',borderWidth:2,pointRadius:0,fill:true,tension:0.35},
-        {label:'AI Forecast',data:forecastVals,borderColor:'rgba(245,158,11,0.9)',backgroundColor:'rgba(245,158,11,0.08)',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:true,tension:0.35,spanGaps:false}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14,padding:12}}},scales:{x:{ticks:{font:{size:10},maxTicksLimit:12,maxRotation:30}},y:{ticks:{font:{size:11}},title:{display:true,text:param,font:{size:11},color:'#5575a0'}}}}
-    });
-
-    // Quick AI insight
-    var valid=actuals.filter(function(v){return v!==null;});
-    if(valid.length){
-      var avg=(valid.reduce(function(a,b){return a+b;},0)/valid.length).toFixed(1);
-      var mx=Math.max.apply(null,valid).toFixed(1);
-      var mn=Math.min.apply(null,valid).toFixed(1);
-      document.getElementById('fc-ai-insight').innerHTML='<div style="background:#fffbf0;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:12px;color:#78350f;">'
-        +'<b>📊 Signal Summary:</b> Avg '+avg+' | Max '+mx+' | Min '+mn+' | Based on last '+hist.length+' readings.'
-        +'<br><b>🤖 Forecast Method:</b> Weighted Moving Average with hourly seasonality — last 48 data points projected forward.'
-        +'</div>';
-    }
-  }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
-}
-  // ============================================================
-// FIX: Load auto-shutoff state from server and display badges
-// ============================================================
-
-// Override the autoShutoffPumps function to ensure badges are shown
-var originalAutoShutoffPumps = window.autoShutoffPumps;
-window.autoShutoffPumps = function(devices) {
-  if (originalAutoShutoffPumps) originalAutoShutoffPumps(devices);
-  // Force badge update after auto-shutoff check
-  setTimeout(_updateAutoShutoffBadges, 100);
-};
-
-// Ensure pump links are loaded on dashboard init
-function initPumpLinksAndDisplay() {
-  if (typeof loadPumpLinksFromGAS === 'function') {
-    loadPumpLinksFromGAS(function() {
-      console.log("✅ Initial pump links loaded from GAS:", pumpLinkConfigs.length);
-      _updatePumpLinksBadge();
-      // Also load any existing auto-shutoff state from localStorage and apply to UI
-      var savedState = localStorage.getItem('reservoirAutoShutoff');
-      if (savedState) {
-        reservoirAutoShutoffState = JSON.parse(savedState);
-        _updateAutoShutoffBadges();
-      }
-    });
-  }
-}
-
-// Call this after login - modify the login function
-// Add to your login success callback:
-// initPumpLinksAndDisplay();
-
-// Also add a refresh button to the dashboard top bar next to Pump Links
-var pumpLinksCard = document.querySelector('.top-card[data-tab="pump-links"]');
-if (pumpLinksCard) {
-  // Add a refresh indicator - this shows the badge
-  setInterval(function() {
-    if (pumpLinkConfigs && pumpLinkConfigs.length > 0) {
-      _updatePumpLinksBadge();
-    }
-  }, 30000); // Check every 30 seconds
-}
-
-// Force refresh function accessible from console for debugging
-window.forceRefreshPumpLinks = function() {
-  loadPumpLinksFromGAS(function() {
-    console.log("Manual refresh - links loaded:", pumpLinkConfigs);
-    _renderLinkCards();
-    _updatePumpLinksBadge();
-    updateDashboard();
-    showNotification("Pump links refreshed: " + pumpLinkConfigs.length + " active", "success");
-  });
-};
-
-// Also fix the pump link modal's refresh button to actually work
-if (typeof _refreshPumpLinksUI !== 'undefined') {
-  window._refreshPumpLinksUI = function() {
-    var cardsEl = document.getElementById('pl-link-cards');
-    if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">⏳ Refreshing from Google Sheet…</div>';
-    loadPumpLinksFromGAS(function() { 
-      _renderLinkCards(); 
-      _updatePumpLinksBadge();
-      updateDashboard();
-      showNotification('🔄 Links refreshed from ReservoirPumpLinks sheet.', 'info');
-    });
-  };
-}
-
-// Override loadPumpLinksFromGAS to ensure it updates UI after load
-var originalLoadPumpLinks = window.loadPumpLinksFromGAS;
-if (originalLoadPumpLinks) {
-  window.loadPumpLinksFromGAS = function(cb) {
-    originalLoadPumpLinks(function() {
-      console.log("Pump links loaded, count:", pumpLinkConfigs.length);
-      _updatePumpLinksBadge();
-      if (cb) cb();
-    });
-  };
-}
-</script>
-
-</body>
-</html>
+        {label:'AI Forecast',data:forecastVals,borderColor:'rgba(245,158,11,0.9)',backgroundColo
