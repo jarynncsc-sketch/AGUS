@@ -429,6 +429,17 @@
     text-overflow: ellipsis !important;
     max-width: 100% !important;
 }
+#weather-display {
+    display: flex !important;
+    align-items: center !important;
+    gap: 3px !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    color: #1e3a5f !important;
+    white-space: nowrap !important;
+    cursor: default !important;
+    pointer-events: auto !important;
+}
   /* ── Top menu bar: scrollable pill strip ── */
   #top-menu-bar {
     position: fixed !important;
@@ -741,6 +752,7 @@
   #welcome-user-topright { min-height: 28px !important; padding: 3px 8px !important; }
   #welcome-username { font-size: 10px !important; }
   #datetime-display { font-size: 9px !important; }
+  #weather-display { font-size: 9px !important; }
   #map-container { top: 82px !important; bottom: 195px !important; height: calc(100dvh - 82px - 195px) !important; }
   .device-list { max-height: 195px !important; height: 195px !important; }
   #legend-card { bottom: 205px !important; right: 6px !important; }
@@ -862,7 +874,8 @@
   }
   #welcome-username { font-size: 14px !important; max-width: unset !important; }
   #datetime-display { display: block !important; font-size: 12px !important; margin-top: 2px !important; }
- 
+  #weather-display { font-size: 12px !important; margin-top: 2px !important; }
+  
   #legend-card { bottom: 16px !important; right: 16px !important; font-size: 12px !important; padding: 8px 12px !important; }
  
   /* Graph modal: large panel */
@@ -953,7 +966,8 @@
   }
   #welcome-username { font-size: 16px !important; color: #004080 !important; font-weight: 700 !important; }
   #datetime-display { display: block !important; font-size: 14px !important; margin-top: 3px !important; color: #e05555 !important; }
- 
+  #weather-display { font-size: 14px !important; margin-top: 3px !important; }
+  
   #legend-card { bottom: 20px !important; right: 20px !important; font-size: 14px !important; padding: 10px 16px !important; border-radius: 10px !important; }
   .legend-circle { width: 14px !important; height: 14px !important; }
  
@@ -1182,6 +1196,7 @@
     #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
     #welcome-username{font-size:12px;font-weight:600;color:#002b5c;display:block;margin-bottom:1px;}
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
+    #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
     #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);}
     .legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:#1a2e35;}
     .legend-circle{width:10px;height:10px;border-radius:50%;display:inline-block;}
@@ -1695,9 +1710,12 @@
     </div>
 <div id="welcome-user-topright">
   <span id="welcome-username"></span>
-  <div id="datetime-display">
-    <span id="date-display" class="date-layer"></span>
-    <span id="time-display" class="time-layer"></span>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <span id="weather-display"></span>
+    <div id="datetime-display">
+      <span id="date-display" class="date-layer"></span>
+      <span id="time-display" class="time-layer"></span>
+    </div>
   </div>
 </div>
     <div id="device-details"></div>
@@ -2188,7 +2206,7 @@ function login() {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div>'; updateDateTime(); setInterval(updateDateTime, 1000);
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -5081,6 +5099,7 @@ function flushAlarmBuffer() {
       window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
     }
     showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
+    logAlarmCorrelation(snapshot, cause);
   }).catch(function() { snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
 }
 
@@ -5365,7 +5384,7 @@ function openKPIDashboard() {
     html += '</tbody></table></div>';
 
     // AI KPI commentary
-    html += '<div style="margin-top:18px;"><button onclick="genKPIInsight('+JSON.stringify({uptime,totalFlow,totalPower,faults:fault.length,offline:offline.length,pumpsOn,avgPres,avgLevel}).replace(/"/g,"\'")+')" style="padding:7px 18px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 Generate AI KPI Insight</button><div id="kpi-ai-output" style="margin-top:10px;font-size:13px;color:#1e293b;line-height:1.6;"></div></div>';
+    html += '<div style="margin-top:18px;"><button onclick="genKPIInsight('+JSON.stringify({uptime,totalFlow,totalPower,totalEnergy,faults:fault.length,offline:offline.length,pumpsOn,avgPres,avgLevel}).replace(/"/g,"\'")+')" style="padding:7px 18px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 Generate AI KPI Insight</button><div id="kpi-ai-output" style="margin-top:10px;font-size:13px;color:#1e293b;line-height:1.6;"></div></div>';
 
     document.getElementById('kpi-body').innerHTML = html;
   }).catch(function(e){ document.getElementById('kpi-body').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>'; });
@@ -6509,4 +6528,544 @@ function loadForecast() {
     _fcChart=new Chart(canvas.getContext('2d'),{
       type:'line',
       data:{labels:labels,datasets:[
-        {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',bo
+        {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',borderWidth:2,pointRadius:0,fill:true,tension:0.35},
+        {label:'AI Forecast',data:forecastVals,borderColor:'rgba(245,158,11,0.9)',backgroundColor:'rgba(245,158,11,0.08)',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:true,tension:0.35,spanGaps:false}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14,padding:12}}},scales:{x:{ticks:{font:{size:10},maxTicksLimit:12,maxRotation:30}},y:{ticks:{font:{size:11}},title:{display:true,text:param,font:{size:11},color:'#5575a0'}}}}
+    });
+
+    // Quick AI insight
+    var valid=actuals.filter(function(v){return v!==null;});
+    if(valid.length){
+      var avg=(valid.reduce(function(a,b){return a+b;},0)/valid.length).toFixed(1);
+      var mx=Math.max.apply(null,valid).toFixed(1);
+      var mn=Math.min.apply(null,valid).toFixed(1);
+      document.getElementById('fc-ai-insight').innerHTML='<div style="background:#fffbf0;border:1.5px solid #fde68a;border-radius:10px;padding:12px 14px;font-size:12px;color:#78350f;">'
+        +'<b>📊 Signal Summary:</b> Avg '+avg+' | Max '+mx+' | Min '+mn+' | Based on last '+hist.length+' readings.'
+        +'<br><b>🤖 Forecast Method:</b> Weighted Moving Average with hourly seasonality — last 48 data points projected forward.'
+        +'</div>';
+    }
+  }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
+}
+  // ============================================================
+// FIX: Load auto-shutoff state from server and display badges
+// ============================================================
+
+// Override the autoShutoffPumps function to ensure badges are shown
+var originalAutoShutoffPumps = window.autoShutoffPumps;
+window.autoShutoffPumps = function(devices) {
+  if (originalAutoShutoffPumps) originalAutoShutoffPumps(devices);
+  // Force badge update after auto-shutoff check
+  setTimeout(_updateAutoShutoffBadges, 100);
+};
+
+// Ensure pump links are loaded on dashboard init
+function initPumpLinksAndDisplay() {
+  if (typeof loadPumpLinksFromGAS === 'function') {
+    loadPumpLinksFromGAS(function() {
+      console.log("✅ Initial pump links loaded from GAS:", pumpLinkConfigs.length);
+      _updatePumpLinksBadge();
+      // Also load any existing auto-shutoff state from localStorage and apply to UI
+      var savedState = localStorage.getItem('reservoirAutoShutoff');
+      if (savedState) {
+        reservoirAutoShutoffState = JSON.parse(savedState);
+        _updateAutoShutoffBadges();
+      }
+    });
+  }
+}
+
+// Call this after login - modify the login function
+// Add to your login success callback:
+// initPumpLinksAndDisplay();
+
+// Also add a refresh button to the dashboard top bar next to Pump Links
+var pumpLinksCard = document.querySelector('.top-card[data-tab="pump-links"]');
+if (pumpLinksCard) {
+  // Add a refresh indicator - this shows the badge
+  setInterval(function() {
+    if (pumpLinkConfigs && pumpLinkConfigs.length > 0) {
+      _updatePumpLinksBadge();
+    }
+  }, 30000); // Check every 30 seconds
+}
+
+// Force refresh function accessible from console for debugging
+window.forceRefreshPumpLinks = function() {
+  loadPumpLinksFromGAS(function() {
+    console.log("Manual refresh - links loaded:", pumpLinkConfigs);
+    _renderLinkCards();
+    _updatePumpLinksBadge();
+    updateDashboard();
+    showNotification("Pump links refreshed: " + pumpLinkConfigs.length + " active", "success");
+  });
+};
+
+// Also fix the pump link modal's refresh button to actually work
+if (typeof _refreshPumpLinksUI !== 'undefined') {
+  window._refreshPumpLinksUI = function() {
+    var cardsEl = document.getElementById('pl-link-cards');
+    if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">⏳ Refreshing from Google Sheet…</div>';
+    loadPumpLinksFromGAS(function() { 
+      _renderLinkCards(); 
+      _updatePumpLinksBadge();
+      updateDashboard();
+      showNotification('🔄 Links refreshed from ReservoirPumpLinks sheet.', 'info');
+    });
+  };
+}
+
+// Override loadPumpLinksFromGAS to ensure it updates UI after load
+var originalLoadPumpLinks = window.loadPumpLinksFromGAS;
+if (originalLoadPumpLinks) {
+  window.loadPumpLinksFromGAS = function(cb) {
+    originalLoadPumpLinks(function() {
+      console.log("Pump links loaded, count:", pumpLinkConfigs.length);
+      _updatePumpLinksBadge();
+      if (cb) cb();
+    });
+  };
+}
+
+// ============================================================
+// WORLD-CLASS FEATURE: Open-Meteo Real-Time Weather
+// ============================================================
+var weatherLat = parseFloat(localStorage.getItem('agus_weather_lat')) || 6.5244;
+var weatherLon = parseFloat(localStorage.getItem('agus_weather_lon')) || 79.8525;
+var _weatherFetching = false;
+
+function weatherIcon(code) {
+  if (code === 0) return '\u2600\uFE0F';
+  if (code <= 2) return '\uD83C\uDF24';
+  if (code <= 3) return '\u26C5';
+  if (code <= 48) return '\uD83C\uDF2B';
+  if (code <= 57) return '\uD83C\uDF26';
+  if (code <= 65) return '\uD83C\uDF27';
+  if (code <= 77) return '\u2744\uFE0F';
+  if (code <= 82) return '\uD83C\uDF26';
+  if (code <= 86) return '\uD83C\uDF28';
+  if (code <= 99) return '\u26C8';
+  return '\uD83C\uDF21';
+}
+
+function doWeatherFetch(lat, lon) {
+  if (_weatherFetching) return;
+  _weatherFetching = true;
+  var el = document.getElementById('weather-display');
+  if (!el) { _weatherFetching = false; return; }
+  el.innerHTML = '\u231B';
+  var url = 'https://api.open-meteo.com/v1/forecast?latitude=' + lat + '&longitude=' + lon
+    + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=auto';
+  fetch(url)
+    .then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(data) {
+      var c = data.current;
+      var icon = weatherIcon(c.weather_code);
+      var temp = Math.round(c.temperature_2m);
+      var feels = Math.round(c.apparent_temperature);
+      var hum = c.relative_humidity_2m;
+      var wind = Math.round(c.wind_speed_10m);
+      el.innerHTML = icon + ' ' + temp + '\u00B0C  \uD83D\uDCA7' + hum + '%';
+      el.title = 'Feels like ' + feels + '\u00B0C \u00B7 Humidity ' + hum + '% \u00B7 Wind ' + wind + ' km/h';
+    })
+    .catch(function() { el.innerHTML = ''; })
+    .then(function() { _weatherFetching = false; });
+}
+
+function fetchWeather() {
+  var el = document.getElementById('weather-display');
+  if (!el) return;
+  var cached = localStorage.getItem('agus_weather_lat');
+  if (cached) {
+    doWeatherFetch(parseFloat(cached), parseFloat(localStorage.getItem('agus_weather_lon') || '79.8525'));
+    return;
+  }
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      weatherLat = pos.coords.latitude;
+      weatherLon = pos.coords.longitude;
+      localStorage.setItem('agus_weather_lat', weatherLat);
+      localStorage.setItem('agus_weather_lon', weatherLon);
+      doWeatherFetch(weatherLat, weatherLon);
+    }, function() { doWeatherFetch(weatherLat, weatherLon); }, { timeout: 5000 });
+  } else {
+    doWeatherFetch(weatherLat, weatherLon);
+  }
+}
+// Refresh weather every 10 minutes
+setInterval(fetchWeather, 600000);
+
+// ============================================================
+// WORLD-CLASS FEATURE: ML Risk Score Persistence + Trend Chart
+// ============================================================
+var mlRiskHistory = JSON.parse(localStorage.getItem('agus_ml_risk_history') || '[]');
+
+function mlSaveRiskSnapshot(device, analysed) {
+  if (!analysed || !analysed.length) return;
+  var entry = {
+    ts: Date.now(),
+    time: new Date().toLocaleString(),
+    device: device,
+    scores: analysed.map(function(a) { return { label: a.label, risk: a.riskScore, unit: a.unit, color: a.color }; }),
+    overall: Math.max.apply(null, analysed.map(function(a){return a.riskScore;}))
+  };
+  mlRiskHistory.push(entry);
+  if (mlRiskHistory.length > 200) mlRiskHistory = mlRiskHistory.slice(-200);
+  localStorage.setItem('agus_ml_risk_history', JSON.stringify(mlRiskHistory));
+}
+
+function mlShowRiskTrend() {
+  if (!mlRiskHistory.length) { showNotification('No risk history data yet — run ML analysis first.', 'info'); return; }
+  var old = document.getElementById('ml-trend-overlay'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'ml-trend-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.75);z-index:5700;display:flex;align-items:center;justify-content:center;';
+  var recent = mlRiskHistory.slice(-50);
+  var labels = recent.map(function(e){ return e.time.slice(-8); });
+  var overalls = recent.map(function(e){ return e.overall; });
+  var maxR = Math.max.apply(null, overalls);
+  var chartH = 200, chartW = 600, pad = 40;
+  var svgW = chartW + pad * 2, svgH = chartH + pad * 2;
+  var points = overalls.map(function(v, i) {
+    var x = pad + (i / Math.max(overalls.length - 1, 1)) * chartW;
+    var y = pad + chartH - (v / Math.max(maxR, 100)) * chartH;
+    return x.toFixed(0) + ',' + y.toFixed(0);
+  });
+  var polyline = points.join(' ');
+  var area = 'M' + pad + ',' + (pad + chartH) + ' L' + points.join(' L') + ' L' + (pad + chartW) + ',' + (pad + chartH) + ' Z';
+  var thresholdY = pad + chartH - (65 / Math.max(maxR, 100)) * chartH;
+  var deviceSel = document.getElementById('ml-device-sel');
+  var devName = deviceSel ? deviceSel.value : 'All';
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;width:700px;max-width:95vw;box-shadow:0 24px 70px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);">'
+    + '<div style="background:linear-gradient(135deg,#1e3a5f,#4f46e5);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;color:#fff;">'
+    + '<div><div style="font-weight:800;font-size:1.1rem;">&#128200; ML Risk Trend — ' + devName + '</div><div style="font-size:11px;color:rgba(255,255,255,0.7);">Last ' + recent.length + ' snapshots</div></div>'
+    + '<button onclick="this.closest(\'#ml-trend-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">✕</button></div>'
+    + '<div style="padding:16px 20px;text-align:center;">'
+    + '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%;max-width:650px;height:auto;">'
+    + '<defs><linearGradient id="mlTrendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4f46e5" stop-opacity="0.3"/><stop offset="100%" stop-color="#4f46e5" stop-opacity="0.02"/></linearGradient></defs>'
+    + '<rect x="' + pad + '" y="' + pad + '" width="' + chartW + '" height="' + chartH + '" fill="#f8faff" rx="6"/>'
+    + '<line x1="' + pad + '" y1="' + thresholdY + '" x2="' + (pad + chartW) + '" y2="' + thresholdY + '" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6"/>'
+    + '<text x="' + (pad + chartW + 4) + '" y="' + (thresholdY + 4) + '" font-size="9" fill="#ef4444">Critical 65</text>'
+    + '<path d="' + area + '" fill="url(#mlTrendGrad)"/>'
+    + '<polyline points="' + polyline + '" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
+    + '<circle cx="' + points[points.length - 1].split(',')[0] + '" cy="' + points[points.length - 1].split(',')[1] + '" r="4" fill="#4f46e5" stroke="#fff" stroke-width="2"/>'
+    + '</svg>'
+    + '<div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 20px;margin-top:4px;"><span>Older</span><span>Latest</span></div>'
+    + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
+    + '<button onclick="mlExportRiskCSV()" style="padding:6px 14px;background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;font-weight:700;color:#1e40af;cursor:pointer;">&#128196; Export CSV</button>'
+    + '<button onclick="mlPrintReport()" style="padding:6px 14px;background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;font-weight:700;color:#1e40af;cursor:pointer;">&#128424; Print Report</button>'
+    + '</div></div></div>';
+  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+function mlExportRiskCSV() {
+  if (!mlRiskHistory.length) return;
+  var csv = 'Time,Device,Overall Risk,Parameters\n';
+  mlRiskHistory.forEach(function(e) {
+    var params = (e.scores||[]).map(function(s){ return s.label + '=' + s.risk; }).join('; ');
+    csv += '"' + e.time + '","' + (e.device||'') + '",' + e.overall + ',"' + params + '"\n';
+  });
+  var blob = new Blob([csv], { type: 'text/csv' });
+  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ml_risk_history.csv'; a.click();
+}
+
+function mlPrintReport() {
+  var content = document.getElementById('ml-trend-overlay');
+  if (!content) return;
+  var html = '<html><head><title>ML Risk Report - AGUS</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #ddd;text-align:center;}th{background:#1e3a5f;color:#fff;}h1{color:#1e3a5f;}</style></head><body>'
+    + '<h1>AGUS ML Risk Report</h1><p>Generated: ' + new Date().toLocaleString() + '</p>'
+    + '<table><thead><tr><th>Time</th><th>Device</th><th>Overall Risk</th><th>Parameters</th></tr></thead><tbody>';
+  mlRiskHistory.slice(-100).forEach(function(e) {
+    var params = (e.scores||[]).map(function(s){ return s.label + ': ' + s.risk; }).join(', ');
+    html += '<tr><td>' + e.time + '</td><td>' + (e.device||'') + '</td><td>' + e.overall + '</td><td>' + params + '</td></tr>';
+  });
+  html += '</tbody></table></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
+// Hook ML save into existing runMLAnalysis
+var originalRunMLAnalysis = window.runMLAnalysis;
+if (originalRunMLAnalysis) {
+  window.runMLAnalysis = function() {
+    originalRunMLAnalysis.apply(this, arguments);
+    var chkInterval = setInterval(function() {
+      if (window._mlResults && window._mlResults.length) {
+        var sel = document.getElementById('ml-device-sel');
+        mlSaveRiskSnapshot(sel ? sel.value : 'Unknown', window._mlResults);
+        clearInterval(chkInterval);
+      }
+    }, 500);
+  };
+}
+
+// Add "Risk Trend" button to ML panel header (panel is created dynamically)
+(function addMLTrendBtn() {
+  var observer = new MutationObserver(function() {
+    var mlHeader = document.getElementById('ml-risk-header');
+    if (mlHeader && !document.getElementById('ml-trend-btn')) {
+      var btn = document.createElement('button');
+      btn.id = 'ml-trend-btn';
+      btn.onclick = mlShowRiskTrend;
+      btn.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;';
+      btn.innerHTML = '&#128200; Trend';
+      mlHeader.querySelector('div') ? mlHeader.querySelector('div').appendChild(btn) : mlHeader.appendChild(btn);
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ============================================================
+// WORLD-CLASS FEATURE: Batch Alarm Timeline / Gantt View
+// ============================================================
+var alarmCorrelationLog = JSON.parse(localStorage.getItem('agus_alarm_corr_log') || '[]');
+
+function logAlarmCorrelation(snapshot, cause) {
+  alarmCorrelationLog.push({
+    ts: Date.now(),
+    time: new Date().toLocaleString(),
+    count: snapshot.length,
+    cause: cause,
+    alarms: snapshot.map(function(a){ return { device: a.device, type: a.type, reading: a.reading }; })
+  });
+  if (alarmCorrelationLog.length > 100) alarmCorrelationLog = alarmCorrelationLog.slice(-100);
+  localStorage.setItem('agus_alarm_corr_log', JSON.stringify(alarmCorrelationLog));
+}
+
+// Correlation logging is now handled in the patched correlateAndAnnounce above
+
+function openAlarmTimeline() {
+  if (!alarmCorrelationLog.length) { showNotification('No correlated alarm events yet.', 'info'); return; }
+  var old = document.getElementById('alarm-timeline-overlay'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'alarm-timeline-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.75);z-index:5800;display:flex;align-items:center;justify-content:center;';
+  var recent = alarmCorrelationLog.slice(-20).reverse();
+  var timelineHTML = recent.map(function(e, idx) {
+    var alarmDots = e.alarms.map(function(a) {
+      var c = a.type.toLowerCase().indexOf('fault') >= 0 ? '#ef4444' : a.type.toLowerCase().indexOf('warn') >= 0 ? '#f97316' : '#3b82f6';
+      return '<span title="' + a.device + ': ' + a.type + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';margin:0 2px;"></span>';
+    }).join('');
+    return '<div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #e5eef9;font-size:12px;">'
+      + '<div style="min-width:70px;color:#94a3b8;font-size:10px;">' + e.time + '</div>'
+      + '<div style="min-width:30px;font-weight:800;color:#1e3a5f;">' + e.count + 'x</div>'
+      + '<div style="flex:1;">' + alarmDots + '</div>'
+      + '<div style="flex:2;color:#475569;">' + (e.cause || '—') + '</div>'
+      + '</div>';
+  }).join('');
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;width:800px;max-width:95vw;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,0.45);animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);">'
+    + '<div style="background:linear-gradient(135deg,#b91c1c,#7c3aed);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;color:#fff;">'
+    + '<div><div style="font-weight:800;font-size:1.1rem;">&#128197; Alarm Correlation Timeline</div><div style="font-size:11px;color:rgba(255,255,255,0.7);">Last ' + recent.length + ' correlation events — dots = alarms per event</div></div>'
+    + '<button onclick="this.closest(\'#alarm-timeline-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">✕</button></div>'
+    + '<div style="flex:1;overflow-y:auto;padding:10px 18px;">'
+    + '<div style="display:flex;gap:12px;padding:6px 0;font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;border-bottom:2px solid #e5eef9;">'
+    + '<div style="min-width:70px;">Time</div><div style="min-width:30px;">Count</div><div style="flex:1;">Alarms</div><div style="flex:2;">Root Cause</div>'
+    + '</div>' + timelineHTML + '</div></div>';
+  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
+  document.body.appendChild(ov);
+}
+
+// Add "Timeline" button to alarm center header
+(function addAlarmTimelineBtn() {
+  var observer = new MutationObserver(function() {
+    var header = document.querySelector('#alarm-center-overlay [style*="background:linear-gradient"]');
+    if (header) {
+      var btn = document.createElement('button');
+      btn.onclick = openAlarmTimeline;
+      btn.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;';
+      btn.innerHTML = '&#128197; Timeline';
+      header.querySelector('div:last-child') ? header.insertBefore(btn, header.querySelector('div:last-child')) : header.appendChild(btn);
+      observer.disconnect();
+    }
+  });
+  observer.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ============================================================
+// WORLD-CLASS FEATURE: Anomaly Auto-Remediation Suggestions
+// ============================================================
+var remediationRules = [
+  { pattern: 'pressure', condition: 'high', action: 'Check PRV setpoint. Inspect for blocked discharge. Verify pump VFD speed.', confidence: 0.85 },
+  { pattern: 'pressure', condition: 'low', action: 'Check for leaks in distribution. Verify pump is running. Inspect suction strainer.', confidence: 0.8 },
+  { pattern: 'power', condition: 'high', action: 'Check for pump cavitation. Inspect motor bearings. Verify voltage balance.', confidence: 0.75 },
+  { pattern: 'flowrate', condition: 'low', action: 'Check for blocked pipeline. Verify valve position. Inspect pump impeller.', confidence: 0.8 },
+  { pattern: 'current', condition: 'high', action: 'Check motor winding resistance. Inspect for mechanical binding. Verify supply voltage.', confidence: 0.7 },
+  { pattern: 'level', condition: 'low', action: 'Check inlet valve. Verify supply pump operation. Inspect for tank leaks.', confidence: 0.85 },
+  { pattern: 'level', condition: 'high', action: 'Check outlet valve. Verify drain pump operation. Inspect level sensor calibration.', confidence: 0.8 },
+  { pattern: 'voltage', condition: 'low', action: 'Check transformer taps. Verify UPS/battery backup. Inspect supply cable connections.', confidence: 0.7 },
+  { pattern: 'voltage', condition: 'high', action: 'Check voltage regulator. Verify generator AVR. Inspect for loose neutral.', confidence: 0.65 }
+];
+
+function getRemediation(paramLabel, riskScore, slope) {
+  var label = (paramLabel || '').toLowerCase();
+  var isHigh = slope > 0;
+  var matched = remediationRules.filter(function(r) {
+    return label.indexOf(r.pattern) >= 0 && ((isHigh && r.condition === 'high') || (!isHigh && r.condition === 'low'));
+  });
+  if (!matched.length && riskScore >= 50) {
+    matched = [{ pattern: 'general', condition: isHigh ? 'high' : 'low', action: 'Schedule detailed inspection. Review operational parameters. Consider preventive maintenance.', confidence: 0.6 }];
+  }
+  return matched.map(function(m) {
+    var conf = Math.min(1, m.confidence * (riskScore / 100));
+    return { action: m.action, confidence: Math.round(conf * 100) };
+  });
+}
+
+function showRemediationSuggestions(analysed) {
+  if (!analysed || !analysed.length) return;
+  var html = '<div style="margin-top:14px;padding:12px 16px;background:#fff7ed;border:1.5px solid #fed7aa;border-radius:10px;">'
+    + '<div style="font-weight:800;color:#9a3412;font-size:12px;margin-bottom:8px;">&#128295; Auto-Remediation Suggestions</div>';
+  analysed.forEach(function(a) {
+    if (a.riskScore < 25) return;
+    var rem = getRemediation(a.label, a.riskScore, a.slope);
+    if (rem.length) {
+      rem.forEach(function(r) {
+        var confColor = r.confidence >= 70 ? '#22c55e' : r.confidence >= 50 ? '#f97316' : '#ef4444';
+        html += '<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:8px 12px;margin-bottom:6px;font-size:11px;">'
+          + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">'
+          + '<span style="font-weight:700;color:' + a.color + ';">' + a.label + '</span>'
+          + '<span style="background:' + confColor + '22;color:' + confColor + ';border-radius:12px;padding:1px 8px;font-size:10px;font-weight:700;">' + r.confidence + '% confidence</span>'
+          + '</div>'
+          + '<div style="color:#475569;">' + r.action + '</div>'
+          + '</div>';
+      });
+    }
+  });
+  html += '</div>';
+  return html;
+}
+
+// Hook into ML body rendering
+var originalBuildMLBodyHTML = window.buildMLBodyHTML;
+if (originalBuildMLBodyHTML) {
+  window.buildMLBodyHTML = function(device, analysed, winSize) {
+    var base = originalBuildMLBodyHTML(device, analysed, winSize);
+    var remHtml = showRemediationSuggestions(analysed);
+    return base + (remHtml || '');
+  };
+}
+
+// ============================================================
+// WORLD-CLASS FEATURE: Predictive Maintenance Scheduler
+// ============================================================
+function autoScheduleMaintenance(analysed) {
+  if (!analysed || !analysed.length || typeof maintTasks === 'undefined') return;
+  var scheduled = 0;
+  analysed.forEach(function(a) {
+    if (a.rul !== null && a.rul <= 14 && a.riskScore >= 50) {
+      var existing = maintTasks.filter(function(t) {
+        return t.device === (document.getElementById('ml-device-sel') ? document.getElementById('ml-device-sel').value : '') && t.task.indexOf(a.label) >= 0;
+      });
+      if (existing.length) return;
+      var dueDate = new Date();
+      dueDate.setDate(dueDate.getDate() + Math.max(1, Math.min(14, a.rul)));
+      var priority = a.riskScore >= 70 ? 'Critical' : a.riskScore >= 50 ? 'High' : 'Normal';
+      maintTasks.push({
+        id: Date.now() + Math.random(),
+        device: document.getElementById('ml-device-sel') ? document.getElementById('ml-device-sel').value : 'Unknown',
+        task: 'Predictive: ' + a.label + ' RUL=' + a.rul + 'd — inspection needed',
+        dueDate: dueDate.toISOString().split('T')[0],
+        priority: priority,
+        status: 'Pending',
+        createdBy: 'ML Engine',
+        autoCreated: true
+      });
+      scheduled++;
+    }
+  });
+  if (scheduled > 0) {
+    maintTasks.sort(function(a,b){ return new Date(a.dueDate) - new Date(b.dueDate); });
+    localStorage.setItem('agus_maint_tasks', JSON.stringify(maintTasks));
+    var badge = document.getElementById('ml-risk-badge');
+    if (badge) { badge.style.display = 'flex'; badge.textContent = scheduled; }
+    showNotification('🔧 ML Engine auto-scheduled ' + scheduled + ' maintenance task(s) based on RUL analysis.', 'warning');
+  }
+}
+
+// Hook into ML analysis
+var _origRunML = window.runMLAnalysis;
+if (_origRunML) {
+  window.runMLAnalysis = function() {
+    _origRunML.apply(this, arguments);
+    var chk = setInterval(function() {
+      if (window._mlResults && window._mlResults.length) {
+        autoScheduleMaintenance(window._mlResults);
+        clearInterval(chk);
+      }
+    }, 1000);
+  };
+}
+
+// ============================================================
+// WORLD-CLASS FEATURE: Export AI Reports as PDF / Print
+// ============================================================
+function exportPanelAsPDF(elementId, title) {
+  var el = document.getElementById(elementId);
+  if (!el) { showNotification('Panel not found.', 'error'); return; }
+  var content = el.innerHTML;
+  var style = document.querySelector('style') ? document.querySelector('style').innerHTML : '';
+  var html = '<!DOCTYPE html><html><head><title>' + (title || 'AGUS Report') + '</title>'
+    + '<style>' + style + 'body{padding:20px;font-family:sans-serif;}button{display:none !important;}@media print{@page{size:landscape;margin:10mm;}}</style>'
+    + '</head><body><h1 style="color:#1e3a5f;">' + (title || 'AGUS Report') + '</h1>'
+    + '<p style="color:#94a3b8;font-size:12px;">Generated: ' + new Date().toLocaleString() + '</p>'
+    + '<div>' + content + '</div></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function() { w.print(); }, 500);
+}
+
+function exportDashboardPDF() {
+  var dashboardHTML = document.getElementById('dashboard') ? document.getElementById('dashboard').innerHTML : '';
+  var style = document.querySelector('style') ? document.querySelector('style').innerHTML : '';
+  var html = '<!DOCTYPE html><html><head><title>AGUS Dashboard Report</title>'
+    + '<style>' + style + 'body{padding:15px;font-family:sans-serif;}#map{height:400px;}button,.top-card{display:none !important;}@media print{@page{size:landscape;margin:8mm;}}</style>'
+    + '</head><body><h1 style="color:#1e3a5f;">AGUS System Dashboard Report</h1>'
+    + '<p style="color:#94a3b8;font-size:12px;">Generated: ' + new Date().toLocaleString() + '</p>'
+    + '<div>' + dashboardHTML + '</div></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function() { w.print(); }, 1000);
+}
+
+// Add "Download Report" buttons
+(function addExportButtons() {
+  // KPI panel
+  var kpiObserver = new MutationObserver(function() {
+    var kpiBody = document.getElementById('kpi-body');
+    if (kpiBody && !document.getElementById('kpi-export-btn')) {
+      var btn = document.createElement('button');
+      btn.id = 'kpi-export-btn';
+      btn.onclick = function() { exportPanelAsPDF('kpi-body', 'AGUS KPI Dashboard'); };
+      btn.style.cssText = 'padding:7px 16px;background:linear-gradient(135deg,#003366,#0066cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-right:8px;';
+      btn.innerHTML = '&#128196; Download Report';
+      var header = kpiBody.closest('div[style*="overflow-y:auto"]') ? kpiBody.closest('div[style*="overflow-y:auto"]').querySelector('[style*="background:linear-gradient"]') : null;
+      if (header) header.querySelector('div:last-child') ? header.insertBefore(btn, header.querySelector('div:last-child')) : header.appendChild(btn);
+    }
+  });
+  kpiObserver.observe(document.body, { childList: true, subtree: true });
+
+  // ML panel
+  var mlObserver = new MutationObserver(function() {
+    var mlBody = document.getElementById('ml-risk-panel');
+    if (mlBody && !document.getElementById('ml-export-btn')) {
+      var btn = document.createElement('button');
+      btn.id = 'ml-export-btn';
+      btn.onclick = function() { exportPanelAsPDF('ml-risk-panel', 'AGUS ML Risk Report'); };
+      btn.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;';
+      btn.innerHTML = '&#128196; Export';
+      var hdr = mlBody.querySelector('#ml-risk-header');
+      if (hdr) hdr.querySelector('div:last-child') ? hdr.insertBefore(btn, hdr.querySelector('div:last-child')) : hdr.appendChild(btn);
+      mlObserver.disconnect();
+    }
+  });
+  mlObserver.observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+
+</body>
+</html>
