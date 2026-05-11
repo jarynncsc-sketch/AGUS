@@ -2551,13 +2551,15 @@ if (isPS) {
         + ' stroke="' + _pC + '" stroke-width="8" fill="none" stroke-linecap="round" opacity="0.9"/>'
         // Center circle
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + _ir + '" fill="white" stroke="' + _pC + '" stroke-width="2.5"/>'
-        // Needle
-        + '<line x1="' + _cx + '" y1="' + _cy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="2.5" stroke-linecap="round"/>'
-        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="5" fill="' + _pC + '"/>'
-        // Center value
-        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="#002b5c">' + (_pv || '--') + '</text>'
-        // Unit
-        + '<text x="' + _cx + '" y="' + (_cy + 28) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="#475569">psi</text>'
+        // Needle with shadow
+        + '<line x1="' + _cx + '" y1="' + _cy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
+        + '<line x1="' + _cx + '" y1="' + _cy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
+        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="8" fill="#f8fafc" stroke="' + _pC + '" stroke-width="3"/>'
+        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="3" fill="' + _pC + '"/>'
+        // Center value inline with psi
+        + '<text x="' + _cx + '" y="' + (_cy + 5) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="24" font-weight="900" fill="#002b5c">'
+        + (_pv || '--')
+        + '<tspan font-size="13" font-weight="800" fill="#475569" dx="4" dy="-6"> psi</tspan></text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA && blinkOn ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="0.7"/>' : '')
