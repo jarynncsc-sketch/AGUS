@@ -2556,8 +2556,7 @@ if (isPS) {
         // Needle with shadow (starts outside text area)
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + (_nx + 1) + '" y2="' + (_ny + 1) + '" stroke="rgba(0,0,0,0.2)" stroke-width="4" stroke-linecap="round"/>'
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
-        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="8" fill="#f8fafc" stroke="' + _pC + '" stroke-width="3"/>'
-        + '<circle cx="' + _cx + '" cy="' + _cy + '" r="3" fill="' + _pC + '"/>'
+        // Center bullseye removed for clean look
         // Center value
         + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="#002b5c">' + (_pv || '--') + '</text>'
         // Unit below
