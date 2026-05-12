@@ -2038,7 +2038,7 @@ function toggleFilter(type){
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
 
-var _API_TIMEOUT = 15000; // 15s timeout for all API calls
+var _API_TIMEOUT = 8000; // 8s timeout for all API calls
 function _fetchWithTimeout(url) {
   var controller = new AbortController();
   var timer = setTimeout(function() { controller.abort(); }, _API_TIMEOUT);
@@ -2093,6 +2093,14 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
+var _localTogglePending = {}; // { deviceName: timestamp } — hides "Sending…" badge 8s after local toggle
+function _markTogglePending(deviceName) { _localTogglePending[deviceName] = Date.now(); }
+function _isTogglePendingLocal(deviceName) {
+  var ts = _localTogglePending[deviceName];
+  if (!ts) return false;
+  if (Date.now() - ts > 8000) { delete _localTogglePending[deviceName]; return false; }
+  return true;
+}
 var allGraphData = [], currentDevice = '', activeRange = 14;
 var today = new Date();
 var today = new Date();
@@ -2968,10 +2976,9 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     }
   }).catch(function(e) {
     // ── Do NOT revert — the command may have reached the server successfully ──
-    // The smart device relay already toggled; we're just missing the response.
-    // Let the next dashboard poll sync the actual state from the server.
+    delete _localTogglePending[deviceName];
     showNotification('⚠ Command sent — waiting for smart device confirmation. The relay may have toggled.', 'warning');
-    setTimeout(updateDashboard, 3000);
+    updateDashboard();
   });
 }
 
