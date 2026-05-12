@@ -2153,17 +2153,19 @@ var _autoShutoffLog           = []; // loaded from GAS on demand
 // ── Normalise GAS link object → internal format ───────────────────────────
 function _normLink(l) {
   return {
-    id:            l.linkId || l.id || '',
-    reservoir:     l.reservoir  || '',
-    pump:          l.pump       || '',
-    shutoffLevel:  parseFloat(l.shutoff  || l.shutoffLevel)  || 0,
-    resumeLevel:   parseFloat(l.resume   || l.resumeLevel)   || 0,
-    enabled:       l.enabled    !== false,
-    manualOverride:!!l.manualOverride,
-    createdBy:     l.createdBy  || '',
-    updatedAt:     l.updatedAt  || '',
-    lastTriggered: l.lastTriggered || null,
-    triggerCount:  l.triggerCount  || 0
+    id:             l.linkId || l.id || '',
+    reservoir:      l.reservoir  || '',
+    pump:           l.pump       || '',
+    shutoffLevel:   parseFloat(l.shutoff  || l.shutoffLevel)  || 0,
+    shutoffLevel2:  parseFloat(l.shutoffLevel2) || 0,
+    resumeLevel:    parseFloat(l.resume   || l.resumeLevel)   || 0,
+    resumeLevel2:   parseFloat(l.resumeLevel2) || 0,
+    enabled:        l.enabled    !== false,
+    manualOverride: !!l.manualOverride,
+    createdBy:      l.createdBy  || '',
+    updatedAt:      l.updatedAt  || '',
+    lastTriggered:  l.lastTriggered || null,
+    triggerCount:   l.triggerCount  || 0
   };
 }
 
@@ -3172,8 +3174,10 @@ function autoShutoffPumps(devices) {
     var lv = parseFloat(resData.level);
     if (isNaN(lv)) return;
 
-    var shutoff = parseFloat(cfg.shutoffLevel);
-    var resume  = parseFloat(cfg.resumeLevel);
+    var shutoff  = parseFloat(cfg.shutoffLevel);
+    var shutoff2 = parseFloat(cfg.shutoffLevel2) || 0;
+    var resume   = parseFloat(cfg.resumeLevel);
+    var resume2  = parseFloat(cfg.resumeLevel2) || 0;
     if (isNaN(shutoff) || isNaN(resume)) return;
 
     var serverRelayOn = pumpData.relay == 1 || pumpData.relay === true ||
@@ -3181,8 +3185,30 @@ function autoShutoffPumps(devices) {
                         (typeof pumpData.relay === 'string' && pumpData.relay.toUpperCase() === 'ON');
     var autoOffEntry  = reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
 
-    // ── Trigger shutoff ──────────────────────────────────────────────────
-    if (lv >= shutoff && serverRelayOn && !autoOffEntry) {
+    // ── Backup shutoff (primary command may have failed) ─────────────────
+    if (shutoff2 > 0 && lv >= shutoff2 && serverRelayOn) {
+      var ts = new Date().toLocaleString();
+      if (!autoOffEntry) {
+        reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir] = {
+          linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
+          shutoffLevel: shutoff2, resumeLevel: resume, levelAtShutoff: lv, timestamp: ts
+        };
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+      }
+      var bkey = cfg.pump + ':backup:' + cfg.reservoir;
+      if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
+        autoShutoffSuppressNotify[bkey] = Date.now();
+        showNotification('🚨 BACKUP SHUTOFF: ' + cfg.pump + ' still ON at ' + lv.toFixed(0) + ' m³ — primary shutoff at ' + shutoff + ' m³ may have failed!', 'error');
+        if (window.speechSynthesis) {
+          var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
+          bu.rate = 0.95; window.speechSynthesis.speak(bu);
+        }
+      }
+      _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
+      dashboardTogglePump(cfg.pump, 0, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
+
+    // ── Primary shutoff ──────────────────────────────────────────────────
+    } else if (lv >= shutoff && serverRelayOn && !autoOffEntry) {
       var ts = new Date().toLocaleString();
       reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir] = {
         linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
@@ -3204,6 +3230,19 @@ function autoShutoffPumps(devices) {
       _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
 
       dashboardTogglePump(cfg.pump, 0, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
+
+    // ── Backup resume (primary resume may have failed) ───────────────────
+    } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
+      var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
+      if (!autoShutoffSuppressNotify[rkey2] || Date.now() - autoShutoffSuppressNotify[rkey2] > 600000) {
+        autoShutoffSuppressNotify[rkey2] = Date.now();
+        delete reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+        var resumeTs2 = new Date().toLocaleString();
+        showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
+        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
+        dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
+      }
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && autoOffEntry) {
@@ -3337,7 +3376,7 @@ function _buildPumpLinkHTML() {
     +     '<div><label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">⚙️ Pump Station</label>'
     +       '<select id="pl-pump-select" style="width:100%;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:9px;font-size:12.5px;color:#1e40af;background:#fff;outline:none;"><option value="">— Select Pump Station —</option></select></div>'
     +   '</div>'
-    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">'
     +     '<div>'
     +       '<label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">🛑 Shutoff Level (turn OFF when ≥)</label>'
     +       '<div style="display:flex;align-items:center;gap:6px;">'
@@ -3349,6 +3388,22 @@ function _buildPumpLinkHTML() {
     +       '<label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">✅ Resume Level (allow ON when ≤)</label>'
     +       '<div style="display:flex;align-items:center;gap:6px;">'
     +         '<input type="number" id="pl-resume-input" placeholder="e.g. 100" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #86efac;border-radius:9px;font-size:13px;font-weight:700;color:#16a34a;outline:none;">'
+    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
+    +       '</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">'
+    +     '<div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">🛡️ Backup Shutoff (if primary fails)</label>'
+    +       '<div style="display:flex;align-items:center;gap:6px;">'
+    +         '<input type="number" id="pl-shutoff2-input" placeholder="e.g. 145" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #fca5a5;border-radius:9px;font-size:13px;font-weight:700;color:#b91c1c;outline:none;">'
+    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
+    +       '</div>'
+    +     '</div>'
+    +     '<div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">⬇️ Backup Resume (if primary fails)</label>'
+    +       '<div style="display:flex;align-items:center;gap:6px;">'
+    +         '<input type="number" id="pl-resume2-input" placeholder="e.g. 80" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #86efac;border-radius:9px;font-size:13px;font-weight:700;color:#15803d;outline:none;">'
     +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
     +       '</div>'
     +     '</div>'
@@ -3447,8 +3502,8 @@ function _renderLinkCards() {
       + '</div>'
       + levelBar
       + '<div style="display:flex;gap:16px;margin-top:7px;flex-wrap:wrap;">'
-      +   '<div style="font-size:11px;color:#374151;"><span style="color:#dc2626;font-weight:800;">🛑 Shutoff:</span> ≥ <b>' + cfg.shutoffLevel + ' m³</b></div>'
-      +   '<div style="font-size:11px;color:#374151;"><span style="color:#16a34a;font-weight:800;">✅ Resume:</span> ≤ <b>' + cfg.resumeLevel + ' m³</b></div>'
+      +   '<div style="font-size:11px;color:#374151;"><span style="color:#dc2626;font-weight:800;">🛑 Shutoff:</span> ≥ <b>' + cfg.shutoffLevel + ' m³</b>' + (cfg.shutoffLevel2 ? ' <span style="color:#b91c1c;font-weight:800;">|</span> ≥ <b>' + cfg.shutoffLevel2 + ' m³</b> <span style="color:#94a3b8;font-size:10px;font-weight:400;">(backup)</span>' : '') + '</div>'
+      +   '<div style="font-size:11px;color:#374151;"><span style="color:#16a34a;font-weight:800;">✅ Resume:</span> ≤ <b>' + cfg.resumeLevel + ' m³</b>' + (cfg.resumeLevel2 ? ' <span style="color:#15803d;font-weight:800;">|</span> ≤ <b>' + cfg.resumeLevel2 + ' m³</b> <span style="color:#94a3b8;font-size:10px;font-weight:400;">(backup)</span>' : '') + '</div>'
       +   (cfg.createdBy ? '<div style="font-size:10px;color:#94a3b8;">By: ' + cfg.createdBy + '</div>' : '')
       +   (autoState ? '<div style="font-size:10.5px;color:#b91c1c;">Auto-OFF since: ' + autoState.timestamp + '</div>' : '')
       + '</div>'
@@ -3485,17 +3540,21 @@ function _refreshPumpLinksUI() {
 }
 
 function addPumpLink() {
-  var res     = document.getElementById('pl-res-select').value;
-  var pump    = document.getElementById('pl-pump-select').value;
-  var shutoff = parseFloat(document.getElementById('pl-shutoff-input').value);
-  var resume  = parseFloat(document.getElementById('pl-resume-input').value);
-  var val     = document.getElementById('pl-add-validation');
+  var res      = document.getElementById('pl-res-select').value;
+  var pump     = document.getElementById('pl-pump-select').value;
+  var shutoff  = parseFloat(document.getElementById('pl-shutoff-input').value);
+  var resume   = parseFloat(document.getElementById('pl-resume-input').value);
+  var shutoff2 = parseFloat(document.getElementById('pl-shutoff2-input').value) || 0;
+  var resume2  = parseFloat(document.getElementById('pl-resume2-input').value) || 0;
+  var val      = document.getElementById('pl-add-validation');
   val.textContent = '';
   if (!res)                         { val.textContent = '⚠ Please select a reservoir.'; return; }
   if (!pump)                        { val.textContent = '⚠ Please select a pump station.'; return; }
   if (isNaN(shutoff) || shutoff<=0) { val.textContent = '⚠ Enter a valid shutoff level.'; return; }
   if (isNaN(resume)  || resume < 0) { val.textContent = '⚠ Enter a valid resume level.'; return; }
   if (resume >= shutoff)            { val.textContent = '⚠ Resume level must be less than shutoff level.'; return; }
+  if (shutoff2 && shutoff2 <= shutoff) { val.textContent = '⚠ Backup shutoff must be higher than primary shutoff.'; return; }
+  if (resume2 && resume2 >= resume)     { val.textContent = '⚠ Backup resume must be lower than primary resume.'; return; }
 
   var tok = sessionToken || userToken || '';
   if (!tok) { val.textContent = '⚠ Not authenticated — please log out and log in again.'; return; }
@@ -3511,6 +3570,8 @@ function addPumpLink() {
     + '&pump='         + encodeURIComponent(pump)
     + '&shutoffLevel=' + encodeURIComponent(shutoff)
     + '&resumeLevel='  + encodeURIComponent(resume)
+    + (shutoff2 ? '&shutoffLevel2=' + encodeURIComponent(shutoff2) : '')
+    + (resume2  ? '&resumeLevel2='  + encodeURIComponent(resume2)  : '')
     + '&manualOverride=false';
 
   fetch(url)
@@ -3522,10 +3583,12 @@ function addPumpLink() {
         val.textContent = '⚠ GAS error: ' + (resp && resp.error ? resp.error : 'Unknown. Check GAS execution logs.');
         return;
       }
-      document.getElementById('pl-res-select').value    = '';
-      document.getElementById('pl-pump-select').value   = '';
-      document.getElementById('pl-shutoff-input').value = '';
-      document.getElementById('pl-resume-input').value  = '';
+      document.getElementById('pl-res-select').value     = '';
+      document.getElementById('pl-pump-select').value    = '';
+      document.getElementById('pl-shutoff-input').value  = '';
+      document.getElementById('pl-resume-input').value   = '';
+      document.getElementById('pl-shutoff2-input').value = '';
+      document.getElementById('pl-resume2-input').value  = '';
       val.style.color   = '#16a34a';
       val.textContent   = '✅ Saved to ReservoirPumpLinks sheet!';
       setTimeout(function(){ if(val){ val.textContent=''; val.style.color='#dc2626'; } }, 3500);
@@ -3575,17 +3638,27 @@ function editPumpLink(id) {
   if (newResume === null) return;
   var s = parseFloat(newShutoff), r = parseFloat(newResume);
   if (isNaN(s) || isNaN(r) || r >= s) { alert('⚠ Invalid values. Resume must be less than shutoff.'); return; }
-  savePumpLinkLevels(id, s, r);  // ← CALL it
-}  // ← CLOSE editPumpLink here
+  var newShutoff2 = prompt('Backup shutoff level (higher, if primary fails — 0 to disable):\nCurrent: ' + (cfg.shutoffLevel2 || 'disabled') + ' m³', cfg.shutoffLevel2 || '');
+  if (newShutoff2 === null) return;
+  var newResume2  = prompt('Backup resume level (lower, if primary fails — 0 to disable):\nCurrent: ' + (cfg.resumeLevel2 || 'disabled') + ' m³', cfg.resumeLevel2 || '');
+  if (newResume2 === null) return;
+  var s2 = parseFloat(newShutoff2) || 0, r2 = parseFloat(newResume2) || 0;
+  if (s2 && s2 <= s) { alert('⚠ Backup shutoff must be higher than primary shutoff.'); return; }
+  if (r2 && r2 >= r) { alert('⚠ Backup resume must be lower than primary resume.'); return; }
+  savePumpLinkLevels(id, s, r, s2, r2);
+}
 
-function savePumpLinkLevels(id, s, r) {
+function savePumpLinkLevels(id, s, r, s2, r2) {
+  s2 = s2 || 0; r2 = r2 || 0;
   var tok = sessionToken || userToken || '';
   var url = API_URL
     + '?action=updatePumpLink'
     + '&token='        + encodeURIComponent(tok)
     + '&linkId='       + encodeURIComponent(id)
     + '&shutoffLevel=' + encodeURIComponent(s)
-    + '&resumeLevel='  + encodeURIComponent(r);
+    + '&resumeLevel='  + encodeURIComponent(r)
+    + (s2 ? '&shutoffLevel2=' + encodeURIComponent(s2) : '')
+    + (r2 ? '&resumeLevel2='  + encodeURIComponent(r2) : '');
 
   fetch(url)
     .then(function(r) { return r.json(); })
