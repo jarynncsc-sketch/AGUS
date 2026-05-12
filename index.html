@@ -3195,7 +3195,7 @@ function autoShutoffPumps(devices) {
 
       _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
 
-      dashboardTogglePump(cfg.pump, 0, null); // ★ v3 auto-shutoff
+      dashboardTogglePump(cfg.pump, 0, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && autoOffEntry) {
@@ -3210,7 +3210,7 @@ function autoShutoffPumps(devices) {
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
 
         // ── 2. Send toggle-ON command to server (★ v3 direct command) ──
-        dashboardTogglePump(cfg.pump, 1, null);
+        dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
         // ── 4. Notify & log ──────────────────────────────────────────────
         showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
