@@ -3148,7 +3148,7 @@ function autoShutoffPumps(devices) {
   devices.forEach(function(d) { devMap[d.device] = d; });
 
   pumpLinkConfigs.forEach(function(cfg) {
-    if (!cfg.enabled) return;
+    if (!cfg.enabled || cfg.manualOverride) return;
     var resData  = devMap[cfg.reservoir];
     var pumpData = devMap[cfg.pump];
     if (!resData || !pumpData) return;
@@ -3448,8 +3448,16 @@ function _setManualOverride(id, val) {
     if (!resp || !resp.success) { showNotification('⚠ Override update failed: '+(resp&&resp.error?resp.error:'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
     var cfg = pumpLinkConfigs.find(function(c){ return c.id===id; });
     if (cfg) cfg.manualOverride = val;
+    if (val && cfg) {
+      var key = cfg.pump + ':' + cfg.reservoir;
+      if (reservoirAutoShutoffState[key]) {
+        delete reservoirAutoShutoffState[key];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+      }
+    }
     _renderLinkCards();
-    showNotification(val ? '🖐 Manual override ON — GAS auto-shutoff bypassed.' : '🤖 Auto mode restored.', 'info');
+    _updatePumpLinksBadge();
+    showNotification(val ? '🖐 Manual override ON — auto-shutoff bypassed and lock cleared.' : '🤖 Auto mode restored.', 'info');
   }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
 }
 
