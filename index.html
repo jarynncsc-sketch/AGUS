@@ -92,8 +92,8 @@
       return function() {
         var widthDiff  = window.outerWidth  - window.innerWidth;
         var heightDiff = window.outerHeight - window.innerHeight;
-        // Only flag as DevTools if BOTH dimensions are abnormal (avoids mobile false-positives)
-        var isOpen = (widthDiff > _threshold) || (heightDiff > _threshold && widthDiff > 60);
+        // Require BOTH axes unusual to avoid false-positives on mobile/taskbar
+        var isOpen = widthDiff > _threshold || (heightDiff > _threshold && widthDiff > 80);
         if (isOpen && !_devToolsOpen) {
           _devToolsOpen = true;
           _createDevToolsOverlay();
@@ -2260,29 +2260,13 @@ window.addEventListener('resize', function() { W = bgC.width = window.innerWidth
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
   card.addEventListener('click', function() {
-    // Always manage active state for ALL top cards (with or without onclick)
+    if (card.getAttribute('onclick')) return;
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
-
-    // If the card has an inline onclick attr, the browser already fired it — skip re-dispatch
-    if (card.getAttribute('onclick')) return;
-
-    var tab = card.dataset.tab;
-
-    // Map zoom
-    if (tab === 'map') {
+    if (card.dataset.tab === 'map') {
       var e = deviceSource.getExtent();
-      if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) {
-        map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
-      } else {
-        map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
-      }
-      return;
-    }
-
-    // All remaining tabs without onclick → open via TAB_CONFIGS if registered
-    if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[tab]) {
-      openTabModal(tab);
+      if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
+      else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
     }
   });
 });
@@ -4589,20 +4573,16 @@ function renderTabModalChart(rows) {
   }
 }
 
-// Wire up all unhandled top-card tabs (fallback for any that still lack onclick)
+// Wire up all unhandled top-card tabs
 (function wireTabCards() {
   var tabsToHandle = Object.keys(TAB_CONFIGS);
   document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     var tab = card.dataset.tab;
-    if (tabsToHandle.indexOf(tab) !== -1 && !card.getAttribute('onclick')) {
+    if (tabsToHandle.indexOf(tab) !== -1) {
+      if (card.getAttribute('onclick')) return;
       card.addEventListener('click', function(e) {
         e.stopPropagation();
-        // Ensure active state
-        document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
-        card.classList.add('active');
-        if (typeof openTabModal === 'function') {
-          openTabModal(tab);
-        }
+        openTabModal(tab);
       });
     }
   });
@@ -5066,6 +5046,19 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
     }
   });
 }
+function toggleAIChat() {
+  var panel = document.getElementById('ai-chat-panel');
+  var fab   = document.getElementById('ai-chat-fab');
+  if (!panel) return;
+  var isVisible = panel.style.display === 'flex';
+  panel.style.display = isVisible ? 'none' : 'flex';
+  if (fab) fab.style.display = isVisible ? 'flex' : 'none';
+  if (!isVisible) {
+    var input = document.getElementById('ai-chat-input');
+    if (input) setTimeout(function(){ input.focus(); }, 100);
+  }
+}
+
 function sendAIMessage() {
   var input = document.getElementById('ai-chat-input');
   var question = (input ? input.value.trim() : '');
