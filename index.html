@@ -1476,6 +1476,47 @@
     to   { transform: scale(1)    translateY(0)    translateZ(0); opacity: 1; }
   }
 
+  /* ── Overlay entrance animation for all modals ── */
+  #tab-modal-overlay > div,
+  #kpi-overlay > div,
+  #alarm-center-overlay > div,
+  #wq-overlay > div,
+  #logbook-overlay > div,
+  #maint-cal-overlay > div,
+  #wl-overlay > div,
+  #bench-overlay > div,
+  #forecast-overlay > div,
+  #pump-link-overlay > div,
+  #energy-advisor-overlay > div,
+  #cost-calc-overlay > div,
+  #ml-trend-overlay > div,
+  #alarm-timeline-overlay > div {
+    animation: modal-pop 0.28s cubic-bezier(0.34,1.4,0.64,1) both;
+  }
+
+  /* ── Overlay background fade ── */
+  #tab-modal-overlay,
+  #kpi-overlay,
+  #alarm-center-overlay,
+  #wq-overlay,
+  #logbook-overlay,
+  #maint-cal-overlay,
+  #wl-overlay,
+  #bench-overlay,
+  #forecast-overlay,
+  #pump-link-overlay,
+  #energy-advisor-overlay,
+  #cost-calc-overlay,
+  #ml-risk-overlay,
+  #ml-trend-overlay,
+  #alarm-timeline-overlay {
+    animation: overlay-fade-in 0.2s ease both;
+  }
+  @keyframes overlay-fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
   /* ── Button ripple — instant tactile press feedback ── */
   .top-card svg,
   .filter-pill,
@@ -2018,6 +2059,23 @@ function apiPost(action, data) {
 var userToken = null, loggedInUser = '', selectedDevice = null;
 var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
 
+// Simple response cache for dashboard data to avoid redundant fetches
+var _apiCache = {};
+var _API_CACHE_TTL = 4000; // 4 seconds
+function apiCached(action, params) {
+  var key = action + '|' + JSON.stringify(params || {});
+  var entry = _apiCache[key];
+  if (entry && Date.now() - entry.ts < _API_CACHE_TTL) return Promise.resolve(entry.data);
+  return apiGet(action, params).then(function(data) {
+    _apiCache[key] = { data: data, ts: Date.now() };
+    return data;
+  }).catch(function(err) {
+    // On error, return stale cache if available
+    if (entry) return Promise.resolve(entry.data);
+    throw err;
+  });
+}
+
 var deviceMarkers = {}, myChart = null, blinkOn = true;
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
@@ -2188,6 +2246,7 @@ window.addEventListener('resize', function() { W = bgC.width = window.innerWidth
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
   card.addEventListener('click', function() {
+    if (card.getAttribute('onclick')) return;
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
@@ -4159,7 +4218,7 @@ function openTabModal(tabKey) {
   // Populate device dropdown — include ALL device types when allDevices flag set
   // Also inject a live system-health banner immediately so the panel is never empty
   if (isAITab) {
-    apiGet('getDashboardData').then(function(liveDevices) {
+    apiCached('getDashboardData').then(function(liveDevices) {
       var banner = document.getElementById('tab-modal-live-banner');
       if (!banner) return;
       var online  = liveDevices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
@@ -4196,7 +4255,7 @@ function openTabModal(tabKey) {
       banner.style.display = 'block';
     }).catch(function(){});
   }
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var filteredDevices;
     if (cfg.allDevices) {
       filteredDevices = devices.filter(function(d) {
@@ -4271,16 +4330,28 @@ function setTabModalMode(mode) {
   if (tabModalAllRows.length) renderTabModalChart(tabModalAllRows);
 }
 
+var _sheetDataCache = {};
 function loadTabModalData() {
   if (!tabModalCurrentDevice) return;
   var load = document.getElementById('tab-modal-loading');
   var chartArea = document.getElementById('tab-modal-chart-area');
+  if (tabModalChart) { tabModalChart.destroy(); tabModalChart = null; }
+
+  var cached = _sheetDataCache[tabModalCurrentDevice];
+  if (cached) {
+    tabModalAllRows = cached;
+    if (load) load.style.display = 'none';
+    if (chartArea) chartArea.style.display = 'block';
+    renderTabModalChart(tabModalAllRows);
+    return;
+  }
+
   if (load) { load.style.display = 'flex'; load.style.flexDirection='column'; load.style.alignItems='center'; load.innerHTML = '<div class="spinner"></div><span style="color:#7a8fa6;margin-top:8px;">Loading data for '+tabModalCurrentDevice+'…</span>'; }
   if (chartArea) chartArea.style.display = 'none';
-  if (tabModalChart) { tabModalChart.destroy(); tabModalChart = null; }
 
   apiGet('getSheetData', { sheet: tabModalCurrentDevice }).then(function(rows) {
     tabModalAllRows = rows || [];
+    _sheetDataCache[tabModalCurrentDevice] = tabModalAllRows;
     if (load) load.style.display = 'none';
     if (chartArea) chartArea.style.display = 'block';
     renderTabModalChart(tabModalAllRows);
@@ -5083,7 +5154,8 @@ function aggregateEnergyStats(deviceName, rows) {
   return { device: deviceName, totalEnergyKwh: totalEnergy.toFixed(1), peakPowerW: peakPower.toFixed(0), lowFlowEvents: lowFlowEvents, highPowerEvents: highPowerEvents, peakHours: peakHours, offPeakHours: offPeakHours, sampleCount: rows.length };
 }
 function openEnergyAdvisor() {
-  apiGet('getDashboardData').then(function(devices) {
+  var old = document.getElementById('energy-advisor-overlay'); if (old) old.remove();
+  apiCached('getDashboardData').then(function(devices) {
     if (!devices || !devices.length) { showNotification('Unable to load device data.', 'error'); return; }
     var pumpDevices = devices.filter(function(d) { return (d.device||'').toLowerCase().includes('pumping station'); });
     if (!pumpDevices.length) { showNotification('No pumping station devices found.', 'info'); return; }
@@ -5122,6 +5194,7 @@ function openEnergyAdvisor() {
 // Cost per Cubic Calculator
 // ============================================================
 function openCostCalculator() {
+  var old = document.getElementById('cost-calc-overlay'); if (old) old.remove();
   var overlay = document.createElement('div');
   overlay.id = 'cost-calc-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.75);z-index:5300;display:flex;align-items:center;justify-content:center;';
@@ -5134,7 +5207,7 @@ function openCostCalculator() {
     + '<div id="cost-calc-body"><div style="text-align:center;padding:40px;color:#7a8fa6;"><div class="spinner" style="margin:0 auto 12px;"></div>Loading pump data&#8230;</div></div></div>';
   document.body.appendChild(overlay);
 
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     if (!devices || !devices.length) { document.getElementById('cost-calc-body').innerHTML = '<p style="color:#7a8fa6;padding:20px;">No device data available.</p>'; return; }
     var pumpDevices = devices.filter(function(d) {
       var n = (d.device||'').toLowerCase();
@@ -5417,7 +5490,7 @@ function openKPIDashboard() {
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
   document.body.appendChild(ov);
 
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var pumps   = devices.filter(function(d){ return !(d.type||'').toLowerCase().match(/reservoir|pressure/) && !(d.device||'').toLowerCase().match(/reservoir|pressure/); });
     var pres    = devices.filter(function(d){ return (d.type||'').toLowerCase()==='pressure'||(d.device||'').toLowerCase().includes('pressure'); });
     var res     = devices.filter(function(d){ return (d.type||'').toLowerCase()==='reservoir'||(d.device||'').toLowerCase().includes('reservoir'); });
@@ -5887,7 +5960,7 @@ function openWaterLoss() {
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
   document.body.appendChild(ov);
 
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var pumps = devices.filter(function(d){ var n=(d.device||'').toLowerCase(); return !n.match(/reservoir|pressure/); });
     var reservoirs = devices.filter(function(d){ return (d.type||'').toLowerCase()==='reservoir'||(d.device||'').toLowerCase().includes('reservoir'); });
     var totalPumped = pumps.reduce(function(s,d){return s+parseFloat(d.discharge||d.flow||0);},0);
@@ -5957,7 +6030,7 @@ function openBenchmark() {
     +'</div>';
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
   document.body.appendChild(ov);
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var sel = document.getElementById('bench-device'); if (!sel) return;
     sel.innerHTML = devices.filter(function(d){var n=(d.device||'').toLowerCase();return !n.endsWith('pressurelog')&&!n.endsWith('reservoirlog');}).map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>';}).join('');
   });
@@ -6204,7 +6277,7 @@ function openMLRiskEngine() {
   ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
   document.body.appendChild(ov);
 
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var sel = document.getElementById('ml-device-sel'); if (!sel) return;
     var filtered = devices.filter(function(d) {
       var n = (d.device || '').toLowerCase();
@@ -6587,7 +6660,7 @@ function openForecastPanel() {
   ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
   document.body.appendChild(ov);
 
-  apiGet('getDashboardData').then(function(devices) {
+  apiCached('getDashboardData').then(function(devices) {
     var sel=document.getElementById('fc-device'); if(!sel) return;
     var filtered=devices.filter(function(d){var n=(d.device||'').toLowerCase();return !n.endsWith('pressurelog')&&!n.endsWith('reservoirlog');});
     sel.innerHTML=filtered.map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>';}).join('');
