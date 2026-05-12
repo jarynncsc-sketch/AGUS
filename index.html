@@ -1666,7 +1666,7 @@
         <div class="nav-group-label">Control</div>
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
-          <div class="top-card grp-ctrl" data-tab="energy"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
+          <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
           <div class="top-card grp-ctrl" data-tab="Pump/Motor Efficiency"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
           <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLoss()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
           <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
@@ -1694,6 +1694,7 @@
           <div class="top-card grp-ai" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
           <div class="top-card grp-ai" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
           <div class="top-card grp-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
+          <div class="top-card grp-ai" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
           <div class="top-card grp-ai" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
         </div>
       </div>
@@ -4485,6 +4486,7 @@ function renderTabModalChart(rows) {
   document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     var tab = card.dataset.tab;
     if (tabsToHandle.indexOf(tab) !== -1) {
+      if (card.getAttribute('onclick')) return;
       card.addEventListener('click', function(e) {
         e.stopPropagation();
         openTabModal(tab);
@@ -4947,96 +4949,9 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
           fullText = data.content[0].text;
           onToken(fullText);
           onDone(fullText);
-        });
-      }
-    });
-}
-
-function aiLocalFallback(context, promptText) {
-  return new Promise(function(resolve) {
-    setTimeout(function() {
-      var localResponse = '';
-      var lines = promptText.split('\n');
-      var numbers = [];
-      lines.forEach(function(l) {
-        var parts = l.match(/(\d+\.?\d*)/g);
-        if (parts) parts.forEach(function(p) { var n = parseFloat(p); if (!isNaN(n)) numbers.push(n); });
       });
-      if (context && context.indexOf('anomaly') >= 0) {
-        if (numbers.length > 2) {
-          var mean = numbers.reduce(function(a,b){return a+b;},0)/numbers.length;
-          var std = Math.sqrt(numbers.reduce(function(s,v){return s+Math.pow(v-mean,2);},0)/numbers.length);
-          var latest = numbers[numbers.length-1];
-          var z = std > 0 ? Math.abs(latest-mean)/std : 0;
-          if (z > 2) localResponse = '⚠ Anomaly detected: latest reading (' + latest.toFixed(1) + ') is ' + z.toFixed(1) + 'σ from mean (' + mean.toFixed(1) + '). Possible fault.';
-          else localResponse = '✅ No significant anomaly. Latest reading (' + latest.toFixed(1) + ') within normal range.';
-        } else {
-          localResponse = '📊 Insufficient data points for anomaly detection. Need at least 3 values.';
-        }
-      } else if (context && context.indexOf('energy') >= 0) {
-        localResponse = '⚡ Local Energy Analysis:\n1. Monitor pump efficiency during peak hours\n2. Check for low-flow events indicating leaks\n3. Schedule maintenance during off-peak hours\n4. Consider VFD installation for variable loads';
-      } else if (context && context.indexOf('water quality') >= 0) {
-        localResponse = '🧪 Local Water Quality Check:\nParameters appear within typical ranges. Ensure chlorine residual stays 0.3-1.0 mg/L. Monitor turbidity for filter breakthrough.';
-      } else if (context && context.indexOf('maintenance') >= 0 || context && context.indexOf('risk') >= 0) {
-        localResponse = '🔧 Local Maintenance Assessment:\nReview trend slopes for pressure, power, and flow. Schedule inspection if any parameter shows consistent degradation (R² > 0.7 with rising slope).';
-      } else if (context && context.indexOf('alarm') >= 0) {
-        localResponse = '🔔 Alarm Assessment: Review all concurrently firing alarms. Check if multiple alarms share a common root cause (e.g., power outage affecting multiple devices).';
-      } else if (context && context.indexOf('forecast') >= 0 || context && context.indexOf('trend') >= 0) {
-        localResponse = '📈 Local Trend Analysis:\n' + (numbers.length ? 'Mean: ' + (numbers.reduce(function(a,b){return a+b;},0)/numbers.length).toFixed(2) : 'N/A') + '\nBased on available historical data. For advanced ML forecasting, configure an AI API key.';
-      } else {
-        localResponse = '🤖 AGUS Local AI:\nConfigure an Anthropic API key in Settings → AI Configuration for enhanced AI responses. The local fallback provides basic statistical analysis.';
-      }
-      resolve({ content: [{ text: localResponse }] });
-    }, 800);
-  });
-}
-
-function aiCall(systemPrompt, userPrompt) {
-  if (AI_API_KEY) {
-    var body = { model: AI_MODEL, max_tokens: 900, messages: [{ role: 'user', content: userPrompt }] };
-    if (systemPrompt) body.system = systemPrompt;
-    return aiFetch(body);
-  }
-  return aiLocalFallback((systemPrompt||'') + ' ' + userPrompt, userPrompt);
-}
-
-// ============================================================
-// Module 4: AI Chat Assistant (Anthropic Claude API)
-// ============================================================
-var aiChatVisible = false;
-var aiChatHistory = [];
-
-function toggleAIChat() {
-  aiChatVisible = !aiChatVisible;
-  var panel = document.getElementById('ai-chat-panel');
-  var fab = document.getElementById('ai-chat-fab');
-  if (panel) panel.style.display = aiChatVisible ? 'flex' : 'none';
-  if (fab) fab.style.display = aiChatVisible ? 'none' : 'flex';
-}
-function buildAISystemContext(devices) {
-  var lines = ['You are the AI assistant for AGUS — Autonomous Groundwater Utility System. You have real-time sensor data. Answer concisely (max 3 sentences).'];
-  (devices || []).forEach(function(d) {
-    var type = (d.type || '').toLowerCase();
-    if (type === 'pressure' || (d.device||'').toLowerCase().includes('pressure')) {
-      lines.push('• ' + d.device + ' [Pressure] — ' + (d.pressure||'N/A') + ' psi | Status: ' + (d.status||'Unknown'));
-    } else if (type === 'reservoir' || (d.device||'').toLowerCase().includes('reservoir')) {
-      lines.push('• ' + d.device + ' [Reservoir] — ' + (d.level||'N/A') + ' m³ | Status: ' + (d.status||'Unknown'));
-    } else {
-      lines.push('• ' + d.device + ' [Pump Station] — pressure: ' + (d.pressure||'N/A') + ' psi | flow: ' + (d.flow||'N/A') + ' L/s | relay: ' + (d.relay?'ON':'OFF') + ' | status: ' + (d.status||'Unknown'));
     }
   });
-  return lines.join('
-');
-}
-function addAIChatMessage(text, role) {
-  var box = document.getElementById('ai-chat-messages');
-  if (!box) return null;
-  var div = document.createElement('div');
-  div.className = 'ai-msg ' + (role === 'user' ? 'ai-msg-user' : 'ai-msg-bot');
-  div.innerText = text;
-  box.appendChild(div);
-  box.scrollTop = box.scrollHeight;
-  return div;
 }
 function sendAIMessage() {
   var input = document.getElementById('ai-chat-input');
@@ -5050,6 +4965,11 @@ function sendAIMessage() {
   document.getElementById('ai-chat-status').innerText = 'AI is thinking…';
   apiGet('getDashboardData').then(function(devices) {
     var sysPrompt = buildAISystemContext(devices);
+    if (!devices || !devices.length) {
+      if (typingEl) { typingEl.innerText = '⚠ Unable to load device data. Check network / API connection.'; typingEl.classList.remove('ai-msg-typing'); }
+      document.getElementById('ai-chat-status').innerText = 'Data error';
+      return;
+    }
     if (AI_API_KEY) {
       var fullReply = '';
       aiFetchStream(
@@ -5088,6 +5008,9 @@ function sendAIMessage() {
         document.getElementById('ai-chat-status').innerText = 'Error — try again';
       });
     }
+  }).catch(function(err) {
+    if (typingEl) { typingEl.innerText = '⚠ Network error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
+    document.getElementById('ai-chat-status').innerText = 'Connection error';
   });
 }
 
@@ -5161,6 +5084,7 @@ function aggregateEnergyStats(deviceName, rows) {
 }
 function openEnergyAdvisor() {
   apiGet('getDashboardData').then(function(devices) {
+    if (!devices || !devices.length) { showNotification('Unable to load device data.', 'error'); return; }
     var pumpDevices = devices.filter(function(d) { return (d.device||'').toLowerCase().includes('pumping station'); });
     if (!pumpDevices.length) { showNotification('No pumping station devices found.', 'info'); return; }
     var overlay = document.createElement('div');
@@ -5189,7 +5113,162 @@ function openEnergyAdvisor() {
         document.getElementById('energy-advisor-body').innerHTML = statsHtml + '<div style="margin-top:18px;padding:16px;background:linear-gradient(135deg,#f0f8ff,#e8f4fd);border-radius:10px;"><div style="font-size:12px;font-weight:800;color:#0044aa;margin-bottom:10px;">&#129302; AI Recommendations</div>' + adviceHtml + '</div>';
       }).catch(function(err) { document.getElementById('energy-advisor-body').innerHTML = '<p style="color:#e53935;">Error: ' + (err.message || err) + '</p>'; });
     });
+  }).catch(function(err) {
+    showNotification('⚠ Failed to load device data: ' + (err.message || err), 'error');
   });
+}
+
+// ============================================================
+// Cost per Cubic Calculator
+// ============================================================
+function openCostCalculator() {
+  var overlay = document.createElement('div');
+  overlay.id = 'cost-calc-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.75);z-index:5300;display:flex;align-items:center;justify-content:center;';
+  overlay.innerHTML = '<div style="background:#fff;border-radius:16px;width:680px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:28px 30px;box-shadow:0 24px 60px rgba(0,0,0,0.4);">'
+    + '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">'
+    + '<div><h3 style="margin:0;color:#002b5c;">&#9889; Cost per Cubic Calculator</h3>'
+    + '<div style="font-size:12px;color:#7a8fa6;">Energy cost per m³ for pumping stations &amp; booster pumps</div></div>'
+    + '<button onclick="document.getElementById(\'cost-calc-overlay\').remove()" style="background:#f0f4f9;border:none;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">&#10005;</button>'
+    + '</div>'
+    + '<div id="cost-calc-body"><div style="text-align:center;padding:40px;color:#7a8fa6;"><div class="spinner" style="margin:0 auto 12px;"></div>Loading pump data&#8230;</div></div></div>';
+  document.body.appendChild(overlay);
+
+  apiGet('getDashboardData').then(function(devices) {
+    if (!devices || !devices.length) { document.getElementById('cost-calc-body').innerHTML = '<p style="color:#7a8fa6;padding:20px;">No device data available.</p>'; return; }
+    var pumpDevices = devices.filter(function(d) {
+      var n = (d.device||'').toLowerCase();
+      return n.includes('pumping station') || n.includes('reservoir booster') || n.includes('booster');
+    });
+    if (!pumpDevices.length) { document.getElementById('cost-calc-body').innerHTML = '<p style="color:#7a8fa6;padding:20px;">No pumping stations or booster pumps found.</p>'; return; }
+    var fetches = pumpDevices.map(function(d) {
+      return apiGet('getSheetData', { sheet: d.device }).then(function(rows) { return aggregateEnergyStats(d.device, rows); }).catch(function() { return null; });
+    });
+    Promise.all(fetches).then(function(statsArray) {
+      statsArray = statsArray.filter(Boolean);
+      if (!statsArray.length) { document.getElementById('cost-calc-body').innerHTML = '<p style="color:#7a8fa6;padding:20px;">No historical energy data available yet.</p>'; return; }
+      renderCostCalcTable(statsArray);
+    });
+  }).catch(function(err) {
+    var body = document.getElementById('cost-calc-body');
+    if (body) body.innerHTML = '<p style="color:#e53935;padding:20px;">&#9888; Error loading data: ' + (err.message || err) + '</p>';
+  });
+}
+
+function renderCostCalcTable(statsArray) {
+  var body = document.getElementById('cost-calc-body');
+  var savedRate = localStorage.getItem('agus_cost_per_kwh') || '0.12';
+  var savedDaily = localStorage.getItem('agus_prod_daily') || '';
+  var savedWeekly = localStorage.getItem('agus_prod_weekly') || '';
+  var savedMonthly = localStorage.getItem('agus_prod_monthly') || '';
+
+  var rowsHtml = statsArray.map(function(s) {
+    return '<tr>'
+      + '<td style="padding:8px 10px;font-weight:700;color:#002b5c;border-bottom:1px solid #e5eef9;">' + s.device + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;">' + s.totalEnergyKwh + '</td>'
+      + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;font-weight:700;color:#15803d;" class="cost-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
+      + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;" class="daily-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
+      + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;" class="weekly-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
+      + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;" class="monthly-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
+      + '</tr>';
+  }).join('');
+
+  body.innerHTML = '<div style="margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
+    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Cost per kWh (USD)'
+    + '<input id="cost-per-kwh" type="number" step="0.001" min="0" value="' + savedRate + '" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
+    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Daily Production (m\u00B3)'
+    + '<input id="prod-daily" type="number" step="1" min="0" value="' + savedDaily + '" placeholder="e.g. 5000" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
+    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Weekly Production (m\u00B3)'
+    + '<input id="prod-weekly" type="number" step="1" min="0" value="' + savedWeekly + '" placeholder="e.g. 35000" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
+    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Monthly Production (m\u00B3)'
+    + '<input id="prod-monthly" type="number" step="1" min="0" value="' + savedMonthly + '" placeholder="e.g. 150000" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
+    + '</div>'
+    + '<button onclick="recalcCostTable()" style="width:100%;padding:10px;background:linear-gradient(135deg,#004080,#0066cc);color:white;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:16px;">Calculate</button>'
+    + '<div style="overflow-x:auto;">'
+    + '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+    + '<thead><tr style="background:#f0f7ff;border-radius:8px;">'
+    + '<th style="padding:10px;text-align:left;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Device</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Energy (kWh)</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Cost (USD)</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Daily $/m\u00B3</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Weekly $/m\u00B3</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Monthly $/m\u00B3</th>'
+    + '</tr></thead>'
+    + '<tbody>' + rowsHtml + '</tbody></table></div>'
+    + '<div style="margin-top:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"><strong>Cost per m\u00B3</strong> = Energy (kWh) &times; Cost per kWh &divide; Production Volume. Enter your production volumes above, then click Calculate.</div>';
+
+  // Store stats globally for recalculation
+  window._costCalcStats = statsArray;
+}
+
+function getCostKpiCard() {
+  var rate = localStorage.getItem('agus_cost_per_kwh') || '';
+  var totalCost = localStorage.getItem('agus_cost_calc_total_cost') || '';
+  var dailyCpm = localStorage.getItem('agus_cost_calc_daily_cpm') || '';
+  var monthlyCpm = localStorage.getItem('agus_cost_calc_monthly_cpm') || '';
+  if (!rate && !totalCost) return '';
+  var cards = '';
+  if (totalCost) {
+    cards += '<div style="background:linear-gradient(135deg,#7c3aed18,#7c3aed08);border:1.5px solid #7c3aed40;border-radius:14px;padding:16px 18px;min-width:130px;">'
+      + '<div style="font-size:22px;margin-bottom:6px;">&#8369;</div>'
+      + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Energy Cost</div>'
+      + '<div style="font-size:22px;font-weight:800;color:#7c3aed;">$' + totalCost + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">@ $' + rate + '/kWh</div></div>';
+  }
+  if (dailyCpm) {
+    cards += '<div style="background:linear-gradient(135deg,#0891b218,#0891b208);border:1.5px solid #0891b240;border-radius:14px;padding:16px 18px;min-width:130px;">'
+      + '<div style="font-size:22px;margin-bottom:6px;">&#8721;</div>'
+      + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Cost/m\u00B3 Daily</div>'
+      + '<div style="font-size:22px;font-weight:800;color:#0891b2;">$' + dailyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">Per cubic meter</div></div>';
+  }
+  if (monthlyCpm) {
+    cards += '<div style="background:linear-gradient(135deg,#d9770618,#d9770608);border:1.5px solid #d9770640;border-radius:14px;padding:16px 18px;min-width:130px;">'
+      + '<div style="font-size:22px;margin-bottom:6px;">&#8721;</div>'
+      + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Cost/m\u00B3 Monthly</div>'
+      + '<div style="font-size:22px;font-weight:800;color:#d97706;">$' + monthlyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">Per cubic meter</div></div>';
+  }
+  return cards;
+}
+
+function recalcCostTable() {
+  var rate = parseFloat(document.getElementById('cost-per-kwh').value) || 0;
+  var daily = parseFloat(document.getElementById('prod-daily').value) || 0;
+  var weekly = parseFloat(document.getElementById('prod-weekly').value) || 0;
+  var monthly = parseFloat(document.getElementById('prod-monthly').value) || 0;
+
+  var stats = window._costCalcStats || [];
+  var totalEnergy = 0, totalCost = 0;
+
+  stats.forEach(function(s) {
+    var energy = parseFloat(s.totalEnergyKwh) || 0;
+    var cost = energy * rate;
+    totalEnergy += energy;
+    totalCost += cost;
+
+    var costCell = document.querySelector('.cost-cell[data-idx="' + stats.indexOf(s) + '"]');
+    var dailyCell = document.querySelector('.daily-cell[data-idx="' + stats.indexOf(s) + '"]');
+    var weeklyCell = document.querySelector('.weekly-cell[data-idx="' + stats.indexOf(s) + '"]');
+    var monthlyCell = document.querySelector('.monthly-cell[data-idx="' + stats.indexOf(s) + '"]');
+
+    if (costCell) costCell.textContent = cost.toFixed(2);
+    if (dailyCell) dailyCell.textContent = (daily && cost) ? (cost / daily).toFixed(4) : '—';
+    if (weeklyCell) weeklyCell.textContent = (weekly && cost) ? (cost / weekly).toFixed(4) : '—';
+    if (monthlyCell) monthlyCell.textContent = (monthly && cost) ? (cost / monthly).toFixed(4) : '—';
+  });
+
+  localStorage.setItem('agus_cost_per_kwh', rate.toString());
+  localStorage.setItem('agus_prod_daily', daily ? daily.toString() : '');
+  localStorage.setItem('agus_prod_weekly', weekly ? weekly.toString() : '');
+  localStorage.setItem('agus_prod_monthly', monthly ? monthly.toString() : '');
+  localStorage.setItem('agus_cost_calc_total_energy', totalEnergy.toFixed(1));
+  localStorage.setItem('agus_cost_calc_total_cost', totalCost.toFixed(2));
+  localStorage.setItem('agus_cost_calc_daily_cpm', (daily && totalCost) ? (totalCost / daily).toFixed(4) : '');
+  localStorage.setItem('agus_cost_calc_weekly_cpm', (weekly && totalCost) ? (totalCost / weekly).toFixed(4) : '');
+  localStorage.setItem('agus_cost_calc_monthly_cpm', (monthly && totalCost) ? (totalCost / monthly).toFixed(4) : '');
+
+  showNotification('Costs calculated: $' + totalCost.toFixed(2) + ' total @ $' + rate.toFixed(3) + '/kWh', 'success');
 }
 
 // ============================================================
@@ -5253,15 +5332,6 @@ function openEnergyAdvisor() {
     originalRenderRangeChart();
     injectForecastDataset();
   };
-
-  document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
-    if (card.dataset.tab === 'energy') {
-      card.onclick = function(e) {
-        e.preventDefault();
-        openEnergyAdvisor();
-      };
-    }
-  });
 
   var originalLogin = window.login;
   if (originalLogin) {
@@ -5381,6 +5451,7 @@ function openKPIDashboard() {
       + kpiCard('💦','Avg Reservoir', avgLevel, 'm³', '#4ade80', res.length+' reservoirs')
       + kpiCard('🔴','Active Faults', fault.length, '', '#ef4444', fault.map(function(d){return d.device;}).join(', ')||'None')
       + kpiCard('🟠','Offline Devices', offline.length, '', '#f97316', offline.map(function(d){return d.device;}).join(', ')||'None')
+      + getCostKpiCard()
       + '</div>';
 
     // Per-device status table
