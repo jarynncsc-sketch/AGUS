@@ -2947,15 +2947,14 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   commandedRelayCache[deviceName] = newStateInt;
   if (cb) cb(newStateInt);
 
-  var manualOvrd = pumpLinkConfigs.some(function(c){ return c.pump === deviceName && c.manualOverride; });
   var coords = deviceCoordinatesCache[deviceName] || {};
-  apiPost('togglePump', {
+  var params = {
     device:    deviceName,
     token:     userToken,
     latitude:  coords.latitude  || '',
-    longitude: coords.longitude || '',
-    manualOverride: manualOvrd ? 'true' : 'false'
-  }).then(function(res) {
+    longitude: coords.longitude || ''
+  };
+  apiPost('togglePump', params).then(function(res) {
     if (res && res.success) {
       commandedRelayCache[deviceName] = res.newState;
       if (cb) cb(res.newState);
@@ -2968,10 +2967,11 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    var revert = newStateInt === 1 ? 0 : 1;
-    commandedRelayCache[deviceName] = revert;
-    if (cb) cb(revert);
-    showNotification('❌ Toggle failed — check connection', 'error');
+    // ── Do NOT revert — the command may have reached the server successfully ──
+    // The smart device relay already toggled; we're just missing the response.
+    // Let the next dashboard poll sync the actual state from the server.
+    showNotification('⚠ Command sent — waiting for smart device confirmation. The relay may have toggled.', 'warning');
+    setTimeout(updateDashboard, 3000);
   });
 }
 
