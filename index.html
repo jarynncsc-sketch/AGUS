@@ -2219,26 +2219,30 @@ document.querySelectorAll('.menu-item').forEach(function(item) {
 
 var bgC = document.getElementById('bg-canvas'), bgCtx = bgC.getContext('2d');
 var W = bgC.width = window.innerWidth, H = bgC.height = window.innerHeight;
+var nodeCount = window.innerWidth < 600 ? 30 : 70;
 var nodes = [];
-for (var ni = 0; ni < 70; ni++) nodes.push({ x: Math.random()*W, y: Math.random()*H, vx: (Math.random()-0.5)*0.7, vy: (Math.random()-0.5)*0.7, r: 3 });
-var mouse = { x: null, y: null };
+for (var ni = 0; ni < nodeCount; ni++) nodes.push({ x: Math.random()*W, y: Math.random()*H, vx: (Math.random()-0.5)*0.7, vy: (Math.random()-0.5)*0.7, r: 3 });
+var mouse = { x: null, y: null }, _animPaused = false;
 window.addEventListener('mousemove', function(e) { mouse.x = e.clientX; mouse.y = e.clientY; });
+var _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#ffffff'); _bgGrad.addColorStop(1,'#00aaff');
 function animate() {
-  var g = bgCtx.createLinearGradient(0,0,W,H); g.addColorStop(0,'#ffffff'); g.addColorStop(1,'#00aaff');
-  bgCtx.fillStyle = g; bgCtx.fillRect(0,0,W,H);
+  if (_animPaused) { requestAnimationFrame(animate); return; }
+  bgCtx.fillStyle = _bgGrad; bgCtx.fillRect(0,0,W,H);
   for (var i = 0; i < nodes.length; i++) for (var j = i+1; j < nodes.length; j++) {
     var dx = nodes[i].x-nodes[j].x, dy = nodes[i].y-nodes[j].y, d = Math.sqrt(dx*dx+dy*dy);
     if (d < 180) { bgCtx.strokeStyle = 'rgba(0,170,255,'+(1-d/180)+')'; bgCtx.beginPath(); bgCtx.moveTo(nodes[i].x,nodes[i].y); bgCtx.lineTo(nodes[j].x,nodes[j].y); bgCtx.stroke(); }
   }
-  nodes.forEach(function(n) {
+  for (var ni2 = 0; ni2 < nodes.length; ni2++) {
+    var n = nodes[ni2];
     n.x += n.vx; n.y += n.vy;
     if (n.x < 0 || n.x > W) n.vx *= -1; if (n.y < 0 || n.y > H) n.vy *= -1;
     if (mouse.x !== null) { var dx = n.x-mouse.x, dy = n.y-mouse.y, d = Math.sqrt(dx*dx+dy*dy); if (d < 100) { var a = Math.atan2(dy,dx), f = (100-d)*0.01; n.vx += Math.cos(a)*f; n.vy += Math.sin(a)*f; } }
     bgCtx.fillStyle = '#00aaff'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2); bgCtx.fill();
-  });
+  }
   requestAnimationFrame(animate);
 }
 animate();
+document.addEventListener('visibilitychange', function() { _animPaused = document.hidden; if (!document.hidden) _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#ffffff'); _bgGrad.addColorStop(1,'#00aaff'); });
 function updateDateTime() {
     var elContainer = document.getElementById('datetime-display');
     if (!elContainer) return;
