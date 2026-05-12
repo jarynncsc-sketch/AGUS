@@ -2144,7 +2144,8 @@ var SPEECH_REPEAT_INTERVAL = 5 * 60 * 1000, ONLINE_THRESHOLD_MINUTES = 30;
 // { linkId, reservoir, pump, shutoff, resume, enabled, manualOverride, createdBy, updatedAt, lastTriggered, triggerCount }
 var pumpLinkConfigs           = [];
 var _pumpLinksLoaded          = false;
-var _pumpLinksLoading         = false;
+var _pumpLinksLoading = false;
+var _pumpLinksRefreshCounter = 0;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
 var autoShutoffSuppressNotify = {}; // debounce toasts
 var _autoShutoffLog           = []; // loaded from GAS on demand
@@ -2907,6 +2908,8 @@ function buildMiniRangeBar(mn, no, mx, cur) {
 
 function initDashboard() { updateDashboard(); loadPumpLinksFromGAS(function(){}); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
 function updateDashboard() {
+  _pumpLinksRefreshCounter++;
+  if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
@@ -3238,25 +3241,17 @@ function autoShutoffPumps(devices) {
         var resumeTs2 = new Date().toLocaleString();
         showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
-        dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
       }
+      dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && !serverRelayOn) {
       var resumeKey = cfg.pump + ':on:' + cfg.reservoir;
-      // Debounce: only fire once per 10 min to avoid repeated calls if level oscillates
       if (!autoShutoffSuppressNotify[resumeKey] || Date.now() - autoShutoffSuppressNotify[resumeKey] > 600000) {
         autoShutoffSuppressNotify[resumeKey] = Date.now();
-        var resumeTs = new Date().toLocaleString();
-
-        // ── 1. Clear the auto-shutoff lock ──────────────────────────────
         delete reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-
-        // ── 2. Send toggle-ON command to server (★ v3 direct command) ──
-        dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
-
-        // ── 4. Notify & log ──────────────────────────────────────────────
+        var resumeTs = new Date().toLocaleString();
         showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
         _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
         if (window.speechSynthesis) {
@@ -3265,6 +3260,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
       }
+      dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
     }
   });
 
