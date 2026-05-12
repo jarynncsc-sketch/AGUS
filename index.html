@@ -105,7 +105,7 @@
 
     // Poll every 1 second
     setInterval(_checkDevTools, 1000);
-    window.addEventListener('resize', _checkDevTools);
+    window.addEventListener('resize', _checkDevTools, { passive: true });
 
     /* ── 4. Console Trap — clears and warns if console is opened ── */
     var _consoleTrap = function() {};
@@ -2103,7 +2103,6 @@ function _isTogglePendingLocal(deviceName) {
 }
 var allGraphData = [], currentDevice = '', activeRange = 14;
 var today = new Date();
-var today = new Date();
 // 👇 3 months range (past → present)
 var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 2, 1);
 var calMonth2 = new Date(today.getFullYear(), today.getMonth() - 1, 1);
@@ -2265,7 +2264,7 @@ function updateDateTime() {
 }
 updateDateTime();
 setInterval(updateDateTime, 1000);
-window.addEventListener('resize', function() { W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; });
+var _resizeRAF; window.addEventListener('resize', function() { if (_resizeRAF) return; _resizeRAF = requestAnimationFrame(function() { _resizeRAF = null; W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; }); });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
   card.addEventListener('click', function() {
@@ -2920,8 +2919,6 @@ function updateDashboard() {
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
-    // Force badge update after dashboard refresh
-    setTimeout(_updateAutoShutoffBadges, 100);
   }).catch(function(err) { console.error('updateDashboard error:', err); });
 }
 function updateMap(devices) {
@@ -3245,7 +3242,7 @@ function autoShutoffPumps(devices) {
       }
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
-    } else if (lv <= resume && autoOffEntry) {
+    } else if (lv <= resume && !serverRelayOn) {
       var resumeKey = cfg.pump + ':on:' + cfg.reservoir;
       // Debounce: only fire once per 10 min to avoid repeated calls if level oscillates
       if (!autoShutoffSuppressNotify[resumeKey] || Date.now() - autoShutoffSuppressNotify[resumeKey] > 600000) {
@@ -3838,6 +3835,7 @@ function clearAllParams(){var av=PUMP_PARAMS.filter(function(p){return pumpParam
 
 function startGraphPolling(){stopGraphPolling();livePaused=false;updateLivePauseBtn();graphPollInterval=setInterval(function(){if(!livePaused&&currentDevice)pollGraphData();},graphPollRate);liveCounterInterval=setInterval(updateLiveCounter,1000);}
 function stopGraphPolling(){if(graphPollInterval){clearInterval(graphPollInterval);graphPollInterval=null;}if(liveCounterInterval){clearInterval(liveCounterInterval);liveCounterInterval=null;}}
+addEventListener('beforeunload', stopGraphPolling);
 function pollGraphData(){
   if (!currentDevice) return;
   apiGet('getSheetData',{sheet:currentDevice}).then(function(rows){
@@ -3848,7 +3846,7 @@ function pollGraphData(){
   }).catch(function(e){console.warn('[AGUS LIVE] Poll failed:',e);});
 }
 function flashChartUpdate(){var w=document.getElementById('graph-chart-wrap');w.classList.remove('chart-flash-anim');void w.offsetWidth;w.classList.add('chart-flash-anim');setTimeout(function(){w.classList.remove('chart-flash-anim');},1000);}
-function updateLiveCounter(){var el=document.getElementById('live-updated');if(!el)return;if(livePaused){el.innerText='Paused';return;}if(!lastPollTime){el.innerText='Waiting…';return;}var s=Math.floor((Date.now()-lastPollTime.getTime())/1000);if(s<5){el.innerText='Updated just now';return;}if(s<60){el.innerText='Updated '+s+'s ago';return;}el.innerText='Updated '+Math.floor(s/60)+'m ago';}
+var _liveEl=null;function updateLiveCounter(){if(!_liveEl)_liveEl=document.getElementById('live-updated');var el=_liveEl;if(!el)return;if(livePaused){el.innerText='Paused';return;}if(!lastPollTime){el.innerText='Waiting…';return;}var s=Math.floor((Date.now()-lastPollTime.getTime())/1000);if(s<5){el.innerText='Updated just now';return;}if(s<60){el.innerText='Updated '+s+'s ago';return;}el.innerText='Updated '+Math.floor(s/60)+'m ago';}
 function toggleLivePause(){livePaused=!livePaused;updateLivePauseBtn();updateLiveCounter();document.getElementById('live-dot').classList.toggle('paused',livePaused);if(!livePaused)pollGraphData();}
 function updateLivePauseBtn(){var btn=document.getElementById('live-pause-btn');if(!btn)return;btn.innerText=livePaused?'▶ Resume':'⏸ Pause';btn.classList.toggle('paused',livePaused);}
 function setLivePollRate(ms){graphPollRate=parseInt(ms);startGraphPolling();}
@@ -6897,24 +6895,12 @@ function loadForecast() {
   }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
 }
   // ============================================================
-// FIX: Load auto-shutoff state from server and display badges
-// ============================================================
-
-// Override the autoShutoffPumps function to ensure badges are shown
-var originalAutoShutoffPumps = window.autoShutoffPumps;
-window.autoShutoffPumps = function(devices) {
-  if (originalAutoShutoffPumps) originalAutoShutoffPumps(devices);
-  // Force badge update after auto-shutoff check
-  setTimeout(_updateAutoShutoffBadges, 100);
-};
-
 // Ensure pump links are loaded on dashboard init
 function initPumpLinksAndDisplay() {
   if (typeof loadPumpLinksFromGAS === 'function') {
     loadPumpLinksFromGAS(function() {
-      console.log("✅ Initial pump links loaded from GAS:", pumpLinkConfigs.length);
+      if (typeof DEBUG !== 'undefined' && DEBUG) console.log("Pump links loaded:", pumpLinkConfigs.length);
       _updatePumpLinksBadge();
-      // Also load any existing auto-shutoff state from localStorage and apply to UI
       var savedState = localStorage.getItem('reservoirAutoShutoff');
       if (savedState) {
         reservoirAutoShutoffState = JSON.parse(savedState);
@@ -6924,25 +6910,10 @@ function initPumpLinksAndDisplay() {
   }
 }
 
-// Call this after login - modify the login function
-// Add to your login success callback:
-// initPumpLinksAndDisplay();
-
-// Also add a refresh button to the dashboard top bar next to Pump Links
-var pumpLinksCard = document.querySelector('.top-card[data-tab="pump-links"]');
-if (pumpLinksCard) {
-  // Add a refresh indicator - this shows the badge
-  setInterval(function() {
-    if (pumpLinkConfigs && pumpLinkConfigs.length > 0) {
-      _updatePumpLinksBadge();
-    }
-  }, 30000); // Check every 30 seconds
-}
-
 // Force refresh function accessible from console for debugging
 window.forceRefreshPumpLinks = function() {
   loadPumpLinksFromGAS(function() {
-    console.log("Manual refresh - links loaded:", pumpLinkConfigs);
+    if (typeof DEBUG !== 'undefined' && DEBUG) console.log("Manual refresh - links loaded:", pumpLinkConfigs);
     _renderLinkCards();
     _updatePumpLinksBadge();
     updateDashboard();
@@ -6969,7 +6940,7 @@ var originalLoadPumpLinks = window.loadPumpLinksFromGAS;
 if (originalLoadPumpLinks) {
   window.loadPumpLinksFromGAS = function(cb) {
     originalLoadPumpLinks(function() {
-      console.log("Pump links loaded, count:", pumpLinkConfigs.length);
+      if (typeof DEBUG !== 'undefined' && DEBUG) console.log("Pump links loaded, count:", pumpLinkConfigs.length);
       _updatePumpLinksBadge();
       if (cb) cb();
     });
