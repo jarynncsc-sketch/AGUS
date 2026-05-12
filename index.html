@@ -2038,22 +2038,35 @@ function toggleFilter(type){
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
 
+var _API_TIMEOUT = 15000; // 15s timeout for all API calls
+function _fetchWithTimeout(url) {
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, _API_TIMEOUT);
+  return fetch(url, { signal: controller.signal }).then(function(r) {
+    clearTimeout(timer);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return r.json();
+  }).catch(function(e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('Request timed out');
+    throw e;
+  });
+}
 function apiGet(action, params) {
-  // If params already contains 'action', use it as the primary query string (for pump link CRUD calls)
   if (params && params.action) {
     var url = API_URL + '?' + Object.keys(params).map(function(k) {
       var v = params[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : v);
     }).join('&');
-    return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+    return _fetchWithTimeout(url);
   }
   var url = API_URL + '?action=' + encodeURIComponent(action);
   if (params) { Object.keys(params).forEach(function(k) { url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }); }
-  return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  return _fetchWithTimeout(url);
 }
 function apiPost(action, data) {
   data = data || {}; data.action = action;
   var url = API_URL + '?' + Object.keys(data).map(function(k) { var v = data[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join('&');
-  return fetch(url).then(function(r) { if (!r.ok) throw new Error('HTTP ' + r.status); return r.json(); });
+  return _fetchWithTimeout(url);
 }
 
 var userToken = null, loggedInUser = '', selectedDevice = null;
@@ -4340,8 +4353,6 @@ function loadTabModalData() {
   var cached = _sheetDataCache[tabModalCurrentDevice];
   if (cached) {
     tabModalAllRows = cached;
-    if (load) load.style.display = 'none';
-    if (chartArea) chartArea.style.display = 'block';
     renderTabModalChart(tabModalAllRows);
     return;
   }
@@ -4352,8 +4363,6 @@ function loadTabModalData() {
   apiGet('getSheetData', { sheet: tabModalCurrentDevice }).then(function(rows) {
     tabModalAllRows = rows || [];
     _sheetDataCache[tabModalCurrentDevice] = tabModalAllRows;
-    if (load) load.style.display = 'none';
-    if (chartArea) chartArea.style.display = 'block';
     renderTabModalChart(tabModalAllRows);
   }).catch(function(e) {
     if (load) { load.style.display = 'flex'; load.innerHTML = '<span style="color:#e05555;">Could not load data: '+e.message+'</span>'; }
@@ -4361,8 +4370,18 @@ function loadTabModalData() {
 }
 
 function renderTabModalChart(rows) {
+  var load = document.getElementById('tab-modal-loading');
+  var chartArea = document.getElementById('tab-modal-chart-area');
   var cfg = TAB_CONFIGS[tabModalCurrentTab];
-  if (!cfg || !rows.length) return;
+  if (!cfg) {
+    if (load) load.style.display = 'none';
+    return;
+  }
+  if (!rows || !rows.length) {
+    if (load) { load.style.display = 'flex'; load.innerHTML = '<span style="color:#7a8fa6;font-size:13px;">No historical data available for <b>' + (tabModalCurrentDevice || '') + '</b>.</span>'; }
+    if (chartArea) chartArea.style.display = 'none';
+    return;
+  }
 
   // Detect column keys from first row
   var keys = Object.keys(rows[0]);
@@ -4387,8 +4406,8 @@ function renderTabModalChart(rows) {
   });
 
   if (!activeParams.length) {
-    var loadEl = document.getElementById('tab-modal-loading');
-    if (loadEl) { loadEl.style.display='flex'; loadEl.innerHTML='<span style="color:#b0b8c8;font-size:13px;">No matching data columns found for this device.</span>'; }
+    if (load) { load.style.display='flex'; load.innerHTML='<span style="color:#b0b8c8;font-size:13px;">No matching data columns found for <b>' + (tabModalCurrentDevice || '') + '</b>.</span>'; }
+    if (chartArea) chartArea.style.display = 'none';
     return;
   }
 
@@ -4496,6 +4515,8 @@ function renderTabModalChart(rows) {
   if (tabModalChart) { tabModalChart.destroy(); tabModalChart = null; }
   var canvas = document.getElementById('tab-modal-canvas');
   if (!canvas) return;
+  if (load) load.style.display = 'none';
+  if (chartArea) chartArea.style.display = 'block';
 
   var summaryCards = document.getElementById('tab-modal-summary-cards');
 
