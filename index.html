@@ -1987,22 +1987,22 @@
 <div id="ai-settings-modal">
   <div id="ai-settings-inner">
     <div id="ais-header">
-      <div><h3>🤖 AI Configuration</h3><div style="font-size:12px;color:#7a8fa6;margin-top:4px;">Configure Anthropic Claude API endpoint & key</div></div>
+      <div><h3>🤖 AI Configuration</h3><div style="font-size:12px;color:#7a8fa6;margin-top:4px;">Configure DeepSeek AI API endpoint & key</div></div>
       <button id="ais-close-btn" onclick="closeAISettings()">✕</button>
     </div>
     <div id="ais-body">
       <div class="ais-field">
         <label>API Endpoint URL</label>
-        <input id="ais-endpoint" type="url" placeholder="https://api.anthropic.com/v1/messages">
+        <input id="ais-endpoint" type="url" placeholder="https://api.deepseek.com/v1/chat/completions">
       </div>
       <div class="ais-field">
-        <label>API Key (x-api-key)</label>
-        <input id="ais-api-key" type="password" placeholder="sk-ant-...">
+        <label>API Key</label>
+        <input id="ais-api-key" type="password" placeholder="sk-...">
         <button onclick="toggleAISKey()" style="background:none;border:none;color:#3b82f6;font-size:11px;cursor:pointer;padding:2px 0;">👁 Show/Hide</button>
       </div>
       <div class="ais-field">
         <label>Model Name</label>
-        <input id="ais-model" type="text" placeholder="claude-sonnet-4-20250514">
+        <input id="ais-model" type="text" placeholder="deepseek-chat">
       </div>
       <div class="ais-field">
         <label>Status</label>
@@ -4014,7 +4014,7 @@ function toggleAISKey() {
   var inp = document.getElementById('ais-api-key');
   if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
 }
-function saveAISettings(){var endpoint=document.getElementById('ais-endpoint').value.trim();var apiKey=document.getElementById('ais-api-key').value.trim();var model=document.getElementById('ais-model').value.trim();if(!endpoint){document.getElementById('ais-validation').textContent='Please enter an API endpoint URL.';return;}if(!model){document.getElementById('ais-validation').textContent='Please enter a model name.';return;}AI_ENDPOINT=endpoint;AI_API_KEY=apiKey;AI_MODEL=model;localStorage.setItem('agus_ai_endpoint',endpoint);localStorage.setItem('agus_ai_api_key',apiKey);localStorage.setItem('agus_ai_model',model);document.getElementById('ais-validation').textContent='';var dot=document.getElementById('ai-key-status-dot');if(dot){dot.style.display=apiKey?'block':'none';}var lbl=document.getElementById('ai-config-lbl');if(lbl)lbl.textContent=apiKey?'AI Active':'AI Config';var legacyDot=document.getElementById('ai-config-dot');if(legacyDot)legacyDot.style.background=apiKey?'#22c55e':'#f97316';showNotification(apiKey?'✅ AI key saved — Claude integration active':'⚠ AI key cleared — using local fallback',apiKey?'success':'warning');closeAISettings();}
+function saveAISettings(){var endpoint=document.getElementById('ais-endpoint').value.trim();var apiKey=document.getElementById('ais-api-key').value.trim();var model=document.getElementById('ais-model').value.trim();if(!endpoint){document.getElementById('ais-validation').textContent='Please enter an API endpoint URL.';return;}if(!model){document.getElementById('ais-validation').textContent='Please enter a model name.';return;}AI_ENDPOINT=endpoint;AI_API_KEY=apiKey;AI_MODEL=model;localStorage.setItem('agus_ai_endpoint',endpoint);localStorage.setItem('agus_ai_api_key',apiKey);localStorage.setItem('agus_ai_model',model);document.getElementById('ais-validation').textContent='';var dot=document.getElementById('ai-key-status-dot');if(dot){dot.style.display=apiKey?'block':'none';}var lbl=document.getElementById('ai-config-lbl');if(lbl)lbl.textContent=apiKey?'AI Active':'AI Config';var legacyDot=document.getElementById('ai-config-dot');if(legacyDot)legacyDot.style.background=apiKey?'#22c55e':'#f97316';showNotification(apiKey?'✅ AI key saved — DeepSeek integration active':'⚠ AI key cleared — using local fallback',apiKey?'success':'warning');closeAISettings();}
 document.getElementById('ai-settings-modal').addEventListener('click',function(e){if(e.target===document.getElementById('ai-settings-modal'))closeAISettings();});
 // Add AI settings button to the control group
 (function addAISettingsBtn() {
@@ -4965,9 +4965,9 @@ function injectForecastDataset() {
 // ============================================================
 // AI API CONFIGURATION (configurable via settings UI)
 // ============================================================
-var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.anthropic.com/v1/messages';
+var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.deepseek.com/v1/chat/completions';
 var AI_API_KEY  = localStorage.getItem('agus_ai_api_key') || '';
-var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'claude-sonnet-4-20250514';
+var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'deepseek-chat';
 var AI_CACHE = {};
 
 // ── AI Chat utilities (called from Block 2 and 3) ──
@@ -5030,19 +5030,23 @@ function aiFetch(bodyOverrides, retries) {
   retries = retries || 2;
   var body = bodyOverrides || {};
   if (!body.model) body.model = AI_MODEL;
+  if (body.system) {
+    body.messages = [{ role: 'system', content: body.system }].concat(body.messages || []);
+    delete body.system;
+  }
   var ck = aiCacheKey(body);
   if (AI_CACHE[ck] && Date.now() - AI_CACHE[ck].ts < 120000) {
     return Promise.resolve(JSON.parse(JSON.stringify(AI_CACHE[ck].data)));
   }
   var headers = { 'Content-Type': 'application/json' };
-  if (AI_API_KEY) headers['x-api-key'] = AI_API_KEY;
+  if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
   return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
     .then(function(r) {
       if (!r.ok) throw new Error('API ' + r.status);
       return r.json();
     }).then(function(data) {
       AI_CACHE[ck] = { data: data, ts: Date.now() };
-      return data;
+      return { content: [{ text: (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '' }] };
     }).catch(function(err) {
       if (retries > 0) return aiFetch(bodyOverrides, retries - 1);
       return aiLocalFallback(JSON.stringify(body), body.messages ? body.messages.map(function(m){return m.content;}).join(' ') : '');
@@ -5052,9 +5056,13 @@ function aiFetch(bodyOverrides, retries) {
 function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
   var body = bodyOverrides || {};
   if (!body.model) body.model = AI_MODEL;
+  if (body.system) {
+    body.messages = [{ role: 'system', content: body.system }].concat(body.messages || []);
+    delete body.system;
+  }
   body.stream = true;
   var headers = { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' };
-  if (AI_API_KEY) headers['x-api-key'] = AI_API_KEY;
+  if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
   var fullText = '';
   fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
     .then(function(r) {
@@ -5072,8 +5080,7 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
               if (data === '[DONE]') return;
               try {
                 var parsed = JSON.parse(data);
-                var delta = parsed.delta || (parsed.content && parsed.content[0]) || {};
-                var token = delta.text || '';
+                var token = (parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content) || '';
                 if (token) { fullText += token; onToken(token); }
               } catch(e) {}
             }
@@ -5155,7 +5162,7 @@ function sendAIMessage() {
 }
 
 // ============================================================
-// Module 5: Smart Alarm Correlator (groups alarms, uses Claude)
+// Module 5: Smart Alarm Correlator (groups alarms, uses AI)
 // ============================================================
 var pendingAlarms = [];
 var CORRELATE_WINDOW_MS = 60000;
@@ -6646,7 +6653,7 @@ function genMLAIInterpretation() {
   var insight = document.getElementById('ml-ai-insight');
   if (!insight) return;
   insight.style.display = 'block';
-  insight.innerHTML = '<div id="ml-ai-insight"><div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with Claude AI…</span></div></div>';
+  insight.innerHTML = '<div id="ml-ai-insight"><div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with DeepSeek AI…</span></div></div>';
 
   // Build a rich summary of ML findings for the AI
   var summary = _mlResults.map(function(a) {
