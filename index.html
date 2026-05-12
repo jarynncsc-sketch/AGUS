@@ -3457,6 +3457,7 @@ function _setManualOverride(id, val) {
     }
     _renderLinkCards();
     _updatePumpLinksBadge();
+    updateDashboard();
     showNotification(val ? '🖐 Manual override ON — auto-shutoff bypassed and lock cleared.' : '🤖 Auto mode restored.', 'info');
   }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
 }
