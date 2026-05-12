@@ -2947,12 +2947,14 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   commandedRelayCache[deviceName] = newStateInt;
   if (cb) cb(newStateInt);
 
+  var manualOvrd = pumpLinkConfigs.some(function(c){ return c.pump === deviceName && c.manualOverride; });
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:    deviceName,
     token:     userToken,
     latitude:  coords.latitude  || '',
-    longitude: coords.longitude || ''
+    longitude: coords.longitude || '',
+    manualOverride: manualOvrd ? 'true' : 'false'
   }).then(function(res) {
     if (res && res.success) {
       commandedRelayCache[deviceName] = res.newState;
@@ -3074,11 +3076,17 @@ if (isResBooster) {
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
-        // ── Guard: if trying to turn ON while reservoir is full ──
-        if (newStateInt === 1 && autoOff) {
-          cb.checked = false;
-          showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (autoOff.reservoir||'Reservoir') + ' is still above resume level (' + (autoOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
-          return;
+        // ── Guard: if trying to turn ON while reservoir is full (live check) ──
+        if (newStateInt === 1) {
+          var liveOff = null;
+          Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+            if (reservoirAutoShutoffState[k].pump === d.device) liveOff = reservoirAutoShutoffState[k];
+          });
+          if (liveOff) {
+            cb.checked = false;
+            showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
+            return;
+          }
         }
         // ── Guard: reservoir near-full warning ──
         var linkedFull = null;
