@@ -2944,7 +2944,7 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
     var isPres = effectiveType === 'pressure';
     var stat = isPres ? derivePressureStatus(d) : d.status;
-    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure||null,flow:d.flow||null,relay:d.relay||null,button:d.button||null,voltage:d.voltage||null,current:d.current||null,power:d.power||null,energy:d.energy||null,level:d.level||null,firmware:d.firmware||null,lastToggledBy:d.lastToggledBy||null});
+    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
     deviceSource.addFeature(f); deviceMarkers[d.device] = f;
   });
 }
