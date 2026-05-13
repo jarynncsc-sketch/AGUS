@@ -2074,7 +2074,7 @@ var sessionToken = null; // set on login for GAS authenticated calls — passed 
 
 // Simple response cache for dashboard data to avoid redundant fetches
 var _apiCache = {};
-var _API_CACHE_TTL = 15000; // 15 seconds
+var _API_CACHE_TTL = 4000; // 4 seconds
 function apiCached(action, params) {
   var key = action + '|' + JSON.stringify(params || {});
   var entry = _apiCache[key];
@@ -2089,7 +2089,7 @@ function apiCached(action, params) {
   });
 }
 
-var deviceMarkers = {}, myChart = null, blinkOn = true, _lastDevices = null;
+var deviceMarkers = {}, myChart = null, blinkOn = true;
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
@@ -2688,7 +2688,7 @@ if (isPS) {
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
 map.addLayer(clusterLayer);
-setInterval(function() { blinkOn = !blinkOn; for (var k in deviceMarkers) { var f = deviceMarkers[k]; var s = f.get('status'); if (s === 'Fault' || s === 'Offline') f.changed(); } }, 800);
+setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
@@ -2720,9 +2720,8 @@ function selectDevice(device) {
 // === START ===
  
 function showDeviceDetails(device) {
-  var data = _lastDevices;
-  if (!data) { apiGet('getDashboardData').then(function(d2) { _lastDevices = d2; showDeviceDetails(device); }); return; }
-  var d = data.find(function(x){ return x.device === device; });
+  apiGet('getDashboardData').then(function(data) {
+    var d = data.find(function(x){ return x.device === device; });
     if (!d) return;
  
     var det = document.getElementById('device-details');
@@ -2917,7 +2916,6 @@ function updateDashboard() {
   _pumpLinksRefreshCounter++;
   if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
   apiGet('getDashboardData').then(function(devices) {
-    _lastDevices = devices;
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
       if (d.minLevel||d.maxLevel) reservoirThresholdsCache[d.device]={minLevel:d.minLevel||20,maxLevel:d.maxLevel||250,updatedBy:d.reservoirUpdatedBy||null,updatedAt:d.reservoirUpdatedAt||null};
@@ -3071,8 +3069,7 @@ if (isResBooster) {
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
-      var _presRaw = d.pressure;
-      var _presVal = (_presRaw != null && _presRaw !== '') ? parseFloat(_presRaw) : (_presRaw != null ? 0 : NaN);
+      var _presVal = parseFloat(d.pressure);
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
