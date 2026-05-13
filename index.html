@@ -3069,8 +3069,9 @@ if (isResBooster) {
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
-      var pv = (d.pressure !== undefined && d.pressure !== null && d.pressure !== '') ? Math.round(parseFloat(d.pressure))+' psi' : '-- psi', pc='', bc='';
-      if (d.pressure !== undefined && d.pressure !== null && d.pressure !== '') { var p=parseFloat(d.pressure); if(p<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(p>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
+      var _presVal = parseFloat(d.pressure);
+      var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
+      if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
       li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
@@ -3182,7 +3183,7 @@ function autoShutoffPumps(devices) {
   devices.forEach(function(d) { devMap[d.device] = d; });
 
   pumpLinkConfigs.forEach(function(cfg) {
-    if (!cfg.enabled || cfg.manualOverride) return;
+    if (!cfg.enabled) return;
     if (_manualToggleCooldown[cfg.pump] && Date.now() < _manualToggleCooldown[cfg.pump]) return;
     var resData  = devMap[cfg.reservoir];
     var pumpData = devMap[cfg.pump];
@@ -3504,7 +3505,7 @@ function _renderLinkCards() {
         + (pumpStateOk === null ? ' · OK' : pumpStateOk ? ' ✓' : ' ✗ ' + (pumpRelayOn ? 'should be OFF' : 'should be ON'))
         + '</div>';
     var statusBadge = cfg.manualOverride
-      ? '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🖐 MANUAL OVERRIDE</span>'
+      ? '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🖐 MANUAL</span>'
       : (autoState
         ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🛑 PUMP HALTED</span>'
         : '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">✅ ACTIVE</span>');
@@ -3521,7 +3522,7 @@ function _renderLinkCards() {
       +   '</div>'
       +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
       +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#475569;cursor:pointer;"><input type="checkbox" ' + (cfg.enabled?'checked':'') + ' onchange="togglePumpLink(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#0369a1;cursor:pointer;"> Enabled</label>'
-      +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#854d0e;cursor:pointer;title="When ON, GAS auto-shutoff is skipped for this link"><input type="checkbox" ' + (cfg.manualOverride?'checked':'') + ' onchange="_setManualOverride(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#eab308;cursor:pointer;"> Manual</label>'
+      +     '<label style="display:flex;align-items:center;gap:5px;font-size:11px;color:#854d0e;cursor:pointer;title="Preference indicator — auto-shutoff still runs"><input type="checkbox" ' + (cfg.manualOverride?'checked':'') + ' onchange="_setManualOverride(\'' + cfg.id + '\',this.checked)" style="width:14px;height:14px;accent-color:#eab308;cursor:pointer;"> Manual</label>'
       +     '<button onclick="editPumpLink(\'' + cfg.id + '\')" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Edit</button>'
       +     '<button onclick="deletePumpLink(\'' + cfg.id + '\')" style="padding:4px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🗑</button>'
       +   '</div>'
@@ -3556,7 +3557,7 @@ function _setManualOverride(id, val) {
     _renderLinkCards();
     _updatePumpLinksBadge();
     updateDashboard();
-    showNotification(val ? '🖐 Manual override ON — auto-shutoff bypassed and lock cleared.' : '🤖 Auto mode restored.', 'info');
+    showNotification(val ? '🖐 Manual mode — auto-shutoff still active.' : 'Auto-shutoff active.', 'info');
   }).catch(function(){ showNotification('⚠ Network error setting override.','warning'); });
 }
 
