@@ -2094,6 +2094,7 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
 var _localTogglePending = {}; // { deviceName: timestamp } — hides "Sending…" badge 8s after local toggle
+var _manualToggleCooldown = {}; // { deviceName: expiry } — skip auto-shutoff for 5 min after manual toggle
 function _markTogglePending(deviceName) { _localTogglePending[deviceName] = Date.now(); }
 function _isTogglePendingLocal(deviceName) {
   var ts = _localTogglePending[deviceName];
@@ -2974,21 +2975,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       if (cb) cb(res.newState);
       showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
-      // Auto-enable manual override for any pump link so auto-shutoff doesn't override
-      pumpLinkConfigs.forEach(function(pl) {
-        if (pl.pump === deviceName && !pl.manualOverride) {
-          pl.manualOverride = true;
-          var key = pl.pump + ':' + pl.reservoir;
-          if (reservoirAutoShutoffState[key]) {
-            delete reservoirAutoShutoffState[key];
-            localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-          }
-          var tok = sessionToken || userToken || '';
-          fetch(API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(pl.id) + '&manualOverride=true');
-        }
-      });
-      _renderLinkCards();
-      _updatePumpLinksBadge();
+      _manualToggleCooldown[deviceName] = Date.now() + 300000; // 5 min cooldown
       setTimeout(updateDashboard, 1500);
     } else {
       var revert = newStateInt === 1 ? 0 : 1;
@@ -3186,6 +3173,7 @@ function autoShutoffPumps(devices) {
 
   pumpLinkConfigs.forEach(function(cfg) {
     if (!cfg.enabled || cfg.manualOverride) return;
+    if (_manualToggleCooldown[cfg.pump] && Date.now() < _manualToggleCooldown[cfg.pump]) return;
     var resData  = devMap[cfg.reservoir];
     var pumpData = devMap[cfg.pump];
     if (!resData || !pumpData) return;
