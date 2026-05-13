@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#004080"/>
+      <stop offset="100%" stop-color="#0077cc"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <g transform="translate(256,256)">
+    <circle cx="0" cy="0" r="170" fill="none" stroke="white" stroke-width="14" opacity="0.3"/>
+    <path d="M-120 0 A120 120 0 0 1 120 0" fill="none" stroke="white" stroke-width="18" stroke-linecap="round" opacity="0.5"/>
+    <circle cx="0" cy="0" r="90" fill="none" stroke="white" stroke-width="12" opacity="0.4"/>
+    <line x1="0" y1="0" x2="0" y2="-130" stroke="#4ade80" stroke-width="14" stroke-linecap="round" transform="rotate(-45)"/>
+    <circle cx="0" cy="0" r="18" fill="white"/>
+    <circle cx="0" cy="0" r="10" fill="#004080"/>
+    <text x="0" y="160" text-anchor="middle" fill="white" font-family="Arial,sans-serif" font-weight="800" font-size="48" letter-spacing="2">AGUS</text>
+  </g>
+</svg>
