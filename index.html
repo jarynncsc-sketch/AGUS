@@ -3069,8 +3069,8 @@ if (isResBooster) {
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
-      var pv = d.pressure ? Math.round(parseFloat(d.pressure))+' psi' : '-- psi', pc='', bc='';
-      if (d.pressure) { var p=parseFloat(d.pressure); if(p<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(p>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
+      var pv = (d.pressure !== undefined && d.pressure !== null && d.pressure !== '') ? Math.round(parseFloat(d.pressure))+' psi' : '-- psi', pc='', bc='';
+      if (d.pressure !== undefined && d.pressure !== null && d.pressure !== '') { var p=parseFloat(d.pressure); if(p<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(p>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
       li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
