@@ -1285,6 +1285,42 @@
     .cal-day.in-range{background:#cfe4ff;}
     .cal-day.empty{cursor:default;}
     #graph-footer{margin-top:8px;font-size:12px;color:#666;text-align:center;}
+    /* ── Mobile graph modal refinements ── */
+    @media screen and (max-width: 900px) {
+      #graph-modal-inner {
+        padding: 14px 12px 10px 12px !important;
+        border-radius: 18px !important;
+        height: 97dvh !important;
+        height: 97vh !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+      }
+      #graph-modal-inner h2 { font-size: 1.05rem !important; padding-right: 36px !important; }
+      #graph-meta {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 6px !important;
+        padding: 6px 10px !important;
+      }
+      #graph-meta > div:first-child { flex-wrap: wrap !important; gap: 6px !important; }
+      .range-btn-group { gap: 4px !important; }
+      .range-btn { padding: 4px 10px !important; font-size: 11.5px !important; }
+      #graph-download-btn { padding: 4px 10px !important; font-size: 11.5px !important; }
+      #graph-live-bar { flex-wrap: wrap !important; gap: 6px !important; font-size: 11px !important; }
+      #graph-debug-bar { font-size: 11px !important; padding: 6px 10px !important; }
+      #graph-debug-bar button { margin-top: 6px !important; display: block !important; }
+      #calendar-container {
+        flex-direction: column !important;
+        gap: 8px !important;
+        overflow-y: auto !important;
+        max-height: 240px !important;
+      }
+      .cal-month { min-width: unset !important; }
+      #graph-chart-wrap { padding: 8px 8px 6px 8px !important; }
+      #param-pill-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      #graph-loading { font-size: 13px !important; }
+      #graph-loading .spinner { width: 30px !important; height: 30px !important; }
+    }
     .blink-alarm{animation:blink 1s infinite;}
     /* ── Auto-shutoff badge on device list items ─── */
     .auto-shutoff-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#b91c1c,#dc2626);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(185,28,28,0.35);letter-spacing:0.2px;}
@@ -1881,7 +1917,7 @@
       <div id="param-pill-grid"></div>
     </div>
     <div id="graph-chart-wrap">
-      <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span></div>
+      <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span><span id="graph-loading-sub" style="font-size:11px;color:#7a9bb5;font-weight:500;margin-top:2px;display:block;text-align:center;"></span></div>
       <div id="graph-no-data"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1"/></svg><span>No data in selected range</span></div>
       <canvas id="pressureChart"></canvas>
     </div>
@@ -2038,10 +2074,12 @@ function toggleFilter(type){
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
 
-var _API_TIMEOUT = 8000; // 8s timeout for all API calls
-function _fetchWithTimeout(url) {
+var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
+var _API_RETRY_DELAY = 2000; // 2s delay before retry
+function _fetchWithTimeout(url, timeoutMs) {
+  var ms = timeoutMs || _API_TIMEOUT;
   var controller = new AbortController();
-  var timer = setTimeout(function() { controller.abort(); }, _API_TIMEOUT);
+  var timer = setTimeout(function() { controller.abort(); }, ms);
   return fetch(url, { signal: controller.signal }).then(function(r) {
     clearTimeout(timer);
     if (!r.ok) throw new Error('HTTP ' + r.status);
@@ -2052,21 +2090,31 @@ function _fetchWithTimeout(url) {
     throw e;
   });
 }
+// Retry helper: retries once after _API_RETRY_DELAY ms on any error
+function _fetchWithRetry(url, timeoutMs) {
+  return _fetchWithTimeout(url, timeoutMs).catch(function(err) {
+    return new Promise(function(resolve, reject) {
+      setTimeout(function() {
+        _fetchWithTimeout(url, timeoutMs).then(resolve).catch(reject);
+      }, _API_RETRY_DELAY);
+    });
+  });
+}
 function apiGet(action, params) {
   if (params && params.action) {
     var url = API_URL + '?' + Object.keys(params).map(function(k) {
       var v = params[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : v);
     }).join('&');
-    return _fetchWithTimeout(url);
+    return _fetchWithRetry(url);
   }
   var url = API_URL + '?action=' + encodeURIComponent(action);
   if (params) { Object.keys(params).forEach(function(k) { url += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(params[k] == null ? '' : params[k]); }); }
-  return _fetchWithTimeout(url);
+  return _fetchWithRetry(url);
 }
 function apiPost(action, data) {
   data = data || {}; data.action = action;
   var url = API_URL + '?' + Object.keys(data).map(function(k) { var v = data[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join('&');
-  return _fetchWithTimeout(url);
+  return _fetchWithRetry(url);
 }
 
 var userToken = null, loggedInUser = '', selectedDevice = null;
@@ -3899,18 +3947,37 @@ function showHistoricalGraph(deviceName, deviceType) {
   document.getElementById('graph-no-data').classList.remove('visible');
   var loadEl=document.getElementById('graph-loading'); loadEl.classList.add('visible');
   if (myChart){myChart.destroy();myChart=null;}
+  // Show "Loading…" first; update to "Retrying…" if first attempt fails
+  var _retryTimer = setTimeout(function() {
+    var sub = document.getElementById('graph-loading-sub');
+    if (sub) sub.innerHTML = '⟳ Retrying&hellip; server is waking up';
+  }, 8500);
   apiGet('getSheetData',{sheet:deviceName}).then(function(rows){
+    clearTimeout(_retryTimer);
     loadEl.classList.remove('visible');
-    if (!rows||!rows.length){showDebugBar('No data returned for "'+deviceName+'"');return;}
+    if (!rows||!rows.length){showDebugBar('No data returned for "'+deviceName+'". Try a broader date range.');return;}
     allGraphData=rows; lastDataCount=rows.length; lastPollTime=new Date();
     detectKeys(rows);
     if (currentDeviceType==='pump'){detectPumpParamKeys(rows);buildParamSelector();}
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); renderRangeChart(); renderCalendars(); updateLiveCounter(); updateLastToggledBadge(allGraphData); startGraphPolling();
-  }).catch(function(err){loadEl.classList.remove('visible');showDebugBar('Server error: '+(err.message||err));});
+  }).catch(function(err){
+    clearTimeout(_retryTimer);
+    loadEl.classList.remove('visible');
+    var isTimeout = err.message && err.message.toLowerCase().indexOf('timed out') !== -1;
+    showDebugBar(isTimeout
+      ? 'Server took too long. Please tap a range button to retry, or check your connection.'
+      : 'Server error: '+(err.message||err));
+  });
 }
-function showDebugBar(msg){var b=document.getElementById('graph-debug-bar');b.innerHTML='⚠️ <strong>Debug:</strong> '+msg;b.classList.add('visible');}
+function showDebugBar(msg){
+  var b=document.getElementById('graph-debug-bar');
+  b.innerHTML='⚠️ <strong>Debug:</strong> '+msg
+    +' <button onclick="if(currentDevice)openGraph(currentDevice)" '
+    +'style="margin-left:10px;padding:3px 12px;background:#004080;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">↺ Retry</button>';
+  b.classList.add('visible');
+}
 
 function renderRangeChart() {
   var data=getFilteredData();
@@ -4044,6 +4111,7 @@ function closeGraph(){
   stopGraphPolling();
   document.getElementById('graph-modal').style.display='none';
   ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
+  var sub=document.getElementById('graph-loading-sub');if(sub)sub.innerHTML='';
   var ltb=document.getElementById('last-toggled-badge');if(ltb)ltb.style.display='none';
   if(myChart){myChart.destroy();myChart=null;}
   allGraphData=[];lastDataCount=0;lastPollTime=null;isQuickRange=true;livePaused=false;currentDeviceType='pressure';pumpParamKeys={};activePumpParams=new Set(['pressure']);
