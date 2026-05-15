@@ -3849,10 +3849,52 @@ function parseSheetDate(raw) {
   return null;
 }
 function detectKeys(rows) {
-  if (!rows||!rows.length) return; var keys = Object.keys(rows[0]);
+  if (!rows||!rows.length) return;
+  var keys = Object.keys(rows[0]);
+
+  // Time key
   window._timeKey = keys.find(function(k){return /time|date|timestamp/i.test(k.trim());})||keys[0];
-  window._pressKey = keys.find(function(k){return /pressure|psi|press/i.test(k.trim());})||keys.find(function(k){return !/lat|lon|lng|time|date|stamp/i.test(k)&&k!==window._timeKey;})||keys[1];
-  window._levelKey = keys.find(function(k){return /res.*water|water.*level|reservoir level|water volume|volume m3/i.test(k.trim());})||null;
+
+  // Pressure key
+  window._pressKey = keys.find(function(k){return /pressure|psi|press/i.test(k.trim());})||
+    keys.find(function(k){return !/lat|lon|lng|time|date|stamp/i.test(k)&&k!==window._timeKey;})||keys[1];
+
+  // Level key — explicit GAS column names first, then broad regex
+  // GAS backend uses: "Cubic meter", "Res Water Level", "Water Level"
+  window._levelKey =
+    // Exact GAS column name matches (highest priority)
+    keys.find(function(k){ return /^cubic\s*meter$/i.test(k.trim()); }) ||
+    keys.find(function(k){ return /^res\s*water\s*level$/i.test(k.trim()); }) ||
+    keys.find(function(k){ return /^water\s*level$/i.test(k.trim()); }) ||
+    // Broad pattern matches
+    keys.find(function(k){
+      return /water.*level|level.*water|res.*level|level.*res|reservoir.*level|level.*reservoir|water.*vol|vol.*water|water.*volume|volume.*water|water.*m3|m3.*water|water.*cubic|cubic.*water|water.*liter|water.*litre/i.test(k.trim());
+    }) ||
+    keys.find(function(k){
+      return /^(level|volume|vol|m3|cubic|litre|liter|depth|height|tank|capacity|waterlevel|water_level|lvl|wl)$/i.test(k.trim());
+    }) ||
+    keys.find(function(k){
+      return /level|volume|vol|m3|cubic|litre|liter|depth|height|tank|capacity/i.test(k.trim()) && k !== window._timeKey;
+    }) ||
+    null;
+
+  // Smart fallback for reservoir: if levelKey is still null, pick the best numeric column
+  if (!window._levelKey && currentDeviceType === 'reservoir') {
+    // Score columns by how many rows have valid numeric values
+    var numericCols = keys.filter(function(k){
+      return k !== window._timeKey &&
+        !/lat|lon|lng|relay|toggle|status|device|id|name|by|user/i.test(k);
+    });
+    var bestCol = null, bestCount = 0;
+    numericCols.forEach(function(k){
+      var count = rows.slice(0, 20).filter(function(r){
+        var v = parseFloat(r[k]); return !isNaN(v);
+      }).length;
+      if (count > bestCount) { bestCount = count; bestCol = k; }
+    });
+    if (bestCol) window._levelKey = bestCol;
+  }
+
   window._toggleKey = keys.find(function(k){return /lasttoggled|toggledby/i.test(k.trim());})||null;
   window._relayKey = keys.find(function(k){return /^relay$/i.test(k.trim());})||null;
 }
@@ -3987,15 +4029,32 @@ function renderRangeChart() {
   var canvas=document.getElementById('pressureChart'),ctx=canvas.getContext('2d');
   if (myChart) myChart.destroy();
   if (currentDeviceType==='reservoir') {
-    var lv=data.map(function(r){var v=parseFloat(r[window._levelKey]||r[window._pressKey]);return isNaN(v)?null:v;});
-    var vl=lv.filter(function(v){return v!==null;}),mn=vl.length?Math.min.apply(null,vl):0,mx=vl.length?Math.max.apply(null,vl):1000,pad=Math.max((mx-mn)*0.18,10);
+    // Resolve the actual level key — use _levelKey, fall back to _pressKey, then scan for any numeric column
+    var resKey = window._levelKey || window._pressKey;
+    if (!resKey && data.length) {
+      // Last-resort: find any column with numeric values in this data
+      var ks = Object.keys(data[0]).filter(function(k){
+        return k !== window._timeKey && !/lat|lon|lng|relay|toggle|status|device|id|name|by|user/i.test(k);
+      });
+      for (var ki=0;ki<ks.length;ki++) {
+        var sample = data.slice(0,10).map(function(r){return parseFloat(r[ks[ki]]);}).filter(function(v){return !isNaN(v);});
+        if (sample.length >= 3) { resKey = ks[ki]; break; }
+      }
+    }
+    var resLabel = resKey ? (resKey.length <= 20 ? resKey : 'Water Level') : 'Water Level';
+    var lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;});
+    var vl=lv.filter(function(v){return v!==null;});
+    if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
+    var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Water Level (m³)',data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Water Level (m³)',min:mn-pad,max:mx+pad,pos:'left'}],{},data)});
+    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data)});
     return;
   }
   if (currentDeviceType !== 'pump') {
     var pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;});
-    var vp=pv.filter(function(v){return v!==null;}),pmn=vp.length?Math.min.apply(null,vp):0,pmx=vp.length?Math.max.apply(null,vp):10,ppad=Math.max((pmx-pmn)*0.18,2);
+    var vp=pv.filter(function(v){return v!==null;});
+    if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
+    var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
     myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
     return;
