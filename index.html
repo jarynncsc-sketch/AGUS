@@ -325,7 +325,43 @@
   })();
   </script>
   <!-- ═══ END SECURITY SHIELD LAYER 2 ═══ -->
-  <link rel="manifest" href="data:application/json,%7B%22name%22%3A%22AGUS%22%2C%22short_name%22%3A%22AGUS%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%23ffffff%22%2C%22theme_color%22%3A%22%23004080%22%7D">
+  <!-- ═══════════════════════════════════════════════════════
+       PWA — Works on Android Chrome + iOS Safari
+       ═══════════════════════════════════════════════════════ -->
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#004080">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="AGUS">
+  <meta name="apple-touch-fullscreen" content="yes">
+  <link rel="apple-touch-icon" sizes="180x180" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23004080'/%3E%3Cpath d='M90 28 C68 52 48 68 48 86 a42 42 0 0 0 84 0 c0-18-20-34-42-58z' fill='%2300aaff'/%3E%3Ctext x='90' y='152' font-family='Arial Black,Arial' font-weight='900' font-size='24' fill='white' text-anchor='middle'%3EAGUS%3C/text%3E%3C/svg%3E">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23004080'/%3E%3Cpath d='M32 10 C22 22 14 30 14 38 a18 18 0 0 0 36 0 c0-8-10-16-18-28z' fill='%2300aaff'/%3E%3C/svg%3E">
+  <script>
+  (function(){
+    var M = {
+      name:'AGUS \u2013 Carcar Water District',
+      short_name:'AGUS',
+      description:'AI-powered water pump station monitoring & control',
+      start_url: location.href,
+      scope: location.pathname,
+      display:'standalone',
+      orientation:'any',
+      background_color:'#ffffff',
+      theme_color:'#004080',
+      icons:[
+        {src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='44' fill='%23004080'/%3E%3Cpath d='M96 30 C68 62 44 80 44 100 a52 52 0 0 0 104 0 c0-20-28-38-52-70z' fill='%2300aaff'/%3E%3Ctext x='96' y='164' font-family='Arial Black,Arial' font-weight='900' font-size='30' fill='white' text-anchor='middle'%3EAGUS%3C/text%3E%3C/svg%3E",sizes:'192x192',type:'image/svg+xml',purpose:'any maskable'},
+        {src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%23004080'/%3E%3Cpath d='M256 80 C196 152 140 200 140 252 a116 116 0 0 0 232 0 c0-52-60-100-116-172z' fill='%2300aaff'/%3E%3Ctext x='256' y='424' font-family='Arial Black,Arial' font-weight='900' font-size='76' fill='white' text-anchor='middle'%3EAGUS%3C/text%3E%3C/svg%3E",sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}
+      ]
+    };
+    try {
+      var b = new Blob([JSON.stringify(M)],{type:'application/manifest+json'});
+      var l = document.createElement('link');
+      l.rel='manifest'; l.href=URL.createObjectURL(b);
+      document.head.appendChild(l);
+    } catch(e){}
+  })();
+  </script>
+  <!-- ═══ END PWA SETUP ═══ -->
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
@@ -1781,6 +1817,10 @@
         <div class="nav-group-label">System</div>
         <div class="nav-group-cards">
           <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+          <div class="top-card grp-sys" id="pwa-install-btn" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
+            <span id="pwa-btn-label">Install App</span>
+          </div>
         </div>
       </div>
     </div>
@@ -7849,6 +7889,211 @@ function exportDashboardPDF() {
     }
   });
   mlObserver.observe(document.body, { childList: true, subtree: true });
+})();
+
+
+// ============================================================
+// AGUS PWA INSTALL — Android (Chrome) + iOS (Safari)
+// ============================================================
+(function initAGUSInstall() {
+  'use strict';
+
+  var _deferredPrompt = null;   // Chrome/Android BeforeInstallPromptEvent
+  var _isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var _isAndroid = /android/i.test(navigator.userAgent);
+  var _isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  var _isStandalone = (window.navigator.standalone === true) ||
+                      window.matchMedia('(display-mode: standalone)').matches ||
+                      window.matchMedia('(display-mode: fullscreen)').matches;
+
+  /* Don't show install UI if already installed as PWA */
+  if (_isStandalone) return;
+
+  /* ── Android / Chrome: catch the install prompt ───────── */
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    _deferredPrompt = e;
+    _showInstallBtn('Install App');
+  });
+
+  /* ── iOS Safari: always show the button (no prompt API) ── */
+  if (_isIOS && _isSafari) {
+    _showInstallBtn('Add to Home');
+    // Show a banner after 3 s if user hasn't dismissed before
+    if (!localStorage.getItem('agus_ios_banner_dismissed')) {
+      setTimeout(_showIOSBanner, 3000);
+    }
+  }
+
+  /* ── Android non-Chrome (Samsung Internet, Firefox) ────── */
+  if (_isAndroid && !_deferredPrompt && !_isIOS) {
+    // Show generic guide button as fallback
+    setTimeout(function() {
+      if (!_deferredPrompt) _showInstallBtn('Add to Home');
+    }, 2000);
+  }
+
+  /* PWA installed successfully */
+  window.addEventListener('appinstalled', function() {
+    _hideInstallBtn();
+    showNotification('✅ AGUS installed! Open from your home screen.', 'success');
+    _deferredPrompt = null;
+  });
+
+  /* ── Main install action ─────────────────────────────────── */
+  window.agusInstallPWA = function() {
+    if (_deferredPrompt) {
+      /* Android / Chrome — native prompt */
+      _deferredPrompt.prompt();
+      _deferredPrompt.userChoice.then(function(choice) {
+        if (choice.outcome === 'accepted') {
+          _hideInstallBtn();
+        }
+        _deferredPrompt = null;
+      });
+    } else if (_isIOS && _isSafari) {
+      /* iOS Safari — show instructions modal */
+      _showIOSModal();
+    } else {
+      /* Fallback — show generic instructions */
+      _showGenericModal();
+    }
+  };
+
+  /* ── Show/hide the Install button in the top bar ────────── */
+  function _showInstallBtn(label) {
+    var btn = document.getElementById('pwa-install-btn');
+    if (!btn) return;
+    btn.style.display = 'flex';
+    var lbl = document.getElementById('pwa-btn-label');
+    if (lbl) lbl.textContent = label;
+  }
+  function _hideInstallBtn() {
+    var btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'none';
+  }
+
+  /* ── iOS install instructions modal ─────────────────────── */
+  function _showIOSModal() {
+    var old = document.getElementById('agus-ios-install-modal');
+    if (old) { old.remove(); return; }
+    var ov = document.createElement('div');
+    ov.id = 'agus-ios-install-modal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,15,40,0.82);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+    ov.innerHTML = [
+      '<div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:28px 24px 36px;box-shadow:0 -8px 40px rgba(0,0,0,0.3);animation:slideUp 0.3s ease;">',
+        '<div style="text-align:center;margin-bottom:18px;">',
+          '<div style="font-size:48px;margin-bottom:8px;">💧</div>',
+          '<div style="font-weight:800;font-size:18px;color:#004080;">Install AGUS on iPhone / iPad</div>',
+          '<div style="font-size:13px;color:#64748b;margin-top:4px;">Add to Home Screen for the full app experience</div>',
+        '</div>',
+        '<div style="background:#f0f6ff;border-radius:14px;padding:16px 18px;margin-bottom:14px;">',
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">',
+            '<div style="background:#007aff;border-radius:10px;padding:8px;flex-shrink:0;">',
+              '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>',
+            '</div>',
+            '<div><div style="font-weight:700;font-size:14px;color:#002b5c;">Step 1 — Tap the Share button</div><div style="font-size:12px;color:#64748b;">The <b>⬆ Share</b> icon at the bottom of Safari (iPhone) or top-right (iPad)</div></div>',
+          '</div>',
+          '<div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">',
+            '<div style="background:#34c759;border-radius:10px;padding:8px;flex-shrink:0;">',
+              '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><rect x="3" y="3" width="18" height="18" rx="4"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>',
+            '</div>',
+            '<div><div style="font-weight:700;font-size:14px;color:#002b5c;">Step 2 — Add to Home Screen</div><div style="font-size:12px;color:#64748b;">Scroll down in the Share sheet and tap <b>"Add to Home Screen"</b></div></div>',
+          '</div>',
+          '<div style="display:flex;align-items:center;gap:12px;">',
+            '<div style="background:#ff9500;border-radius:10px;padding:8px;flex-shrink:0;">',
+              '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>',
+            '</div>',
+            '<div><div style="font-weight:700;font-size:14px;color:#002b5c;">Step 3 — Tap Add</div><div style="font-size:12px;color:#64748b;">Tap <b>"Add"</b> in the top-right corner to confirm</div></div>',
+          '</div>',
+        '</div>',
+        '<div style="background:#fff3cd;border-radius:10px;padding:10px 14px;font-size:12px;color:#92400e;margin-bottom:16px;">',
+          '⚠️ <b>Must use Safari</b> — Chrome and Firefox on iOS cannot install PWA apps.',
+        '</div>',
+        '<button onclick="document.getElementById(\'agus-ios-install-modal\').remove();localStorage.setItem(\'agus_ios_banner_dismissed\',\'1\');" ',
+          'style="width:100%;background:#004080;color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">',
+          'Got it!',
+        '</button>',
+      '</div>'
+    ].join('');
+    ov.addEventListener('click', function(e) {
+      if (e.target === ov) ov.remove();
+    });
+    document.body.appendChild(ov);
+    // Add slide-up animation if not already present
+    if (!document.getElementById('agus-pwa-anim')) {
+      var s = document.createElement('style');
+      s.id = 'agus-pwa-anim';
+      s.textContent = '@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}} @keyframes fadeInDown{from{opacity:0;transform:translateY(-20px)}to{opacity:1;transform:translateY(0)}}';
+      document.head.appendChild(s);
+    }
+  }
+
+  /* ── Generic Android/other instructions modal ───────────── */
+  function _showGenericModal() {
+    var old = document.getElementById('agus-generic-install-modal');
+    if (old) { old.remove(); return; }
+    var ov = document.createElement('div');
+    ov.id = 'agus-generic-install-modal';
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,15,40,0.82);z-index:9999;display:flex;align-items:flex-end;justify-content:center;';
+    ov.innerHTML = [
+      '<div style="background:#fff;border-radius:20px 20px 0 0;width:100%;max-width:480px;padding:28px 24px 36px;box-shadow:0 -8px 40px rgba(0,0,0,0.3);">',
+        '<div style="text-align:center;margin-bottom:18px;">',
+          '<div style="font-size:48px;">💧</div>',
+          '<div style="font-weight:800;font-size:18px;color:#004080;">Install AGUS</div>',
+          '<div style="font-size:13px;color:#64748b;margin-top:4px;">Add to your home screen</div>',
+        '</div>',
+        '<div style="background:#f0f6ff;border-radius:14px;padding:16px;margin-bottom:14px;font-size:13px;color:#002b5c;line-height:1.7;">',
+          '<b>On Android Chrome:</b><br>',
+          'Tap the <b>⋮ menu</b> (3 dots top-right) → <b>"Add to Home screen"</b> or <b>"Install app"</b><br><br>',
+          '<b>On Samsung Internet:</b><br>',
+          'Tap the <b>☰ menu</b> → <b>"Add page to"</b> → <b>"Home screen"</b><br><br>',
+          '<b>On Firefox Android:</b><br>',
+          'Tap the <b>⋮ menu</b> → <b>"Install"</b>',
+        '</div>',
+        '<button onclick="document.getElementById(\'agus-generic-install-modal\').remove();" ',
+          'style="width:100%;background:#004080;color:white;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;">',
+          'Got it',
+        '</button>',
+      '</div>'
+    ].join('');
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
+
+  /* ── Subtle iOS banner (shown automatically on Safari) ──── */
+  function _showIOSBanner() {
+    if (document.getElementById('agus-ios-banner')) return;
+    var bar = document.createElement('div');
+    bar.id = 'agus-ios-banner';
+    bar.style.cssText = [
+      'position:fixed;bottom:0;left:0;right:0;z-index:9998',
+      'background:linear-gradient(135deg,#004080,#0077cc)',
+      'color:white;padding:14px 16px 20px',
+      'display:flex;align-items:center;gap:12px',
+      'box-shadow:0 -4px 24px rgba(0,0,0,0.25)',
+      'animation:slideUp 0.4s ease'
+    ].join(';');
+    bar.innerHTML = [
+      '<div style="font-size:32px;flex-shrink:0;">💧</div>',
+      '<div style="flex:1;min-width:0;">',
+        '<div style="font-weight:800;font-size:14px;">Install AGUS on your iPhone</div>',
+        '<div style="font-size:11px;opacity:0.85;margin-top:2px;">Tap <b>⬆ Share</b> then <b>"Add to Home Screen"</b></div>',
+      '</div>',
+      '<button onclick="document.getElementById(\'agus-ios-banner\').remove();localStorage.setItem(\'agus_ios_banner_dismissed\',\'1\');" ',
+        'style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);color:white;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;flex-shrink:0;">',
+        'Dismiss',
+      '</button>'
+    ].join('');
+    document.body.appendChild(bar);
+    if (!document.getElementById('agus-pwa-anim')) {
+      var s = document.createElement('style');
+      s.id = 'agus-pwa-anim';
+      s.textContent = '@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}';
+      document.head.appendChild(s);
+    }
+  }
+
 })();
 
 // ============================================================
