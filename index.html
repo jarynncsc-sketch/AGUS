@@ -2196,8 +2196,11 @@ var _pumpLinksLoaded          = false;
 var _pumpLinksLoading = false;
 var _pumpLinksRefreshCounter = 0;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
-var autoShutoffSuppressNotify = {}; // debounce toasts
-var _autoShutoffLog           = []; // loaded from GAS on demand
+var autoShutoffSuppressNotify  = {}; // debounce toasts
+var _autoShutoffLog            = []; // loaded from GAS on demand
+// ── Tracks whether the OFF/ON command was ALREADY SENT for a given pump:reservoir
+//    pair this session. Prevents repeated commands on every poll cycle.
+var _autoShutoffCommandSent    = {}; // { "pump:reservoir": 'off'|'on' }
 
 // ── Normalise GAS link object → internal format ───────────────────────────
 function _normLink(l) {
@@ -2972,6 +2975,7 @@ function updateDashboard() {
         deviceCoordinatesCache[d.device] = { latitude: d.latitude, longitude: d.longitude };
       }
     });
+    window._lastDevices = devices; // expose for push notification snapshot
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
@@ -3251,83 +3255,123 @@ function autoShutoffPumps(devices) {
                         (typeof pumpData.relay === 'string' && pumpData.relay.toUpperCase() === 'ON');
     var autoOffEntry  = reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
 
+    var _cmdKey = cfg.pump + ':' + cfg.reservoir; // shared key for all guards below
+
     // ── Backup shutoff (primary command may have failed) ─────────────────
     if (shutoff2 > 0 && lv >= shutoff2 && serverRelayOn) {
       var ts = new Date().toLocaleString();
       if (!autoOffEntry) {
-        reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir] = {
+        reservoirAutoShutoffState[_cmdKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
           shutoffLevel: shutoff2, resumeLevel: resume, levelAtShutoff: lv, timestamp: ts
         };
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
-      var bkey = cfg.pump + ':backup:' + cfg.reservoir;
-      if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
-        autoShutoffSuppressNotify[bkey] = Date.now();
-        showNotification('🚨 BACKUP SHUTOFF: ' + cfg.pump + ' still ON at ' + lv.toFixed(0) + ' m³ — primary shutoff at ' + shutoff + ' m³ may have failed!', 'error');
-        if (window.speechSynthesis) {
-          var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
-          bu.rate = 0.95; window.speechSynthesis.speak(bu);
+      // ── Only send the OFF command once per shutoff event ─────────────────
+      if (_autoShutoffCommandSent[_cmdKey] !== 'off') {
+        _autoShutoffCommandSent[_cmdKey] = 'off';
+        var bkey = cfg.pump + ':backup:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
+          autoShutoffSuppressNotify[bkey] = Date.now();
+          showNotification('🚨 BACKUP SHUTOFF: ' + cfg.pump + ' still ON at ' + lv.toFixed(0) + ' m³ — primary shutoff at ' + shutoff + ' m³ may have failed!', 'error');
+          if (window.speechSynthesis) {
+            var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
+            bu.rate = 0.95; window.speechSynthesis.speak(bu);
+          }
         }
+        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
+        (function(pumpName) {
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, triggeredBy: 'AutoShutoff-Backup' })
+            .then(function() { updateDashboard(); })
+            .catch(function() { updateDashboard(); });
+          var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
+          if (el) el.checked = false;
+        })(cfg.pump);
       }
-      _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
-      dashboardTogglePump(cfg.pump, 0, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
     // ── Primary shutoff ──────────────────────────────────────────────────
     } else if (lv >= shutoff && serverRelayOn) {
       var ts = new Date().toLocaleString();
       if (!autoOffEntry) {
-        reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir] = {
+        reservoirAutoShutoffState[_cmdKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
           shutoffLevel: shutoff, resumeLevel: resume, levelAtShutoff: lv, timestamp: ts
         };
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
-      var suppressKey = cfg.pump + ':off:' + cfg.reservoir;
-      if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
-        autoShutoffSuppressNotify[suppressKey] = Date.now();
-        showNotification('🛑 AUTO-SHUTOFF: ' + cfg.pump + ' turned OFF — ' + cfg.reservoir + ' reached ' + lv.toFixed(0) + ' m³ (limit: ' + shutoff + ' m³)', 'warning');
-        _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
-        if (window.speechSynthesis) {
-          var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
-          u.rate = 0.95; window.speechSynthesis.speak(u);
+      // ── Only send the OFF command once per shutoff event ─────────────────
+      if (_autoShutoffCommandSent[_cmdKey] !== 'off') {
+        _autoShutoffCommandSent[_cmdKey] = 'off';
+        var suppressKey = cfg.pump + ':off:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
+          autoShutoffSuppressNotify[suppressKey] = Date.now();
+          showNotification('🛑 AUTO-SHUTOFF: ' + cfg.pump + ' turned OFF — ' + cfg.reservoir + ' reached ' + lv.toFixed(0) + ' m³ (limit: ' + shutoff + ' m³)', 'warning');
+          _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
+          if (window.speechSynthesis) {
+            var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
+            u.rate = 0.95; window.speechSynthesis.speak(u);
+          }
         }
+        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
+        (function(pumpName) {
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, triggeredBy: 'AutoShutoff' })
+            .then(function() { updateDashboard(); })
+            .catch(function() { updateDashboard(); });
+          var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
+          if (el) el.checked = false;
+        })(cfg.pump);
       }
-
-      _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
-
-      dashboardTogglePump(cfg.pump, 0, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
     // ── Backup resume (primary resume may have failed) ───────────────────
     } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
-      var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
-      if (!autoShutoffSuppressNotify[rkey2] || Date.now() - autoShutoffSuppressNotify[rkey2] > 600000) {
-        autoShutoffSuppressNotify[rkey2] = Date.now();
-        delete reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
+      // ── Only send the ON command once per resume event ────────────────────
+      if (_autoShutoffCommandSent[_cmdKey] !== 'on') {
+        _autoShutoffCommandSent[_cmdKey] = 'on';
+        delete reservoirAutoShutoffState[_cmdKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
-        showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
-        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
+        var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[rkey2] || Date.now() - autoShutoffSuppressNotify[rkey2] > 600000) {
+          autoShutoffSuppressNotify[rkey2] = Date.now();
+          showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
+          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
+        }
+        (function(pumpName) {
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, triggeredBy: 'AutoResume-Backup' })
+            .then(function() { updateDashboard(); })
+            .catch(function() { updateDashboard(); });
+          var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
+          if (el) el.checked = true;
+        })(cfg.pump);
       }
-      dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && !serverRelayOn) {
-      var resumeKey = cfg.pump + ':on:' + cfg.reservoir;
-      if (!autoShutoffSuppressNotify[resumeKey] || Date.now() - autoShutoffSuppressNotify[resumeKey] > 600000) {
-        autoShutoffSuppressNotify[resumeKey] = Date.now();
-        delete reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
+      // ── Only send the ON command once per resume event ────────────────────
+      if (_autoShutoffCommandSent[_cmdKey] !== 'on') {
+        _autoShutoffCommandSent[_cmdKey] = 'on';
+        delete reservoirAutoShutoffState[_cmdKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
-        showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
-        _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
-        if (window.speechSynthesis) {
-          var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
-          _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
+        var resumeKey = cfg.pump + ':on:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[resumeKey] || Date.now() - autoShutoffSuppressNotify[resumeKey] > 600000) {
+          autoShutoffSuppressNotify[resumeKey] = Date.now();
+          showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
+          _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
+          if (window.speechSynthesis) {
+            var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
+            _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
+          }
+          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         }
-        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
+        (function(pumpName) {
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, triggeredBy: 'AutoResume' })
+            .then(function() { updateDashboard(); })
+            .catch(function() { updateDashboard(); });
+          var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
+          if (el) el.checked = true;
+        })(cfg.pump);
       }
-      dashboardTogglePump(cfg.pump, 1, function(s) { var el=document.querySelector('#device-list input[data-device="'+cfg.pump+'"]'); if(el) el.checked=s===1; });
     }
   });
 
@@ -7805,6 +7849,419 @@ function exportDashboardPDF() {
     }
   });
   mlObserver.observe(document.body, { childList: true, subtree: true });
+})();
+
+// ============================================================
+// AGUS WEB PUSH NOTIFICATIONS
+// Works when tab is in background, phone screen is on another
+// app, AND (when PWA installed on Android) when browser is closed.
+// ============================================================
+(function initAGUSPush() {
+  'use strict';
+
+  /* ── Config ─────────────────────────────────────────────── */
+  var PUSH_STORAGE_KEY   = 'agus_push_enabled';
+  var PUSH_STATES_KEY    = 'agus_push_dev_states';
+  var PUSH_DEBOUNCE_KEY  = 'agus_push_debounce';
+  var POLL_INTERVAL_MS   = 60000;   // background SW polls every 60 s
+  var NOTIF_COOLDOWN_MS  = 300000;  // same event suppressed for 5 min
+
+  /* ── Internal state ──────────────────────────────────────── */
+  var _swReg          = null;
+  var _pushEnabled    = localStorage.getItem(PUSH_STORAGE_KEY) === '1';
+  var _debounce       = JSON.parse(localStorage.getItem(PUSH_DEBOUNCE_KEY) || '{}');
+  var _prevDevStates  = JSON.parse(localStorage.getItem(PUSH_STATES_KEY)  || '{}');
+
+  /* ── Debounce helper ─────────────────────────────────────── */
+  function _canFire(key) {
+    var now = Date.now();
+    if (_debounce[key] && now - _debounce[key] < NOTIF_COOLDOWN_MS) return false;
+    _debounce[key] = now;
+    localStorage.setItem(PUSH_DEBOUNCE_KEY, JSON.stringify(_debounce));
+    return true;
+  }
+
+  /* ── Show a native OS notification ──────────────────────── */
+  function _native(title, body, opts) {
+    if (Notification.permission !== 'granted') return;
+    var options = Object.assign({
+      body: body,
+      requireInteraction: false,
+      vibrate: [200, 100, 200],
+      badge: 'https://img.icons8.com/color/48/water.png',
+      icon:  'https://img.icons8.com/color/96/water.png'
+    }, opts || {});
+
+    if (_swReg) {
+      _swReg.showNotification(title, options);
+    } else if ('Notification' in window) {
+      new Notification(title, options);
+    }
+  }
+
+  /* ── Patch showNotification to also fire OS pop-ups ─────── */
+  var _origShowNotif = window.showNotification;
+  window.showNotification = function(msg, type) {
+    if (_origShowNotif) _origShowNotif.call(this, msg, type);
+    if (!_pushEnabled) return;
+    if (Notification.permission !== 'granted') return;
+    if (type !== 'error' && type !== 'warning') return;
+
+    var isError   = type === 'error';
+    var title     = isError ? '🚨 AGUS Critical Alert' : '🛑 AGUS Warning';
+    var tag       = 'agus-toast-' + msg.slice(0, 40);
+    if (!_canFire(tag)) return;
+
+    _native(title, msg, {
+      tag: tag,
+      requireInteraction: isError,
+      vibrate: isError ? [400, 150, 400, 150, 400] : [250, 100, 250]
+    });
+  };
+
+  /* ── Also fire push on auto-shutoff log entries ──────────── */
+  var _origAddLog = window._addAutoShutoffLog;
+  window._addAutoShutoffLog = function(entry) {
+    if (_origAddLog) _origAddLog.call(this, entry);
+    if (!_pushEnabled || Notification.permission !== 'granted') return;
+
+    var key, title, body, requireInteraction = true;
+    if (entry.action === 'AUTO-OFF' || entry.action === 'BACKUP-OFF') {
+      key   = 'shutoff:' + entry.pump;
+      title = '🛑 Reservoir Full — Pump OFF';
+      body  = (entry.pump || 'Pump') + ' turned OFF. ' + (entry.reservoir || 'Reservoir') +
+              ' reached ' + (entry.level ? Math.round(entry.level) : '?') + ' m³ (limit: ' + (entry.shutoffLevel || '?') + ' m³).';
+    } else if (entry.action === 'AUTO-RESUME' || entry.action === 'BACKUP-ON') {
+      key   = 'resume:' + entry.pump;
+      title = '✅ Reservoir Low — Pump ON';
+      body  = (entry.pump || 'Pump') + ' restarted. ' + (entry.reservoir || 'Reservoir') +
+              ' dropped to ' + (entry.level ? Math.round(entry.level) : '?') + ' m³.';
+      requireInteraction = false;
+    } else {
+      return;
+    }
+
+    if (!_canFire(key)) return;
+    _native(title, body, {
+      tag: key,
+      requireInteraction: requireInteraction,
+      vibrate: requireInteraction ? [400, 150, 400, 150, 400] : [200, 100, 200]
+    });
+  };
+
+  /* ── Alarm log hook — fire on new fault / offline entries ── */
+  var _origAddAlarm = window.addAlarmLogEntry;
+  window.addAlarmLogEntry = function(device, type, reading) {
+    if (_origAddAlarm) _origAddAlarm.call(this, device, type, reading);
+    if (!_pushEnabled || Notification.permission !== 'granted') return;
+
+    var key   = 'alarm:' + device + ':' + type;
+    if (!_canFire(key)) return;
+
+    var isF   = type === 'fault'   || (type||'').toLowerCase().includes('fault');
+    var isOff = type === 'offline' || (type||'').toLowerCase().includes('offline');
+    var isPres= (type||'').toLowerCase().includes('pressure');
+    var title = isF   ? '⚠️ AGUS Fault — ' + device
+              : isOff ? '📴 AGUS Offline — ' + device
+              : isPres? '📊 AGUS Pressure — ' + device
+              :         '🔔 AGUS Alert — ' + device;
+    var body  = type + (reading ? ' · ' + reading : '') + ' detected on ' + device + '.';
+
+    _native(title, body, {
+      tag: key,
+      requireInteraction: isF || isOff,
+      vibrate: isF ? [400, 200, 400, 200, 400] : [200, 100, 200]
+    });
+  };
+
+  /* ══════════════════════════════════════════════════════════
+     SERVICE WORKER (via Blob URL)
+     Polls GAS independently — fires even when tab is hidden
+     or phone is on another app. On installed Android PWA it
+     persists even longer via Periodic Background Sync.
+     ══════════════════════════════════════════════════════════ */
+  var SW_CODE = [
+    '"use strict";',
+    'var _cfg = {};',
+    'var _prevStates = {};',
+    'var _debounce = {};',
+    'var COOLDOWN = 300000;',
+    'var _pollTimer = null;',
+
+    'self.addEventListener("install",  function(){ self.skipWaiting(); });',
+    'self.addEventListener("activate", function(e){ e.waitUntil(self.clients.claim()); });',
+
+    /* message from page */
+    'self.addEventListener("message", function(e) {',
+    '  var d = e.data; if (!d) return;',
+    '  if (d.type === "AGUS_CONFIG") {',
+    '    _cfg = d.config || {};',
+    '    _prevStates = d.prevStates || {};',
+    '    startPolling();',
+    '  }',
+    '  if (d.type === "AGUS_PING") { startPolling(); }',   /* keepalive */
+    '  if (d.type === "AGUS_NOTIFY") {',
+    '    self.registration.showNotification(d.title, d.options || {});',
+    '  }',
+    '});',
+
+    /* periodic background sync (Android PWA) */
+    'self.addEventListener("periodicsync", function(e) {',
+    '  if (e.tag === "agus-poll") { e.waitUntil(doPoll()); }',
+    '});',
+
+    /* notification click — open dashboard */
+    'self.addEventListener("notificationclick", function(e) {',
+    '  e.notification.close();',
+    '  e.waitUntil(',
+    '    self.clients.matchAll({ type:"window", includeUncontrolled:true }).then(function(list) {',
+    '      for (var i=0;i<list.length;i++) {',
+    '        var c = list[i];',
+    '        if (c.url && c.focus) return c.focus();',
+    '      }',
+    '      if (self.clients.openWindow) return self.clients.openWindow(_cfg.dashUrl || "/");',
+    '    })',
+    '  );',
+    '});',
+
+    /* polling */
+    'function startPolling() {',
+    '  if (_pollTimer) clearInterval(_pollTimer);',
+    '  _pollTimer = setInterval(function(){ doPoll(); }, 60000);',
+    '  doPoll();',
+    '}',
+
+    'function canFire(key) {',
+    '  var now = Date.now();',
+    '  if (_debounce[key] && now - _debounce[key] < COOLDOWN) return false;',
+    '  _debounce[key] = now;',
+    '  return true;',
+    '}',
+
+    'function notify(title, body, tag, urgent) {',
+    '  return self.registration.showNotification(title, {',
+    '    body: body,',
+    '    tag: tag,',
+    '    requireInteraction: !!urgent,',
+    '    vibrate: urgent ? [400,150,400,150,400] : [200,100,200],',
+    '    icon:  "https://img.icons8.com/color/96/water.png",',
+    '    badge: "https://img.icons8.com/color/48/water.png"',
+    '  });',
+    '}',
+
+    'async function doPoll() {',
+    '  if (!_cfg.apiUrl || !_cfg.token) return;',
+    '  var p = [];',
+    '  try {',
+    '    var url = _cfg.apiUrl + "?action=getDashboardData&token=" + encodeURIComponent(_cfg.token);',
+    '    var res = await fetch(url);',
+    '    if (!res.ok) return;',
+    '    var devices = await res.json();',
+    '    if (!Array.isArray(devices)) return;',
+
+    '    var faults=[], offline=[], shutoffs=[], resumes=[];',
+    '    devices.forEach(function(d) {',
+    '      var name = d.device || "";',
+    '      var st   = d.status || "";',
+    '      var prev = _prevStates[name] || {};',
+
+    '      if (st==="Fault"   && prev.status !== "Fault")   faults.push(name);',
+    '      if (st==="Offline" && prev.status === "Online")  offline.push(name);',
+
+    /* relay change detection */
+    '      var relay = parseInt(d.relay);',
+    '      var prel  = parseInt(prev.relay);',
+    '      if (!isNaN(relay) && !isNaN(prel) && relay !== prel) {',
+    '        var isPump = name.toLowerCase().includes("pumping") || name.toLowerCase().includes("pump");',
+    '        if (isPump && relay===0 && prel===1) shutoffs.push(name);',
+    '        if (isPump && relay===1 && prel===0) resumes.push(name);',
+    '      }',
+
+    '      _prevStates[name] = { status: st, relay: relay };',
+    '    });',
+
+    '    if (faults.length && canFire("sw-fault-"+faults.join(","))) {',
+    '      p.push(notify("⚠️ AGUS — Device Fault", faults.join(", ")+" detected fault!", "agus-fault", true));',
+    '    }',
+    '    if (offline.length && canFire("sw-offline-"+offline.join(","))) {',
+    '      p.push(notify("📴 AGUS — Device Offline", offline.join(", ")+" went offline.", "agus-offline", true));',
+    '    }',
+    '    if (shutoffs.length && canFire("sw-shutoff-"+shutoffs.join(","))) {',
+    '      p.push(notify("🛑 AGUS — Pump Auto-OFF", shutoffs.join(", ")+" turned OFF (reservoir full).", "agus-shutoff", true));',
+    '    }',
+    '    if (resumes.length && canFire("sw-resume-"+resumes.join(","))) {',
+    '      p.push(notify("✅ AGUS — Pump Resumed", resumes.join(", ")+" turned back ON.", "agus-resume", false));',
+    '    }',
+    '  } catch(err) {}',
+    '  return Promise.all(p);',
+    '}'
+  ].join('\n');
+
+  /* ── Register the SW ──────────────────────────────────────── */
+  function _registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    var blob   = new Blob([SW_CODE], { type: 'application/javascript' });
+    var swUrl  = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(swUrl)
+      .then(function(reg) {
+        _swReg = reg;
+        // Send config once SW is active
+        _sendConfigToSW(reg);
+        // Periodic Background Sync (installed PWA on Android Chrome)
+        if (reg.periodicSync) {
+          reg.periodicSync.register('agus-poll', { minInterval: 15 * 60 * 1000 })
+            .catch(function() {}); // silently ignore if not available
+        }
+        // Keepalive: ping SW every 55 s so the setInterval keeps running
+        setInterval(function() {
+          var sw = reg.active;
+          if (sw) sw.postMessage({ type: 'AGUS_PING' });
+        }, 55000);
+      })
+      .catch(function() {}); // silently ignore unsupported environments
+  }
+
+  function _sendConfigToSW(reg) {
+    function _doSend() {
+      var sw = reg.active || reg.installing || reg.waiting;
+      if (!sw) return;
+      sw.postMessage({
+        type:       'AGUS_CONFIG',
+        config:     { apiUrl: API_URL, token: userToken, dashUrl: location.href },
+        prevStates: _prevDevStates
+      });
+    }
+    if (reg.active) { _doSend(); return; }
+    // Wait for SW to activate
+    var pending = reg.installing || reg.waiting;
+    if (pending) {
+      pending.addEventListener('statechange', function() {
+        if (pending.state === 'activated') _doSend();
+      });
+    }
+  }
+
+  /* ── Request permission & init ────────────────────────────── */
+  function enablePush() {
+    if (!('Notification' in window)) {
+      showNotification('⚠ This browser does not support push notifications.', 'warning');
+      return;
+    }
+    if (Notification.permission === 'granted') {
+      _pushEnabled = true;
+      localStorage.setItem(PUSH_STORAGE_KEY, '1');
+      _registerSW();
+      _renderPushBtn();
+      showNotification('✅ Push notifications enabled!', 'success');
+      return;
+    }
+    Notification.requestPermission().then(function(perm) {
+      if (perm === 'granted') {
+        _pushEnabled = true;
+        localStorage.setItem(PUSH_STORAGE_KEY, '1');
+        _registerSW();
+        _renderPushBtn();
+        showNotification('✅ Push notifications enabled!', 'success');
+      } else {
+        showNotification('⚠ Permission denied. Enable notifications in browser settings.', 'warning');
+      }
+    });
+  }
+
+  function disablePush() {
+    _pushEnabled = false;
+    localStorage.removeItem(PUSH_STORAGE_KEY);
+    _renderPushBtn();
+    showNotification('Push notifications disabled.', 'info');
+  }
+
+  window.toggleAGUSPush = function() {
+    if (_pushEnabled && Notification.permission === 'granted') disablePush();
+    else enablePush();
+  };
+
+  /* ── Inject the push toggle button into the top menu ─────── */
+  function _renderPushBtn() {
+    var existing = document.getElementById('push-notif-btn');
+    if (existing) existing.remove();
+
+    var btn = document.createElement('div');
+    btn.id = 'push-notif-btn';
+    var isOn = _pushEnabled && Notification.permission === 'granted';
+    btn.style.cssText = [
+      'display:flex', 'align-items:center', 'justify-content:center',
+      'flex-direction:column', 'gap:2px',
+      'min-width:54px', 'max-width:54px', 'width:54px',
+      'padding:6px 4px', 'border-radius:12px',
+      'cursor:pointer', 'transition:background 0.18s',
+      'background:' + (isOn ? 'rgba(34,197,94,0.13)' : 'rgba(239,68,68,0.10)'),
+      'border:1.5px solid ' + (isOn ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)')
+    ].join(';');
+    btn.title  = isOn ? 'Push ON — click to disable' : 'Push OFF — click to enable';
+    btn.innerHTML = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"',
+      ' stroke="' + (isOn ? '#22c55e' : '#ef4444') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+      isOn
+        ? '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><circle cx="18" cy="6" r="4" fill="#22c55e" stroke="#22c55e"/>'
+        : '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/>',
+      '</svg>',
+      '<span style="font-size:7.5px;font-weight:800;color:' + (isOn ? '#16a34a' : '#dc2626') + ';letter-spacing:0.3px;">',
+      isOn ? 'PUSH ON' : 'PUSH OFF',
+      '</span>'
+    ].join('');
+    btn.addEventListener('click', function() { window.toggleAGUSPush(); });
+
+    // Insert into top-menu-bar (same row as other top cards)
+    var bar = document.getElementById('top-menu-bar');
+    if (bar) {
+      // Put it before the last child (usually dark-mode button or last card)
+      var lastChild = bar.lastElementChild;
+      bar.insertBefore(btn, lastChild);
+    }
+  }
+
+  /* ── Auto-init if already enabled from a previous session ── */
+  function _autoInit() {
+    _renderPushBtn();
+    if (_pushEnabled && Notification.permission === 'granted') {
+      _registerSW();
+    }
+    // Re-send token to SW whenever user logs in (token changes)
+    var _origLogin = window.login;
+    if (typeof _origLogin === 'function') {
+      window.login = function() {
+        var r = _origLogin.apply(this, arguments);
+        // After login, send updated token to SW
+        setTimeout(function() {
+          if (_swReg) _sendConfigToSW(_swReg);
+        }, 2000);
+        return r;
+      };
+    }
+    // Also update device states snapshot every time dashboard refreshes
+    var _origUpdate = window.updateDashboard;
+    window.updateDashboard = function() {
+      var r = (_origUpdate || function(){}).apply(this, arguments);
+      // Persist device states so SW can compare on next poll
+      if (window._lastDevices) {
+        var snap = {};
+        window._lastDevices.forEach(function(d) {
+          snap[d.device] = { status: d.status, relay: d.relay };
+        });
+        _prevDevStates = snap;
+        localStorage.setItem(PUSH_STATES_KEY, JSON.stringify(snap));
+      }
+      return r;
+    };
+  }
+
+  // Run after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _autoInit);
+  } else {
+    setTimeout(_autoInit, 500);
+  }
+
 })();
 </script>
 
