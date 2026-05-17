@@ -1771,6 +1771,9 @@
           <div class="top-card grp-data" data-tab="pressure-logger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
           <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
           <div class="top-card grp-data" data-tab="benchmark" onclick="openBenchmark()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmark</span></div>
+          <div class="top-card grp-data" onclick="openSummaryReport()" title="Daily/Weekly/Monthly summary totals per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/><path d="M7 13h2M7 17h2M13 13h4M13 17h4"/></svg><span>Summary</span></div>
+          <div class="top-card grp-data" onclick="openHeatmap()" title="24-hour demand heatmap by hour × day-of-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="4" height="4" rx="1"/><rect x="10" y="3" width="4" height="4" rx="1"/><rect x="17" y="3" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="17" y="10" width="4" height="4" rx="1"/><rect x="3" y="17" width="4" height="4" rx="1"/><rect x="10" y="17" width="4" height="4" rx="1"/><rect x="17" y="17" width="4" height="4" rx="1"/></svg><span>Heatmap</span></div>
+          <div class="top-card grp-data" onclick="openCorrelation()" title="Cross-device correlation — pump relay vs downstream sensors"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M3 3l7 7M21 21l-7-7M14 3h7v7M10 21H3v-7"/></svg><span>Correlation</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1780,8 +1783,8 @@
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
-          <div class="top-card grp-ctrl" data-tab="Pump/Motor Efficiency"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
-          <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLoss()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
+          <div class="top-card grp-ctrl" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
+          <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
           <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
         </div>
       </div>
@@ -1817,6 +1820,14 @@
         <div class="nav-group-label">System</div>
         <div class="nav-group-cards">
           <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+          <div class="top-card grp-sys" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
+            <span>Alert Thr.</span>
+          </div>
+          <div id="push-notif-btn" onclick="toggleAGUSPush()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;padding:6px 4px;border-radius:12px;cursor:pointer;background:rgba(239,68,68,0.10);border:1.5px solid rgba(239,68,68,0.25);transition:background 0.18s;" title="Push notifications OFF — tap to enable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
+            <span style="font-size:7.5px;font-weight:800;color:#dc2626;">PUSH OFF</span>
+          </div>
           <div class="top-card grp-sys" id="pwa-install-btn" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
             <span id="pwa-btn-label">Install App</span>
@@ -2055,6 +2066,78 @@
     <div id="rs-footer">
       <button id="rs-cancel-btn" onclick="closeReservoirSettings()">Cancel</button>
       <button id="rs-save-btn" onclick="saveReservoirRange()">💾 Save Settings</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════════════
+     SENSOR THRESHOLD SETTINGS MODAL
+     ══════════════════════════════════════════════════════════ -->
+<div id="sensor-thr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,15,40,0.75);z-index:8500;overflow-y:auto;-webkit-overflow-scrolling:touch;">
+  <div id="sensor-thr-inner" style="background:#fff;border-radius:20px;max-width:500px;width:94%;margin:28px auto;padding:0 0 24px;box-shadow:0 8px 48px rgba(0,40,100,0.22);overflow:hidden;">
+    <div style="background:linear-gradient(135deg,#004080,#0077cc);padding:20px 22px 16px;display:flex;align-items:center;justify-content:space-between;">
+      <div>
+        <div style="color:#fff;font-weight:800;font-size:17px;">🔔 Push Alert Thresholds</div>
+        <div id="sensor-thr-subtitle" style="color:rgba(255,255,255,0.75);font-size:12px;margin-top:3px;">All Devices (global defaults)</div>
+      </div>
+      <button onclick="closeSensorThr()" style="background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;">✕ Close</button>
+    </div>
+    <div style="padding:18px 22px 0;">
+      <!-- Device selector -->
+      <div style="margin-bottom:16px;">
+        <label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Device</label>
+        <select id="sensor-thr-device" onchange="loadSensorThrDevice()" style="width:100%;margin-top:6px;padding:9px 12px;border:1.5px solid #cbd5e1;border-radius:10px;font-size:13px;font-weight:600;color:#1e293b;background:#f8fafc;">
+          <option value="__global__">⚙️ Global defaults (all devices)</option>
+        </select>
+      </div>
+      <!-- Grid of sensor inputs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="sensor-thr-grid">
+        <!-- Water Level -->
+        <div style="grid-column:1/-1;background:#eff6ff;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#1e40af;margin-bottom:8px;">💧 Water Level (m³)</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;"><label style="font-size:10px;color:#64748b;">Min (Low Alarm)</label><input id="thr-wl-min" type="number" step="1" placeholder="20" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:13px;font-weight:600;"></div>
+            <div style="flex:1;"><label style="font-size:10px;color:#64748b;">Max (Full Alarm)</label><input id="thr-wl-max" type="number" step="1" placeholder="250" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #bfdbfe;border-radius:8px;font-size:13px;font-weight:600;"></div>
+          </div>
+        </div>
+        <!-- Pressure -->
+        <div style="background:#fff7ed;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#c2410c;margin-bottom:8px;">🔴 Pressure (psi)</div>
+          <label style="font-size:10px;color:#64748b;">Min</label><input id="thr-psi-min" type="number" step="0.1" placeholder="20" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fed7aa;border-radius:8px;font-size:13px;font-weight:600;">
+          <label style="font-size:10px;color:#64748b;margin-top:6px;display:block;">Max</label><input id="thr-psi-max" type="number" step="0.1" placeholder="80" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fed7aa;border-radius:8px;font-size:13px;font-weight:600;">
+        </div>
+        <!-- Flow / LPS -->
+        <div style="background:#f0fdf4;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#15803d;margin-bottom:8px;">💦 Flow Rate (L/s)</div>
+          <label style="font-size:10px;color:#64748b;">Min (pump ON)</label><input id="thr-fl-min" type="number" step="0.1" placeholder="0.5" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:13px;font-weight:600;">
+          <label style="font-size:10px;color:#64748b;margin-top:6px;display:block;">Max</label><input id="thr-fl-max" type="number" step="0.1" placeholder="50" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #bbf7d0;border-radius:8px;font-size:13px;font-weight:600;">
+        </div>
+        <!-- Voltage -->
+        <div style="background:#fefce8;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#a16207;margin-bottom:8px;">⚡ Voltage (V)</div>
+          <label style="font-size:10px;color:#64748b;">Min</label><input id="thr-vt-min" type="number" step="1" placeholder="210" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fde68a;border-radius:8px;font-size:13px;font-weight:600;">
+          <label style="font-size:10px;color:#64748b;margin-top:6px;display:block;">Max</label><input id="thr-vt-max" type="number" step="1" placeholder="240" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fde68a;border-radius:8px;font-size:13px;font-weight:600;">
+        </div>
+        <!-- Current -->
+        <div style="background:#fdf4ff;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#7e22ce;margin-bottom:8px;">⚡ Current (A)</div>
+          <label style="font-size:10px;color:#64748b;">Min (pump ON)</label><input id="thr-am-min" type="number" step="0.1" placeholder="0" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e9d5ff;border-radius:8px;font-size:13px;font-weight:600;">
+          <label style="font-size:10px;color:#64748b;margin-top:6px;display:block;">Max</label><input id="thr-am-max" type="number" step="0.1" placeholder="30" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #e9d5ff;border-radius:8px;font-size:13px;font-weight:600;">
+        </div>
+        <!-- Power -->
+        <div style="grid-column:1/-1;background:#fff1f2;border-radius:12px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:12px;color:#be123c;margin-bottom:8px;">🔌 Power (W)</div>
+          <div style="display:flex;gap:8px;">
+            <div style="flex:1;"><label style="font-size:10px;color:#64748b;">Min</label><input id="thr-pw-min" type="number" step="10" placeholder="0" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fecdd3;border-radius:8px;font-size:13px;font-weight:600;"></div>
+            <div style="flex:1;"><label style="font-size:10px;color:#64748b;">Max</label><input id="thr-pw-max" type="number" step="10" placeholder="15000" style="width:100%;margin-top:3px;padding:7px 10px;border:1.5px solid #fecdd3;border-radius:8px;font-size:13px;font-weight:600;"></div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:10px;">
+        <button onclick="resetSensorThr()" style="flex:1;background:#f1f5f9;border:1.5px solid #cbd5e1;color:#475569;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">↺ Reset to Defaults</button>
+        <button onclick="saveSensorThr()" style="flex:2;background:linear-gradient(135deg,#004080,#0077cc);color:#fff;border:none;border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer;">💾 Save Thresholds</button>
+      </div>
     </div>
   </div>
 </div>
@@ -5100,8 +5183,22 @@ function generateAIReport() {
 // ============================================================
 // Module 1: Enhanced Anomaly Detection (adaptive EWMA + trend-aware)
 // ============================================================
-var anomalyState = {};
 var ANOMALY_WINDOW = 30;
+var anomalyState = (function(){
+  try { return JSON.parse(localStorage.getItem('agus_anomaly_state') || '{}'); } catch(e) { return {}; }
+})();
+function _saveAnomalyState() {
+  try {
+    var snap = {};
+    Object.keys(anomalyState).forEach(function(k) {
+      var s = anomalyState[k];
+      snap[k] = { values: s.values.slice(-20), ema: s.ema, emaVariance: s.emaVariance,
+        alpha: s.alpha, prevValue: s.prevValue, trendCount: s.trendCount,
+        baseline: s.baseline, baselineStd: s.baselineStd };
+    });
+    localStorage.setItem('agus_anomaly_state', JSON.stringify(snap));
+  } catch(e) {}
+}
 function detectAnomaly(deviceName, value) {
   if (isNaN(value)) return { anomaly: false, zscore: 0, direction: null, type: null };
   if (!anomalyState[deviceName]) {
@@ -5160,7 +5257,7 @@ function detectAnomaly(deviceName, value) {
     else type = 'deviation';
   }
 
-  return {
+  var result = {
     anomaly: z > adaptiveThreshold,
     zscore: z.toFixed(2),
     direction: dir,
@@ -5169,6 +5266,8 @@ function detectAnomaly(deviceName, value) {
     adaptiveThreshold: adaptiveThreshold.toFixed(2),
     trendStrength: s.trendCount
   };
+  if (result.anomaly) _saveAnomalyState();
+  return result;
 }
 function injectAnomalyBadge(li, deviceName, reading, isReservoir) {
   var result = detectAnomaly(deviceName + (isReservoir ? ':level' : ':pressure'), parseFloat(reading));
@@ -5268,13 +5367,16 @@ function computeForecast(rows, key) {
     return (avg.sum / avg.count) / globalMean;
   }
   var FORECAST_STEPS = 48;
-  var result = new Array(rows.length).fill(null);
+  // Extend PAST the data: null for history, values for future
+  var result = new Array(rows.length + FORECAST_STEPS).fill(null);
+  var baseWMA = wma(vals, rows.length - 1);
+  if (baseWMA === null) return result;
   for (var i = 0; i < FORECAST_STEPS; i++) {
-    var baseIdx = rows.length - 1 - i;
-    var base = wma(vals, baseIdx);
-    if (base === null) continue;
-    var sf = seasonalFactor(rows[rows.length - 1 - i]);
-    result[rows.length - FORECAST_STEPS + i] = parseFloat((base * sf).toFixed(3));
+    var futureHourIdx = rows.length + i;
+    // Seasonality: use the same hour-of-week pattern from historical data
+    var refRowIdx = Math.max(0, rows.length - FORECAST_STEPS + i);
+    var sf = seasonalFactor(rows[refRowIdx]);
+    result[futureHourIdx] = parseFloat((baseWMA * sf).toFixed(3));
   }
   return result;
 }
@@ -5286,15 +5388,37 @@ function injectForecastDataset() {
   if (!key) return;
   var forecast = computeForecast(data, key);
   if (!forecast || !forecast.some(function(v){return v!==null;})) return;
+  // Extend chart labels for the future forecast points
+  var FORECAST_STEPS = 48;
+  var existingLabels = myChart.data.labels || [];
+  var lastLabel = existingLabels[existingLabels.length - 1] || '';
+  var extendedLabels = existingLabels.slice();
+  var lastDate = new Date(lastLabel);
+  for (var i = 1; i <= FORECAST_STEPS; i++) {
+    if (!isNaN(lastDate.getTime())) {
+      var nd = new Date(lastDate.getTime() + i * 15 * 60000);
+      extendedLabels.push(nd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+    } else {
+      extendedLabels.push('+'+ i*15 +'m');
+    }
+  }
+  myChart.data.labels = extendedLabels;
+  // Pad existing datasets with nulls for the future slots
+  myChart.data.datasets.forEach(function(ds) {
+    if (ds.label !== 'AI Forecast') {
+      while (ds.data.length < extendedLabels.length) ds.data.push(null);
+    }
+  });
   myChart.data.datasets.push({
     label: 'AI Forecast',
     data: forecast,
-    borderColor: 'rgba(245,158,11,0.85)',
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderDash: [6, 4],
+    borderColor: 'rgba(245,158,11,0.9)',
+    backgroundColor: 'rgba(245,158,11,0.07)',
+    borderWidth: 2.5,
+    borderDash: [7, 4],
     pointRadius: 0,
     pointHoverRadius: 5,
+    fill: true,
     tension: 0.4,
     spanGaps: false,
     yAxisID: 'yLeft'
@@ -5550,7 +5674,7 @@ function aggregateEnergyStats(deviceName, rows) {
   var keys = Object.keys(rows[0]);
   var flowK = keys.find(function(k){return /flowrate|flow/i.test(k);});
   var powerK = keys.find(function(k){return /^power/i.test(k);});
-  var energyK = keys.find(function(k){return /energy/i.test(k);});
+  var energyK = keys.find(function(k){return /energy|kwh|kw.h/i.test(k);});
   var timeK = keys.find(function(k){return /time|date|timestamp/i.test(k);}) || keys[0];
   var totalEnergy = 0, peakPower = 0, lowFlowEvents = 0, highPowerEvents = 0;
   var hourBuckets = new Array(24).fill(0).map(function() { return { energy: 0, count: 0 }; });
@@ -5573,7 +5697,11 @@ function openEnergyAdvisor() {
   var old = document.getElementById('energy-advisor-overlay'); if (old) old.remove();
   apiCached('getDashboardData').then(function(devices) {
     if (!devices || !devices.length) { showNotification('Unable to load device data.', 'error'); return; }
-    var pumpDevices = devices.filter(function(d) { return (d.device||'').toLowerCase().includes('pumping station'); });
+    var pumpDevices = devices.filter(function(d) {
+      var n = (d.device||'').toLowerCase(), t = (d.type||'').toLowerCase();
+      return n.includes('pump') || n.includes('booster') || t.includes('pump') ||
+             (d.relay !== undefined && d.flow !== undefined && d.power !== undefined);
+    });
     if (!pumpDevices.length) { showNotification('No pumping station devices found.', 'info'); return; }
     var overlay = document.createElement('div');
     overlay.id = 'energy-advisor-overlay';
@@ -8097,417 +8225,1200 @@ function exportDashboardPDF() {
 })();
 
 // ============================================================
-// AGUS WEB PUSH NOTIFICATIONS
-// Works when tab is in background, phone screen is on another
-// app, AND (when PWA installed on Android) when browser is closed.
+// AGUS PUSH NOTIFICATIONS — Tab-open + PWA background
+// Works on: Android Chrome PWA, any tab in background
 // ============================================================
 (function initAGUSPush() {
   'use strict';
 
-  /* ── Config ─────────────────────────────────────────────── */
-  var PUSH_STORAGE_KEY   = 'agus_push_enabled';
-  var PUSH_STATES_KEY    = 'agus_push_dev_states';
-  var PUSH_DEBOUNCE_KEY  = 'agus_push_debounce';
-  var POLL_INTERVAL_MS   = 60000;   // background SW polls every 60 s
-  var NOTIF_COOLDOWN_MS  = 300000;  // same event suppressed for 5 min
+  /* ── Constants ─────────────────────────────────────────── */
+  var PUSH_KEY      = 'agus_push_enabled';
+  var STATES_KEY    = 'agus_push_states';
+  var DEDUP_KEY     = 'agus_push_dedup';
+  var COOLDOWN      = 300000;   // 5 min per event key
+  var POLL_MS       = 30000;    // in-page poll every 30 s
 
-  /* ── Internal state ──────────────────────────────────────── */
-  var _swReg          = null;
-  var _pushEnabled    = localStorage.getItem(PUSH_STORAGE_KEY) === '1';
-  var _debounce       = JSON.parse(localStorage.getItem(PUSH_DEBOUNCE_KEY) || '{}');
-  var _prevDevStates  = JSON.parse(localStorage.getItem(PUSH_STATES_KEY)  || '{}');
+  /* ── State ─────────────────────────────────────────────── */
+  var _on     = localStorage.getItem(PUSH_KEY) === '1';
+  var _swReg  = null;
+  var _dedup  = {};                                          // { key: timestamp }
+  var _prev   = JSON.parse(localStorage.getItem(STATES_KEY) || '{}');
+  try { _dedup = JSON.parse(localStorage.getItem(DEDUP_KEY) || '{}'); } catch(e){}
 
-  /* ── Debounce helper ─────────────────────────────────────── */
-  function _canFire(key) {
+  /* ── Dedup helper ───────────────────────────────────────── */
+  function _can(key) {
     var now = Date.now();
-    if (_debounce[key] && now - _debounce[key] < NOTIF_COOLDOWN_MS) return false;
-    _debounce[key] = now;
-    localStorage.setItem(PUSH_DEBOUNCE_KEY, JSON.stringify(_debounce));
+    if (_dedup[key] && now - _dedup[key] < COOLDOWN) return false;
+    _dedup[key] = now;
+    try { localStorage.setItem(DEDUP_KEY, JSON.stringify(_dedup)); } catch(e){}
     return true;
   }
 
-  /* ── Show a native OS notification ──────────────────────── */
-  function _native(title, body, opts) {
-    if (Notification.permission !== 'granted') return;
-    var options = Object.assign({
+  /* ── Fire a native OS notification ─────────────────────── */
+  function _fire(title, body, tag, urgent) {
+    if (!_on || Notification.permission !== 'granted') return;
+    if (!_can(tag)) return;
+    var opts = {
       body: body,
-      requireInteraction: false,
-      vibrate: [200, 100, 200],
-      badge: 'https://img.icons8.com/color/48/water.png',
-      icon:  'https://img.icons8.com/color/96/water.png'
-    }, opts || {});
-
-    if (_swReg) {
-      _swReg.showNotification(title, options);
-    } else if ('Notification' in window) {
-      new Notification(title, options);
+      tag: tag,
+      requireInteraction: !!urgent,
+      vibrate: urgent ? [400,150,400,150,400] : [200,100,200],
+      icon:  'https://img.icons8.com/color/96/water.png',
+      badge: 'https://img.icons8.com/color/48/water.png'
+    };
+    if (_swReg && _swReg.showNotification) {
+      _swReg.showNotification(title, opts);
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      try { new Notification(title, opts); } catch(e){}
     }
   }
-
-  /* ── Patch showNotification to also fire OS pop-ups ─────── */
-  var _origShowNotif = window.showNotification;
-  window.showNotification = function(msg, type) {
-    if (_origShowNotif) _origShowNotif.call(this, msg, type);
-    if (!_pushEnabled) return;
-    if (Notification.permission !== 'granted') return;
-    if (type !== 'error' && type !== 'warning') return;
-
-    var isError   = type === 'error';
-    var title     = isError ? '🚨 AGUS Critical Alert' : '🛑 AGUS Warning';
-    var tag       = 'agus-toast-' + msg.slice(0, 40);
-    if (!_canFire(tag)) return;
-
-    _native(title, msg, {
-      tag: tag,
-      requireInteraction: isError,
-      vibrate: isError ? [400, 150, 400, 150, 400] : [250, 100, 250]
-    });
-  };
-
-  /* ── Also fire push on auto-shutoff log entries ──────────── */
-  var _origAddLog = window._addAutoShutoffLog;
-  window._addAutoShutoffLog = function(entry) {
-    if (_origAddLog) _origAddLog.call(this, entry);
-    if (!_pushEnabled || Notification.permission !== 'granted') return;
-
-    var key, title, body, requireInteraction = true;
-    if (entry.action === 'AUTO-OFF' || entry.action === 'BACKUP-OFF') {
-      key   = 'shutoff:' + entry.pump;
-      title = '🛑 Reservoir Full — Pump OFF';
-      body  = (entry.pump || 'Pump') + ' turned OFF. ' + (entry.reservoir || 'Reservoir') +
-              ' reached ' + (entry.level ? Math.round(entry.level) : '?') + ' m³ (limit: ' + (entry.shutoffLevel || '?') + ' m³).';
-    } else if (entry.action === 'AUTO-RESUME' || entry.action === 'BACKUP-ON') {
-      key   = 'resume:' + entry.pump;
-      title = '✅ Reservoir Low — Pump ON';
-      body  = (entry.pump || 'Pump') + ' restarted. ' + (entry.reservoir || 'Reservoir') +
-              ' dropped to ' + (entry.level ? Math.round(entry.level) : '?') + ' m³.';
-      requireInteraction = false;
-    } else {
-      return;
-    }
-
-    if (!_canFire(key)) return;
-    _native(title, body, {
-      tag: key,
-      requireInteraction: requireInteraction,
-      vibrate: requireInteraction ? [400, 150, 400, 150, 400] : [200, 100, 200]
-    });
-  };
-
-  /* ── Alarm log hook — fire on new fault / offline entries ── */
-  var _origAddAlarm = window.addAlarmLogEntry;
-  window.addAlarmLogEntry = function(device, type, reading) {
-    if (_origAddAlarm) _origAddAlarm.call(this, device, type, reading);
-    if (!_pushEnabled || Notification.permission !== 'granted') return;
-
-    var key   = 'alarm:' + device + ':' + type;
-    if (!_canFire(key)) return;
-
-    var isF   = type === 'fault'   || (type||'').toLowerCase().includes('fault');
-    var isOff = type === 'offline' || (type||'').toLowerCase().includes('offline');
-    var isPres= (type||'').toLowerCase().includes('pressure');
-    var title = isF   ? '⚠️ AGUS Fault — ' + device
-              : isOff ? '📴 AGUS Offline — ' + device
-              : isPres? '📊 AGUS Pressure — ' + device
-              :         '🔔 AGUS Alert — ' + device;
-    var body  = type + (reading ? ' · ' + reading : '') + ' detected on ' + device + '.';
-
-    _native(title, body, {
-      tag: key,
-      requireInteraction: isF || isOff,
-      vibrate: isF ? [400, 200, 400, 200, 400] : [200, 100, 200]
-    });
-  };
 
   /* ══════════════════════════════════════════════════════════
-     SERVICE WORKER (via Blob URL)
-     Polls GAS independently — fires even when tab is hidden
-     or phone is on another app. On installed Android PWA it
-     persists even longer via Periodic Background Sync.
+     CORE: hook directly into updateDeviceList's data so we
+     catch EVERY poll result — no fragile patch chains.
      ══════════════════════════════════════════════════════════ */
-  var SW_CODE = [
-    '"use strict";',
-    'var _cfg = {};',
-    'var _prevStates = {};',
-    'var _debounce = {};',
-    'var COOLDOWN = 300000;',
-    'var _pollTimer = null;',
+  /* ── Default thresholds when none are configured per device ── */
+  var _DEF = {
+    minPsi: 20,  maxPsi: 80,
+    minLevel: 20, maxLevel: 250,
+    minVolt: 210, maxVolt: 240,
+    minCurrent: 0, maxCurrent: 30,
+    minFlow: 0.5, maxFlow: 50,
+    minPower: 0, maxPower: 15000
+  };
 
-    'self.addEventListener("install",  function(){ self.skipWaiting(); });',
-    'self.addEventListener("activate", function(e){ e.waitUntil(self.clients.claim()); });',
+  /* ── Per-device custom thresholds saved from settings UI ──── */
+  /* Stored as: agus_sensor_thr = { "DeviceName": { minVolt:210, maxVolt:240, ... } } */
+  var _customThr = {};
+  try { _customThr = JSON.parse(localStorage.getItem('agus_sensor_thr') || '{}'); } catch(e){}
 
-    /* message from page */
-    'self.addEventListener("message", function(e) {',
-    '  var d = e.data; if (!d) return;',
-    '  if (d.type === "AGUS_CONFIG") {',
-    '    _cfg = d.config || {};',
-    '    _prevStates = d.prevStates || {};',
-    '    startPolling();',
-    '  }',
-    '  if (d.type === "AGUS_PING") { startPolling(); }',   /* keepalive */
-    '  if (d.type === "AGUS_NOTIFY") {',
-    '    self.registration.showNotification(d.title, d.options || {});',
-    '  }',
-    '});',
-
-    /* periodic background sync (Android PWA) */
-    'self.addEventListener("periodicsync", function(e) {',
-    '  if (e.tag === "agus-poll") { e.waitUntil(doPoll()); }',
-    '});',
-
-    /* notification click — open dashboard */
-    'self.addEventListener("notificationclick", function(e) {',
-    '  e.notification.close();',
-    '  e.waitUntil(',
-    '    self.clients.matchAll({ type:"window", includeUncontrolled:true }).then(function(list) {',
-    '      for (var i=0;i<list.length;i++) {',
-    '        var c = list[i];',
-    '        if (c.url && c.focus) return c.focus();',
-    '      }',
-    '      if (self.clients.openWindow) return self.clients.openWindow(_cfg.dashUrl || "/");',
-    '    })',
-    '  );',
-    '});',
-
-    /* polling */
-    'function startPolling() {',
-    '  if (_pollTimer) clearInterval(_pollTimer);',
-    '  _pollTimer = setInterval(function(){ doPoll(); }, 60000);',
-    '  doPoll();',
-    '}',
-
-    'function canFire(key) {',
-    '  var now = Date.now();',
-    '  if (_debounce[key] && now - _debounce[key] < COOLDOWN) return false;',
-    '  _debounce[key] = now;',
-    '  return true;',
-    '}',
-
-    'function notify(title, body, tag, urgent) {',
-    '  return self.registration.showNotification(title, {',
-    '    body: body,',
-    '    tag: tag,',
-    '    requireInteraction: !!urgent,',
-    '    vibrate: urgent ? [400,150,400,150,400] : [200,100,200],',
-    '    icon:  "https://img.icons8.com/color/96/water.png",',
-    '    badge: "https://img.icons8.com/color/48/water.png"',
-    '  });',
-    '}',
-
-    'async function doPoll() {',
-    '  if (!_cfg.apiUrl || !_cfg.token) return;',
-    '  var p = [];',
-    '  try {',
-    '    var url = _cfg.apiUrl + "?action=getDashboardData&token=" + encodeURIComponent(_cfg.token);',
-    '    var res = await fetch(url);',
-    '    if (!res.ok) return;',
-    '    var devices = await res.json();',
-    '    if (!Array.isArray(devices)) return;',
-
-    '    var faults=[], offline=[], shutoffs=[], resumes=[];',
-    '    devices.forEach(function(d) {',
-    '      var name = d.device || "";',
-    '      var st   = d.status || "";',
-    '      var prev = _prevStates[name] || {};',
-
-    '      if (st==="Fault"   && prev.status !== "Fault")   faults.push(name);',
-    '      if (st==="Offline" && prev.status === "Online")  offline.push(name);',
-
-    /* relay change detection */
-    '      var relay = parseInt(d.relay);',
-    '      var prel  = parseInt(prev.relay);',
-    '      if (!isNaN(relay) && !isNaN(prel) && relay !== prel) {',
-    '        var isPump = name.toLowerCase().includes("pumping") || name.toLowerCase().includes("pump");',
-    '        if (isPump && relay===0 && prel===1) shutoffs.push(name);',
-    '        if (isPump && relay===1 && prel===0) resumes.push(name);',
-    '      }',
-
-    '      _prevStates[name] = { status: st, relay: relay };',
-    '    });',
-
-    '    if (faults.length && canFire("sw-fault-"+faults.join(","))) {',
-    '      p.push(notify("⚠️ AGUS — Device Fault", faults.join(", ")+" detected fault!", "agus-fault", true));',
-    '    }',
-    '    if (offline.length && canFire("sw-offline-"+offline.join(","))) {',
-    '      p.push(notify("📴 AGUS — Device Offline", offline.join(", ")+" went offline.", "agus-offline", true));',
-    '    }',
-    '    if (shutoffs.length && canFire("sw-shutoff-"+shutoffs.join(","))) {',
-    '      p.push(notify("🛑 AGUS — Pump Auto-OFF", shutoffs.join(", ")+" turned OFF (reservoir full).", "agus-shutoff", true));',
-    '    }',
-    '    if (resumes.length && canFire("sw-resume-"+resumes.join(","))) {',
-    '      p.push(notify("✅ AGUS — Pump Resumed", resumes.join(", ")+" turned back ON.", "agus-resume", false));',
-    '    }',
-    '  } catch(err) {}',
-    '  return Promise.all(p);',
-    '}'
-  ].join('\n');
-
-  /* ── Register the SW ──────────────────────────────────────── */
-  function _registerSW() {
-    if (!('serviceWorker' in navigator)) return;
-    var blob   = new Blob([SW_CODE], { type: 'application/javascript' });
-    var swUrl  = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(swUrl)
-      .then(function(reg) {
-        _swReg = reg;
-        // Send config once SW is active
-        _sendConfigToSW(reg);
-        // Periodic Background Sync (installed PWA on Android Chrome)
-        if (reg.periodicSync) {
-          reg.periodicSync.register('agus-poll', { minInterval: 15 * 60 * 1000 })
-            .catch(function() {}); // silently ignore if not available
-        }
-        // Keepalive: ping SW every 55 s so the setInterval keeps running
-        setInterval(function() {
-          var sw = reg.active;
-          if (sw) sw.postMessage({ type: 'AGUS_PING' });
-        }, 55000);
-      })
-      .catch(function() {}); // silently ignore unsupported environments
+  function _thr(name) {
+    var ps  = (window.pressureSettingsCache  || {})[name] || {};
+    var res = (window.reservoirThresholdsCache || {})[name] || {};
+    var cus = _customThr[name] || {};
+    return {
+      minPsi:     cus.minPsi     != null ? +cus.minPsi     : (ps.minPsi  != null ? +ps.minPsi  : _DEF.minPsi),
+      maxPsi:     cus.maxPsi     != null ? +cus.maxPsi     : (ps.maxPsi  != null ? +ps.maxPsi  : _DEF.maxPsi),
+      minLevel:   cus.minLevel   != null ? +cus.minLevel   : (res.minLevel != null ? +res.minLevel : _DEF.minLevel),
+      maxLevel:   cus.maxLevel   != null ? +cus.maxLevel   : (res.maxLevel != null ? +res.maxLevel : _DEF.maxLevel),
+      minVolt:    cus.minVolt    != null ? +cus.minVolt    : _DEF.minVolt,
+      maxVolt:    cus.maxVolt    != null ? +cus.maxVolt    : _DEF.maxVolt,
+      minCurrent: cus.minCurrent != null ? +cus.minCurrent : _DEF.minCurrent,
+      maxCurrent: cus.maxCurrent != null ? +cus.maxCurrent : _DEF.maxCurrent,
+      minFlow:    cus.minFlow    != null ? +cus.minFlow    : _DEF.minFlow,
+      maxFlow:    cus.maxFlow    != null ? +cus.maxFlow    : _DEF.maxFlow,
+      minPower:   cus.minPower   != null ? +cus.minPower   : _DEF.minPower,
+      maxPower:   cus.maxPower   != null ? +cus.maxPower   : _DEF.maxPower
+    };
   }
 
-  function _sendConfigToSW(reg) {
-    function _doSend() {
+  function _checkDevices(devices) {
+    if (!_on || Notification.permission !== 'granted') return;
+    devices.forEach(function(d) {
+      var name = d.device || '';
+      var st   = d.status  || '';
+      var prev = _prev[name] || {};
+      var t    = _thr(name);
+
+      /* ── Device status ─────────────────────────────────────── */
+      if ((st === 'Fault' || d.button) && prev.status !== 'Fault') {
+        _fire('⚠️ Device Fault — ' + name,
+              name + ' is reporting a FAULT. Immediate attention required.',
+              'fault:' + name, true);
+      }
+      if (st === 'Offline' && prev.status === 'Online') {
+        _fire('📴 Device Offline — ' + name,
+              name + ' went offline. Check device connection.',
+              'offline:' + name, true);
+      }
+      if (st === 'Online' && (prev.status === 'Fault' || prev.status === 'Offline')) {
+        _fire('✅ Device Recovered — ' + name,
+              name + ' is back online.',
+              'online:' + name, false);
+      }
+
+      /* ── Water Level (m³) ─────────────────────────────────── */
+      var lv = parseFloat(d.level);
+      if (!isNaN(lv)) {
+        if (lv >= t.maxLevel && (prev.lv == null || prev.lv < t.maxLevel))
+          _fire('🚰 Reservoir Full — ' + name,
+                name + ' reached ' + lv.toFixed(1) + ' m³ (max: ' + t.maxLevel + ' m³). Pump may shut off.',
+                'wl-high:' + name, true);
+        if (lv <= t.minLevel && (prev.lv == null || prev.lv > t.minLevel))
+          _fire('💧 Low Water Level — ' + name,
+                name + ' dropped to ' + lv.toFixed(1) + ' m³ (min: ' + t.minLevel + ' m³). Check supply.',
+                'wl-low:' + name, true);
+      }
+
+      /* ── Pressure (psi) ───────────────────────────────────── */
+      var psi = parseFloat(d.pressure);
+      if (!isNaN(psi)) {
+        if (psi > t.maxPsi && (prev.psi == null || prev.psi <= t.maxPsi))
+          _fire('🔴 High Pressure — ' + name,
+                name + ': ' + psi.toFixed(1) + ' psi exceeds max (' + t.maxPsi + ' psi). Check for blockage.',
+                'psi-high:' + name, true);
+        if (psi < t.minPsi && psi > 0 && (prev.psi == null || prev.psi >= t.minPsi))
+          _fire('🟠 Low Pressure — ' + name,
+                name + ': ' + psi.toFixed(1) + ' psi below min (' + t.minPsi + ' psi). Check pump operation.',
+                'psi-low:' + name, true);
+      }
+
+      /* ── Flow Rate / LPS ──────────────────────────────────── */
+      var flow = parseFloat(d.flow);
+      if (!isNaN(flow) && d.relay == 1) {
+        if (flow > t.maxFlow && (prev.flow == null || prev.flow <= t.maxFlow))
+          _fire('💦 High Flow Rate — ' + name,
+                name + ': ' + flow.toFixed(2) + ' L/s exceeds max (' + t.maxFlow + ' L/s). Possible pipe burst.',
+                'flow-high:' + name, true);
+        if (flow < t.minFlow && flow >= 0 && (prev.flow == null || prev.flow >= t.minFlow))
+          _fire('⚠️ Low Flow Rate — ' + name,
+                name + ': ' + flow.toFixed(2) + ' L/s below min (' + t.minFlow + ' L/s) while pump is ON. Check for blockage.',
+                'flow-low:' + name, true);
+      }
+
+      /* ── Voltage (V) ──────────────────────────────────────── */
+      var volt = parseFloat(d.voltage);
+      if (!isNaN(volt) && volt > 0) {
+        if (volt > t.maxVolt && (prev.volt == null || prev.volt <= t.maxVolt))
+          _fire('⚡ High Voltage — ' + name,
+                name + ': ' + volt.toFixed(1) + ' V exceeds max (' + t.maxVolt + ' V). Risk of equipment damage.',
+                'volt-high:' + name, true);
+        if (volt < t.minVolt && (prev.volt == null || prev.volt >= t.minVolt))
+          _fire('🔋 Low Voltage — ' + name,
+                name + ': ' + volt.toFixed(1) + ' V below min (' + t.minVolt + ' V). Possible power issue.',
+                'volt-low:' + name, true);
+      }
+
+      /* ── Current (A) ──────────────────────────────────────── */
+      var amp = parseFloat(d.current);
+      if (!isNaN(amp) && amp >= 0) {
+        if (amp > t.maxCurrent && (prev.amp == null || prev.amp <= t.maxCurrent))
+          _fire('⚡ Overcurrent — ' + name,
+                name + ': ' + amp.toFixed(2) + ' A exceeds max (' + t.maxCurrent + ' A). Possible motor overload.',
+                'amp-high:' + name, true);
+        if (amp < t.minCurrent && t.minCurrent > 0 && d.relay == 1 && (prev.amp == null || prev.amp >= t.minCurrent))
+          _fire('⚠️ Low Current — ' + name,
+                name + ': ' + amp.toFixed(2) + ' A below min (' + t.minCurrent + ' A) while running. Check motor.',
+                'amp-low:' + name, true);
+      }
+
+      /* ── Power (W) ────────────────────────────────────────── */
+      var pw = parseFloat(d.power);
+      if (!isNaN(pw) && pw >= 0) {
+        if (pw > t.maxPower && (prev.pw == null || prev.pw <= t.maxPower))
+          _fire('🔌 High Power — ' + name,
+                name + ': ' + pw.toFixed(0) + ' W exceeds max (' + t.maxPower + ' W). Check for abnormal load.',
+                'pw-high:' + name, true);
+      }
+
+      /* ── Save state snapshot ─────────────────────────────── */
+      _prev[name] = {
+        status: st, relay: d.relay,
+        lv: isNaN(lv) ? prev.lv : lv,
+        psi: isNaN(psi) ? prev.psi : psi,
+        flow: isNaN(flow) ? prev.flow : flow,
+        volt: isNaN(volt) ? prev.volt : volt,
+        amp: isNaN(amp) ? prev.amp : amp,
+        pw: isNaN(pw) ? prev.pw : pw
+      };
+    });
+    try { localStorage.setItem(STATES_KEY, JSON.stringify(_prev)); } catch(e){}
+  }
+
+  /* Patch updateDashboard to intercept device data */
+  var _origUD = window.updateDashboard;
+  window.updateDashboard = function() {
+    var result = (_origUD || function(){}).apply(this, arguments);
+    /* _lastDevices is set inside updateDashboard after apiGet resolves */
+    return result;
+  };
+
+  /* Also hook into the resolved data via apiGet — simpler: poll ourselves */
+  var _pollTimer = null;
+  function _startPagePoll() {
+    if (_pollTimer) clearInterval(_pollTimer);
+    _pollTimer = setInterval(function() {
+      if (!_on || Notification.permission !== 'granted') return;
+      if (typeof apiGet !== 'function') return;
+      apiGet('getDashboardData').then(function(devices) {
+        if (Array.isArray(devices)) _checkDevices(devices);
+      }).catch(function() {});
+    }, POLL_MS);
+  }
+
+  /* Also hook _lastDevices — fires each time updateDashboard gets data */
+  Object.defineProperty(window, '_lastDevices', {
+    configurable: true,
+    set: function(v) {
+      Object.defineProperty(window, '_lastDevices', {
+        configurable: true, writable: true, value: v
+      });
+      if (Array.isArray(v)) _checkDevices(v);
+    },
+    get: function() { return undefined; }
+  });
+
+  /* ══════════════════════════════════════════════════════════
+     SERVICE WORKER  — background poll (tab hidden / PWA)
+     Uses IndexedDB to persist config across SW restarts so
+     periodicSync continues working even after browser restart.
+     ══════════════════════════════════════════════════════════ */
+  var SW_SRC = '("use strict";' +
+  /* IndexedDB helpers */
+  'function dbOpen(){return new Promise(function(res,rej){' +
+  '  var r=indexedDB.open("agus_sw",1);' +
+  '  r.onupgradeneeded=function(e){e.target.result.createObjectStore("kv");};' +
+  '  r.onsuccess=function(e){res(e.target.result);};' +
+  '  r.onerror=function(e){rej(e);};' +
+  '});}' +
+  'function dbGet(db,k){return new Promise(function(res,rej){' +
+  '  var tx=db.transaction("kv","readonly"),r=tx.objectStore("kv").get(k);' +
+  '  r.onsuccess=function(){res(r.result);};r.onerror=rej;' +
+  '});}' +
+  'function dbSet(db,k,v){return new Promise(function(res,rej){' +
+  '  var tx=db.transaction("kv","readwrite"),r=tx.objectStore("kv").put(v,k);' +
+  '  r.onsuccess=res;r.onerror=rej;' +
+  '});}' +
+  /* Lifecycle */
+  'self.addEventListener("install",function(){self.skipWaiting();});' +
+  'self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim());});' +
+  /* Message from page — save config to IDB */
+  'self.addEventListener("message",function(e){' +
+  '  var d=e.data;if(!d)return;' +
+  '  if(d.type==="AGUS_CFG"){' +
+  '    dbOpen().then(function(db){' +
+  '      dbSet(db,"cfg",d.cfg);' +
+  '      if(d.prev)dbSet(db,"prev",d.prev);' +
+  '    });' +
+  '  }' +
+  '  if(d.type==="AGUS_NOTIFY"){' +
+  '    self.registration.showNotification(d.title,d.opts||{});' +
+  '  }' +
+  '});' +
+  /* Notification click */
+  'self.addEventListener("notificationclick",function(e){' +
+  '  e.notification.close();' +
+  '  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
+  '    for(var i=0;i<cs.length;i++){if(cs[i].focus)return cs[i].focus();}' +
+  '    if(self.clients.openWindow)return self.clients.openWindow("/");' +
+  '  }));' +
+  '});' +
+  /* Periodic background sync — wakes SW on Android PWA */
+  'self.addEventListener("periodicsync",function(e){' +
+  '  if(e.tag==="agus-bg")e.waitUntil(bgPoll());' +
+  '});' +
+  /* Dedup */
+  'var _dd={};var COOL=300000;' +
+  'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
+  /* Notify helper */
+  'function pop(title,body,tag,urgent){' +
+  '  return self.registration.showNotification(title,{' +
+  '    body:body,tag:tag,requireInteraction:!!urgent,' +
+  '    vibrate:urgent?[400,150,400,150,400]:[200,100,200],' +
+  '    icon:"https://img.icons8.com/color/96/water.png",' +
+  '    badge:"https://img.icons8.com/color/48/water.png"' +
+  '  });' +
+  '}' +
+  /* Background poll */
+  'async function bgPoll(){' +
+  '  try{' +
+  '    var db=await dbOpen();' +
+  '    var cfg=await dbGet(db,"cfg");' +
+  '    if(!cfg||!cfg.apiUrl||!cfg.token)return;' +
+  '    var prev=(await dbGet(db,"prev"))||{};' +
+  '    var url=cfg.apiUrl+"?action=getDashboardData&token="+encodeURIComponent(cfg.token);' +
+  '    var res=await fetch(url);' +
+  '    if(!res.ok)return;' +
+  '    var devs=await res.json();' +
+  '    if(!Array.isArray(devs))return;' +
+  '    var ps=[];' +
+  '    var DEF={minPsi:20,maxPsi:80,minLevel:20,maxLevel:250,minVolt:210,maxVolt:240,minCurrent:0,maxCurrent:30,minFlow:0.5,maxFlow:50,minPower:0,maxPower:15000};' +
+  '    var thr={};try{thr=cfg.thr||{};}catch(e){}' +
+  '    devs.forEach(function(d){' +
+  '      var n=d.device||"",st=d.status||"",p=prev[n]||{},t=Object.assign({},DEF,thr[n]||{});' +
+  '      if((st==="Fault"||d.button)&&p.status!=="Fault"&&can("fault:"+n))' +
+  '        ps.push(pop("⚠️ Fault — "+n,n+" FAULT detected. Immediate attention required.","fault:"+n,true));' +
+  '      if(st==="Offline"&&p.status==="Online"&&can("off:"+n))' +
+  '        ps.push(pop("📴 Offline — "+n,n+" went offline. Check connection.","off:"+n,true));' +
+  '      if(st==="Online"&&(p.status==="Fault"||p.status==="Offline")&&can("ok:"+n))' +
+  '        ps.push(pop("✅ Recovered — "+n,n+" is back online.","ok:"+n,false));' +
+  '      var lv=parseFloat(d.level);' +
+  '      if(!isNaN(lv)){' +
+  '        if(lv>=t.maxLevel&&(p.lv==null||p.lv<t.maxLevel)&&can("wl-hi:"+n))' +
+  '          ps.push(pop("🚰 Reservoir Full — "+n,n+" at "+lv.toFixed(1)+" m³ (max "+t.maxLevel+" m³). Pump may shut off.","wl-hi:"+n,true));' +
+  '        if(lv<=t.minLevel&&(p.lv==null||p.lv>t.minLevel)&&can("wl-lo:"+n))' +
+  '          ps.push(pop("💧 Low Water — "+n,n+" at "+lv.toFixed(1)+" m³ (min "+t.minLevel+" m³). Check supply.","wl-lo:"+n,true));' +
+  '      }' +
+  '      var psi=parseFloat(d.pressure);' +
+  '      if(!isNaN(psi)){' +
+  '        if(psi>t.maxPsi&&(p.psi==null||p.psi<=t.maxPsi)&&can("psi-hi:"+n))' +
+  '          ps.push(pop("🔴 High Pressure — "+n,n+": "+psi.toFixed(1)+" psi > "+t.maxPsi+" psi. Check for blockage.","psi-hi:"+n,true));' +
+  '        if(psi<t.minPsi&&psi>0&&(p.psi==null||p.psi>=t.minPsi)&&can("psi-lo:"+n))' +
+  '          ps.push(pop("🟠 Low Pressure — "+n,n+": "+psi.toFixed(1)+" psi < "+t.minPsi+" psi. Check pump.","psi-lo:"+n,true));' +
+  '      }' +
+  '      var fl=parseFloat(d.flow);' +
+  '      if(!isNaN(fl)&&d.relay==1){' +
+  '        if(fl>t.maxFlow&&(p.fl==null||p.fl<=t.maxFlow)&&can("fl-hi:"+n))' +
+  '          ps.push(pop("💦 High Flow — "+n,n+": "+fl.toFixed(2)+" L/s > "+t.maxFlow+" L/s. Possible pipe burst.","fl-hi:"+n,true));' +
+  '        if(fl<t.minFlow&&fl>=0&&(p.fl==null||p.fl>=t.minFlow)&&can("fl-lo:"+n))' +
+  '          ps.push(pop("⚠️ Low Flow — "+n,n+": "+fl.toFixed(2)+" L/s < "+t.minFlow+" L/s while pump ON.","fl-lo:"+n,true));' +
+  '      }' +
+  '      var vt=parseFloat(d.voltage);' +
+  '      if(!isNaN(vt)&&vt>0){' +
+  '        if(vt>t.maxVolt&&(p.vt==null||p.vt<=t.maxVolt)&&can("vt-hi:"+n))' +
+  '          ps.push(pop("⚡ High Voltage — "+n,n+": "+vt.toFixed(1)+" V > "+t.maxVolt+" V. Risk of damage.","vt-hi:"+n,true));' +
+  '        if(vt<t.minVolt&&(p.vt==null||p.vt>=t.minVolt)&&can("vt-lo:"+n))' +
+  '          ps.push(pop("🔋 Low Voltage — "+n,n+": "+vt.toFixed(1)+" V < "+t.minVolt+" V. Power issue.","vt-lo:"+n,true));' +
+  '      }' +
+  '      var am=parseFloat(d.current);' +
+  '      if(!isNaN(am)&&am>=0){' +
+  '        if(am>t.maxCurrent&&(p.am==null||p.am<=t.maxCurrent)&&can("am-hi:"+n))' +
+  '          ps.push(pop("⚡ Overcurrent — "+n,n+": "+am.toFixed(2)+" A > "+t.maxCurrent+" A. Motor overload!","am-hi:"+n,true));' +
+  '        if(am<t.minCurrent&&t.minCurrent>0&&d.relay==1&&(p.am==null||p.am>=t.minCurrent)&&can("am-lo:"+n))' +
+  '          ps.push(pop("⚠️ Low Current — "+n,n+": "+am.toFixed(2)+" A < "+t.minCurrent+" A while running.","am-lo:"+n,true));' +
+  '      }' +
+  '      var pw=parseFloat(d.power);' +
+  '      if(!isNaN(pw)&&pw>t.maxPower&&(p.pw==null||p.pw<=t.maxPower)&&can("pw-hi:"+n))' +
+  '        ps.push(pop("🔌 High Power — "+n,n+": "+pw.toFixed(0)+" W > "+t.maxPower+" W. Abnormal load.","pw-hi:"+n,true));' +
+  '      prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};' +
+  '    });' +
+  '    await dbSet(db,"prev",prev);' +
+  '    await Promise.all(ps);' +
+  '  }catch(err){}' +
+  '}' +
+  /* Also run on push event (for future server-push) */
+  'self.addEventListener("push",function(e){' +
+  '  e.waitUntil(bgPoll());' +
+  '});' +
+  ')();';
+
+  /* ── Register SW ─────────────────────────────────────────── */
+  function _registerSW() {
+    if (!('serviceWorker' in navigator)) return;
+    var blob = new Blob(['(' + SW_SRC], { type: 'application/javascript' });
+    var url  = URL.createObjectURL(blob);
+    navigator.serviceWorker.register(url)
+      .then(function(reg) {
+        _swReg = reg;
+        _sendCfg(reg);
+        /* Periodic background sync for installed PWA */
+        if (reg.periodicSync) {
+          navigator.permissions.query({ name: 'periodic-background-sync' })
+            .then(function(status) {
+              if (status.state === 'granted') {
+                reg.periodicSync.register('agus-bg', { minInterval: 15 * 60 * 1000 })
+                  .catch(function() {});
+              }
+            }).catch(function() {});
+        }
+      }).catch(function() {});
+  }
+
+  function _sendCfg(reg) {
+    function _do() {
       var sw = reg.active || reg.installing || reg.waiting;
       if (!sw) return;
       sw.postMessage({
-        type:       'AGUS_CONFIG',
-        config:     { apiUrl: API_URL, token: userToken, dashUrl: location.href },
-        prevStates: _prevDevStates
+        type: 'AGUS_CFG',
+        cfg:  {
+          apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
+          token:  (typeof userToken !== 'undefined' ? userToken : ''),
+          thr:    _customThr   // per-device threshold overrides
+        },
+        prev: _prev
       });
     }
-    if (reg.active) { _doSend(); return; }
-    // Wait for SW to activate
-    var pending = reg.installing || reg.waiting;
-    if (pending) {
-      pending.addEventListener('statechange', function() {
-        if (pending.state === 'activated') _doSend();
-      });
-    }
+    if (reg.active) { _do(); return; }
+    var p = reg.installing || reg.waiting;
+    if (p) p.addEventListener('statechange', function() { if (p.state === 'activated') _do(); });
   }
 
-  /* ── Request permission & init ────────────────────────────── */
-  function enablePush() {
+  /* Re-send config whenever token changes (login) */
+  function _watchToken() {
+    var _lastToken = typeof userToken !== 'undefined' ? userToken : '';
+    setInterval(function() {
+      var t = typeof userToken !== 'undefined' ? userToken : '';
+      if (t && t !== _lastToken) {
+        _lastToken = t;
+        if (_swReg) _sendCfg(_swReg);
+      }
+    }, 5000);
+  }
+
+  /* ── Permission + enable/disable ────────────────────────── */
+  function _enable() {
     if (!('Notification' in window)) {
-      showNotification('⚠ This browser does not support push notifications.', 'warning');
+      showNotification('⚠ Notifications not supported in this browser.', 'warning');
       return;
     }
     if (Notification.permission === 'granted') {
-      _pushEnabled = true;
-      localStorage.setItem(PUSH_STORAGE_KEY, '1');
+      _on = true;
+      localStorage.setItem(PUSH_KEY, '1');
       _registerSW();
-      _renderPushBtn();
-      showNotification('✅ Push notifications enabled!', 'success');
+      _startPagePoll();
+      _renderBtn();
+      _fire('✅ AGUS Notifications ON',
+            'You will receive fault, offline, and water level alerts.',
+            'push-test', false);
       return;
     }
-    Notification.requestPermission().then(function(perm) {
-      if (perm === 'granted') {
-        _pushEnabled = true;
-        localStorage.setItem(PUSH_STORAGE_KEY, '1');
+    Notification.requestPermission().then(function(p) {
+      if (p === 'granted') {
+        _on = true;
+        localStorage.setItem(PUSH_KEY, '1');
         _registerSW();
-        _renderPushBtn();
-        showNotification('✅ Push notifications enabled!', 'success');
+        _startPagePoll();
+        _renderBtn();
+        _fire('✅ AGUS Notifications ON',
+              'You will receive fault, offline, and water level alerts.',
+              'push-test', false);
       } else {
-        showNotification('⚠ Permission denied. Enable notifications in browser settings.', 'warning');
+        showNotification('⚠ Permission denied. Enable notifications in your browser/phone settings.', 'warning');
+        _showPermGuide();
       }
     });
   }
 
-  function disablePush() {
-    _pushEnabled = false;
-    localStorage.removeItem(PUSH_STORAGE_KEY);
-    _renderPushBtn();
+  function _disable() {
+    _on = false;
+    localStorage.removeItem(PUSH_KEY);
+    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
+    _renderBtn();
     showNotification('Push notifications disabled.', 'info');
   }
 
   window.toggleAGUSPush = function() {
-    if (_pushEnabled && Notification.permission === 'granted') disablePush();
-    else enablePush();
+    if (_on && Notification.permission === 'granted') _disable(); else _enable();
   };
 
-  /* ── Inject the push toggle button into the top menu ─────── */
-  function _renderPushBtn() {
-    var existing = document.getElementById('push-notif-btn');
-    if (existing) existing.remove();
+  /* ── Permission guide for users who blocked notifications ── */
+  function _showPermGuide() {
+    var isAndroid = /android/i.test(navigator.userAgent);
+    var isIOS     = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    var steps = isIOS
+      ? 'Go to <b>iPhone Settings → Apps → Safari → Notifications</b> → Allow'
+      : isAndroid
+      ? 'Tap the <b>🔒 lock icon</b> in Chrome address bar → Site settings → Notifications → Allow'
+      : 'Click the <b>🔒 lock icon</b> in the address bar → Notifications → Allow';
+    var ov = document.createElement('div');
+    ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,40,0.8);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    ov.innerHTML = '<div style="background:#fff;border-radius:16px;max-width:380px;width:92%;padding:28px 24px;text-align:center;">'
+      + '<div style="font-size:40px;margin-bottom:12px;">🔔</div>'
+      + '<div style="font-weight:800;font-size:16px;color:#004080;margin-bottom:8px;">Enable Notifications</div>'
+      + '<div style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:18px;">'+steps+'</div>'
+      + '<button onclick="this.closest(\'div[style]\').remove()" style="background:#004080;color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:14px;font-weight:700;cursor:pointer;">Got it</button>'
+      + '</div>';
+    ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+    document.body.appendChild(ov);
+  }
 
-    var btn = document.createElement('div');
-    btn.id = 'push-notif-btn';
-    var isOn = _pushEnabled && Notification.permission === 'granted';
-    btn.style.cssText = [
-      'display:flex', 'align-items:center', 'justify-content:center',
-      'flex-direction:column', 'gap:2px',
-      'min-width:54px', 'max-width:54px', 'width:54px',
-      'padding:6px 4px', 'border-radius:12px',
-      'cursor:pointer', 'transition:background 0.18s',
-      'background:' + (isOn ? 'rgba(34,197,94,0.13)' : 'rgba(239,68,68,0.10)'),
-      'border:1.5px solid ' + (isOn ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)')
-    ].join(';');
-    btn.title  = isOn ? 'Push ON — click to disable' : 'Push OFF — click to enable';
-    btn.innerHTML = [
+  /* ── Render push toggle button ───────────────────────────── */
+  function _renderBtn() {
+    var el = document.getElementById('push-notif-btn');
+    if (!el) return;
+    var isOn = _on && Notification.permission === 'granted';
+    el.style.background = isOn ? 'rgba(34,197,94,0.13)' : 'rgba(239,68,68,0.10)';
+    el.style.border = '1.5px solid ' + (isOn ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)');
+    el.title = isOn ? 'Push ON — tap to disable' : 'Push OFF — tap to enable';
+    el.innerHTML = [
       '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"',
-      ' stroke="' + (isOn ? '#22c55e' : '#ef4444') + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">',
+      ' stroke="' + (isOn ? '#22c55e' : '#ef4444') + '" stroke-width="2">',
       isOn
-        ? '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><circle cx="18" cy="6" r="4" fill="#22c55e" stroke="#22c55e"/>'
+        ? '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><circle cx="18" cy="6" r="4" fill="#22c55e" stroke="none"/>'
         : '<path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/>',
       '</svg>',
-      '<span style="font-size:7.5px;font-weight:800;color:' + (isOn ? '#16a34a' : '#dc2626') + ';letter-spacing:0.3px;">',
+      '<span style="font-size:7.5px;font-weight:800;color:' + (isOn ? '#16a34a' : '#dc2626') + ';">',
       isOn ? 'PUSH ON' : 'PUSH OFF',
       '</span>'
     ].join('');
-    btn.addEventListener('click', function() { window.toggleAGUSPush(); });
-
-    // Insert into top-menu-bar (same row as other top cards)
-    var bar = document.getElementById('top-menu-bar');
-    if (bar) {
-      // Put it before the last child (usually dark-mode button or last card)
-      var lastChild = bar.lastElementChild;
-      bar.insertBefore(btn, lastChild);
-    }
+    el.style.display = 'flex';
   }
 
-  /* ── Auto-init if already enabled from a previous session ── */
-  function _autoInit() {
-    _renderPushBtn();
-    if (_pushEnabled && Notification.permission === 'granted') {
+  /* ── Startup ─────────────────────────────────────────────── */
+  function _init() {
+    _renderBtn();
+    if (_on && Notification.permission === 'granted') {
       _registerSW();
+      _startPagePoll();
     }
-    // Re-send token to SW whenever user logs in (token changes)
-    var _origLogin = window.login;
-    if (typeof _origLogin === 'function') {
-      window.login = function() {
-        var r = _origLogin.apply(this, arguments);
-        // After login, send updated token to SW
-        setTimeout(function() {
-          if (_swReg) _sendConfigToSW(_swReg);
-        }, 2000);
-        return r;
-      };
+    _watchToken();
+    /* Show a subtle prompt after 5 s if push was never set up */
+    if (!localStorage.getItem(PUSH_KEY) && !localStorage.getItem('agus_push_asked')) {
+      setTimeout(function() {
+        if (Notification.permission === 'default') {
+          var bar = document.createElement('div');
+          bar.id = 'agus-push-nudge';
+          bar.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9990;background:linear-gradient(135deg,#004080,#0077cc);color:#fff;padding:14px 18px 20px;display:flex;align-items:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,0.25);';
+          bar.innerHTML = '<span style="font-size:28px;">🔔</span>'
+            + '<div style="flex:1;"><div style="font-weight:800;font-size:14px;">Get Fault Alerts</div>'
+            + '<div style="font-size:11px;opacity:0.85;margin-top:2px;">Enable notifications for pump faults, device offline & water level alerts — even when you\'re not watching.</div></div>'
+            + '<div style="display:flex;gap:8px;flex-shrink:0;">'
+            + '<button onclick="localStorage.setItem(\'agus_push_asked\',\'1\');document.getElementById(\'agus-push-nudge\').remove();toggleAGUSPush();" style="background:#fff;color:#004080;border:none;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:800;cursor:pointer;">Enable</button>'
+            + '<button onclick="localStorage.setItem(\'agus_push_asked\',\'1\');document.getElementById(\'agus-push-nudge\').remove();" style="background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;cursor:pointer;">Not now</button>'
+            + '</div>';
+          document.body.appendChild(bar);
+        }
+      }, 5000);
     }
-    // Also update device states snapshot every time dashboard refreshes
-    var _origUpdate = window.updateDashboard;
-    window.updateDashboard = function() {
-      var r = (_origUpdate || function(){}).apply(this, arguments);
-      // Persist device states so SW can compare on next poll
-      if (window._lastDevices) {
-        var snap = {};
-        window._lastDevices.forEach(function(d) {
-          snap[d.device] = { status: d.status, relay: d.relay };
-        });
-        _prevDevStates = snap;
-        localStorage.setItem(PUSH_STATES_KEY, JSON.stringify(snap));
-      }
-      return r;
-    };
   }
 
-  // Run after DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', _autoInit);
+    document.addEventListener('DOMContentLoaded', _init);
   } else {
-    setTimeout(_autoInit, 500);
+    setTimeout(_init, 500);
   }
 
 })();
+
+
+
+// ════════════════════════════════════════════════════════════════════════════
+// AGUS ADVANCED ANALYTICS — v2
+// 1. Daily / Weekly / Monthly Summary Report
+// 2. 24-Hour Demand Heatmap
+// 3. Cross-Device Correlation Panel
+// 4. Wire Efficiency (Flow ÷ Power)
+// 5. Water Loss / Non-Revenue Water Tracker
+// ════════════════════════════════════════════════════════════════════════════
+(function() {
+'use strict';
+
+// ─── Shared helpers ─────────────────────────────────────────────────────────
+var PHP = '₱'; // currency symbol (change if needed)
+
+function _overlay(id) {
+  var o = document.getElementById(id); if (o) o.remove();
+  var el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;background:rgba(0,8,24,0.78);z-index:6000;display:flex;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 12px;';
+  el.addEventListener('click', function(e){ if(e.target===el) el.remove(); });
+  return el;
+}
+
+function _panel(title, subtitle, icon, accentColor) {
+  accentColor = accentColor || '#0057b8';
+  var inner = document.createElement('div');
+  inner.style.cssText = 'background:#fff;border-radius:20px;width:960px;max-width:98vw;box-shadow:0 32px 80px rgba(0,0,0,0.35);overflow:hidden;';
+  inner.innerHTML =
+    '<div style="background:linear-gradient(135deg,'+accentColor+','+accentColor+'dd);padding:20px 24px 18px;display:flex;align-items:center;justify-content:space-between;">'
+    +'<div><div style="color:#fff;font-weight:800;font-size:18px;letter-spacing:-0.3px;">'+icon+' '+title+'</div>'
+    +'<div style="color:rgba(255,255,255,0.72);font-size:12px;margin-top:3px;">'+subtitle+'</div></div>'
+    +'<button class="ana-close-btn" style="background:rgba(255,255,255,0.18);border:none;color:#fff;border-radius:10px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer;transition:background 0.15s;">✕ Close</button>'
+    +'</div>'
+    +'<div class="ana-body" style="padding:22px 24px 28px;"></div>';
+  inner.querySelector('.ana-close-btn').addEventListener('click', function(){ inner.closest('[id]').remove(); });
+  return inner;
+}
+
+function _loading(msg) {
+  return '<div style="text-align:center;padding:48px;color:#94a3b8;"><div style="width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#0057b8;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 16px;"></div>'+( msg||'Loading data…')+'</div>';
+}
+
+function _spinCss() {
+  if (!document.getElementById('ana-spin')) {
+    var s = document.createElement('style');
+    s.id = 'ana-spin';
+    s.textContent = '@keyframes spin{to{transform:rotate(360deg)}} @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}} .ana-card{animation:fadeUp 0.3s ease both}';
+    document.head.appendChild(s);
+  }
+}
+
+function _allDevices() {
+  return (window._lastDevices || []);
+}
+
+function _getSheets(deviceNames, cb) {
+  var fetches = deviceNames.map(function(n){ return apiGet('getSheetData',{sheet:n}).then(function(r){return{device:n,rows:r||[]};}).catch(function(){return{device:n,rows:[]};}) });
+  Promise.all(fetches).then(cb);
+}
+
+function _parseRow(r, keys) {
+  var timeK = keys.find(function(k){return /time|date|stamp/i.test(k);}) || keys[0];
+  var flowK  = keys.find(function(k){return /flowrate|flow(?!meter)|lps/i.test(k);});
+  var powK   = keys.find(function(k){return /^power/i.test(k);});
+  var presK  = keys.find(function(k){return /pressure|psi/i.test(k);});
+  var lvlK   = keys.find(function(k){return /level/i.test(k);});
+  var volK   = keys.find(function(k){return /voltage/i.test(k);});
+  var curK   = keys.find(function(k){return /current/i.test(k);});
+  var eneK   = keys.find(function(k){return /energy|kwh|kw.h/i.test(k);});
+  var relK   = keys.find(function(k){return /relay/i.test(k);});
+  return {
+    ts:   parseSheetDate ? parseSheetDate(r[timeK]) : new Date(r[timeK]),
+    flow: flowK ? parseFloat(r[flowK]) : NaN,
+    pow:  powK  ? parseFloat(r[powK])  : NaN,
+    pres: presK ? parseFloat(r[presK]) : NaN,
+    lvl:  lvlK  ? parseFloat(r[lvlK])  : NaN,
+    volt: volK  ? parseFloat(r[volK])  : NaN,
+    curr: curK  ? parseFloat(r[curK])  : NaN,
+    ene:  eneK  ? parseFloat(r[eneK])  : NaN,
+    relay: relK ? parseInt(r[relK])    : NaN
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 1. DAILY / WEEKLY / MONTHLY SUMMARY REPORT
+// ════════════════════════════════════════════════════════════════════════════
+window.openSummaryReport = function() {
+  _spinCss();
+  var ov = _overlay('summary-report-ov');
+  var pn = _panel('Summary Report','Daily · Weekly · Monthly totals per device','📅','#0057b8');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+  body.innerHTML = _loading('Fetching all device data…');
+
+  var devices = _allDevices();
+  if (!devices.length) { body.innerHTML='<p style="color:#94a3b8;">No devices loaded. Please wait for dashboard to update.</p>'; return; }
+  var names = devices.map(function(d){return d.device;});
+
+  _getSheets(names, function(results) {
+    var period = 'daily'; // default tab
+    var allStats = results.map(function(r) { return _calcSummary(r.device, r.rows); }).filter(Boolean);
+    if (!allStats.length) { body.innerHTML='<p style="color:#94a3b8;">No historical data available.</p>'; return; }
+    _renderSummary(body, allStats, period);
+  });
+};
+
+function _calcSummary(device, rows) {
+  if (!rows.length) return null;
+  var keys = Object.keys(rows[0]);
+  var now = new Date(), day={}, week={}, month={};
+  rows.forEach(function(r) {
+    var p = _parseRow(r, keys); if (!p.ts) return;
+    var diffH = (now - p.ts) / 3600000;
+    function acc(bucket) {
+      if (!isNaN(p.flow) && p.flow >= 0) { bucket.flowSum = (bucket.flowSum||0) + p.flow; bucket.flowN = (bucket.flowN||0)+1; }
+      if (!isNaN(p.pow)  && p.pow  >= 0) { bucket.powSum  = (bucket.powSum||0)  + p.pow;  bucket.powN  = (bucket.powN||0)+1; }
+      if (!isNaN(p.pres) && p.pres >= 0) { bucket.presSum = (bucket.presSum||0) + p.pres; bucket.presN = (bucket.presN||0)+1; }
+      if (!isNaN(p.ene)  && p.ene  >= 0)  bucket.eneSum  = (bucket.eneSum||0)  + p.ene;
+      if (!isNaN(p.volt) && p.volt > 0)  { bucket.voltSum = (bucket.voltSum||0) + p.volt; bucket.voltN = (bucket.voltN||0)+1; }
+      if (p.relay === 1) bucket.onRows = (bucket.onRows||0)+1;
+      bucket.rows = (bucket.rows||0)+1;
+    }
+    if (diffH <= 24)   acc(day);
+    if (diffH <= 168)  acc(week);
+    if (diffH <= 720)  acc(month);
+  });
+  function summ(b) {
+    if (!b.rows) return null;
+    var interval = 15/60; // 15-min rows → hours
+    return {
+      totalFlow:  b.flowN  ? (b.flowSum/b.flowN * b.onRows * interval).toFixed(1) : '—',
+      avgFlow:    b.flowN  ? (b.flowSum/b.flowN).toFixed(2) : '—',
+      totalEne:   b.eneSum ? b.eneSum.toFixed(1) : (b.powN ? (b.powSum/b.powN/1000*b.rows*interval).toFixed(1) : '—'),
+      avgPow:     b.powN   ? (b.powSum/b.powN/1000).toFixed(2) : '—',
+      avgPres:    b.presN  ? (b.presSum/b.presN).toFixed(1) : '—',
+      avgVolt:    b.voltN  ? (b.voltSum/b.voltN).toFixed(1) : '—',
+      runtime:    b.onRows ? (b.onRows*interval).toFixed(1) : '0',
+      samples:    b.rows
+    };
+  }
+  return { device:device, day:summ(day), week:summ(week), month:summ(month) };
+}
+
+function _renderSummary(body, stats, period) {
+  var tabs = [{k:'day',l:'Last 24 h'},{k:'week',l:'Last 7 days'},{k:'month',l:'Last 30 days'}];
+  var tabHtml = tabs.map(function(t){
+    var active = t.k===period;
+    return '<button onclick="window._summTab(\''+t.k+'\')" id="stab-'+t.k+'" style="padding:7px 18px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;transition:all 0.15s;background:'+(active?'#0057b8':'#f1f5f9')+';color:'+(active?'#fff':'#475569')+';">'+t.l+'</button>';
+  }).join('');
+
+  var colHtml = [
+    {h:'Device',         f:function(s){return '<span style="font-weight:700;color:#0f172a;">'+s.device+'</span>';}},
+    {h:'Runtime (h)',    f:function(s,p){return s[p]?s[p].runtime:'—';}},
+    {h:'Flow (m³)',      f:function(s,p){return s[p]?s[p].totalFlow:'—';}},
+    {h:'Avg L/s',        f:function(s,p){return s[p]?s[p].avgFlow:'—';}},
+    {h:'Energy (kWh)',   f:function(s,p){return s[p]?s[p].totalEne:'—';}},
+    {h:'Avg Power (kW)', f:function(s,p){return s[p]?s[p].avgPow:'—';}},
+    {h:'Avg Pres (psi)', f:function(s,p){return s[p]?s[p].avgPres:'—';}},
+    {h:'Avg Volt (V)',   f:function(s,p){return s[p]?s[p].avgVolt:'—';}}
+  ];
+
+  function tableHtml(p) {
+    var rows = stats.map(function(s,i) {
+      var cells = colHtml.map(function(c,ci){
+        var v = ci===0 ? c.f(s) : (s[p] ? c.f(s,p) : '—');
+        return '<td style="padding:9px 12px;border-bottom:1px solid #f1f5f9;font-size:13px;text-align:'+(ci===0?'left':'right')+';">'+v+'</td>';
+      }).join('');
+      return '<tr style="background:'+(i%2===0?'#fff':'#f8fafc')+';transition:background 0.1s;" onmouseover="this.style.background=\'#eff6ff\'" onmouseout="this.style.background=\''+(i%2===0?'#fff':'#f8fafc')+'\'">'+cells+'</tr>';
+    }).join('');
+    var heads = colHtml.map(function(c,i){ return '<th style="padding:10px 12px;text-align:'+(i===0?'left':'right')+';font-size:11px;font-weight:800;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;background:#f8fafc;border-bottom:2px solid #e2e8f0;">'+c.h+'</th>'; }).join('');
+    return '<div style="overflow-x:auto;border-radius:12px;border:1px solid #e2e8f0;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+heads+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  window._summTab = function(p) {
+    tabs.forEach(function(t) {
+      var btn = document.getElementById('stab-'+t.k);
+      if (btn) { btn.style.background = t.k===p?'#0057b8':'#f1f5f9'; btn.style.color = t.k===p?'#fff':'#475569'; }
+    });
+    document.getElementById('summ-table-wrap').innerHTML = tableHtml(p);
+  };
+
+  body.innerHTML =
+    '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px;">'
+    +'<div style="display:flex;gap:6px;background:#f1f5f9;padding:4px;border-radius:10px;">'+tabHtml+'</div>'
+    +'<button onclick="window._exportSummaryCSV()" style="padding:7px 16px;background:#0057b8;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">⬇ Export CSV</button>'
+    +'</div>'
+    +'<div id="summ-table-wrap">'+tableHtml(period)+'</div>'
+    +'<p style="font-size:11px;color:#94a3b8;margin-top:10px;">Based on sheet data. Totals computed from 15-min interval rows.</p>';
+
+  window._exportSummaryCSV = function() {
+    var p = period;
+    var headers = colHtml.map(function(c){return c.h;}).join(',');
+    var rows = stats.map(function(s){ return colHtml.map(function(c,i){ return i===0?s.device:(s[p]?c.f(s,p):''); }).join(','); }).join('\n');
+    var blob = new Blob([headers+'\n'+rows], {type:'text/csv'});
+    var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download='AGUS_Summary_'+p+'_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+  };
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// 2. 24-HOUR DEMAND HEATMAP
+// ════════════════════════════════════════════════════════════════════════════
+window.openHeatmap = function() {
+  _spinCss();
+  var ov = _overlay('heatmap-ov');
+  var pn = _panel('24h Demand Heatmap','Average sensor value by hour-of-day × day-of-week','🔥','#7c3aed');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+
+  var devices = _allDevices();
+  if (!devices.length) { body.innerHTML='<p style="color:#94a3b8;">No devices loaded.</p>'; return; }
+  body.innerHTML = _loading();
+
+  // Device + metric selectors
+  var devOptions = devices.map(function(d){ return '<option value="'+d.device+'">'+d.device+'</option>'; }).join('');
+  var metricOptions = '<option value="flow">Flow (L/s)</option><option value="pow">Power (kW)</option><option value="pres">Pressure (psi)</option><option value="lvl">Water Level (m³)</option><option value="volt">Voltage (V)</option><option value="curr">Current (A)</option>';
+
+  body.innerHTML =
+    '<div style="display:flex;gap:10px;margin-bottom:18px;flex-wrap:wrap;align-items:flex-end;">'
+    +'<label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Device<br><select id="hm-dev" style="margin-top:4px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;min-width:220px;">'+devOptions+'</select></label>'
+    +'<label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Metric<br><select id="hm-metric" style="margin-top:4px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;">'+metricOptions+'</select></label>'
+    +'<button onclick="window._drawHeatmap()" style="padding:9px 20px;background:#7c3aed;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end;">Generate</button>'
+    +'</div>'
+    +'<div id="hm-canvas-wrap" style="overflow-x:auto;"></div>';
+
+  window._drawHeatmap = function() {
+    var devName = document.getElementById('hm-dev').value;
+    var metric  = document.getElementById('hm-metric').value;
+    var wrap    = document.getElementById('hm-canvas-wrap');
+    wrap.innerHTML = _loading('Computing heatmap…');
+    apiGet('getSheetData',{sheet:devName}).then(function(rows) {
+      if (!rows||!rows.length) { wrap.innerHTML='<p style="color:#94a3b8;">No data for this device.</p>'; return; }
+      var keys = Object.keys(rows[0]);
+      // grid[dayOfWeek 0-6][hour 0-23] = {sum,count}
+      var grid = Array.from({length:7},function(){return Array.from({length:24},function(){return {s:0,n:0};});});
+      rows.forEach(function(r) {
+        var p = _parseRow(r,keys); if (!p.ts) return;
+        var val = p[metric];
+        if (metric==='pow') val = isNaN(p.pow) ? NaN : p.pow/1000;
+        if (isNaN(val) || val < 0) return;
+        var d = p.ts.getDay(), h = p.ts.getHours();
+        grid[d][h].s += val; grid[d][h].n++;
+      });
+      // Find min/max for color scale
+      var vals = []; grid.forEach(function(drow){drow.forEach(function(c){if(c.n)vals.push(c.s/c.n);});});
+      if (!vals.length) { wrap.innerHTML='<p style="color:#94a3b8;">No valid data points for this metric.</p>'; return; }
+      vals.sort(function(a,b){return a-b;});
+      var vmin=vals[0], vmax=vals[vals.length-1], vrange=vmax-vmin||1;
+      function cellColor(v) {
+        var t = (v-vmin)/vrange;
+        var r=Math.round(30+t*190), g=Math.round(100-t*40), b=Math.round(220-t*180);
+        return 'rgb('+r+','+g+','+b+')';
+      }
+      var days=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+      var metricLabels={flow:'L/s',pow:'kW',pres:'psi',lvl:'m³',volt:'V',curr:'A'};
+      var unit=metricLabels[metric]||'';
+      var CELL=36;
+      var html='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">'+devName+' — average '+unit+' by hour × day ('+vals.length+' data points)</div>';
+      html+='<div style="display:inline-block;"><table style="border-collapse:collapse;">';
+      // Header row: hours
+      html+='<tr><td style="width:34px;"></td>';
+      for(var h=0;h<24;h++) html+='<td style="width:'+CELL+'px;text-align:center;font-size:9px;color:#64748b;padding-bottom:4px;">'+(h<10?'0':'')+h+'</td>';
+      html+='</tr>';
+      for(var d=0;d<7;d++) {
+        html+='<tr><td style="font-size:10px;font-weight:700;color:#475569;padding-right:6px;white-space:nowrap;">'+days[d]+'</td>';
+        for(var h2=0;h2<24;h2++) {
+          var c=grid[d][h2], avg=c.n?c.s/c.n:null;
+          var bg=avg!==null?cellColor(avg):'#f1f5f9';
+          var txt=avg!==null?avg.toFixed(1):'';
+          var textColor=avg!==null&&(avg-vmin)/vrange>0.5?'#fff':'#1e293b';
+          html+='<td title="'+days[d]+' '+h2+':00 — '+(avg!==null?avg.toFixed(2)+' '+unit:'no data')+'" style="width:'+CELL+'px;height:'+CELL+'px;background:'+bg+';text-align:center;font-size:8px;color:'+textColor+';border:1px solid #fff;border-radius:2px;">'+txt+'</td>';
+        }
+        html+='</tr>';
+      }
+      html+='</table>';
+      // Legend
+      html+='<div style="display:flex;align-items:center;gap:8px;margin-top:10px;"><span style="font-size:10px;color:#64748b;">'+vmin.toFixed(1)+' '+unit+'</span>';
+      html+='<div style="flex:1;height:10px;border-radius:4px;background:linear-gradient(to right,rgb(30,100,220),rgb(220,60,40));max-width:160px;"></div>';
+      html+='<span style="font-size:10px;color:#64748b;">'+vmax.toFixed(1)+' '+unit+'</span></div>';
+      html+='</div>';
+      wrap.innerHTML=html;
+    }).catch(function(){ wrap.innerHTML='<p style="color:#e05555;">Failed to load data.</p>'; });
+  };
+  // Auto-draw with first device
+  setTimeout(function(){if(document.getElementById('hm-dev'))window._drawHeatmap();},200);
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// 3. WIRE EFFICIENCY — Flow per kW
+// ════════════════════════════════════════════════════════════════════════════
+window.openEfficiency = function() {
+  _spinCss();
+  var ov = _overlay('eff-ov');
+  var pn = _panel('Wire Efficiency','Flow ÷ Power — L/s per kW. Drop = impeller wear or blockage.','⚡','#0891b2');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+  body.innerHTML = _loading();
+
+  var devices = _allDevices();
+  var pumpDevs = devices.filter(function(d){
+    var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase();
+    return n.includes('pump')||n.includes('booster')||t.includes('pump');
+  });
+  if (!pumpDevs.length) pumpDevs = devices;
+
+  _getSheets(pumpDevs.map(function(d){return d.device;}), function(results) {
+    var effData = results.map(function(r) {
+      if (!r.rows.length) return null;
+      var keys = Object.keys(r.rows[0]);
+      var points = [], effSum=0, effN=0, effMin=Infinity, effMax=-Infinity;
+      var recent30 = [], older = [];
+      var now = new Date();
+      r.rows.forEach(function(row) {
+        var p = _parseRow(row,keys);
+        if (isNaN(p.flow)||isNaN(p.pow)||p.pow<50||p.flow<0.01) return;
+        var eff = p.flow/(p.pow/1000);
+        if (!isFinite(eff)||eff<=0||eff>500) return;
+        var diffH = p.ts ? (now-p.ts)/3600000 : Infinity;
+        if (diffH<=720) points.push({ts:p.ts,eff:eff});
+        effSum+=eff; effN++;
+        if (eff<effMin) effMin=eff;
+        if (eff>effMax) effMax=eff;
+        if (diffH<=168) recent30.push(eff);
+        else older.push(eff);
+      });
+      if (!effN) return null;
+      var avg=effSum/effN;
+      var recentAvg=recent30.length?recent30.reduce(function(a,b){return a+b;},0)/recent30.length:null;
+      var olderAvg=older.length?older.reduce(function(a,b){return a+b;},0)/older.length:null;
+      var trend = recentAvg&&olderAvg ? ((recentAvg-olderAvg)/olderAvg*100) : null;
+      return { device:r.device, avg:avg, min:effMin, max:effMax, trend:trend, points:points, n:effN };
+    }).filter(Boolean);
+
+    if (!effData.length) { body.innerHTML='<p style="color:#94a3b8;">No devices with both flow and power data.</p>'; return; }
+
+    var cardsHtml = effData.map(function(e) {
+      var trendColor = e.trend===null?'#64748b':e.trend<-5?'#dc2626':e.trend<-2?'#f97316':'#16a34a';
+      var trendArrow = e.trend===null?'—':e.trend<0?'▼ '+Math.abs(e.trend).toFixed(1)+'%':'▲ '+e.trend.toFixed(1)+'%';
+      var health = e.trend===null?'Insufficient data':e.trend<-5?'⚠️ Significant decline — inspect pump':e.trend<-2?'Monitor closely':e.trend>2?'Improving':'Stable';
+      var ringPct = Math.min(100,Math.max(0,(e.avg/10)*100));
+      return '<div class="ana-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow=\'0 4px 24px rgba(8,145,178,0.13)\'" onmouseout="this.style.boxShadow=\'none\'">'
+        +'<div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px;">'+e.device+'</div>'
+        +'<div style="font-size:26px;font-weight:900;color:#0891b2;letter-spacing:-1px;">'+e.avg.toFixed(2)+' <span style="font-size:13px;font-weight:600;color:#64748b;">L/s·kW</span></div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0;background:#f8fafc;border-radius:8px;padding:10px;">'
+        +'<div><div style="font-size:10px;color:#94a3b8;font-weight:700;">MIN</div><div style="font-size:13px;font-weight:700;color:#475569;">'+e.min.toFixed(2)+'</div></div>'
+        +'<div><div style="font-size:10px;color:#94a3b8;font-weight:700;">MAX</div><div style="font-size:13px;font-weight:700;color:#475569;">'+e.max.toFixed(2)+'</div></div>'
+        +'<div><div style="font-size:10px;color:#94a3b8;font-weight:700;">SAMPLES</div><div style="font-size:13px;font-weight:700;color:#475569;">'+e.n+'</div></div>'
+        +'</div>'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+        +'<div style="font-size:12px;font-weight:700;color:'+trendColor+';">7-day trend: '+trendArrow+'</div>'
+        +'</div>'
+        +'<div style="margin-top:8px;font-size:11px;color:'+trendColor+';background:'+trendColor+'12;border-radius:6px;padding:5px 8px;">'+health+'</div>'
+        +'</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<p style="font-size:12px;color:#64748b;margin-bottom:16px;">Wire efficiency = Flow (L/s) ÷ Power (kW). Higher = better. A sustained drop signals impeller wear, air lock, or pipe blockage — often detectable weeks before a fault alarm.</p>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;">'+cardsHtml+'</div>';
+  });
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// 4. CROSS-DEVICE CORRELATION
+// ════════════════════════════════════════════════════════════════════════════
+window.openCorrelation = function() {
+  _spinCss();
+  var ov = _overlay('corr-ov');
+  var pn = _panel('Cross-Device Correlation','How pump relay events affect downstream pressure & reservoir levels','⚖️','#0f766e');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+
+  var devices = _allDevices();
+  if (devices.length < 2) { body.innerHTML='<p style="color:#94a3b8;">Need at least 2 devices.</p>'; return; }
+  body.innerHTML = _loading();
+
+  _getSheets(devices.map(function(d){return d.device;}), function(results) {
+    // Build a merged timeline: for each 15-min slot, collect all values
+    var timeline = {}; // ts → { deviceName: {relay,flow,pres,lvl} }
+    results.forEach(function(r) {
+      if (!r.rows.length) return;
+      var keys = Object.keys(r.rows[0]);
+      r.rows.forEach(function(row) {
+        var p = _parseRow(row,keys); if (!p.ts) return;
+        // Round to 15-min bucket
+        var bucket = Math.floor(p.ts.getTime()/900000)*900000;
+        if (!timeline[bucket]) timeline[bucket] = {};
+        timeline[bucket][r.device] = p;
+      });
+    });
+
+    var buckets = Object.keys(timeline).map(Number).sort();
+    if (buckets.length < 20) { body.innerHTML='<p style="color:#94a3b8;">Not enough overlapping data between devices (need 20+ shared time slots).</p>'; return; }
+
+    // For each pair: pump device with relay data vs sensor device with pres/lvl
+    var pumpDevs = results.filter(function(r){ return devices.find(function(d){return d.device===r.device&&(d.relay!==undefined||(d.device||'').toLowerCase().includes('pump'));}); });
+    var sensorDevs = results.filter(function(r){ return devices.find(function(d){return d.device===r.device&&((d.device||'').toLowerCase().includes('reservoir')||(d.device||'').toLowerCase().includes('pressure')||(d.device||'').toLowerCase().includes('res'));}) });
+    if (!sensorDevs.length) sensorDevs = results.filter(function(r){return r!==pumpDevs[0];});
+
+    var pairs = [];
+    pumpDevs.slice(0,3).forEach(function(pump) {
+      sensorDevs.slice(0,3).forEach(function(sens) {
+        if (pump.device===sens.device) return;
+        // Compute Pearson between pump relay and sensor pres/lvl
+        var xArr=[], yArr=[];
+        buckets.forEach(function(b) {
+          var t=timeline[b];
+          var px=t[pump.device], sy=t[sens.device];
+          if (!px||!sy) return;
+          var x=px.relay; var y=isNaN(sy.lvl)?sy.pres:sy.lvl;
+          if (isNaN(x)||isNaN(y)) return;
+          xArr.push(x); yArr.push(y);
+        });
+        if (xArr.length < 10) return;
+        var n=xArr.length;
+        var mx=xArr.reduce(function(a,b){return a+b;})/n, my=yArr.reduce(function(a,b){return a+b;})/n;
+        var num=0,dx2=0,dy2=0;
+        xArr.forEach(function(x,i){num+=(x-mx)*(yArr[i]-my);dx2+=(x-mx)*(x-mx);dy2+=(yArr[i]-my)*(yArr[i]-my);});
+        var r=dx2&&dy2?num/Math.sqrt(dx2*dy2):0;
+        pairs.push({pump:pump.device,sensor:sens.device,r:r,n:n});
+      });
+    });
+
+    if (!pairs.length) { body.innerHTML='<p style="color:#94a3b8;">Could not compute correlations — ensure at least one pump device has relay data and one sensor device has pressure or level data.</p>'; return; }
+
+    var cardsHtml = pairs.map(function(p) {
+      var abs=Math.abs(p.r), pct=Math.round(abs*100);
+      var strength=abs>0.7?'Strong':abs>0.4?'Moderate':abs>0.2?'Weak':'Negligible';
+      var dir=p.r>0?'positive':'negative';
+      var color=abs>0.7?'#0f766e':abs>0.4?'#0891b2':abs>0.2?'#f59e0b':'#94a3b8';
+      var interp=abs>0.6&&p.r>0?'When '+p.pump+' relay turns ON, '+p.sensor+' tends to increase.':abs>0.6&&p.r<0?'When '+p.pump+' turns ON, '+p.sensor+' tends to decrease.':abs>0.3?'Moderate relationship detected between the two devices.':'Little measurable relationship between these devices.';
+      return '<div class="ana-card" style="background:#fff;border:1.5px solid #e2e8f0;border-radius:14px;padding:18px 20px;">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;">'
+        +'<div><div style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.5px;">Pump → Sensor</div>'
+        +'<div style="font-weight:700;font-size:13px;color:#0f172a;margin-top:2px;">'+p.pump+'</div>'
+        +'<div style="font-size:12px;color:#64748b;margin-top:1px;">→ '+p.sensor+'</div></div>'
+        +'<div style="text-align:right;"><div style="font-size:28px;font-weight:900;color:'+color+';">'+p.r.toFixed(2)+'</div><div style="font-size:10px;color:#64748b;">r (Pearson)</div></div>'
+        +'</div>'
+        +'<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:10px;">'
+        +'<div style="display:flex;align-items:center;justify-content:space-between;font-size:11px;color:#64748b;margin-bottom:4px;"><span>Correlation strength</span><span style="font-weight:700;color:'+color+';">'+strength+' '+dir+'</span></div>'
+        +'<div style="height:8px;background:#e2e8f0;border-radius:4px;"><div style="height:8px;width:'+pct+'%;background:'+color+';border-radius:4px;transition:width 0.6s;"></div></div>'
+        +'</div>'
+        +'<div style="font-size:11px;color:#475569;line-height:1.5;">'+interp+'</div>'
+        +'<div style="font-size:10px;color:#94a3b8;margin-top:6px;">Based on '+p.n+' shared data points</div>'
+        +'</div>';
+    }).join('');
+
+    body.innerHTML =
+      '<p style="font-size:12px;color:#64748b;margin-bottom:16px;">Pearson r between pump relay (0/1) and downstream sensor readings. r > 0.7 = strong relationship. Values near 0 = devices are independent.</p>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;">'+cardsHtml+'</div>';
+  });
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// 5. WATER LOSS / NON-REVENUE WATER TRACKER
+// ════════════════════════════════════════════════════════════════════════════
+window.openWaterLossTracker = function() {
+  _spinCss();
+  var ov = _overlay('wlt-ov');
+  var pn = _panel('Water Loss Tracker','Pumped flow vs reservoir gain — unaccounted loss detection','💧','#dc2626');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+  body.innerHTML = _loading();
+
+  var devices = _allDevices();
+  var pumps = devices.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pump')||n.includes('booster'); });
+  var reservoirs = devices.filter(function(d){ var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase(); return n.includes('reservoir')||t.includes('reservoir'); });
+
+  if (!pumps.length||!reservoirs.length) { body.innerHTML='<p style="color:#94a3b8;">Need at least one pump device and one reservoir device.</p>'; return; }
+
+  // Device pickers
+  var pumpOpts = pumps.map(function(d){return '<option>'+d.device+'</option>';}).join('');
+  var resOpts  = reservoirs.map(function(d){return '<option>'+d.device+'</option>';}).join('');
+
+  body.innerHTML =
+    '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">'
+    +'<label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Pump device<br><select id="wlt-pump" style="margin-top:4px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;min-width:200px;">'+pumpOpts+'</select></label>'
+    +'<label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Reservoir device<br><select id="wlt-res" style="margin-top:4px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;min-width:200px;">'+resOpts+'</select></label>'
+    +'<label style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;">Period<br><select id="wlt-period" style="margin-top:4px;padding:8px 12px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;font-weight:600;">'
+    +'<option value="24">Last 24 h</option><option value="168" selected>Last 7 days</option><option value="720">Last 30 days</option></select></label>'
+    +'<button onclick="window._calcWaterLoss()" style="padding:9px 20px;background:#dc2626;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;align-self:flex-end;">Calculate</button>'
+    +'</div>'
+    +'<div id="wlt-result"></div>';
+
+  window._calcWaterLoss = function() {
+    var pDev = document.getElementById('wlt-pump').value;
+    var rDev = document.getElementById('wlt-res').value;
+    var hrs  = parseInt(document.getElementById('wlt-period').value);
+    var wrap = document.getElementById('wlt-result');
+    wrap.innerHTML = _loading('Calculating water balance…');
+    Promise.all([
+      apiGet('getSheetData',{sheet:pDev}).catch(function(){return[];}),
+      apiGet('getSheetData',{sheet:rDev}).catch(function(){return[];})
+    ]).then(function(res) {
+      var pRows=res[0]||[], rRows=res[1]||[];
+      if (!pRows.length||!rRows.length) { wrap.innerHTML='<p style="color:#94a3b8;">Insufficient data.</p>'; return; }
+      var pKeys=Object.keys(pRows[0]), rKeys=Object.keys(rRows[0]);
+      var now=new Date(), cutoff=new Date(now-hrs*3600000);
+      // Sum pump outflow during period
+      var totalPumped=0, pN=0;
+      pRows.forEach(function(r){
+        var p=_parseRow(r,pKeys); if (!p.ts||p.ts<cutoff) return;
+        if (!isNaN(p.flow)&&p.flow>=0&&p.relay===1) { totalPumped+=p.flow*(15/60)*60; pN++; } // L per 15-min interval
+      });
+      totalPumped = totalPumped/1000; // convert L → m³
+      // Reservoir level gain during period
+      var rFiltered=rRows.filter(function(r){var p=_parseRow(r,rKeys);return p.ts&&p.ts>=cutoff;});
+      rFiltered.sort(function(a,b){var pa=_parseRow(a,rKeys),pb=_parseRow(b,rKeys);return pa.ts-pb.ts;});
+      var lvlStart=null, lvlEnd=null;
+      if (rFiltered.length>=2) {
+        var first=_parseRow(rFiltered[0],rKeys), last=_parseRow(rFiltered[rFiltered.length-1],rKeys);
+        lvlStart=isNaN(first.lvl)?null:first.lvl;
+        lvlEnd=isNaN(last.lvl)?null:last.lvl;
+      }
+      var resDelta = (lvlStart!==null&&lvlEnd!==null) ? lvlEnd-lvlStart : null;
+      var loss = (totalPumped>0&&resDelta!==null) ? totalPumped-resDelta : null;
+      var lossRate = (loss!==null&&totalPumped>0) ? loss/totalPumped*100 : null;
+      var statusColor = lossRate===null?'#64748b':lossRate>20?'#dc2626':lossRate>10?'#f97316':'#16a34a';
+      var statusLabel = lossRate===null?'Insufficient data':lossRate>20?'⚠️ High loss — investigate pipeline':lossRate>10?'⚠️ Moderate loss — monitor closely':'✅ Within acceptable range';
+
+      wrap.innerHTML =
+        '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px;">'
+        +_metCard('Pumped Volume','💧',totalPumped>0?totalPumped.toFixed(1):'—','m³','#0057b8')
+        +_metCard('Reservoir Gain','📈',resDelta!==null?resDelta.toFixed(1):'—','m³',resDelta>=0?'#16a34a':'#dc2626')
+        +_metCard('Unaccounted Loss','⚡',loss!==null?loss.toFixed(1):'—','m³','#dc2626')
+        +_metCard('Loss Rate','%',lossRate!==null?lossRate.toFixed(1):'—','%',statusColor)
+        +'</div>'
+        +'<div style="background:'+statusColor+'12;border:1.5px solid '+statusColor+'33;border-radius:10px;padding:14px 18px;">'
+        +'<div style="font-weight:800;font-size:14px;color:'+statusColor+';">'+statusLabel+'</div>'
+        +(lossRate!==null?'<div style="font-size:12px;color:#475569;margin-top:6px;">Over the last '+hrs+' hours: <b>'+totalPumped.toFixed(1)+' m³</b> pumped, reservoir changed by <b>'+(resDelta!==null?resDelta.toFixed(1):'?')+' m³</b>. Difference of <b>'+(loss!==null?loss.toFixed(1):'?')+' m³</b> ('+(lossRate!==null?lossRate.toFixed(1):'?')+'%) is unaccounted for — possible leakage, branching pipes, or sensor drift.</div>':'')
+        +'</div>'
+        +'<p style="font-size:11px;color:#94a3b8;margin-top:10px;">Note: Calculation assumes all pump output goes to the selected reservoir. Adjust device pairing for multi-source setups.</p>';
+    });
+  };
+  setTimeout(function(){if(document.getElementById('wlt-pump'))window._calcWaterLoss();},200);
+};
+
+function _metCard(label, icon, value, unit, color) {
+  return '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;">'
+    +'<div style="font-size:20px;margin-bottom:6px;">'+icon+'</div>'
+    +'<div style="font-size:10px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:0.5px;">'+label+'</div>'
+    +'<div style="font-size:22px;font-weight:900;color:'+color+';letter-spacing:-0.5px;margin-top:2px;">'+value+' <span style="font-size:12px;font-weight:600;color:#64748b;">'+unit+'</span></div>'
+    +'</div>';
+}
+
+})(); // end AGUS Advanced Analytics
+
+// ── Sensor Threshold Modal ────────────────────────────────────────────────────
+(function() {
+  var STORAGE_KEY = 'agus_sensor_thr';
+  var DEF = { minPsi:20, maxPsi:80, minLevel:20, maxLevel:250, minVolt:210, maxVolt:240, minCurrent:0, maxCurrent:30, minFlow:0.5, maxFlow:50, minPower:0, maxPower:15000 };
+
+  function _load() { try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) { return {}; } }
+  function _save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); if (window._customThr !== undefined) window._customThr = data; }
+
+  window.openSensorThr = function() {
+    var modal = document.getElementById('sensor-thr-modal');
+    modal.style.display = 'block';
+    // Populate device selector
+    var sel = document.getElementById('sensor-thr-device');
+    sel.innerHTML = '<option value="__global__">⚙️ Global defaults (all devices)</option>';
+    var devices = window._lastDevices || [];
+    devices.forEach(function(d) {
+      var o = document.createElement('option');
+      o.value = d.device; o.textContent = '📡 ' + d.device;
+      sel.appendChild(o);
+    });
+    loadSensorThrDevice();
+  };
+
+  window.closeSensorThr = function() {
+    document.getElementById('sensor-thr-modal').style.display = 'none';
+  };
+
+  window.loadSensorThrDevice = function() {
+    var sel = document.getElementById('sensor-thr-device');
+    var key = sel.value;
+    var all = _load();
+    var t = (key === '__global__') ? (all['__global__'] || DEF) : (all[key] || all['__global__'] || DEF);
+    document.getElementById('sensor-thr-subtitle').textContent = key === '__global__' ? 'Global defaults (all devices)' : key;
+    document.getElementById('thr-wl-min').value  = t.minLevel  != null ? t.minLevel  : DEF.minLevel;
+    document.getElementById('thr-wl-max').value  = t.maxLevel  != null ? t.maxLevel  : DEF.maxLevel;
+    document.getElementById('thr-psi-min').value = t.minPsi    != null ? t.minPsi    : DEF.minPsi;
+    document.getElementById('thr-psi-max').value = t.maxPsi    != null ? t.maxPsi    : DEF.maxPsi;
+    document.getElementById('thr-fl-min').value  = t.minFlow   != null ? t.minFlow   : DEF.minFlow;
+    document.getElementById('thr-fl-max').value  = t.maxFlow   != null ? t.maxFlow   : DEF.maxFlow;
+    document.getElementById('thr-vt-min').value  = t.minVolt   != null ? t.minVolt   : DEF.minVolt;
+    document.getElementById('thr-vt-max').value  = t.maxVolt   != null ? t.maxVolt   : DEF.maxVolt;
+    document.getElementById('thr-am-min').value  = t.minCurrent!= null ? t.minCurrent: DEF.minCurrent;
+    document.getElementById('thr-am-max').value  = t.maxCurrent!= null ? t.maxCurrent: DEF.maxCurrent;
+    document.getElementById('thr-pw-min').value  = t.minPower  != null ? t.minPower  : DEF.minPower;
+    document.getElementById('thr-pw-max').value  = t.maxPower  != null ? t.maxPower  : DEF.maxPower;
+  };
+
+  window.saveSensorThr = function() {
+    var sel = document.getElementById('sensor-thr-device');
+    var key = sel.value;
+    var all = _load();
+    var t = {
+      minLevel:   parseFloat(document.getElementById('thr-wl-min').value)  || DEF.minLevel,
+      maxLevel:   parseFloat(document.getElementById('thr-wl-max').value)  || DEF.maxLevel,
+      minPsi:     parseFloat(document.getElementById('thr-psi-min').value) || DEF.minPsi,
+      maxPsi:     parseFloat(document.getElementById('thr-psi-max').value) || DEF.maxPsi,
+      minFlow:    parseFloat(document.getElementById('thr-fl-min').value)  || DEF.minFlow,
+      maxFlow:    parseFloat(document.getElementById('thr-fl-max').value)  || DEF.maxFlow,
+      minVolt:    parseFloat(document.getElementById('thr-vt-min').value)  || DEF.minVolt,
+      maxVolt:    parseFloat(document.getElementById('thr-vt-max').value)  || DEF.maxVolt,
+      minCurrent: parseFloat(document.getElementById('thr-am-min').value),
+      maxCurrent: parseFloat(document.getElementById('thr-am-max').value)  || DEF.maxCurrent,
+      minPower:   parseFloat(document.getElementById('thr-pw-min').value),
+      maxPower:   parseFloat(document.getElementById('thr-pw-max').value)  || DEF.maxPower
+    };
+    all[key] = t;
+    // If saving global, also refresh all per-device that haven't been overridden
+    _save(all);
+    // Re-send to SW immediately
+    if (window._swReg || (navigator.serviceWorker && navigator.serviceWorker.controller)) {
+      var sw = (window._swReg && (window._swReg.active || window._swReg.installing || window._swReg.waiting)) || navigator.serviceWorker.controller;
+      if (sw) sw.postMessage({
+        type: 'AGUS_CFG',
+        cfg: { apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''), token: (typeof userToken !== 'undefined' ? userToken : ''), thr: all },
+        prev: window._prev || {}
+      });
+    }
+    if (typeof showNotification === 'function') showNotification('✅ Thresholds saved for ' + (key === '__global__' ? 'all devices' : key), 'success');
+  };
+
+  window.resetSensorThr = function() {
+    var sel = document.getElementById('sensor-thr-device');
+    var key = sel.value;
+    var all = _load();
+    delete all[key];
+    _save(all);
+    loadSensorThrDevice();
+    if (typeof showNotification === 'function') showNotification('↺ Reset to defaults for ' + (key === '__global__' ? 'all devices' : key), 'info');
+  };
+
+  // Close on backdrop click
+  document.addEventListener('click', function(e) {
+    var m = document.getElementById('sensor-thr-modal');
+    if (m && e.target === m) closeSensorThr();
+  });
+})();
+
 </script>
 
 </body>
