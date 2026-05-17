@@ -5818,7 +5818,7 @@ function renderCostCalcTable(statsArray) {
   window._costCalcStats = statsArray;
 }
 
-window.getCostKpiCard = function() {
+function getCostKpiCard() {
   var rate = localStorage.getItem('agus_cost_per_kwh') || '';
   var totalCost = localStorage.getItem('agus_cost_calc_total_cost') || '';
   var dailyCpm = localStorage.getItem('agus_cost_calc_daily_cpm') || '';
@@ -6068,7 +6068,7 @@ function openKPIDashboard() {
       + kpiCard('💦','Avg Reservoir', avgLevel, 'm³', '#4ade80', res.length+' reservoirs')
       + kpiCard('🔴','Active Faults', fault.length, '', '#ef4444', fault.map(function(d){return d.device;}).join(', ')||'None')
       + kpiCard('🟠','Offline Devices', offline.length, '', '#f97316', offline.map(function(d){return d.device;}).join(', ')||'None')
-      + getCostKpiCard()
+      + (window.getCostKpiCard ? window.getCostKpiCard() : '')
       + '</div>';
 
     // Per-device status table
