@@ -2405,6 +2405,7 @@ function loadPumpLinksFromGAS(cb) {
     pumpLinkConfigs  = (Array.isArray(data) ? data : []).map(_normLink);
     _pumpLinksLoaded = true;
     _pumpLinksLoading = false;
+    if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
     if (cb) cb();
   }).catch(function(err) {
     console.error('loadPumpLinksFromGAS error:', err);
@@ -3139,6 +3140,190 @@ function buildMiniRangeBar(mn, no, mx, cur) {
 }
 
 function initDashboard() { updateDashboard(); loadPumpLinksFromGAS(function(){}); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  AUTONOMOUS PUMP-LINK ENGINE                                            ║
+// ║  Runs every 60s completely independently of the dashboard UI.           ║
+// ║  Works even when the map/dashboard panel is not visible.                ║
+// ║  The Service Worker also runs this logic when the tab is closed.        ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+(function() {
+  'use strict';
+
+  var APE_INTERVAL   = 60000;   // poll every 60 s
+  var APE_COOL       = 300000;  // 5-min cooldown per pump:reservoir pair
+  var _apeCooldowns  = {};      // { 'pump:reservoir': timestamp }
+  var _apeTimer      = null;
+  var _apeRunning    = false;
+
+  /* Load persisted cooldowns from localStorage on startup */
+  try {
+    var _stored = localStorage.getItem('agus_ape_cool');
+    if (_stored) _apeCooldowns = JSON.parse(_stored) || {};
+  } catch(e) {}
+
+  function _saveCooldowns() {
+    try { localStorage.setItem('agus_ape_cool', JSON.stringify(_apeCooldowns)); } catch(e) {}
+  }
+
+  async function _apeRun() {
+    if (_apeRunning) return;
+    if (typeof userToken === 'undefined' || !userToken) return;
+    if (typeof apiGet !== 'function' || typeof apiPost !== 'function') return;
+    _apeRunning = true;
+
+    try {
+      /* Fetch fresh data */
+      var [devices, links] = await Promise.all([
+        apiGet('getDashboardData').catch(function() { return []; }),
+        (pumpLinkConfigs && pumpLinkConfigs.length
+          ? Promise.resolve(pumpLinkConfigs)
+          : apiGet('getPumpLinks').catch(function() { return []; }))
+      ]);
+
+      if (!Array.isArray(devices) || !Array.isArray(links) || !links.length) return;
+
+      /* Update cached pump links */
+      if (links.length && typeof pumpLinkConfigs !== 'undefined') {
+        pumpLinkConfigs = links.map(_normLink);
+        if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
+      }
+
+      var devMap = {};
+      devices.forEach(function(d) { devMap[d.device] = d; });
+
+      var now = Date.now();
+
+      for (var i = 0; i < links.length; i++) {
+        var lnk = links[i];
+        if (!lnk.enabled) continue;
+        if (lnk.manualOverride) continue;
+
+        /* Respect manual toggle cooldown set by dashboardTogglePump */
+        if (_manualToggleCooldown[lnk.pump] && now < _manualToggleCooldown[lnk.pump]) continue;
+
+        var resD  = devMap[lnk.reservoir];
+        var pumD  = devMap[lnk.pump];
+        if (!resD || !pumD) continue;
+
+        var lv     = parseFloat(resD.level);
+        if (isNaN(lv)) continue;
+
+        var sOff   = parseFloat(lnk.shutoffLevel);
+        var sRes   = parseFloat(lnk.resumeLevel);
+        var sOff2  = parseFloat(lnk.shutoffLevel2) || 0;
+        var sRes2  = parseFloat(lnk.resumeLevel2)  || 0;
+        if (isNaN(sOff) || isNaN(sRes)) continue;
+
+        /* Determine pump state (commanded relay is authority) */
+        var cmd    = commandedRelayCache.hasOwnProperty(lnk.pump)
+                       ? commandedRelayCache[lnk.pump]
+                       : (pumD.commandedRelay != null ? pumD.commandedRelay : pumD.relay);
+        var pOn    = cmd == 1 || cmd === true;
+
+        var ck     = lnk.pump + ':' + lnk.reservoir;
+        if (_apeCooldowns[ck] && now - _apeCooldowns[ck] < APE_COOL) continue;
+
+        var needOff = pOn  && (lv >= sOff || (sOff2 > 0 && lv >= sOff2));
+        var needOn  = !pOn && (lv <= sRes || (sRes2 > 0 && lv <= sRes2));
+        if (!needOff && !needOn) continue;
+
+        /* Guard: don't try to turn ON if auto-shutoff state says reservoir is full */
+        if (needOn) {
+          var aoKey = lnk.pump + ':' + lnk.reservoir;
+          if (reservoirAutoShutoffState[aoKey]) continue; // still above resume
+        }
+
+        var wantState = needOn ? 1 : 0;
+
+        /* Optimistic update */
+        commandedRelayCache[lnk.pump] = wantState;
+        _apeCooldowns[ck] = now;
+        _saveCooldowns();
+
+        /* Update autoShutoffState so UI reflects it */
+        if (needOff) {
+          reservoirAutoShutoffState[ck] = {
+            pump: lnk.pump, reservoir: lnk.reservoir,
+            shutoffLevel: sOff, resumeLevel: sRes,
+            timestamp: new Date().toLocaleString(), linkId: lnk.id
+          };
+          localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+        } else if (needOn) {
+          delete reservoirAutoShutoffState[ck];
+          localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+        }
+
+        /* Fire command */
+        (function(device, state, key, level, link) {
+          var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
+          apiPost('togglePump', {
+            device:    device,
+            token:     userToken,
+            latitude:  coords.latitude  || '',
+            longitude: coords.longitude || ''
+          }).then(function(res) {
+            if (res && res.success) {
+              commandedRelayCache[device] = res.newState;
+              var onOff = res.newState ? 'ON' : 'OFF';
+              var reason = res.newState
+                ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
+                : link.reservoir + ' at ' + level.toFixed(1) + ' m³ (shutoff ≥ ' + link.shutoffLevel + ' m³)';
+              _addAutoShutoffLog({ pump: device, action: 'AUTO-' + onOff, timestamp: new Date().toLocaleString(), triggeredby: 'AutoEngine', reservoir: link.reservoir, level: level.toFixed(1) });
+              if (typeof showNotification === 'function') {
+                showNotification((res.newState ? '▶️' : '⏹️') + ' Auto-' + onOff + ': ' + device + ' — ' + reason, res.newState ? 'success' : 'info');
+              }
+              /* Re-sync the badge */
+              if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
+              setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
+            } else {
+              /* Revert optimistic state on failure */
+              commandedRelayCache[device] = state === 1 ? 0 : 1;
+            }
+          }).catch(function() {
+            /* Network error — leave optimistic state, will re-check next cycle */
+          });
+        })(lnk.pump, wantState, ck, lv, lnk);
+      }
+    } catch(e) {
+      /* Silent — never break the interval */
+    } finally {
+      _apeRunning = false;
+    }
+  }
+
+  /* Start engine after login token is available */
+  function _startAPE() {
+    if (_apeTimer) return;
+    _apeTimer = setInterval(function() { _apeRun(); }, APE_INTERVAL);
+    /* Also run once immediately after a short delay so first poll is fast */
+    setTimeout(function() { _apeRun(); }, 3000);
+  }
+
+  /* Hook into login — start engine as soon as token is set */
+  var _apeTokenWatch = setInterval(function() {
+    if (typeof userToken !== 'undefined' && userToken) {
+      clearInterval(_apeTokenWatch);
+      _startAPE();
+    }
+  }, 2000);
+
+  /* Also re-sync SW cooldowns whenever a manual toggle happens */
+  var _origDTP = window.dashboardTogglePump;
+  window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
+    var result = (_origDTP || function(){}).apply(this, arguments);
+    /* Push updated manual cooldowns to SW */
+    setTimeout(function() {
+      if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
+    }, 500);
+    return result;
+  };
+
+  window._apeStatus = function() {
+    return { running: _apeRunning, cooldowns: _apeCooldowns, interval: APE_INTERVAL };
+  };
+
+})(); // end Autonomous Pump Engine
 function updateDashboard() {
   _pumpLinksRefreshCounter++;
   if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
@@ -8528,7 +8713,6 @@ function exportDashboardPDF() {
   '});}' +
   /* Lifecycle */
   'self.addEventListener("install",function(){self.skipWaiting();});' +
-  'self.addEventListener("activate",function(e){e.waitUntil(self.clients.claim());});' +
   /* Message from page — save config to IDB */
   'self.addEventListener("message",function(e){' +
   '  var d=e.data;if(!d)return;' +
@@ -8630,12 +8814,82 @@ function exportDashboardPDF() {
   '      prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};' +
   '    });' +
   '    await dbSet(db,"prev",prev);' +
+  '    await pumpLinkControl(cfg,devs,db,ps);' +
   '    await Promise.all(ps);' +
   '  }catch(err){}' +
   '}' +
+  /* Pump-link toggle — calls GAS togglePump via POST */
+  'async function swTogglePump(apiUrl,token,device){' +
+  '  try{var r=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},' +
+  '    body:JSON.stringify({action:"togglePump",token:token,device:device,latitude:"",longitude:""})});' +
+  '  if(!r.ok)return null;return await r.json();}catch(e){return null;}' +
+  '}' +
+  /* Pump-link auto-control — runs even when dashboard tab is closed */
+  'async function pumpLinkControl(cfg,devs,db,ps){' +
+  '  var links=cfg.pumpLinks||[];' +
+  '  if(!links.length){try{' +
+  '    var lr=await fetch(cfg.apiUrl+"?action=getPumpLinks&token="+encodeURIComponent(cfg.token));' +
+  '    if(lr.ok){var ld=await lr.json();if(Array.isArray(ld)){links=ld;}}' +
+  '  }catch(e){}}' +
+  '  if(!links.length)return;' +
+  '  var cool=(await dbGet(db,"pl_cool"))||{};' +
+  '  var manCool=(await dbGet(db,"pl_man_cool"))||{};' +
+  '  var now=Date.now();var PL_COOL=300000;' +
+  '  var devMap={};devs.forEach(function(d){devMap[d.device]=d;});' +
+  '  for(var i=0;i<links.length;i++){' +
+  '    var lnk=links[i];' +
+  '    if(!lnk.enabled)continue;' +
+  '    if(lnk.manualOverride)continue;' +
+  '    if(manCool[lnk.pump]&&now<manCool[lnk.pump])continue;' +
+  '    var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];' +
+  '    if(!resD||!pumD)continue;' +
+  '    var lv=parseFloat(resD.level);if(isNaN(lv))continue;' +
+  '    var sOff=parseFloat(lnk.shutoffLevel),sRes=parseFloat(lnk.resumeLevel);' +
+  '    var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;' +
+  '    if(isNaN(sOff)||isNaN(sRes))continue;' +
+  '    var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";' +
+  '    var ck=lnk.pump+":"+lnk.reservoir;' +
+  '    if(cool[ck]&&now-cool[ck]<PL_COOL)continue;' +
+  '    var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));' +
+  '    var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));' +
+  '    if(!needOff&&!needOn)continue;' +
+  '    var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump);' +
+  '    if(tr&&tr.success){' +
+  '      cool[ck]=now;' +
+  '      var newOn=!!tr.newState;' +
+  '      var lvStr=lv.toFixed(1)+" m\u00B3";' +
+  '      var thresh=newOn?"resumed \u2264"+sRes+" m\u00B3":"shut off \u2265"+sOff+" m\u00B3";' +
+  '      ps.push(pop((newOn?"\u25B6\uFE0F Auto-ON: ":"\u23F9\uFE0F Auto-OFF: ")+lnk.pump,' +
+  '        lnk.reservoir+" "+thresh+". Level: "+lvStr,"pl:"+ck,true));' +
+  '    }' +
+  '  }' +
+  '  await dbSet(db,"pl_cool",cool);' +
+  '}' +
+  /* AGUS_PL message: page pushes pump links + manual cooldowns to SW */
+  'self.addEventListener("message",function(e2){' +
+  '  var d2=e2.data;if(!d2)return;' +
+  '  if(d2.type==="AGUS_PL"){' +
+  '    dbOpen().then(function(db2){' +
+  '      dbGet(db2,"cfg").then(function(existCfg){' +
+  '        var merged=Object.assign({},existCfg||{});' +
+  '        if(d2.links)merged.pumpLinks=d2.links;' +
+  '        dbSet(db2,"cfg",merged);' +
+  '      });' +
+  '      if(d2.manCool)dbSet(db2,"pl_man_cool",d2.manCool);' +
+  '    });' +
+  '  }' +
+  '});' +
   /* Also run on push event (for future server-push) */
   'self.addEventListener("push",function(e){' +
   '  e.waitUntil(bgPoll());' +
+  '});' +
+  /* Internal SW heartbeat — polls every 60s even when page is backgrounded */
+  'var _swHb=null;' +
+  'self.addEventListener("activate",function(eAct){' +
+  '  eAct.waitUntil(self.clients.claim().then(function(){' +
+  '    if(_swHb)clearInterval(_swHb);' +
+  '    _swHb=setInterval(function(){bgPoll().catch(function(){});},60000);' +
+  '  }));' +
   '});' +
   ')();';
 
@@ -8668,9 +8922,10 @@ function exportDashboardPDF() {
       sw.postMessage({
         type: 'AGUS_CFG',
         cfg:  {
-          apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
-          token:  (typeof userToken !== 'undefined' ? userToken : ''),
-          thr:    _customThr   // per-device threshold overrides
+          apiUrl:     (typeof API_URL !== 'undefined' ? API_URL : ''),
+          token:      (typeof userToken !== 'undefined' ? userToken : ''),
+          thr:        _customThr,   // per-device threshold overrides
+          pumpLinks:  (typeof pumpLinkConfigs !== 'undefined' ? pumpLinkConfigs : [])
         },
         prev: _prev
       });
@@ -8692,7 +8947,25 @@ function exportDashboardPDF() {
     }, 5000);
   }
 
-  /* ── Permission + enable/disable ────────────────────────── */
+  /* ── Push pump links + manual cooldowns to SW whenever they change ── */
+  window._sendPumpLinksToSW = function() {
+    try {
+      var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
+               || (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (!sw) return;
+      sw.postMessage({
+        type:    'AGUS_PL',
+        links:   (typeof pumpLinkConfigs !== 'undefined' ? pumpLinkConfigs : []),
+        manCool: (typeof _manualToggleCooldown !== 'undefined' ? _manualToggleCooldown : {}),
+        baseCfg: {
+          apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
+          token:  (typeof userToken !== 'undefined' ? userToken : '')
+        }
+      });
+    } catch(e) {}
+  };
+
+
   function _enable() {
     if (!('Notification' in window)) {
       showNotification('⚠ Notifications not supported in this browser.', 'warning');
