@@ -626,7 +626,9 @@
   .device-list li span { max-width: 130px !important; }
   .device-list li .device-status { gap: 4px !important; }
   .pressure-value, .waterlevel-value { font-size: 11px !important; padding: 2px 6px !important; }
-  .toggle-switch { width: 52px !important; height: 24px !important; }
+  .toggle-switch { width: 52px !important; height: 24px !important; touch-action: manipulation !important; -webkit-tap-highlight-color: transparent !important; }
+  .slider { transition: background 0.11s ease !important; }
+  .slider::before { transition: transform 0.11s cubic-bezier(.4,0,.2,1) !important; will-change: transform !important; }
   .slider::before { height: 18px !important; width: 18px !important; left: 3px !important; top: 3px !important; }
   .toggle-switch input:checked + .slider::before { transform: translateX(28px) !important; }
   .slider::after { font-size: 10px !important; right: 8px !important; }
@@ -1218,14 +1220,15 @@
     .status-Offline{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.18);}
     .status-Fault{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.18);}
     .status-indicator.Fault-blink{animation:blink 1s infinite;box-shadow:0 0 0 4px rgba(220,38,38,0.25);}
-    .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;}
-    .toggle-switch input{opacity:0;width:0;height:0;}
-    .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.25s ease;}
-    .slider::after{content:"OFF";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:.5px;transition:0.25s ease;font-family:'DM Sans',sans-serif;}
-    .slider::before{content:"";position:absolute;height:22px;width:22px;left:4px;top:4px;background:#fff;border-radius:50%;transition:transform 0.25s ease,background 0.25s ease;box-shadow:0 1px 4px rgba(0,0,0,0.22);}
+    .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .toggle-switch input{opacity:0;width:0;height:0;position:absolute;}
+    .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.11s ease;-webkit-tap-highlight-color:transparent;}
+    .slider::after{content:"OFF";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:.5px;transition:opacity 0.08s ease;font-family:'DM Sans',sans-serif;}
+    .slider::before{content:"";position:absolute;height:22px;width:22px;left:4px;top:4px;background:#fff;border-radius:50%;transition:transform 0.11s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,0.22);will-change:transform;}
     .toggle-switch input:checked + .slider{background:#16a34a;}
     .toggle-switch input:checked + .slider::after{content:"ON";right:auto;left:9px;}
     .toggle-switch input:checked + .slider::before{transform:translateX(30px);}
+    .toggle-switch:active .slider::before{width:26px;}
     #map-container{position:relative;flex:3;}
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
@@ -1588,6 +1591,56 @@
     from { opacity: 0; }
     to   { opacity: 1; }
   }
+
+  /* ══════════════════════════════════════════════
+     PUMP LINKS — Enhanced Panel Styles
+     ══════════════════════════════════════════════ */
+  /* Pill-toggle for Enabled/Manual switches inside pump link cards */
+  .pl-pill-toggle {
+    position:relative; display:inline-flex; align-items:center;
+    width:42px; height:22px; flex-shrink:0;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent; cursor:pointer;
+  }
+  .pl-pill-toggle input { opacity:0; width:0; height:0; position:absolute; }
+  .pl-pill-track {
+    position:absolute; inset:0; border-radius:11px;
+    background:#d1d5db; transition:background 0.11s ease;
+  }
+  .pl-pill-knob {
+    position:absolute; top:3px; left:3px;
+    width:16px; height:16px; border-radius:50%;
+    background:#fff; box-shadow:0 1px 3px rgba(0,0,0,0.25);
+    transition:transform 0.11s cubic-bezier(.4,0,.2,1); will-change:transform;
+  }
+  .pl-pill-toggle input:checked ~ .pl-pill-track { background:#16a34a; }
+  .pl-pill-toggle input:checked ~ .pl-pill-knob  { transform:translateX(20px); }
+  .pl-pill-toggle.manual input:checked ~ .pl-pill-track { background:#eab308; }
+
+  /* Quick pump toggle button in link card */
+  .pl-pump-btn {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:5px 12px; border-radius:8px; font-size:11.5px; font-weight:800;
+    border:1.5px solid; cursor:pointer; transition:all 0.11s ease;
+    touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+    letter-spacing:0.2px;
+  }
+  .pl-pump-btn.on  { background:#dcfce7; color:#15803d; border-color:#86efac; }
+  .pl-pump-btn.off { background:#fee2e2; color:#b91c1c; border-color:#fca5a5; }
+  .pl-pump-btn:active { transform:scale(0.95); }
+
+  /* Level progress bar */
+  .pl-level-bar-wrap { margin:9px 0 4px; }
+  .pl-level-bar-track { height:8px; background:#e5eef9; border-radius:4px; overflow:hidden; position:relative; }
+  .pl-level-bar-fill  { height:100%; border-radius:4px; transition:width 0.4s ease; }
+
+  /* Link card */
+  .pl-link-card {
+    border-radius:14px; padding:13px 15px; margin-bottom:10px;
+    border:1.5px solid; transition:border-color 0.2s, background 0.2s;
+  }
+  .pl-link-card.active  { background:#f0f9ff; border-color:#bfdbfe; }
+  .pl-link-card.halted  { background:#fef2f2; border-color:#fca5a5; }
+  .pl-link-card.manual  { background:#fefce8; border-color:#fde047; }
 
   /* ── Button ripple — instant tactile press feedback ── */
   .top-card svg,
@@ -3588,68 +3641,62 @@ function openPumpLinkSettings() {
 }
 
 function _buildPumpLinkHTML() {
-  return '<div id="pl-inner" style="background:#fff;border-radius:20px;width:680px;max-width:98vw;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.48);">'
-    + '<div style="background:linear-gradient(135deg,#0c4a6e,#0369a1);padding:17px 22px;display:flex;align-items:center;justify-content:space-between;border-radius:20px 20px 0 0;flex-shrink:0;">'
-    +   '<div><div style="color:#fff;font-weight:800;font-size:1.12rem;font-family:\'Syne\',sans-serif;">🔗 Reservoir – Pump Auto-Control Links</div>'
-    +   '<div style="color:rgba(255,255,255,0.78);font-size:12px;margin-top:2px;">Configure which reservoir controls which pump station, and at what water levels.</div></div>'
-    +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;">✕</button>'
+  return '<div id="pl-inner" style="background:#fff;border-radius:20px;width:700px;max-width:98vw;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.48);">'
+    // ── Header ──────────────────────────────────────────────────────────
+    + '<div style="background:linear-gradient(135deg,#0a3d62 0%,#0369a1 60%,#0891b2 100%);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:20px 20px 0 0;flex-shrink:0;">'
+    +   '<div style="display:flex;align-items:center;gap:12px;">'
+    +     '<div style="background:rgba(255,255,255,0.15);border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:20px;">🔗</div>'
+    +     '<div>'
+    +       '<div style="color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:-0.2px;">Reservoir – Pump Auto-Control</div>'
+    +       '<div style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:1px;">Configure water levels that automatically start/stop pumps</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>'
     + '</div>'
-    // ── Add-link form ───────────────────────────────────────────────────
-    + '<div style="padding:16px 20px 14px;background:#f0f7ff;border-bottom:1.5px solid #bfdbfe;flex-shrink:0;">'
-    +   '<div style="font-size:11px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">➕ New Link</div>'
+    // ── Add-link form ────────────────────────────────────────────────────
+    + '<div style="padding:15px 18px 13px;background:linear-gradient(135deg,#eff6ff,#f0f9ff);border-bottom:1.5px solid #bfdbfe;flex-shrink:0;">'
+    +   '<div style="font-size:10.5px;font-weight:800;color:#0369a1;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;background:#0369a1;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">＋</span> New Auto-Control Link</div>'
     +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
-    +     '<div><label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">💧 Reservoir</label>'
-    +       '<select id="pl-res-select" style="width:100%;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:9px;font-size:12.5px;color:#1e40af;background:#fff;outline:none;"><option value="">— Select Reservoir —</option></select></div>'
-    +     '<div><label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">⚙️ Pump Station</label>'
-    +       '<select id="pl-pump-select" style="width:100%;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:9px;font-size:12.5px;color:#1e40af;background:#fff;outline:none;"><option value="">— Select Pump Station —</option></select></div>'
-    +   '</div>'
-    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px;">'
     +     '<div>'
-    +       '<label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">🛑 Shutoff Level (turn OFF when ≥)</label>'
-    +       '<div style="display:flex;align-items:center;gap:6px;">'
-    +         '<input type="number" id="pl-shutoff-input" placeholder="e.g. 130" min="1" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #fca5a5;border-radius:9px;font-size:13px;font-weight:700;color:#dc2626;outline:none;">'
-    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
-    +       '</div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">💧 Reservoir (water source)</label>'
+    +       '<select id="pl-res-select" style="width:100%;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:9px;font-size:12.5px;color:#1e40af;background:#fff;outline:none;"><option value="">— Select Reservoir —</option></select>'
     +     '</div>'
     +     '<div>'
-    +       '<label style="font-size:11px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">✅ Resume Level (allow ON when ≤)</label>'
-    +       '<div style="display:flex;align-items:center;gap:6px;">'
-    +         '<input type="number" id="pl-resume-input" placeholder="e.g. 100" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #86efac;border-radius:9px;font-size:13px;font-weight:700;color:#16a34a;outline:none;">'
-    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
-    +       '</div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">⚙️ Pump Station (to control)</label>'
+    +       '<select id="pl-pump-select" style="width:100%;padding:8px 10px;border:1.5px solid #93c5fd;border-radius:9px;font-size:12.5px;color:#1e40af;background:#fff;outline:none;"><option value="">— Select Pump Station —</option></select>'
     +     '</div>'
     +   '</div>'
-    +   '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">'
-    +     '<div>'
-    +       '<label style="font-size:10.5px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">🛡️ Backup Shutoff (if primary fails)</label>'
-    +       '<div style="display:flex;align-items:center;gap:6px;">'
-    +         '<input type="number" id="pl-shutoff2-input" placeholder="e.g. 145" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #fca5a5;border-radius:9px;font-size:13px;font-weight:700;color:#b91c1c;outline:none;">'
-    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
-    +       '</div>'
-    +     '</div>'
-    +     '<div>'
-    +       '<label style="font-size:10.5px;font-weight:700;color:#64748b;display:block;margin-bottom:4px;">⬇️ Backup Resume (if primary fails)</label>'
-    +       '<div style="display:flex;align-items:center;gap:6px;">'
-    +         '<input type="number" id="pl-resume2-input" placeholder="e.g. 80" min="0" max="99999" step="1" style="flex:1;padding:8px 10px;border:1.5px solid #86efac;border-radius:9px;font-size:13px;font-weight:700;color:#15803d;outline:none;">'
-    +         '<span style="font-size:12px;font-weight:700;color:#64748b;">m³</span>'
-    +       '</div>'
-    +     '</div>'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px;">'
+    +     _plInputBox('pl-shutoff-input','🛑 Shutoff ≥','e.g. 130','#fca5a5','#dc2626','m³')
+    +     _plInputBox('pl-resume-input','✅ Resume ≤','e.g. 100','#86efac','#16a34a','m³')
+    +     _plInputBox('pl-shutoff2-input','🛡 Backup Shutoff','optional','#fca5a5','#b91c1c','m³')
+    +     _plInputBox('pl-resume2-input','⬇ Backup Resume','optional','#86efac','#15803d','m³')
     +   '</div>'
-    +   '<div id="pl-add-validation" style="font-size:12px;color:#dc2626;min-height:16px;margin-bottom:8px;"></div>'
-    +   '<button id="pl-add-btn" onclick="addPumpLink()" style="padding:9px 22px;background:linear-gradient(135deg,#0c4a6e,#0369a1);color:white;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;width:100%;">➕ Add Link</button>'
+    +   '<div id="pl-add-validation" style="font-size:12px;color:#dc2626;min-height:15px;margin-bottom:7px;"></div>'
+    +   '<button id="pl-add-btn" onclick="addPumpLink()" style="padding:10px 22px;background:linear-gradient(135deg,#0c4a6e,#0369a1);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;width:100%;letter-spacing:0.1px;display:flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">➕ Add Link</button>'
     + '</div>'
-    // ── Existing links ──────────────────────────────────────────────────
-    + '<div style="flex:1;overflow-y:auto;padding:14px 20px;" id="pl-cards-area">'
+    // ── Existing links ────────────────────────────────────────────────────
+    + '<div style="flex:1;overflow-y:auto;padding:13px 18px;" id="pl-cards-area">'
     +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-    +     '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.5px;">📋 Configured Links</div>'
-    +     '<button onclick="_refreshPumpLinksUI()" style="padding:4px 10px;background:#eff6ff;color:#0369a1;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🔄 Refresh</button>'
+    +     '<div style="font-size:10.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;">📋 Configured Links</div>'
+    +     '<button onclick="_refreshPumpLinksUI()" style="padding:5px 12px;background:#eff6ff;color:#0369a1;border:1.5px solid #bfdbfe;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;touch-action:manipulation;">🔄 Refresh</button>'
     +   '</div>'
     +   '<div id="pl-link-cards"></div>'
     + '</div>'
-    // ── Footer ─────────────────────────────────────────────────────────
-    + '<div style="padding:11px 20px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;">'
-    +   '<button onclick="openAutoShutoffLog()" style="padding:7px 14px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;">📋 View Event Log</button>'
-    +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="margin-left:auto;padding:8px 20px;background:linear-gradient(135deg,#002b5c,#1d4ed8);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;">Close</button>'
+    // ── Footer ────────────────────────────────────────────────────────────
+    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+    +   '<button onclick="openAutoShutoffLog()" style="padding:7px 14px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;">📋 Event Log</button>'
+    +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="margin-left:auto;padding:8px 22px;background:linear-gradient(135deg,#0a3d62,#1d4ed8);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function _plInputBox(id, label, ph, borderColor, textColor, unit) {
+  return '<div>'
+    + '<label style="font-size:10px;font-weight:700;color:#374151;display:block;margin-bottom:3px;">' + label + '</label>'
+    + '<div style="display:flex;align-items:center;gap:4px;">'
+    +   '<input type="number" id="' + id + '" placeholder="' + ph + '" min="0" max="99999" step="1" style="flex:1;min-width:0;padding:7px 8px;border:1.5px solid ' + borderColor + ';border-radius:8px;font-size:13px;font-weight:700;color:' + textColor + ';outline:none;">'
+    +   '<span style="font-size:11px;font-weight:700;color:#64748b;flex-shrink:0;">' + unit + '</span>'
     + '</div>'
     + '</div>';
 }
