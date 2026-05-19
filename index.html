@@ -626,13 +626,15 @@
   .device-list li span { max-width: 130px !important; }
   .device-list li .device-status { gap: 4px !important; }
   .pressure-value, .waterlevel-value { font-size: 11px !important; padding: 2px 6px !important; }
-  .toggle-switch { width: 52px !important; height: 24px !important; touch-action: manipulation !important; -webkit-tap-highlight-color: transparent !important; }
-  .slider { transition: background 0.11s ease !important; }
-  .slider::before { transition: transform 0.11s cubic-bezier(.4,0,.2,1) !important; will-change: transform !important; }
+  .toggle-switch { width: 52px !important; height: 24px !important; touch-action: manipulation !important; -webkit-tap-highlight-color: transparent !important; cursor: pointer !important; }
+  .slider { transition: background 0.08s ease, box-shadow 0.08s ease !important; will-change: background, transform !important; }
+  .slider::before { transition: transform 0.08s cubic-bezier(.4,0,.2,1), width 0.08s ease, box-shadow 0.08s ease !important; will-change: transform, width, box-shadow !important; }
   .slider::before { height: 18px !important; width: 18px !important; left: 3px !important; top: 3px !important; }
   .toggle-switch input:checked + .slider::before { transform: translateX(28px) !important; }
   .slider::after { font-size: 10px !important; right: 8px !important; }
   .toggle-switch input:checked + .slider::after { left: 8px !important; }
+  .toggle-switch:active .slider::before { width: 22px !important; transform: translateX(3px) scale(0.92) !important; }
+  .toggle-switch input:checked:active + .slider::before { transform: translateX(24px) scale(0.92) !important; }
  
   /* Adjust map bottom so it's not hidden by drawer */
   #map-container { bottom: 200px !important; height: calc(100dvh - 88px - 200px) !important; height: calc(100vh - 88px - 200px) !important; }
@@ -1220,15 +1222,18 @@
     .status-Offline{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.18);}
     .status-Fault{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.18);}
     .status-indicator.Fault-blink{animation:blink 1s infinite;box-shadow:0 0 0 4px rgba(220,38,38,0.25);}
-    .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
+    .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer;}
     .toggle-switch input{opacity:0;width:0;height:0;position:absolute;}
-    .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.11s ease;-webkit-tap-highlight-color:transparent;}
-    .slider::after{content:"OFF";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:.5px;transition:opacity 0.08s ease;font-family:'DM Sans',sans-serif;}
-    .slider::before{content:"";position:absolute;height:22px;width:22px;left:4px;top:4px;background:#fff;border-radius:50%;transition:transform 0.11s cubic-bezier(.4,0,.2,1);box-shadow:0 1px 4px rgba(0,0,0,0.22);will-change:transform;}
-    .toggle-switch input:checked + .slider{background:#16a34a;}
+    .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.08s ease,box-shadow 0.08s ease;will-change:background,transform;user-select:none;}
+    .slider::after{content:"OFF";position:absolute;right:9px;top:50%;transform:translateY(-50%);font-size:10px;font-weight:700;color:rgba(255,255,255,0.9);letter-spacing:.5px;font-family:'DM Sans',sans-serif;pointer-events:none;}
+    .slider::before{content:"";position:absolute;height:22px;width:22px;left:4px;top:4px;background:#fff;border-radius:50%;transition:transform 0.08s cubic-bezier(.4,0,.2,1),width 0.08s ease,box-shadow 0.08s ease;box-shadow:0 1px 4px rgba(0,0,0,0.22);will-change:transform,width,box-shadow;}
+    .toggle-switch input:checked + .slider{background:#16a34a;box-shadow:0 0 0 2px rgba(22,163,74,0.25);}
     .toggle-switch input:checked + .slider::after{content:"ON";right:auto;left:9px;}
     .toggle-switch input:checked + .slider::before{transform:translateX(30px);}
-    .toggle-switch:active .slider::before{width:26px;}
+    .toggle-switch:active .slider::before{width:26px;transform:translateX(4px) scale(0.92);}
+    .toggle-switch input:checked:active + .slider::before{transform:translateX(26px) scale(0.92);}
+    .toggle-switch.pending .slider::before{box-shadow:0 0 0 3px rgba(22,163,74,0.2),0 1px 4px rgba(0,0,0,0.22);animation:pend-glow 0.7s ease-in-out infinite;}
+    @keyframes pend-glow{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,0.1),0 1px 4px rgba(0,0,0,0.22);}50%{box-shadow:0 0 0 7px rgba(22,163,74,0.28),0 1px 4px rgba(0,0,0,0.22);}}
     #map-container{position:relative;flex:3;}
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
@@ -3372,6 +3377,18 @@ function processOfflineQueue() { /* no-op in v3 */ }
  */
 function dashboardTogglePump(deviceName, newStateInt, cb) {
   if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
+  // ── Debounce: ignore rapid re-toggle within 600ms ──
+  var _dKey = 'dTP:' + deviceName;
+  if (_localTogglePending[_dKey]) return;
+  _localTogglePending[_dKey] = Date.now();
+  setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
+  // ── Mark pending for "Sending…" badge ──
+  _markTogglePending(deviceName);
+  // ── Find toggle label for pending glow ──
+  var _togInput = document.querySelector('input[data-device="' + escapeForAttr(deviceName) + '"]');
+  var _togLabel = _togInput ? _togInput.closest('.toggle-switch') : null;
+  if (_togLabel) _togLabel.classList.add('pending');
+
   commandedRelayCache[deviceName] = newStateInt;
   if (cb) cb(newStateInt);
 
@@ -3383,13 +3400,14 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     longitude: coords.longitude || ''
   };
   apiPost('togglePump', params).then(function(res) {
+    if (_togLabel) _togLabel.classList.remove('pending');
+    delete _localTogglePending[_dKey];
     if (res && res.success) {
       commandedRelayCache[deviceName] = res.newState;
       if (cb) cb(res.newState);
       showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
-      _manualToggleCooldown[deviceName] = Date.now() + 300000; // 5 min cooldown
-      // Clear autoOffEntry so auto-shutoff can re-evaluate when cooldown expires
+      _manualToggleCooldown[deviceName] = Date.now() + 300000;
       pumpLinkConfigs.forEach(function(pl) {
         if (pl.pump === deviceName) {
           var key = pl.pump + ':' + pl.reservoir;
@@ -3407,8 +3425,8 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    // ── Do NOT revert — the command may have reached the server successfully ──
-    delete _localTogglePending[deviceName];
+    if (_togLabel) _togLabel.classList.remove('pending');
+    delete _localTogglePending[_dKey];
     showNotification('⚠ Command sent — waiting for smart device confirmation. The relay may have toggled.', 'warning');
     updateDashboard();
   });
