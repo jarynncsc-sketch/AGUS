@@ -2944,6 +2944,9 @@ map.on('singleclick', function(evt) {
     if (features && features.length > 1) { var e = ol.extent.createEmpty(); features.forEach(function(f){ol.extent.extend(e,f.getGeometry().getExtent());}); map.getView().fit(e,{duration:500,padding:[50,50,50,50]}); }
   });
 });
+map.on('pointermove', function(evt) {
+  map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+});
 var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,-10],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
