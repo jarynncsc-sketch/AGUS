@@ -1101,6 +1101,8 @@
     .pw-toggle{position:absolute;right:13px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--txt-l);display:flex;}
     .btn-login{width:100%;padding:14px;margin-top:8px;background:linear-gradient(135deg,var(--teal-2),var(--navy));color:#fff;border:none;border-radius:12px;font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;letter-spacing:.5px;cursor:pointer;box-shadow:0 4px 18px rgba(13,79,108,.26);transition:opacity .2s,transform .15s,box-shadow .2s;box-sizing:border-box;}
     .btn-login:hover{opacity:.92;transform:translateY(-2px);box-shadow:0 8px 28px rgba(13,79,108,.4);}
+    #loginSpinner{display:none;width:28px;height:28px;border:3px solid rgba(26,170,148,0.2);border-top-color:var(--teal-2);border-radius:50%;margin:12px auto 0;animation:loginSpin 0.7s linear infinite;}
+    @keyframes loginSpin{to{transform:rotate(360deg)}}
     #loginErr{margin-top:14px;padding:9px 13px;background:#fff0f0;border-left:3px solid var(--danger);border-radius:8px;color:#c0392b;font-size:.84rem;display:none;text-align:center;}
     .lp-byline{z-index:5;position:absolute;bottom:20px;left:0;right:0;text-align:center;font-size:.85rem;color:var(--txt-l);}
     .lp-waves{position:absolute;bottom:0;left:0;width:100%;height:200px;pointer-events:none;z-index:1;overflow:hidden;}
@@ -1802,6 +1804,7 @@
         <span class="pw-toggle" onclick="togglePw()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
       </div>
       <button class="btn-login" onclick="login()">Log In</button>
+      <div id="loginSpinner"></div>
       <div id="loginErr"></div>
     </div>
     <p class="lp-byline">by <strong>Jarynn Pump Automations 2021</strong></p>
@@ -2524,11 +2527,13 @@ function login() {
   var user = document.getElementById('username').value.trim();
   var pass = document.getElementById('password').value;
   var errEl = document.getElementById('loginErr');
+  var spinEl = document.getElementById('loginSpinner');
   errEl.style.display = 'none';
   if (!user || !pass) { errEl.innerText = 'Enter your username and password.'; errEl.style.display = 'block'; return; }
+  spinEl.style.display = 'block';
   apiPost('checkLogin', {user: user, pass: pass})
     .then(function(token) {
-      if (!token) { errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
+      if (!token) { spinEl.style.display = 'none'; errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
       userToken = token; sessionToken = token; loggedInUser = user;
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
@@ -2540,6 +2545,7 @@ function login() {
       initPumpLinksAndDisplay();
     })
     .catch(function(err) {
+      spinEl.style.display = 'none';
       errEl.innerText = 'Login failed. Check your API_URL in the code or try again.';
       errEl.style.display = 'block';
       console.error('Login error:', err);
