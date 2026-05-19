@@ -3382,12 +3382,6 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   if (_localTogglePending[_dKey]) return;
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
-  // ── Mark pending for "Sending…" badge ──
-  _markTogglePending(deviceName);
-  // ── Find toggle label for pending glow ──
-  var _togInput = document.querySelector('input[data-device="' + escapeForAttr(deviceName) + '"]');
-  var _togLabel = _togInput ? _togInput.closest('.toggle-switch') : null;
-  if (_togLabel) _togLabel.classList.add('pending');
 
   commandedRelayCache[deviceName] = newStateInt;
   if (cb) cb(newStateInt);
@@ -3400,7 +3394,6 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     longitude: coords.longitude || ''
   };
   apiPost('togglePump', params).then(function(res) {
-    if (_togLabel) _togLabel.classList.remove('pending');
     delete _localTogglePending[_dKey];
     if (res && res.success) {
       commandedRelayCache[deviceName] = res.newState;
@@ -3425,7 +3418,6 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    if (_togLabel) _togLabel.classList.remove('pending');
     delete _localTogglePending[_dKey];
     showNotification('⚠ Command sent — waiting for smart device confirmation. The relay may have toggled.', 'warning');
     updateDashboard();
@@ -8736,9 +8728,11 @@ function exportDashboardPDF() {
   '  var d=e.data;if(!d)return;' +
   '  if(d.type==="AGUS_CFG"){' +
   '    dbOpen().then(function(db){' +
-  '      dbSet(db,"cfg",d.cfg);' +
-  '      if(d.prev)dbSet(db,"prev",d.prev);' +
-  '    });' +
+  '      return Promise.all([' +
+  '        dbSet(db,"cfg",d.cfg),' +
+  '        d.prev?dbSet(db,"prev",d.prev):Promise.resolve()' +
+  '      ]);' +
+  '    }).then(function(){ bgPoll().catch(function(){}); });' +
   '  }' +
   '  if(d.type==="AGUS_NOTIFY"){' +
   '    self.registration.showNotification(d.title,d.opts||{});' +
@@ -8886,15 +8880,21 @@ function exportDashboardPDF() {
   /* AGUS_PL message: page pushes pump links + manual cooldowns to SW */
   'self.addEventListener("message",function(e2){' +
   '  var d2=e2.data;if(!d2)return;' +
-  '  if(d2.type==="AGUS_PL"){' +
+'  if(d2.type==="AGUS_PL"){' +
   '    dbOpen().then(function(db2){' +
-  '      dbGet(db2,"cfg").then(function(existCfg){' +
+  '      return dbGet(db2,"cfg").then(function(existCfg){' +
   '        var merged=Object.assign({},existCfg||{});' +
   '        if(d2.links)merged.pumpLinks=d2.links;' +
-  '        dbSet(db2,"cfg",merged);' +
+  '        if(d2.baseCfg){' +
+  '          if(d2.baseCfg.apiUrl)merged.apiUrl=d2.baseCfg.apiUrl;' +
+  '          if(d2.baseCfg.token)merged.token=d2.baseCfg.token;' +
+  '        }' +
+  '        return Promise.all([' +
+  '          dbSet(db2,"cfg",merged),' +
+  '          d2.manCool?dbSet(db2,"pl_man_cool",d2.manCool):Promise.resolve()' +
+  '        ]);' +
   '      });' +
-  '      if(d2.manCool)dbSet(db2,"pl_man_cool",d2.manCool);' +
-  '    });' +
+  '    }).then(function(){ bgPoll().catch(function(){}); });' +
   '  }' +
   '});' +
   /* Also run on push event (for future server-push) */
@@ -9072,11 +9072,22 @@ function exportDashboardPDF() {
     el.style.display = 'flex';
   }
 
+  /* ── Keepalive timer handle ── */
+  var _keepaliveTimer = null;
+
   /* ── Startup ─────────────────────────────────────────────── */
   function _init() {
     _renderBtn();
+    /* Always register SW for background pump-link auto-control, even without notifications */
+    _registerSW();
+    /* Keep SW alive while any page tab is open — send ping every 30s */
+    if (_keepaliveTimer) clearInterval(_keepaliveTimer);
+    _keepaliveTimer = setInterval(function() {
+      var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
+               || (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (sw) { try { sw.postMessage({ type: 'AGUS_PING' }); } catch(e) {} }
+    }, 30000);
     if (_on && Notification.permission === 'granted') {
-      _registerSW();
       _startPagePoll();
     }
     _watchToken();
