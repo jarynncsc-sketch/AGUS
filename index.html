@@ -2351,11 +2351,11 @@ var currentDeviceType = 'pressure';
 var PUMP_PARAMS = [
   {id:'pressure',   label:'Pressure',       unit:'psi', pattern:/pressure|psi/i,                                                   color:'#4ade80', yAxis:'yLeft',  group:'hydraulic'},
   {id:'flowrate',   label:'Flowrate',        unit:'L/s', pattern:/flowrate|flow/i,                                                  color:'#0ea5e9', yAxis:'yLeft',  group:'hydraulic'},
-  {id:'discharge',  label:'Total Discharge', unit:'m³',  pattern:/discharge|total/i,                                                color:'#8b5cf6', yAxis:'yRight', group:'hydraulic'},
-  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/res.*water|water.*level|reservoir level|water volume|volume m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'hydraulic'},
+  {id:'discharge',  label:'Total Discharge', unit:'m³',  pattern:/discharge/i,                                                       color:'#8b5cf6', yAxis:'yRight', group:'hydraulic'},
+  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'hydraulic'},
   {id:'voltage',    label:'Voltage',         unit:'V',   pattern:/voltage/i,                                                        color:'#22c55e', yAxis:'yRight', group:'electrical'},
   {id:'current',    label:'Current',         unit:'A',   pattern:/current/i,                                                        color:'#f43f5e', yAxis:'yRight', group:'electrical'},
-  {id:'power',      label:'Power',           unit:'W',   pattern:/^power/i,                                                         color:'#f97316', yAxis:'yRight', group:'electrical'},
+  {id:'power',      label:'Power',           unit:'W',   pattern:/power/i,                                                         color:'#f97316', yAxis:'yRight', group:'electrical'},
   {id:'energy',     label:'Energy',          unit:'kWh', pattern:/energy/i,                                                         color:'#a78bfa', yAxis:'yRight', group:'electrical'},
   // ─── Efficiency (computed on-the-fly) ───
   {id:'pumpeff', label:'Pump & Motor Efficiency', unit:'%', computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
@@ -4355,7 +4355,7 @@ function getFilteredData() {
 // Compute efficiency values from raw sensor row
 function computeEffVal(pid, row, keys) {
   var flK=keys.find(function(k){return /flowrate|flow/i.test(k);}), prK=keys.find(function(k){return /pressure|psi/i.test(k);});
-  var pwK=keys.find(function(k){return /^power/i.test(k);}), voK=keys.find(function(k){return /voltage/i.test(k);}), cuK=keys.find(function(k){return /current/i.test(k);});
+  var pwK=keys.find(function(k){return /power/i.test(k);}), voK=keys.find(function(k){return /voltage/i.test(k);}), cuK=keys.find(function(k){return /current/i.test(k);});
   var fl=flK?parseFloat(row[flK]):NaN, pr=prK?parseFloat(row[prK]):NaN, pw=pwK?parseFloat(row[pwK]):NaN, vo=voK?parseFloat(row[voK]):NaN, cu=cuK?parseFloat(row[cuK]):NaN;
   if (pid==='hydpower') { if(isNaN(fl)||isNaN(pr)||fl<=0)return null; return parseFloat((fl*pr*0.00689476).toFixed(4)); }
   if (pid==='pumpeff')  { if(isNaN(fl)||isNaN(pr)||isNaN(pw)||pw<=0||fl<=0)return null; var e=(fl*pr*0.00689476)/(pw/1000)*100; return(e>0&&e<=100)?parseFloat(e.toFixed(2)):null; }
@@ -4365,7 +4365,7 @@ function computeEffVal(pid, row, keys) {
 }
 function detectPumpParamKeys(rows) {
   if (!rows||!rows.length) return; var keys=Object.keys(rows[0]); pumpParamKeys={};
-  var hasFlow=keys.some(function(k){return /flowrate|flow/i.test(k);}), hasPres=keys.some(function(k){return /pressure|psi/i.test(k);}), hasPow=keys.some(function(k){return /^power/i.test(k);}), hasVolt=keys.some(function(k){return /voltage/i.test(k);}), hasCurr=keys.some(function(k){return /current/i.test(k);});
+  var hasFlow=keys.some(function(k){return /flowrate|flow/i.test(k);}), hasPres=keys.some(function(k){return /pressure|psi/i.test(k);}), hasPow=keys.some(function(k){return /power/i.test(k);}), hasVolt=keys.some(function(k){return /voltage/i.test(k);}), hasCurr=keys.some(function(k){return /current/i.test(k);});
   PUMP_PARAMS.forEach(function(p){
     if (p.computed) {
       if ((p.id==='hydpower'||p.id==='pumpeff')&&hasFlow&&hasPres) pumpParamKeys[p.id]='__computed__';
@@ -5155,7 +5155,7 @@ function renderTabModalChart(rows) {
       if (p.key === 'pumpeff') {
         var fl = parseFloat(r[keys.find(function(k){return /flowrate|flow/i.test(k);})||''] || 0);
         var pr = parseFloat(r[keys.find(function(k){return /pressure|psi/i.test(k);})||''] || 0);
-        var pw = parseFloat(r[keys.find(function(k){return /^power/i.test(k);})||''] || 0);
+        var pw = parseFloat(r[keys.find(function(k){return /power/i.test(k);})||''] || 0);
         if (fl>0&&pr>0&&pw>0) { val = Math.min(100,(fl*pr*0.00689476)/(pw/1000)*100); }
       } else if (ck) {
         val = parseFloat(r[ck]);
@@ -5359,12 +5359,12 @@ function generateAIReport() {
         }
         var pressure = colAvg(/pressure|psi/i);
         var flow = colAvg(/flowrate|flow/i);
-        var level = colAvg(/res.*water|water.*level|water volume|volume m3/i);
+        var level = colAvg(/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i);
         var voltage = colAvg(/voltage/i);
         var current = colAvg(/current/i);
-        var power = colAvg(/^power/i);
+        var power = colAvg(/power/i);
         var energy = colAvg(/energy/i);
-        var discharge = colAvg(/discharge|total/i);
+        var discharge = colAvg(/discharge/i);
 
         var lines = ['## ' + d.device + ' [' + devType + '] — ' + rows.length + ' records'];
         lines.push('- Status: ' + (d.status||'Unknown') + (d.relay!=null?' | Relay: '+(d.relay?'ON':'OFF'):''));
@@ -5971,7 +5971,7 @@ function aggregateEnergyStats(deviceName, rows) {
   if (!rows || !rows.length) return null;
   var keys = Object.keys(rows[0]);
   var flowK = keys.find(function(k){return /flowrate|flow/i.test(k);});
-  var powerK = keys.find(function(k){return /^power/i.test(k);});
+  var powerK = keys.find(function(k){return /power/i.test(k);});
   var energyK = keys.find(function(k){return /energy|kwh|kw.h/i.test(k);});
   var timeK = keys.find(function(k){return /time|date|timestamp/i.test(k);}) || keys[0];
   var totalEnergy = 0, peakPower = 0, lowFlowEvents = 0, highPowerEvents = 0;
@@ -6900,10 +6900,10 @@ function runBenchmark() {
     var metrics = [
       {label:'Pressure (psi)',pat:/pressure|psi/i,unit:'psi',color:'#1d4ed8'},
       {label:'Flowrate (L/s)',pat:/flowrate|flow/i,unit:'L/s',color:'#0ea5e9'},
-      {label:'Power (W)',pat:/^power/i,unit:'W',color:'#f97316'},
+      {label:'Power (W)',pat:/power/i,unit:'W',color:'#f97316'},
       {label:'Energy (kWh)',pat:/energy/i,unit:'kWh',color:'#8b5cf6'},
       {label:'Voltage (V)',pat:/voltage/i,unit:'V',color:'#22c55e'},
-      {label:'Water Level (m³)',pat:/water.*level|volume m3/i,unit:'m³',color:'#06b6d4'},
+      {label:'Water Level (m³)',pat:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,unit:'m³',color:'#06b6d4'},
     ];
 
     var cards = metrics.map(function(m) {
@@ -7164,10 +7164,10 @@ function runMLAnalysis() {
     var paramDefs = [
       { id: 'pressure', label: 'Pressure', unit: 'psi', color: '#3b82f6', pattern: /pressure|psi/i, targetMax: 120, higherIsBad: true },
       { id: 'flowrate', label: 'Flow Rate', unit: 'L/s', color: '#22c55e', pattern: /flowrate|flow/i, targetMax: null, higherIsBad: false },
-      { id: 'power',    label: 'Power',     unit: 'W',   color: '#f97316', pattern: /^power/i,        targetMax: 5000, higherIsBad: true },
+      { id: 'power',    label: 'Power',     unit: 'W',   color: '#f97316', pattern: /power/i,        targetMax: 5000, higherIsBad: true },
       { id: 'voltage',  label: 'Voltage',   unit: 'V',   color: '#8b5cf6', pattern: /voltage/i,       targetMax: null, higherIsBad: false },
       { id: 'current',  label: 'Current',   unit: 'A',   color: '#ec4899', pattern: /current/i,       targetMax: null, higherIsBad: true },
-      { id: 'level',    label: 'Water Level',unit:'m³',  color: '#06b6d4', pattern: /water.*level|volume m3/i, targetMax: null, higherIsBad: false }
+      { id: 'level',    label: 'Water Level',unit:'m³',  color: '#06b6d4', pattern: /cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, targetMax: null, higherIsBad: false }
     ];
 
     var analysed = [];
@@ -7522,7 +7522,7 @@ function loadForecast() {
     rows=rows||[];
     var keys=rows.length?Object.keys(rows[0]):[];
     var timeKey=keys.find(function(k){return /time|date|timestamp/i.test(k);})||keys[0];
-    var patterns={pressure:/pressure|psi/i,flowrate:/flowrate|flow/i,power:/^power/i,level:/water.*level|volume m3/i};
+    var patterns={pressure:/pressure|psi/i,flowrate:/flowrate|flow/i,power:/power/i,level:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i};
     var pat=patterns[param]||patterns.pressure;
     var valKey=keys.find(function(k){return pat.test(k);});
     if(!valKey||rows.length<30){
@@ -9240,7 +9240,7 @@ function _getSheets(deviceNames, cb) {
 function _parseRow(r, keys) {
   var timeK = keys.find(function(k){return /time|date|stamp/i.test(k);}) || keys[0];
   var flowK  = keys.find(function(k){return /flowrate|flow(?!meter)|lps/i.test(k);});
-  var powK   = keys.find(function(k){return /^power/i.test(k);});
+  var powK   = keys.find(function(k){return /power/i.test(k);});
   var presK  = keys.find(function(k){return /pressure|psi/i.test(k);});
   var lvlK   = keys.find(function(k){return /level/i.test(k);});
   var volK   = keys.find(function(k){return /voltage/i.test(k);});
