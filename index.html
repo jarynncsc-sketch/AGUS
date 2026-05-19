@@ -2367,7 +2367,7 @@ var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
 var pressureSettingsCache = {}, pressureSettingsModalDev = '';
 var reservoirThresholdsCache = {}, reservoirSettingsModalDev = '';
 var alarmSpeechState = {};
-var SPEECH_REPEAT_INTERVAL = 5 * 60 * 1000, ONLINE_THRESHOLD_MINUTES = 30;
+var SPEECH_REPEAT_INTERVAL = 5 * 60 * 1000, ONLINE_THRESHOLD_MINUTES = 30, RESERVOIR_THRESHOLD_MINUTES = 120;
 
 // ── Reservoir–Pump Link — GAS-backed (ReservoirPumpLinks sheet) ──────────
 // pumpLinkConfigs: array of link objects from GAS
@@ -2379,9 +2379,11 @@ var _pumpLinksRefreshCounter = 0;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
 var autoShutoffSuppressNotify  = {}; // debounce toasts
 var _autoShutoffLog            = []; // loaded from GAS on demand
-// ── Tracks whether the OFF/ON command was ALREADY SENT for a given pump:reservoir
+// ── Tracks when the OFF/ON command was last sent for a given pump:reservoir
 //    pair this session. Prevents repeated commands on every poll cycle.
-var _autoShutoffCommandSent    = {}; // { "pump:reservoir": 'off'|'on' }
+//    Uses timestamps — expires after 60s so failed commands can be retried.
+var _autoShutoffCommandSent    = {}; // { "pump:reservoir": timestamp }
+var _AUTO_SHUTOFF_COOLDOWN     = 60000; // ms before same-direction command can be re-sent
 
 // ── Normalise GAS link object → internal format ───────────────────────────
 function _normLink(l) {
@@ -2941,7 +2943,14 @@ map.addOverlay(detailsOverlay);
 
 function derivePressureStatus(d) {
   var raw = d.lastTimestamp || d.lastSeen || d.timestamp || null;
-  if (raw) { var ts = parseSheetDate(raw); if (ts && !isNaN(ts.getTime())) return (Date.now()-ts.getTime())/60000 <= ONLINE_THRESHOLD_MINUTES ? 'Online' : 'Offline'; }
+  if (raw) {
+    var ts = parseSheetDate(raw);
+    if (ts && !isNaN(ts.getTime())) {
+      var isReservoir = d.device && d.device.toLowerCase().includes('reservoir');
+      var threshold = isReservoir ? RESERVOIR_THRESHOLD_MINUTES : ONLINE_THRESHOLD_MINUTES;
+      return (Date.now()-ts.getTime())/60000 <= threshold ? 'Online' : 'Offline';
+    }
+  }
   return d.status || 'Offline';
 }
 function selectDevice(device) {
@@ -3144,7 +3153,20 @@ function buildMiniRangeBar(mn, no, mx, cur) {
   return '<div style="position:absolute;inset:0;display:flex;"><div style="width:'+lw+'%;background:linear-gradient(90deg,#ff6b35,#ffa040);"></div><div style="width:'+nw+'%;background:linear-gradient(90deg,#22c55e,#4ade80);"></div><div style="flex:1;background:linear-gradient(90deg,#ef4444,#dc2626);"></div></div>'+ind;
 }
 
-function initDashboard() { updateDashboard(); loadPumpLinksFromGAS(function(){}); setInterval(function(){updateDashboard();processOfflineQueue();}, 15000); }
+var _dashboardTimer = null;
+function initDashboard() {
+  updateDashboard();
+  loadPumpLinksFromGAS(function(){});
+  if (_dashboardTimer) clearInterval(_dashboardTimer);
+  // Poll every 60s instead of 15s — reduces GAS writes by 75%
+  _dashboardTimer = setInterval(function() {
+    if (!document.hidden) { updateDashboard(); processOfflineQueue(); }
+  }, 60000);
+  // Poll immediately when tab becomes visible again (catches up after pause)
+  document.addEventListener('visibilitychange', function() {
+    if (!document.hidden) { updateDashboard(); }
+  });
+}
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║  AUTONOMOUS PUMP-LINK ENGINE                                            ║
@@ -3639,8 +3661,9 @@ function autoShutoffPumps(devices) {
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
       // ── Only send the OFF command once per shutoff event ─────────────────
-      if (_autoShutoffCommandSent[_cmdKey] !== 'off') {
-        _autoShutoffCommandSent[_cmdKey] = 'off';
+      var _lastB = _autoShutoffCommandSent[_cmdKey] || 0;
+      if (!_lastB || Date.now() - _lastB > _AUTO_SHUTOFF_COOLDOWN) {
+        _autoShutoffCommandSent[_cmdKey] = Date.now();
         var bkey = cfg.pump + ':backup:' + cfg.reservoir;
         if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
           autoShutoffSuppressNotify[bkey] = Date.now();
@@ -3671,8 +3694,9 @@ function autoShutoffPumps(devices) {
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
       // ── Only send the OFF command once per shutoff event ─────────────────
-      if (_autoShutoffCommandSent[_cmdKey] !== 'off') {
-        _autoShutoffCommandSent[_cmdKey] = 'off';
+      var _lastOff = _autoShutoffCommandSent[_cmdKey] || 0;
+      if (!_lastOff || Date.now() - _lastOff > _AUTO_SHUTOFF_COOLDOWN) {
+        _autoShutoffCommandSent[_cmdKey] = Date.now();
         var suppressKey = cfg.pump + ':off:' + cfg.reservoir;
         if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
           autoShutoffSuppressNotify[suppressKey] = Date.now();
@@ -3696,8 +3720,9 @@ function autoShutoffPumps(devices) {
     // ── Backup resume (primary resume may have failed) ───────────────────
     } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
       // ── Only send the ON command once per resume event ────────────────────
-      if (_autoShutoffCommandSent[_cmdKey] !== 'on') {
-        _autoShutoffCommandSent[_cmdKey] = 'on';
+      var _lastOn2 = _autoShutoffCommandSent[_cmdKey] || 0;
+      if (!_lastOn2 || Date.now() - _lastOn2 > _AUTO_SHUTOFF_COOLDOWN) {
+        _autoShutoffCommandSent[_cmdKey] = Date.now();
         delete reservoirAutoShutoffState[_cmdKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
@@ -3719,8 +3744,9 @@ function autoShutoffPumps(devices) {
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && !serverRelayOn) {
       // ── Only send the ON command once per resume event ────────────────────
-      if (_autoShutoffCommandSent[_cmdKey] !== 'on') {
-        _autoShutoffCommandSent[_cmdKey] = 'on';
+      var _lastOn = _autoShutoffCommandSent[_cmdKey] || 0;
+      if (!_lastOn || Date.now() - _lastOn > _AUTO_SHUTOFF_COOLDOWN) {
+        _autoShutoffCommandSent[_cmdKey] = Date.now();
         delete reservoirAutoShutoffState[_cmdKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
