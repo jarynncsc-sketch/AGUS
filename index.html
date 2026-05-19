@@ -370,6 +370,8 @@
   body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport { filter: invert(1) hue-rotate(180deg); }
   body.dark-mode #bg-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
   body.dark-mode .top-card { background:#1e293b!important; }
+  body.dark-mode .nav-group-label { color:#94a3b8!important; }
+  body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
   @keyframes spin { to { transform: rotate(360deg); } }
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
@@ -1123,6 +1125,7 @@
     .nav-group-label{font-size:9px;font-weight:600;color:#8aa5af;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:0 2px;}
     .nav-group-cards{display:flex;gap:4px;}
     .top-card{display:flex;flex-direction:column;align-items:center;width:58px;padding:6px 4px 5px;border-radius:9px;background:transparent;cursor:pointer;transition:background .15s ease,transform .15s ease;font-weight:500;color:#004080;position:relative;border:1px solid transparent;}
+    .top-card:focus-visible{outline:2px solid var(--teal-2);outline-offset:2px;border-radius:9px;}
     .top-card:hover{background:#eef4fb;transform:translateY(-1px);}
     .top-card span{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;color:#4a6572;padding:2px 0 0;white-space:normal;pointer-events:none;text-align:center;line-height:1.25;}
     .top-card.active{background:#dbeafe;border-color:#93c5fd;}
@@ -1824,14 +1827,14 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">Data</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-data" data-tab="map"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
-          <div class="top-card grp-data" data-tab="analytics"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
-          <div class="top-card grp-data" data-tab="reports"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
-          <div class="top-card grp-data" data-tab="prod-history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span></div>
-          <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
-          <div class="top-card grp-data" data-tab="pressure-logger"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
-          <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
-          <div class="top-card grp-data" data-tab="benchmark" onclick="openBenchmark()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmark</span></div>
+          <div class="top-card grp-data" data-tab="map" title="Map overview of all devices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
+          <div class="top-card grp-data" data-tab="analytics" title="Multi-parameter chart analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
+          <div class="top-card grp-data" data-tab="reports" title="Energy, power, flow historical reports"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
+          <div class="top-card grp-data" data-tab="prod-history" title="Production & discharge history charts"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span></div>
+          <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
+          <div class="top-card grp-data" data-tab="pressure-logger" title="Pressure sensor log viewer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
+          <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()" title="Demand forecasting based on historical data"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
+          <div class="top-card grp-data" data-tab="benchmark" onclick="openBenchmark()" title="Benchmark performance against targets"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmark</span></div>
           <div class="top-card grp-data" onclick="openSummaryReport()" title="Daily/Weekly/Monthly summary totals per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/><path d="M7 13h2M7 17h2M13 13h4M13 17h4"/></svg><span>Summary</span></div>
           <div class="top-card grp-data" onclick="openHeatmap()" title="24-hour demand heatmap by hour × day-of-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="4" height="4" rx="1"/><rect x="10" y="3" width="4" height="4" rx="1"/><rect x="17" y="3" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="17" y="10" width="4" height="4" rx="1"/><rect x="3" y="17" width="4" height="4" rx="1"/><rect x="10" y="17" width="4" height="4" rx="1"/><rect x="17" y="17" width="4" height="4" rx="1"/></svg><span>Heatmap</span></div>
           <div class="top-card grp-data" onclick="openCorrelation()" title="Cross-device correlation — pump relay vs downstream sensors"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M3 3l7 7M21 21l-7-7M14 3h7v7M10 21H3v-7"/></svg><span>Correlation</span></div>
@@ -1843,10 +1846,10 @@
         <div class="nav-group-label">Control</div>
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
-          <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
+          <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()" title="AI energy optimizer & consumption analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
           <div class="top-card grp-ctrl" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
-          <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
-          <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
+          <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()" title="Non-revenue water & leak loss tracker"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
+          <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1854,12 +1857,12 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">Monitoring</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-ctrl" data-tab="alarm"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span></div>
-          <div class="top-card grp-ctrl" data-tab="alarm-center" onclick="openAlarmCenter()" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Alarm Center</span><span id="alarm-center-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;">0</span></div>
-          <div class="top-card grp-ctrl" data-tab="water-quality" onclick="openWaterQuality()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2 C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg><span>Water Quality</span></div>
-          <div class="top-card grp-ctrl" data-tab="preventive-maintenance"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span></div>
-          <div class="top-card grp-ctrl" data-tab="maint-calendar" onclick="openMaintenanceCalendar()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
-          <div class="top-card grp-ctrl" data-tab="logbook" onclick="openLogbook()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
+          <div class="top-card grp-ctrl" data-tab="alarm" title="Historical alarm log chart viewer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span></div>
+          <div class="top-card grp-ctrl" data-tab="alarm-center" onclick="openAlarmCenter()" style="position:relative;" title="Active alarm management & incident reporting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Alarm Center</span><span id="alarm-center-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;">0</span></div>
+          <div class="top-card grp-ctrl" data-tab="water-quality" onclick="openWaterQuality()" title="Water quality monitoring dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2 C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg><span>Water Quality</span></div>
+          <div class="top-card grp-ctrl" data-tab="preventive-maintenance" title="Equipment maintenance tracking & schedules"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span></div>
+          <div class="top-card grp-ctrl" data-tab="maint-calendar" onclick="openMaintenanceCalendar()" title="Maintenance calendar & scheduling"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
+          <div class="top-card grp-ctrl" data-tab="logbook" onclick="openLogbook()" title="Shift logbook for operator entries"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1880,14 +1883,14 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">System</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+          <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()" title="Toggle dark/light theme"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
           <div class="top-card grp-sys" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
             <span>Alert Thr.</span>
           </div>
-          <div id="push-notif-btn" onclick="toggleAGUSPush()" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-width:54px;padding:6px 4px;border-radius:12px;cursor:pointer;background:rgba(239,68,68,0.10);border:1.5px solid rgba(239,68,68,0.25);transition:background 0.18s;" title="Push notifications OFF — tap to enable">
+          <div class="top-card grp-sys" id="push-notif-btn" onclick="toggleAGUSPush()" title="Push notifications OFF — tap to enable">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
-            <span style="font-size:7.5px;font-weight:800;color:#dc2626;">PUSH OFF</span>
+            <span style="color:#dc2626;font-weight:800;">PUSH OFF</span>
           </div>
           <div class="top-card grp-sys" id="pwa-install-btn" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
@@ -4775,8 +4778,8 @@ var TAB_CONFIGS = {
     params: [
       {key:'pressure',   label:'Pressure (psi)',     color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
       {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
-      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/res.*water|water.*level|reservoir level|water volume|volume m3/i,  group:'hydraulic'},
-      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge|total/i,                                                 group:'hydraulic'},
+      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
+      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
       {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
       {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
       {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
@@ -4794,10 +4797,10 @@ var TAB_CONFIGS = {
     params: [
       {key:'energy',     label:'Energy (kWh)',        color:'rgba(167,139,250,0.85)', bg:'rgba(167,139,250,0.12)', pattern:/energy/i,                                                          group:'electrical'},
       {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
-      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge|total/i,                                                 group:'hydraulic'},
+      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
       {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
       {key:'pressure',   label:'Pressure (psi)',      color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
-      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/res.*water|water.*level|reservoir level|water volume|volume m3/i,  group:'hydraulic'},
+      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
       {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
       {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
       {key:'pumpeff',    label:'Pump Efficiency (%)', color:'rgba(245,158,11,0.85)',  bg:'rgba(245,158,11,0.12)',  computed:true,                                                              group:'efficiency'}
@@ -4812,7 +4815,7 @@ var TAB_CONFIGS = {
     color: '#dc2626',
     params: [
       {key:'pressure', label:'Pressure (psi)', color:'rgba(239,68,68,0.85)', bg:'rgba(239,68,68,0.12)', pattern:/pressure|psi/i},
-      {key:'relay',    label:'Relay State',    color:'rgba(100,116,139,0.85)',bg:'rgba(100,116,139,0.12)',pattern:/^relay$/i}
+      {key:'relay',    label:'Relay State',    color:'rgba(100,116,139,0.85)',bg:'rgba(100,116,139,0.12)',pattern:/relay/i}
     ],
     chartType: 'line',
     yLabel: 'Pressure (psi)',
@@ -4823,7 +4826,7 @@ var TAB_CONFIGS = {
     icon: '🔧',
     color: '#b45309',
     params: [
-      {key:'pumpeff', label:'Efficiency (%)', color:'rgba(245,158,11,0.85)', bg:'rgba(245,158,11,0.12)', computed: true}
+      {key:'pumpeff', label:'Efficiency (%)', color:'rgba(245,158,11,0.85)', bg:'rgba(245,158,11,0.12)', computed: true, pattern:/efficienc|pump.*eff|motor.*eff/i}
     ],
     chartType: 'line',
     yLabel: 'Efficiency (%)'
@@ -4833,7 +4836,7 @@ var TAB_CONFIGS = {
     icon: '📈',
     color: '#065f46',
     params: [
-      {key:'discharge', label:'Total Discharge (m³)', color:'rgba(139,92,246,0.85)', bg:'rgba(139,92,246,0.12)', pattern:/discharge|total/i},
+      {key:'discharge', label:'Total Discharge (m³)', color:'rgba(139,92,246,0.85)', bg:'rgba(139,92,246,0.12)', pattern:/discharge/i},
       {key:'flowrate',  label:'Flowrate (L/s)',       color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i}
     ],
     chartType: 'bar',
@@ -4856,7 +4859,7 @@ var TAB_CONFIGS = {
     params: [
       {key:'voltage', label:'Voltage (V)',  color:'rgba(34,197,94,0.85)',  bg:'rgba(34,197,94,0.12)',  pattern:/voltage/i},
       {key:'current', label:'Current (A)',  color:'rgba(244,63,94,0.85)',  bg:'rgba(244,63,94,0.12)',  pattern:/current/i},
-      {key:'power',   label:'Power (W)',    color:'rgba(249,115,22,0.85)', bg:'rgba(249,115,22,0.12)', pattern:/^power/i}
+      {key:'power',   label:'Power (W)',    color:'rgba(249,115,22,0.85)', bg:'rgba(249,115,22,0.12)', pattern:/power/i}
     ],
     chartType: 'bar',
     yLabel: 'Voltage / Current / Power'
@@ -4866,6 +4869,8 @@ var TAB_CONFIGS = {
 function openTabModal(tabKey) {
   var cfg = TAB_CONFIGS[tabKey];
   if (!cfg) return;
+  var match = document.querySelector('.top-card[data-tab="'+tabKey+'"]');
+  if (match) { document.querySelectorAll('.top-card').forEach(function(c){c.classList.remove('active');}); match.classList.add('active'); }
   tabModalCurrentTab = tabKey;
   tabModalCurrentMode = 'daily';
   tabModalCurrentDevice = null;
@@ -5099,16 +5104,32 @@ function renderTabModalChart(rows) {
       // only show efficiency if all three source cols exist
       var fk = keys.find(function(k){return /flowrate|flow/i.test(k);});
       var pk = keys.find(function(k){return /pressure|psi/i.test(k);});
-      var pwk = keys.find(function(k){return /^power/i.test(k);});
+      var pwk = keys.find(function(k){return /power/i.test(k);});
       return !!(fk && pk && pwk);
     }
     return !!resolveKey(p);
   });
 
   if (!activeParams.length) {
-    if (load) { load.style.display='flex'; load.innerHTML='<span style="color:#b0b8c8;font-size:13px;">No matching data columns found for <b>' + (tabModalCurrentDevice || '') + '</b>.</span>'; }
-    if (chartArea) chartArea.style.display = 'none';
-    return;
+    // Fallback: scan rows for numeric columns and use them
+    var timeKey2 = keys.find(function(k){return /time|date|timestamp/i.test(k);})||keys[0];
+    var numericKeys = keys.filter(function(k){
+      if (k === timeKey2) return false;
+      if (/lat|lon|lng|relay|toggle|status|device|id|name|by|user|note|comment|address/i.test(k)) return false;
+      var count = rows.slice(0,30).filter(function(r){ return !isNaN(parseFloat(r[k])); }).length;
+      return count >= 5;
+    });
+    if (numericKeys.length) {
+      activeParams = numericKeys.slice(0,6).map(function(k, i) {
+        var colors = ['rgba(29,78,216,0.85)','rgba(14,165,233,0.85)','rgba(6,182,212,0.85)','rgba(34,197,94,0.85)','rgba(244,63,94,0.85)','rgba(249,115,22,0.85)'];
+        var bgs    = ['rgba(29,78,216,0.12)','rgba(14,165,233,0.12)','rgba(6,182,212,0.12)','rgba(34,197,94,0.12)','rgba(244,63,94,0.12)','rgba(249,115,22,0.12)'];
+        return { key: k, label: k, color: colors[i%colors.length], bg: bgs[i%bgs.length], pattern: new RegExp('^'+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$','i'), group:'auto' };
+      });
+    } else {
+      if (load) { load.style.display='flex'; load.innerHTML='<span style="color:#b0b8c8;font-size:13px;">No numeric data columns found for <b>' + (tabModalCurrentDevice || '') + '</b>.</span>'; }
+      if (chartArea) chartArea.style.display = 'none';
+      return;
+    }
   }
 
   // Aggregate by mode
