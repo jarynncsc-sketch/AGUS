@@ -1851,9 +1851,9 @@
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()" title="AI energy optimizer & consumption analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
-          <div class="top-card grp-ctrl" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
+          <div class="top-card grp-ctrl" data-tab="efficiency" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
           <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()" title="Non-revenue water & leak loss tracker"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
-          <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
+          <div class="top-card grp-ctrl" data-tab="flowmeter-cal" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1875,11 +1875,11 @@
         <div class="nav-group-label">AI</div>
         <div class="nav-group-cards">
           <div class="top-card grp-ai" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine — RUL & anomaly scoring"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span>ML Risk</span><span id="ml-risk-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">!</span></div>
-          <div class="top-card grp-ai" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
-          <div class="top-card grp-ai" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
-          <div class="top-card grp-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
-          <div class="top-card grp-ai" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
-          <div class="top-card grp-ai" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
+          <div class="top-card grp-ai" data-tab="ai-chat" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
+          <div class="top-card grp-ai" data-tab="analytics" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
+          <div class="top-card grp-ai" data-tab="energy-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
+          <div class="top-card grp-ai" data-tab="cost-calc" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
+          <div class="top-card grp-ai" data-tab="ai-config" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1887,16 +1887,16 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">System</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()" title="Toggle dark/light theme"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
-          <div class="top-card grp-sys" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
+          <div class="top-card grp-sys" id="dark-mode-btn" data-tab="dark-mode" onclick="toggleDarkMode()" title="Toggle dark/light theme"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+          <div class="top-card grp-sys" data-tab="alert-thr" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
             <span>Alert Thr.</span>
           </div>
-          <div class="top-card grp-sys" id="push-notif-btn" onclick="toggleAGUSPush()" title="Push notifications OFF — tap to enable">
+          <div class="top-card grp-sys" id="push-notif-btn" data-tab="push-notif" onclick="toggleAGUSPush()" title="Push notifications OFF — tap to enable">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
             <span style="color:#dc2626;font-weight:800;">PUSH OFF</span>
           </div>
-          <div class="top-card grp-sys" id="pwa-install-btn" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
+          <div class="top-card grp-sys" id="pwa-install-btn" data-tab="install-app" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
             <span id="pwa-btn-label">Install App</span>
           </div>
@@ -2936,6 +2936,10 @@ if (isPS) {
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
 map.addLayer(clusterLayer);
+var pipelineSource = new ol.source.Vector();
+var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:new ol.style.Style({stroke:new ol.style.Stroke({color:'#2563eb',width:2,opacity:0.7})})});
+map.addLayer(pipelineLayer);
+fetch('Pipeline.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
 setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
@@ -5094,6 +5098,7 @@ function loadTabModalData() {
   apiGet('getSheetData', { sheet: tabModalCurrentDevice }).then(function(rows) {
     tabModalAllRows = rows || [];
     _sheetDataCache[tabModalCurrentDevice] = tabModalAllRows;
+    console.log('[ANALYTICS] getSheetData returned', rows ? rows.length + ' rows' : 'null/undefined', rows && rows.length ? Object.keys(rows[0]) : 'no rows');
     renderTabModalChart(tabModalAllRows);
   }).catch(function(e) {
     if (load) { load.style.display = 'flex'; load.innerHTML = '<span style="color:#e05555;">Could not load data: '+e.message+'</span>'; }
@@ -5116,6 +5121,7 @@ function renderTabModalChart(rows) {
 
   // Detect column keys from first row
   var keys = Object.keys(rows[0]);
+  console.log('[ANALYTICS] renderTabModalChart columns:', keys);
   var timeKey = keys.find(function(k){return /time|date|timestamp/i.test(k);})||keys[0];
 
   function resolveKey(p) {
@@ -5137,6 +5143,7 @@ function renderTabModalChart(rows) {
   });
 
   if (!activeParams.length) {
+    console.log('[ANALYTICS] No params matched cfg patterns, trying numeric fallback');
     // Fallback: scan rows for numeric columns and use them
     var timeKey2 = keys.find(function(k){return /time|date|timestamp/i.test(k);})||keys[0];
     var numericKeys = keys.filter(function(k){
@@ -5145,6 +5152,7 @@ function renderTabModalChart(rows) {
       var count = rows.slice(0,30).filter(function(r){ return !isNaN(parseFloat(r[k])); }).length;
       return count >= 5;
     });
+    console.log('[ANALYTICS] Numeric fallback found keys:', numericKeys);
     if (numericKeys.length) {
       activeParams = numericKeys.slice(0,6).map(function(k, i) {
         var colors = ['rgba(29,78,216,0.85)','rgba(14,165,233,0.85)','rgba(6,182,212,0.85)','rgba(34,197,94,0.85)','rgba(244,63,94,0.85)','rgba(249,115,22,0.85)'];
@@ -5152,10 +5160,13 @@ function renderTabModalChart(rows) {
         return { key: k, label: k, color: colors[i%colors.length], bg: bgs[i%bgs.length], pattern: new RegExp('^'+k.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'$','i'), group:'auto' };
       });
     } else {
+      console.log('[ANALYTICS] Numeric fallback found no suitable columns');
       if (load) { load.style.display='flex'; load.innerHTML='<span style="color:#b0b8c8;font-size:13px;">No numeric data columns found for <b>' + (tabModalCurrentDevice || '') + '</b>.</span>'; }
       if (chartArea) chartArea.style.display = 'none';
       return;
     }
+  } else {
+    console.log('[ANALYTICS] Matched active params:', activeParams.map(function(p){return p.label;}));
   }
 
   // Aggregate by mode
@@ -9851,6 +9862,7 @@ function _metCard(label, icon, value, unit, color) {
 })();
 
 </script>
+
 
 </body>
 </html>
