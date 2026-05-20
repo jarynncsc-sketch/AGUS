@@ -2935,10 +2935,10 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
-map.addLayer(clusterLayer);
 var pipelineSource = new ol.source.Vector();
 var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:new ol.style.Style({stroke:new ol.style.Stroke({color:'#2563eb',width:2,opacity:0.7})})});
 map.addLayer(pipelineLayer);
+map.addLayer(clusterLayer);
 fetch('Pipeline.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
 setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
