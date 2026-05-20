@@ -1842,6 +1842,7 @@
           <div class="top-card grp-data" onclick="openSummaryReport()" title="Daily/Weekly/Monthly summary totals per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/><path d="M7 13h2M7 17h2M13 13h4M13 17h4"/></svg><span>Summary</span></div>
           <div class="top-card grp-data" onclick="openHeatmap()" title="24-hour demand heatmap by hour × day-of-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="4" height="4" rx="1"/><rect x="10" y="3" width="4" height="4" rx="1"/><rect x="17" y="3" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="17" y="10" width="4" height="4" rx="1"/><rect x="3" y="17" width="4" height="4" rx="1"/><rect x="10" y="17" width="4" height="4" rx="1"/><rect x="17" y="17" width="4" height="4" rx="1"/></svg><span>Heatmap</span></div>
           <div class="top-card grp-data" onclick="openCorrelation()" title="Cross-device correlation — pump relay vs downstream sensors"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M3 3l7 7M21 21l-7-7M14 3h7v7M10 21H3v-7"/></svg><span>Correlation</span></div>
+          <div class="top-card grp-data" onclick="openPipelineLegend()" title="Pipeline network color code reference"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="2" y1="20" x2="22" y2="20"/><polyline points="12 20 12 4"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg><span>Pipeline</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1921,6 +1922,21 @@
 </div>
     <div id="device-details"></div>
 <div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
+  <!-- Pipeline toggle -->
+  <div style="min-width:96px;">
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pipeline</div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#334155;">
+      <input type="checkbox" id="pipeline-toggle" checked onchange="if(window.pipelineLayer)window.pipelineLayer.setVisible(this.checked);" style="accent-color:#2563eb;">
+      Show pipelines
+    </label>
+    <div style="margin-top:6px;">
+      <div class="legend-item"><span style="width:20px;height:4px;background:#8B5CF6;border-radius:2px;display:inline-block;"></span><span>Trunk (&ge;250mm)</span></div>
+      <div class="legend-item"><span style="width:16px;height:4px;background:#2563EB;border-radius:2px;display:inline-block;"></span><span>Primary (150-200mm)</span></div>
+      <div class="legend-item"><span style="width:12px;height:4px;background:#10B981;border-radius:2px;display:inline-block;"></span><span>Secondary (75-100mm)</span></div>
+      <div class="legend-item"><span style="width:8px;height:4px;background:#F59E0B;border-radius:2px;display:inline-block;"></span><span>Lateral (&le;50mm)</span></div>
+    </div>
+  </div>
+  <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
 
   <!-- Device status -->
   <div style="min-width:96px;">
@@ -2936,10 +2952,22 @@ if (isPS) {
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
 var pipelineSource = new ol.source.Vector();
-var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:new ol.style.Style({stroke:new ol.style.Stroke({color:'#2563eb',width:2,opacity:0.7})})});
+var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:function(feature){
+  var d = feature.get('DIAMETER') || 0;
+  var mat = (feature.get('MATERIALS') || '').toUpperCase();
+  var st = feature.get('STATUS') || '';
+  var w, c, o=0.85;
+  if (d >= 250) { w=4; c='#8B5CF6'; }
+  else if (d >= 150) { w=3; c='#2563EB'; }
+  else if (d >= 75) { w=2.5; c='#10B981'; }
+  else { w=2; c='#F59E0B'; }
+  if (st !== 'Open') { o=0.4; c='#EF4444'; }
+  return new ol.style.Style({stroke:new ol.style.Stroke({color:c,width:w,opacity:o})});
+}});
+window.pipelineLayer = pipelineLayer;
 map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
-fetch('Pipeline.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
+fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
 setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
@@ -9298,7 +9326,50 @@ function _parseRow(r, keys) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 1. DAILY / WEEKLY / MONTHLY SUMMARY REPORT
+// 0. PIPELINE COLOR CODE REFERENCE
+// ════════════════════════════════════════════════════════════════════════════
+window.openPipelineLegend = function() {
+  _spinCss();
+  var ov = _overlay('pipeline-legend-ov');
+  var pn = _panel('Pipeline Color Code','Diameter-based coloring for pipeline network','🔴','#8B5CF6');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+  body.innerHTML =
+    '<div style="max-width:600px;margin:0 auto;font-family:\'DM Sans\',sans-serif;">'
+    + '<p style="color:#475569;font-size:14px;margin-bottom:20px;text-align:center;">The pipeline network is color-coded by nominal diameter to help operators quickly identify pipe sizes at a glance.</p>'
+    + '<div style="display:flex;flex-direction:column;gap:12px;">'
+    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:16px 20px;border-left:5px solid #8B5CF6;">'
+    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:6px;background:#8B5CF6;border-radius:3px;margin:0 auto;"></span></div>'
+    + '    <div style="flex:1;"><div style="font-weight:800;color:#4c1d95;font-size:15px;">Trunk</div><div style="color:#6d28d9;font-size:12px;">&ge; 250 mm diameter &middot; 4px line width</div></div>'
+    + '    <div style="background:#8B5CF6;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Purple</div>'
+    + '  </div>'
+    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:16px 20px;border-left:5px solid #2563EB;">'
+    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:5px;background:#2563EB;border-radius:3px;margin:0 auto;"></span></div>'
+    + '    <div style="flex:1;"><div style="font-weight:800;color:#1e40af;font-size:15px;">Primary</div><div style="color:#2563eb;font-size:12px;">150–200 mm diameter &middot; 3px line width</div></div>'
+    + '    <div style="background:#2563EB;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Blue</div>'
+    + '  </div>'
+    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:16px 20px;border-left:5px solid #10B981;">'
+    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:4px;background:#10B981;border-radius:3px;margin:0 auto;"></span></div>'
+    + '    <div style="flex:1;"><div style="font-weight:800;color:#065f46;font-size:15px;">Secondary</div><div style="color:#059669;font-size:12px;">75–100 mm diameter &middot; 2.5px line width</div></div>'
+    + '    <div style="background:#10B981;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Green</div>'
+    + '  </div>'
+    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:16px 20px;border-left:5px solid #F59E0B;">'
+    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:3px;background:#F59E0B;border-radius:3px;margin:0 auto;"></span></div>'
+    + '    <div style="flex:1;"><div style="font-weight:800;color:#92400e;font-size:15px;">Lateral</div><div style="color:#d97706;font-size:12px;">&le; 50 mm diameter &middot; 2px line width</div></div>'
+    + '    <div style="background:#F59E0B;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Amber</div>'
+    + '  </div>'
+    + '</div>'
+    + '<div style="margin-top:24px;padding:16px 20px;background:#f1f5f9;border-radius:12px;border:1px solid #e2e8f0;">'
+    + '  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:16px;">⚠️</span><span style="font-weight:700;color:#334155;font-size:13px;">Non-Open Status</span></div>'
+    + '  <p style="color:#64748b;font-size:13px;margin:0;">Pipelines with a status other than <strong>Open</strong> are drawn in <span style="color:#dc2626;font-weight:700;">red</span> with reduced opacity (0.4) to indicate they may be closed, under maintenance, or inactive.</p>'
+    + '</div>'
+    + '<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:20px;">Toggle pipeline visibility on the map using the Pipeline checkbox in the legend card.</p>'
+    + '</div>';
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// 1. SUMMARY REPORT
 // ════════════════════════════════════════════════════════════════════════════
 window.openSummaryReport = function() {
   _spinCss();
