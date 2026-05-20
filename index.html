@@ -626,7 +626,7 @@
     gap: 3px !important;
   }
   .device-list li span { max-width: 130px !important; }
-  .device-list li .device-status { gap: 4px !important; }
+  .device-list li .device-status { gap: 4px !important; width: 76px !important; min-width: 76px !important; flex-shrink: 0 !important; justify-content: flex-start !important; overflow: visible !important; }
   .pressure-value, .waterlevel-value { font-size: 11px !important; padding: 2px 6px !important; }
   .toggle-switch { width: 52px !important; height: 24px !important; touch-action: manipulation !important; -webkit-tap-highlight-color: transparent !important; cursor: pointer !important; }
   .slider { transition: background 0.08s ease, box-shadow 0.08s ease !important; will-change: background, transform !important; }
@@ -1153,7 +1153,7 @@
     .device-list li{display:flex!important;align-items:center!important;justify-content:space-between!important;padding:9px 10px!important;margin-bottom:4px;border-radius:9px;cursor:pointer;background:#fff;border:1px solid rgba(0,64,128,0.07);color:#1a2e35;font-size:13px;font-family:'DM Sans','Segoe UI',sans-serif;transition:background .15s ease,border-color .15s ease,transform .12s ease;width:100%;box-sizing:border-box;min-height:44px!important;}
     .device-list li:hover{background:#f0f7ff;border-color:rgba(0,100,200,0.18);transform:translateY(-1px);}
     .device-list li span{flex:0 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;font-weight:500;color:#1a2e35;}
-    .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:6px!important;flex-shrink:0;}
+    .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:6px!important;flex-shrink:0!important;width:88px!important;min-width:88px!important;justify-content:flex-start!important;overflow:visible!important;}
 /* PRESSURE */
 .pressure-value{
   margin-left:4px;
@@ -1223,6 +1223,8 @@
   border-color:rgba(226,75,74,0.25);
 }
     .status-indicator{width:10px;height:10px;border-radius:50%;transition:0.3s;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;margin:auto 0;}
+    .device-list li .device-status .status-indicator,.device-list li div .status-indicator{flex:0 0 10px!important;width:10px!important;min-width:10px!important;height:10px!important;min-height:10px!important;flex-shrink:0!important;align-self:center!important;border-radius:50%!important;}
+    .device-list li .device-status .pressure-value,.device-list li .device-status .waterlevel-value{overflow:visible!important;white-space:nowrap!important;flex-shrink:0!important;max-width:none!important;text-overflow:clip!important;}
     .status-Online{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,0.18);}
     .status-Offline{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.18);}
     .status-Fault{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.18);}
@@ -2934,10 +2936,8 @@ if (isPS) {
 map.addLayer(clusterLayer);
 setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
-  var hitFeature = false;
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
-    hitFeature = true;
     var f = features[0], name = f.get('name')||'', type = (f.get('type')||'').toLowerCase().trim();
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
     if (isRes) showHistoricalGraph(name, 'reservoir');
@@ -2946,9 +2946,8 @@ map.on('singleclick', function(evt) {
   });
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features');
-    if (features && features.length > 1) { hitFeature = true; var e = ol.extent.createEmpty(); features.forEach(function(f){ol.extent.extend(e,f.getGeometry().getExtent());}); map.getView().fit(e,{duration:500,padding:[50,50,50,50]}); }
+    if (features && features.length > 1) { var e = ol.extent.createEmpty(); features.forEach(function(f){ol.extent.extend(e,f.getGeometry().getExtent());}); map.getView().fit(e,{duration:500,padding:[50,50,50,50]}); }
   });
-  if (!hitFeature) closeDeviceDetails();
 });
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
@@ -2973,13 +2972,6 @@ function selectDevice(device) {
   var f = deviceMarkers[device];
   if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
   showDeviceDetails(device);
-}
-function closeDeviceDetails() {
-  var det = document.getElementById('device-details');
-  if (!det) return;
-  det.style.display = 'none';
-  det.style.pointerEvents = 'none';
-  try { if (detailsOverlay) detailsOverlay.setPosition(undefined); } catch(e) {}
 }
 // === START ===
  
@@ -3162,18 +3154,6 @@ if (!isNaN(llvl)) {
     }
  
     det.style.display = 'block';
-    // ── Close button (works for all 3 card types) ──────────────────
-    var _existClose = det.querySelector('.__dd-close');
-    if (_existClose) _existClose.remove();
-    var _closeBtn = document.createElement('button');
-    _closeBtn.className = '__dd-close';
-    _closeBtn.title = 'Close';
-    _closeBtn.textContent = '\u2715';
-    _closeBtn.style.cssText = 'position:absolute;top:6px;right:6px;width:26px;height:26px;background:#f1f5f9;border:1.5px solid #e2e8f0;cursor:pointer;border-radius:50%;font-size:14px;color:#64748b;font-weight:900;line-height:26px;text-align:center;z-index:10;transition:background 0.15s,color 0.15s;box-shadow:0 1px 4px rgba(0,0,0,0.08);';
-    _closeBtn.onmouseover = function(){ this.style.background='#fee2e2'; this.style.color='#ef4444'; this.style.borderColor='#fca5a5'; };
-    _closeBtn.onmouseout  = function(){ this.style.background='#f1f5f9'; this.style.color='#64748b'; this.style.borderColor='#e2e8f0'; };
-    _closeBtn.onclick = function(){ closeDeviceDetails(); };
-    det.appendChild(_closeBtn);
     if (deviceMarkers[device]) {
       detailsOverlay.setPosition(deviceMarkers[device].getGeometry().getCoordinates());
     }
@@ -3523,7 +3503,7 @@ if (isResBooster) {
     +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap;">'+wv+'</span>'
     +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
     +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
-    +     '<div style="display:flex; align-items:center; gap:6px;">'
+    +     '<div style="display:flex;align-items:center;gap:6px;width:88px;min-width:88px;flex-shrink:0;justify-content:flex-start;overflow:visible;">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
     +       '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
