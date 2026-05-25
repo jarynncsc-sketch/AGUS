@@ -377,8 +377,6 @@
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -1844,7 +1842,6 @@
           <div class="top-card grp-data" onclick="openSummaryReport()" title="Daily/Weekly/Monthly summary totals per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/><path d="M7 13h2M7 17h2M13 13h4M13 17h4"/></svg><span>Summary</span></div>
           <div class="top-card grp-data" onclick="openHeatmap()" title="24-hour demand heatmap by hour × day-of-week"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="4" height="4" rx="1"/><rect x="10" y="3" width="4" height="4" rx="1"/><rect x="17" y="3" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="17" y="10" width="4" height="4" rx="1"/><rect x="3" y="17" width="4" height="4" rx="1"/><rect x="10" y="17" width="4" height="4" rx="1"/><rect x="17" y="17" width="4" height="4" rx="1"/></svg><span>Heatmap</span></div>
           <div class="top-card grp-data" onclick="openCorrelation()" title="Cross-device correlation — pump relay vs downstream sensors"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M3 3l7 7M21 21l-7-7M14 3h7v7M10 21H3v-7"/></svg><span>Correlation</span></div>
-          <div class="top-card grp-data" onclick="openPipelineLegend()" title="Pipeline network color code reference"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="2" y1="20" x2="22" y2="20"/><polyline points="12 20 12 4"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></svg><span>Pipeline</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1854,9 +1851,9 @@
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()" title="AI energy optimizer & consumption analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
-          <div class="top-card grp-ctrl" data-tab="efficiency" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
+          <div class="top-card grp-ctrl" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
           <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()" title="Non-revenue water & leak loss tracker"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
-          <div class="top-card grp-ctrl" data-tab="flowmeter-cal" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
+          <div class="top-card grp-ctrl" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1878,11 +1875,11 @@
         <div class="nav-group-label">AI</div>
         <div class="nav-group-cards">
           <div class="top-card grp-ai" data-tab="ml-risk" onclick="openMLRiskEngine()" style="position:relative;" title="ML Predictive Risk Engine — RUL & anomaly scoring"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4.03 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4.03 3 9 3s9-1.34 9-3v-6"/></svg><span>ML Risk</span><span id="ml-risk-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">!</span></div>
-          <div class="top-card grp-ai" data-tab="ai-chat" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
+          <div class="top-card grp-ai" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
           <div class="top-card grp-ai" data-tab="analytics" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
-          <div class="top-card grp-ai" data-tab="energy-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
-          <div class="top-card grp-ai" data-tab="cost-calc" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
-          <div class="top-card grp-ai" data-tab="ai-config" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
+          <div class="top-card grp-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
+          <div class="top-card grp-ai" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
+          <div class="top-card grp-ai" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -1890,16 +1887,16 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">System</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-sys" id="dark-mode-btn" data-tab="dark-mode" onclick="toggleDarkMode()" title="Toggle dark/light theme"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
-          <div class="top-card grp-sys" data-tab="alert-thr" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
+          <div class="top-card grp-sys" id="dark-mode-btn" onclick="toggleDarkMode()" title="Toggle dark/light theme"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5F5E5A" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg><span>Dark Mode</span></div>
+          <div class="top-card grp-sys" onclick="openSensorThr()" title="Configure push alert thresholds" style="cursor:pointer;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg>
             <span>Alert Thr.</span>
           </div>
-          <div class="top-card grp-sys" id="push-notif-btn" data-tab="push-notif" onclick="toggleAGUSPush()" title="Push notifications OFF — tap to enable">
+          <div class="top-card grp-sys" id="push-notif-btn" onclick="toggleAGUSPush()" title="Push notifications OFF — tap to enable">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
             <span style="color:#dc2626;font-weight:800;">PUSH OFF</span>
           </div>
-          <div class="top-card grp-sys" id="pwa-install-btn" data-tab="install-app" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
+          <div class="top-card grp-sys" id="pwa-install-btn" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
             <span id="pwa-btn-label">Install App</span>
           </div>
@@ -1924,21 +1921,6 @@
 </div>
     <div id="device-details"></div>
 <div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
-  <!-- Pipeline toggle -->
-  <div style="min-width:96px;">
-    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pipeline</div>
-    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#334155;">
-      <input type="checkbox" id="pipeline-toggle" checked onchange="if(window.pipelineLayer)window.pipelineLayer.setVisible(this.checked);" style="accent-color:#2563eb;">
-      Show pipelines
-    </label>
-    <div style="margin-top:6px;">
-      <div class="legend-item"><span style="width:20px;height:4px;background:#8B5CF6;border-radius:2px;display:inline-block;"></span><span>Trunk (&ge;250mm)</span></div>
-      <div class="legend-item"><span style="width:16px;height:4px;background:#2563EB;border-radius:2px;display:inline-block;"></span><span>Primary (150-200mm)</span></div>
-      <div class="legend-item"><span style="width:12px;height:4px;background:#10B981;border-radius:2px;display:inline-block;"></span><span>Secondary (75-100mm)</span></div>
-      <div class="legend-item"><span style="width:8px;height:4px;background:#F59E0B;border-radius:2px;display:inline-block;"></span><span>Lateral (&le;50mm)</span></div>
-    </div>
-  </div>
-  <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
 
   <!-- Device status -->
   <div style="min-width:96px;">
@@ -2282,34 +2264,6 @@ function toggleFilter(type){
   updateDashboard();
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
-
-var FIREBASE_DATABASE_URL = 'https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app';
-var _firebaseConnected = false;
-var _firebaseDevicesCache = {}; // latest snapshot keyed by device name
-var _firebaseInitialDataLoaded = false;
-
-try {
-  firebase.initializeApp({ databaseURL: FIREBASE_DATABASE_URL });
-  var _fbDevicesRef = firebase.database().ref('devices');
-  _fbDevicesRef.on('value', function(snapshot) {
-    var val = snapshot.val();
-    if (!val) {
-      _firebaseConnected = true;
-      _firebaseInitialDataLoaded = true;
-      return;
-    }
-    _firebaseConnected = true;
-    _firebaseDevicesCache = val;
-    if (!_firebaseInitialDataLoaded) {
-      _firebaseInitialDataLoaded = true;
-    }
-    _updateDashboardFromFirebase();
-  }, function(err) {
-    console.warn('[FB] Listen error:', err);
-  });
-} catch(e) {
-  console.warn('[FB] Init error:', e);
-}
 
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
@@ -2981,23 +2935,7 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
-var pipelineSource = new ol.source.Vector();
-var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:function(feature){
-  var d = feature.get('DIAMETER') || 0;
-  var mat = (feature.get('MATERIALS') || '').toUpperCase();
-  var st = feature.get('STATUS') || '';
-  var w, c, o=0.85;
-  if (d >= 250) { w=4; c='#8B5CF6'; }
-  else if (d >= 150) { w=3; c='#2563EB'; }
-  else if (d >= 75) { w=2.5; c='#10B981'; }
-  else { w=2; c='#F59E0B'; }
-  if (st !== 'Open') { o=0.4; c='#EF4444'; }
-  return new ol.style.Style({stroke:new ol.style.Stroke({color:c,width:w,opacity:o})});
-}});
-window.pipelineLayer = pipelineLayer;
-map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
-fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
 setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
@@ -3040,7 +2978,8 @@ function selectDevice(device) {
 // === START ===
  
 function showDeviceDetails(device) {
-  function _renderDetails(d) {
+  apiGet('getDashboardData').then(function(data) {
+    var d = data.find(function(x){ return x.device === device; });
     if (!d) return;
  
     var det = document.getElementById('device-details');
@@ -3243,17 +3182,6 @@ if (!isNaN(llvl)) {
       detailsOverlay.setPosition(deviceMarkers[device].getGeometry().getCoordinates());
     }
  
-  }
-  
-  // Firebase first for real-time, fall back to GAS for settings
-  if (_firebaseConnected && _firebaseInitialDataLoaded && _firebaseDevicesCache[device]) {
-    var _fbArr = _firebaseDeviceToArray();
-    var _fbDev = _fbArr.find(function(x){ return x.device === device; });
-    if (_fbDev) { _renderDetails(_fbDev); return; }
-  }
-  apiGet('getDashboardData').then(function(data) {
-    var _gasDev = data.find(function(x){ return x.device === device; });
-    if (_gasDev) _renderDetails(_gasDev);
   }).catch(function(err) { console.error('showDeviceDetails error:', err); });
 }
 function buildMiniRangeBar(mn, no, mx, cur) {
@@ -3461,69 +3389,9 @@ function initDashboard() {
   };
 
 })(); // end Autonomous Pump Engine
-function _firebaseDeviceToArray() {
-  var arr = [];
-  var now = Date.now();
-  Object.keys(_firebaseDevicesCache).forEach(function(name) {
-    var fb = _firebaseDevicesCache[name];
-    if (!fb || typeof fb !== 'object') return;
-    var nameLower = name.toLowerCase();
-    var type = nameLower.includes('reservoir') ? 'reservoir' : nameLower.includes('pressure') ? 'pressure' : 'pumping station';
-    var ts = fb.ts || fb.Timestamp || 0;
-    if (typeof ts === 'string') ts = new Date(ts).getTime() / 1000;
-    var stale = (now / 1000 - ts) > 300; // 5 min stale threshold
-    var relay = (fb.relay == 1 || fb.relay === true || fb.relay === '1' || fb.relay === 'ON') ? 1 : 0;
-    var button = (fb.button == 1 || fb.button === true) ? 1 : 0;
-    var cmd = commandedRelayCache.hasOwnProperty(name) ? commandedRelayCache[name] : relay;
-    var s = pressureSettingsCache[name] || {};
-    var r = reservoirThresholdsCache[name] || {};
-    arr.push({
-      device: name,
-      type: type,
-      status: stale ? 'Offline' : (button ? 'Fault' : 'Online'),
-      pressure: fb.pressure != null ? fb.pressure : null,
-      level: fb.level != null ? fb.level : null,
-      flow: fb.flow != null ? fb.flow : null,
-      voltage: fb.voltage != null ? fb.voltage : null,
-      current: fb.current != null ? fb.current : null,
-      power: fb.power != null ? fb.power : null,
-      energy: fb.energy != null ? fb.energy : null,
-      relay: relay,
-      commandedRelay: cmd,
-      relayPending: cmd !== relay,
-      button: button,
-      firmware: fb.firmware || null,
-      latitude: fb.latitude || null,
-      longitude: fb.longitude || null,
-      lastToggledBy: fb.lastToggledBy || null,
-      timestamp: ts ? new Date(ts * 1000).toLocaleString() : null,
-      minPsi: s.minPsi || 20,
-      normalPsi: s.normalPsi || 50,
-      maxPsi: s.maxPsi || 80,
-      minLevel: r.minLevel || 20,
-      maxLevel: r.maxLevel || 250
-    });
-  });
-  return arr;
-}
-
-function _updateDashboardFromFirebase() {
-  if (!_firebaseInitialDataLoaded) return;
-  var devices = _firebaseDeviceToArray();
-  if (!devices.length) return;
-  window._lastDevices = devices;
-  updateDeviceList(devices); updateMap(devices);
-  autoShutoffPumps(devices);
-  if (selectedDevice) showDeviceDetails(selectedDevice);
-}
-
 function updateDashboard() {
   _pumpLinksRefreshCounter++;
   if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
-  // Also update from Firebase if connected
-  if (_firebaseConnected && _firebaseInitialDataLoaded) {
-    _updateDashboardFromFirebase();
-  }
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
@@ -9426,50 +9294,7 @@ function _parseRow(r, keys) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-// 0. PIPELINE COLOR CODE REFERENCE
-// ════════════════════════════════════════════════════════════════════════════
-window.openPipelineLegend = function() {
-  _spinCss();
-  var ov = _overlay('pipeline-legend-ov');
-  var pn = _panel('Pipeline Color Code','Diameter-based coloring for pipeline network','🔴','#8B5CF6');
-  ov.appendChild(pn);
-  document.body.appendChild(ov);
-  var body = pn.querySelector('.ana-body');
-  body.innerHTML =
-    '<div style="max-width:600px;margin:0 auto;font-family:\'DM Sans\',sans-serif;">'
-    + '<p style="color:#475569;font-size:14px;margin-bottom:20px;text-align:center;">The pipeline network is color-coded by nominal diameter to help operators quickly identify pipe sizes at a glance.</p>'
-    + '<div style="display:flex;flex-direction:column;gap:12px;">'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:16px 20px;border-left:5px solid #8B5CF6;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:6px;background:#8B5CF6;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#4c1d95;font-size:15px;">Trunk</div><div style="color:#6d28d9;font-size:12px;">&ge; 250 mm diameter &middot; 4px line width</div></div>'
-    + '    <div style="background:#8B5CF6;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Purple</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:16px 20px;border-left:5px solid #2563EB;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:5px;background:#2563EB;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#1e40af;font-size:15px;">Primary</div><div style="color:#2563eb;font-size:12px;">150–200 mm diameter &middot; 3px line width</div></div>'
-    + '    <div style="background:#2563EB;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Blue</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:16px 20px;border-left:5px solid #10B981;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:4px;background:#10B981;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#065f46;font-size:15px;">Secondary</div><div style="color:#059669;font-size:12px;">75–100 mm diameter &middot; 2.5px line width</div></div>'
-    + '    <div style="background:#10B981;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Green</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:16px 20px;border-left:5px solid #F59E0B;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:3px;background:#F59E0B;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#92400e;font-size:15px;">Lateral</div><div style="color:#d97706;font-size:12px;">&le; 50 mm diameter &middot; 2px line width</div></div>'
-    + '    <div style="background:#F59E0B;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Amber</div>'
-    + '  </div>'
-    + '</div>'
-    + '<div style="margin-top:24px;padding:16px 20px;background:#f1f5f9;border-radius:12px;border:1px solid #e2e8f0;">'
-    + '  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:16px;">⚠️</span><span style="font-weight:700;color:#334155;font-size:13px;">Non-Open Status</span></div>'
-    + '  <p style="color:#64748b;font-size:13px;margin:0;">Pipelines with a status other than <strong>Open</strong> are drawn in <span style="color:#dc2626;font-weight:700;">red</span> with reduced opacity (0.4) to indicate they may be closed, under maintenance, or inactive.</p>'
-    + '</div>'
-    + '<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:20px;">Toggle pipeline visibility on the map using the Pipeline checkbox in the legend card.</p>'
-    + '</div>';
-};
-
-// ════════════════════════════════════════════════════════════════════════════
-// 1. SUMMARY REPORT
+// 1. DAILY / WEEKLY / MONTHLY SUMMARY REPORT
 // ════════════════════════════════════════════════════════════════════════════
 window.openSummaryReport = function() {
   _spinCss();
@@ -10033,7 +9858,6 @@ function _metCard(label, icon, value, unit, color) {
 })();
 
 </script>
-
 
 </body>
 </html>
