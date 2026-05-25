@@ -2293,7 +2293,11 @@ try {
   var _fbDevicesRef = firebase.database().ref('devices');
   _fbDevicesRef.on('value', function(snapshot) {
     var val = snapshot.val();
-    if (!val) return;
+    if (!val) {
+      _firebaseConnected = true;
+      _firebaseInitialDataLoaded = true;
+      return;
+    }
     _firebaseConnected = true;
     _firebaseDevicesCache = val;
     if (!_firebaseInitialDataLoaded) {
