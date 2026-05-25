@@ -377,6 +377,8 @@
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -2281,6 +2283,30 @@ function toggleFilter(type){
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
 
+var FIREBASE_DATABASE_URL = 'https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app';
+var _firebaseConnected = false;
+var _firebaseDevicesCache = {}; // latest snapshot keyed by device name
+var _firebaseInitialDataLoaded = false;
+
+try {
+  firebase.initializeApp({ databaseURL: FIREBASE_DATABASE_URL });
+  var _fbDevicesRef = firebase.database().ref('devices');
+  _fbDevicesRef.on('value', function(snapshot) {
+    var val = snapshot.val();
+    if (!val) return;
+    _firebaseConnected = true;
+    _firebaseDevicesCache = val;
+    if (!_firebaseInitialDataLoaded) {
+      _firebaseInitialDataLoaded = true;
+    }
+    _updateDashboardFromFirebase();
+  }, function(err) {
+    console.warn('[FB] Listen error:', err);
+  });
+} catch(e) {
+  console.warn('[FB] Init error:', e);
+}
+
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
 function _fetchWithTimeout(url, timeoutMs) {
@@ -3010,8 +3036,7 @@ function selectDevice(device) {
 // === START ===
  
 function showDeviceDetails(device) {
-  apiGet('getDashboardData').then(function(data) {
-    var d = data.find(function(x){ return x.device === device; });
+  function _renderDetails(d) {
     if (!d) return;
  
     var det = document.getElementById('device-details');
@@ -3214,6 +3239,17 @@ if (!isNaN(llvl)) {
       detailsOverlay.setPosition(deviceMarkers[device].getGeometry().getCoordinates());
     }
  
+  }
+  
+  // Firebase first for real-time, fall back to GAS for settings
+  if (_firebaseConnected && _firebaseInitialDataLoaded && _firebaseDevicesCache[device]) {
+    var _fbArr = _firebaseDeviceToArray();
+    var _fbDev = _fbArr.find(function(x){ return x.device === device; });
+    if (_fbDev) { _renderDetails(_fbDev); return; }
+  }
+  apiGet('getDashboardData').then(function(data) {
+    var _gasDev = data.find(function(x){ return x.device === device; });
+    if (_gasDev) _renderDetails(_gasDev);
   }).catch(function(err) { console.error('showDeviceDetails error:', err); });
 }
 function buildMiniRangeBar(mn, no, mx, cur) {
@@ -3421,9 +3457,69 @@ function initDashboard() {
   };
 
 })(); // end Autonomous Pump Engine
+function _firebaseDeviceToArray() {
+  var arr = [];
+  var now = Date.now();
+  Object.keys(_firebaseDevicesCache).forEach(function(name) {
+    var fb = _firebaseDevicesCache[name];
+    if (!fb || typeof fb !== 'object') return;
+    var nameLower = name.toLowerCase();
+    var type = nameLower.includes('reservoir') ? 'reservoir' : nameLower.includes('pressure') ? 'pressure' : 'pumping station';
+    var ts = fb.ts || fb.Timestamp || 0;
+    if (typeof ts === 'string') ts = new Date(ts).getTime() / 1000;
+    var stale = (now / 1000 - ts) > 300; // 5 min stale threshold
+    var relay = (fb.relay == 1 || fb.relay === true || fb.relay === '1' || fb.relay === 'ON') ? 1 : 0;
+    var button = (fb.button == 1 || fb.button === true) ? 1 : 0;
+    var cmd = commandedRelayCache.hasOwnProperty(name) ? commandedRelayCache[name] : relay;
+    var s = pressureSettingsCache[name] || {};
+    var r = reservoirThresholdsCache[name] || {};
+    arr.push({
+      device: name,
+      type: type,
+      status: stale ? 'Offline' : (button ? 'Fault' : 'Online'),
+      pressure: fb.pressure != null ? fb.pressure : null,
+      level: fb.level != null ? fb.level : null,
+      flow: fb.flow != null ? fb.flow : null,
+      voltage: fb.voltage != null ? fb.voltage : null,
+      current: fb.current != null ? fb.current : null,
+      power: fb.power != null ? fb.power : null,
+      energy: fb.energy != null ? fb.energy : null,
+      relay: relay,
+      commandedRelay: cmd,
+      relayPending: cmd !== relay,
+      button: button,
+      firmware: fb.firmware || null,
+      latitude: fb.latitude || null,
+      longitude: fb.longitude || null,
+      lastToggledBy: fb.lastToggledBy || null,
+      timestamp: ts ? new Date(ts * 1000).toLocaleString() : null,
+      minPsi: s.minPsi || 20,
+      normalPsi: s.normalPsi || 50,
+      maxPsi: s.maxPsi || 80,
+      minLevel: r.minLevel || 20,
+      maxLevel: r.maxLevel || 250
+    });
+  });
+  return arr;
+}
+
+function _updateDashboardFromFirebase() {
+  if (!_firebaseInitialDataLoaded) return;
+  var devices = _firebaseDeviceToArray();
+  if (!devices.length) return;
+  window._lastDevices = devices;
+  updateDeviceList(devices); updateMap(devices);
+  autoShutoffPumps(devices);
+  if (selectedDevice) showDeviceDetails(selectedDevice);
+}
+
 function updateDashboard() {
   _pumpLinksRefreshCounter++;
   if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
+  // Also update from Firebase if connected
+  if (_firebaseConnected && _firebaseInitialDataLoaded) {
+    _updateDashboardFromFirebase();
+  }
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
