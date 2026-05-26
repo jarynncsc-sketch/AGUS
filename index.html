@@ -3599,10 +3599,11 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
 
   var coords = deviceCoordinatesCache[deviceName] || {};
   var params = {
-    device:    deviceName,
-    token:     userToken,
-    latitude:  coords.latitude  || '',
-    longitude: coords.longitude || ''
+    device:       deviceName,
+    token:        userToken,
+    desiredState: newStateInt,   // ── FIX #3: send explicit state, not just a flip
+    latitude:     coords.latitude  || '',
+    longitude:    coords.longitude || ''
   };
   apiPost('togglePump', params).then(function(res) {
     delete _localTogglePending[_dKey];
