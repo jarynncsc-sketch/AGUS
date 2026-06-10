@@ -1132,6 +1132,10 @@
     .top-card span{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;color:#4a6572;padding:2px 0 0;white-space:normal;pointer-events:none;text-align:center;line-height:1.25;}
     .top-card.active{background:#dbeafe;border-color:#93c5fd;}
     .top-card.active span{color:#1e40af;}
+    .tc-badge{position:absolute;top:2px;right:2px;background:#dc2626;color:#fff;border-radius:50%;width:14px;height:14px;font-size:7px;font-weight:800;display:none;align-items:center;justify-content:center;line-height:14px;text-align:center;pointer-events:none;z-index:2;box-shadow:0 0 0 1.5px #fff;}
+    body.dark-mode .tc-badge{box-shadow:0 0 0 1.5px #1e293b;}
+    .tc-badge.green{background:#22c55e;}
+    .tc-badge.orange{background:#f97316;}
     /* Color groups */
     .top-card.grp-data:hover,.top-card.grp-data.active{background:#e0f2fe;border-color:#7dd3fc;}
     .top-card.grp-data:hover span,.top-card.grp-data.active span{color:#075985;}
@@ -1835,12 +1839,12 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">Data</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-data" data-tab="map" title="Map overview of all devices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
-          <div class="top-card grp-data" data-tab="analytics" title="Multi-parameter chart analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
-          <div class="top-card grp-data" data-tab="reports" title="Energy, power, flow historical reports"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
-          <div class="top-card grp-data" data-tab="prod-history" title="Production & discharge history charts"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span></div>
+          <div class="top-card grp-data" data-tab="map" title="Map overview of all devices" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span><span id="badge-map" class="tc-badge"></span></div>
+          <div class="top-card grp-data" data-tab="analytics" title="Multi-parameter chart analysis" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span><span id="badge-analytics" class="tc-badge"></span></div>
+          <div class="top-card grp-data" data-tab="reports" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span id="badge-reports" class="tc-badge"></span></div>
+          <div class="top-card grp-data" data-tab="prod-history" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span id="badge-prod-history" class="tc-badge"></span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
-          <div class="top-card grp-data" data-tab="pressure-logger" title="Pressure sensor log viewer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
+          <div class="top-card grp-data" data-tab="pressure-logger" title="Pressure sensor log viewer" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span><span id="badge-pressure-logger" class="tc-badge"></span></div>
           <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()" title="Demand forecasting based on historical data"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
           <div class="top-card grp-data" data-tab="benchmark" onclick="openBenchmark()" title="Benchmark performance against targets"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Benchmark</span></div>
           <div class="top-card grp-data" onclick="openSummaryReport()" title="Daily/Weekly/Monthly summary totals per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/><path d="M7 13h2M7 17h2M13 13h4M13 17h4"/></svg><span>Summary</span></div>
@@ -1866,10 +1870,10 @@
       <div class="nav-group-wrap">
         <div class="nav-group-label">Monitoring</div>
         <div class="nav-group-cards">
-          <div class="top-card grp-ctrl" data-tab="alarm" title="Historical alarm log chart viewer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span></div>
+          <div class="top-card grp-ctrl" data-tab="alarm" title="Historical alarm log chart viewer" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2L2 20h20L12 2z"/><line x1="12" y1="8" x2="12" y2="13"/><circle cx="12" cy="17" r="1"/></svg><span>Alarm History</span><span id="badge-alarm" class="tc-badge"></span></div>
           <div class="top-card grp-ctrl" data-tab="alarm-center" onclick="openAlarmCenter()" style="position:relative;" title="Active alarm management & incident reporting"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span>Alarm Center</span><span id="alarm-center-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="water-quality" onclick="openWaterQuality()" title="Water quality monitoring dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2 C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg><span>Water Quality</span></div>
-          <div class="top-card grp-ctrl" data-tab="preventive-maintenance" title="Equipment maintenance tracking & schedules"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span></div>
+          <div class="top-card grp-ctrl" data-tab="preventive-maintenance" title="Equipment maintenance tracking & schedules" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span><span id="badge-preventive-maintenance" class="tc-badge"></span></div>
           <div class="top-card grp-ctrl" data-tab="maint-calendar" onclick="openMaintenanceCalendar()" title="Maintenance calendar & scheduling"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
           <div class="top-card grp-ctrl" data-tab="logbook" onclick="openLogbook()" title="Shift logbook for operator entries"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
         </div>
@@ -2623,7 +2627,7 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     if (card.dataset.tab === 'map') {
       var e = deviceSource.getExtent();
       if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
-      else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
+      else       map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
     }
   });
 });
@@ -3580,6 +3584,7 @@ function _updateDashboardFromFirebase() {
   updateDeviceList(devices); updateMap(devices);
   autoShutoffPumps(devices);
   if (selectedDevice) showDeviceDetails(selectedDevice);
+  updateTopCardBadges();
   var dl = document.getElementById('dash-loading');
   if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
 }
@@ -3605,6 +3610,7 @@ function updateDashboard() {
   var _skipGAS = _firebaseConnected && _firebaseInitialDataLoaded && (_pumpLinksRefreshCounter % 3 !== 0);
   if (_firebaseConnected && _firebaseInitialDataLoaded) {
     _updateDashboardFromFirebase();
+    updateTopCardBadges();
   }
   if (_skipGAS) return;
   apiGet('getDashboardData').then(function(devices) {
@@ -3620,6 +3626,7 @@ function updateDashboard() {
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
+    updateTopCardBadges();
     var dl = document.getElementById('dash-loading');
     if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
   }).catch(function(err) { console.error('updateDashboard error:', err); });
@@ -5033,6 +5040,21 @@ var tabModalCurrentTab = null;
 var tabModalAllRows = [];
 
 var TAB_CONFIGS = {
+  'map': {
+    title: '🗺 System Overview',
+    icon: '🗺',
+    color: '#185FA5',
+    params: [
+      {key:'pressure',   label:'Pressure (psi)',     color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
+      {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
+      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
+      {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
+      {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'}
+    ],
+    chartType: 'line',
+    yLabel: 'Value',
+    allDevices: true
+  },
   'analytics': {
     title: '📊 Analytics',
     icon: '📊',
@@ -5560,6 +5582,40 @@ function renderTabModalChart(rows) {
     }
     summaryCards.innerHTML = chips || '<span style="color:#7a8fa6;font-size:13px;">No numeric data available for this period.</span>';
   }
+}
+
+// Live badge updater for top cards — shows device counts, statuses, alerts
+function updateTopCardBadges() {
+  var cards = document.querySelectorAll('.top-card[data-tab]');
+  if (!cards.length) return;
+  var data = window._lastDevices || [];
+  var online = data.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
+  var offline = data.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; });
+  var fault = data.filter(function(d){ return (d.status||'').toLowerCase()==='fault' || d.button; });
+  var total = data.length;
+
+  function setBadge(id, text, cls) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (text) {
+      el.textContent = text;
+      el.style.display = 'flex';
+      el.className = 'tc-badge ' + (cls||'');
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  setBadge('badge-map', total, '');
+  if (fault.length) setBadge('badge-analytics', fault.length, '');
+  else if (offline.length) setBadge('badge-analytics', offline.length, 'orange');
+  else setBadge('badge-analytics', online.length, 'green');
+  setBadge('badge-reports', (data.filter(function(d){ var t=(d.type||'').toLowerCase(); return t==='pressure'||t==='reservoir'; }).length), '');
+  setBadge('badge-prod-history', (data.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pump'); }).length), '');
+  setBadge('badge-pressure-logger', (data.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pressure'); }).length), '');
+  if (fault.length) setBadge('badge-alarm', fault.length, '');
+  else setBadge('badge-alarm', '', '');
+  setBadge('badge-preventive-maintenance', (offline.length ? offline.length : ''), offline.length ? 'orange' : 'green');
 }
 
 // Wire up all unhandled top-card tabs
