@@ -5412,25 +5412,35 @@ function openTabModal(tabKey) {
             });
             html += '</tbody></table>';
           } else if (g==='pump') {
-            html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f8fafc;">'
+            var kwhRate = parseFloat(localStorage.getItem('agus_cost_per_kwh') || '12');
+            html += '<div style="padding:6px 14px;font-size:10px;color:#7a8fa6;display:flex;gap:12px;background:#fafcff;border-bottom:1px solid '+col+'15;">'
+              + '<span>Rate: <b>\u20b1'+kwhRate.toFixed(3)+'/kWh</b></span>'
+              + (groups['pump'] ? '<span style="margin-left:auto;">Total m\u00b3: <b>' + pumps.reduce(function(s,d){return s+parseFloat(d.discharge||0);},0).toFixed(1) + '</b> | Total kWh: <b>' + pumps.reduce(function(s,d){return s+parseFloat(d.energy||0);},0).toFixed(1) + '</b></span>' : '')
+              + '</div>'
+              + '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr style="background:#f8fafc;">'
               + '<th style="padding:6px 12px;text-align:left;font-weight:700;color:#475569;">Device</th>'
               + '<th style="padding:6px 12px;text-align:left;font-weight:700;color:#475569;">Status</th>'
+              + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">m\u00b3</th>'
+              + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">kWh</th>'
+              + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">\u20b1/m\u00b3</th>'
               + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">Press</th>'
               + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">Flow</th>'
-              + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">Level</th>'
-              + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">Power</th>'
               + '<th style="padding:6px 12px;text-align:right;font-weight:700;color:#475569;">Eff</th>'
               + '</tr></thead><tbody>';
             devs.forEach(function(d) {
               var nm = (d.device||'').length>28 ? (d.device||'').substring(0,26)+'..' : (d.device||'');
               var eff = d.pumpeff ? (parseFloat(d.pumpeff).toFixed(1)+'%') : (d.efficiency ? (parseFloat(d.efficiency).toFixed(1)+'%') : '---');
+              var disch = parseFloat(d.discharge||0);
+              var ener = parseFloat(d.energy||0);
+              var costPerM3 = disch > 0 ? (ener * kwhRate / disch) : 0;
               html += '<tr style="border-bottom:1px solid #f1f5f9;">'
                 + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
                 + '<td style="padding:6px 12px;">'+(d.status||'---')+'</td>'
+                + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#8b5cf6;">'+(d.discharge||'0')+'</td>'
+                + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#a78bfa;">'+(d.energy||'0')+'</td>'
+                + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:700;color:'+(costPerM3>11?'#ef4444':'#22c55e')+';">\u20b1'+costPerM3.toFixed(2)+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#1e40af;">'+(d.pressure||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0e7490;">'+(d.flow||'---')+'</td>'
-                + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0d9488;">'+(d.level||'---')+'</td>'
-                + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#f97316;">'+(d.power||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#f59e0b;">'+eff+'</td></tr>';
             });
             html += '</tbody></table>';
@@ -6569,7 +6579,7 @@ function openCostCalculator() {
 
 function renderCostCalcTable(statsArray) {
   var body = document.getElementById('cost-calc-body');
-  var savedRate = localStorage.getItem('agus_cost_per_kwh') || '0.12';
+  var savedRate = localStorage.getItem('agus_cost_per_kwh') || '12';
   var savedDaily = localStorage.getItem('agus_prod_daily') || '';
   var savedWeekly = localStorage.getItem('agus_prod_weekly') || '';
   var savedMonthly = localStorage.getItem('agus_prod_monthly') || '';
@@ -6586,7 +6596,7 @@ function renderCostCalcTable(statsArray) {
   }).join('');
 
   body.innerHTML = '<div style="margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">'
-    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Cost per kWh (USD)'
+    + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Cost per kWh (PHP)'
     + '<input id="cost-per-kwh" type="number" step="0.001" min="0" value="' + savedRate + '" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
     + '<label style="font-size:12px;font-weight:700;color:#2c3e50;">Daily Production (m\u00B3)'
     + '<input id="prod-daily" type="number" step="1" min="0" value="' + savedDaily + '" placeholder="e.g. 5000" style="display:block;width:100%;margin-top:4px;padding:8px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:14px;outline:none;box-sizing:border-box;"></label>'
@@ -6601,10 +6611,10 @@ function renderCostCalcTable(statsArray) {
     + '<thead><tr style="background:#f0f7ff;border-radius:8px;">'
     + '<th style="padding:10px;text-align:left;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Device</th>'
     + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Energy (kWh)</th>'
-    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Cost (USD)</th>'
-    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Daily $/m\u00B3</th>'
-    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Weekly $/m\u00B3</th>'
-    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Monthly $/m\u00B3</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Cost (PHP)</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Daily \u20b1/m\u00B3</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Weekly \u20b1/m\u00B3</th>'
+    + '<th style="padding:10px;text-align:right;color:#2c3e50;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;">Monthly \u20b1/m\u00B3</th>'
     + '</tr></thead>'
     + '<tbody>' + rowsHtml + '</tbody></table></div>'
     + '<div style="margin-top:12px;padding:10px 14px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;font-size:12px;color:#166534;"><strong>Cost per m\u00B3</strong> = Energy (kWh) &times; Cost per kWh &divide; Production Volume. Enter your production volumes above, then click Calculate.</div>';
@@ -6624,21 +6634,21 @@ function getCostKpiCard() {
     cards += '<div style="background:linear-gradient(135deg,#7c3aed18,#7c3aed08);border:1.5px solid #7c3aed40;border-radius:14px;padding:16px 18px;min-width:130px;">'
       + '<div style="font-size:22px;margin-bottom:6px;">&#8369;</div>'
       + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Energy Cost</div>'
-      + '<div style="font-size:22px;font-weight:800;color:#7c3aed;">$' + totalCost + ' <span style="font-size:13px;font-weight:600;"></span></div>'
-      + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">@ $' + rate + '/kWh</div></div>';
+      + '<div style="font-size:22px;font-weight:800;color:#7c3aed;">\u20b1' + totalCost + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">@ \u20b1' + rate + '/kWh</div></div>';
   }
   if (dailyCpm) {
     cards += '<div style="background:linear-gradient(135deg,#0891b218,#0891b208);border:1.5px solid #0891b240;border-radius:14px;padding:16px 18px;min-width:130px;">'
       + '<div style="font-size:22px;margin-bottom:6px;">&#8721;</div>'
       + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Cost/m\u00B3 Daily</div>'
-      + '<div style="font-size:22px;font-weight:800;color:#0891b2;">$' + dailyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:22px;font-weight:800;color:#0891b2;">\u20b1' + dailyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
       + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">Per cubic meter</div></div>';
   }
   if (monthlyCpm) {
     cards += '<div style="background:linear-gradient(135deg,#d9770618,#d9770608);border:1.5px solid #d9770640;border-radius:14px;padding:16px 18px;min-width:130px;">'
       + '<div style="font-size:22px;margin-bottom:6px;">&#8721;</div>'
       + '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.7px;margin-bottom:4px;">Cost/m\u00B3 Monthly</div>'
-      + '<div style="font-size:22px;font-weight:800;color:#d97706;">$' + monthlyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
+      + '<div style="font-size:22px;font-weight:800;color:#d97706;">\u20b1' + monthlyCpm + ' <span style="font-size:13px;font-weight:600;"></span></div>'
       + '<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">Per cubic meter</div></div>';
   }
   return cards;
