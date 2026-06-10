@@ -3253,6 +3253,7 @@ if (!isNaN(llvl)) {
       _cb.onclick = function(){
         _d.style.display = 'none';
         if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
+        selectedDevice = null;
       };
       _inner.appendChild(_cb);
     })();
