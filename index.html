@@ -506,6 +506,110 @@
     z-index: 2900 !important;
     min-height: 58px !important;
   }
+  /* ── Live Stats Strip ── */
+  #live-stats-strip {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: 30px !important;
+    background: linear-gradient(90deg,#003566 0%,#005fa3 60%,#0077b6 100%) !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 0 !important;
+    padding: 0 10px !important;
+    z-index: 3100 !important;
+    overflow: hidden !important;
+    box-shadow: 0 1px 6px rgba(0,53,102,0.3) !important;
+  }
+  #live-stats-strip .lss-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 9px;
+    border-right: 1px solid rgba(255,255,255,0.12);
+    height: 100%;
+    white-space: nowrap;
+    cursor: default;
+    transition: background .15s;
+  }
+  #live-stats-strip .lss-item:last-child { border-right: none; }
+  #live-stats-strip .lss-item:hover { background: rgba(255,255,255,0.08); }
+  #live-stats-strip .lss-lbl {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  #live-stats-strip .lss-val {
+    font-size: 11.5px;
+    font-weight: 800;
+    color: #fff;
+    font-family: 'DM Sans', sans-serif;
+    font-variant-numeric: tabular-nums;
+  }
+  #live-stats-strip .lss-unit {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.55);
+    margin-left: 1px;
+  }
+  #live-stats-strip .lss-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #live-stats-strip .lss-dot.online  { background: #22c55e; box-shadow: 0 0 0 2px rgba(34,197,94,0.35); }
+  #live-stats-strip .lss-dot.offline { background: #f97316; }
+  #live-stats-strip .lss-dot.fault   { background: #ef4444; animation: blink-r 1s infinite; }
+  #live-stats-strip .lss-sep { flex: 1; }
+  #live-stats-strip .lss-time {
+    font-size: 10px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.75);
+    padding: 0 8px;
+    font-family: monospace;
+  }
+  #live-stats-strip .lss-trend-up   { color: #4ade80; font-size: 9px; }
+  #live-stats-strip .lss-trend-down { color: #f87171; font-size: 9px; }
+  #live-stats-strip .lss-pulse {
+    display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #22c55e;
+    animation: lss-pulse 2s infinite;
+    margin-right: 3px;
+  }
+  @keyframes lss-pulse {
+    0%,100% { opacity:1; transform:scale(1); }
+    50%      { opacity:.4; transform:scale(.7); }
+  }
+  /* Top card live badge */
+  .tc-live-badge {
+    position: absolute;
+    bottom: 3px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,64,128,0.08);
+    border: 1px solid rgba(0,64,128,0.15);
+    border-radius: 4px;
+    padding: 0 3px;
+    font-size: 8px;
+    font-weight: 800;
+    color: #004080;
+    white-space: nowrap;
+    pointer-events: none;
+    line-height: 13px;
+    max-width: 56px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .grp-data .tc-live-badge  { color:#0369a1; border-color:rgba(3,105,161,0.2); background:rgba(3,105,161,0.07); }
+  .grp-ctrl .tc-live-badge  { color:#166534; border-color:rgba(22,101,52,0.2);  background:rgba(22,101,52,0.07); }
+  .grp-ai   .tc-live-badge  { color:#6d28d9; border-color:rgba(109,40,217,0.2); background:rgba(109,40,217,0.07); }
+  .top-card.has-live-badge  { padding-bottom: 18px !important; }
+  body.dark-mode #live-stats-strip { background: linear-gradient(90deg,#0f172a 0%,#1e3a5f 100%) !important; }
+  body.dark-mode .tc-live-badge { color:#93c5fd!important; border-color:rgba(147,197,253,0.2)!important; background:rgba(147,197,253,0.06)!important; }
+
   #top-menu-bar::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
  
   .top-card {
@@ -1823,6 +1927,71 @@
 </div>
 
 <!-- DASHBOARD -->
+<div id="live-stats-strip">
+  <span class="lss-pulse"></span>
+  <div class="lss-item" title="Online / Total devices">
+    <span class="lss-dot online" id="lss-dot-online"></span>
+    <span class="lss-lbl">Online</span>
+    <span class="lss-val" id="lss-online">—</span>
+    <span class="lss-unit" id="lss-total-sfx">/—</span>
+  </div>
+  <div class="lss-item" title="Devices with fault or alarm">
+    <span class="lss-dot fault" id="lss-dot-fault" style="display:none"></span>
+    <span class="lss-dot offline" id="lss-dot-nofault" ></span>
+    <span class="lss-lbl">Faults</span>
+    <span class="lss-val" id="lss-faults">—</span>
+  </div>
+  <div class="lss-item" title="Average system pressure">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+    <span class="lss-lbl">Avg Press</span>
+    <span class="lss-val" id="lss-pressure">—</span>
+    <span class="lss-unit">psi</span>
+    <span class="lss-trend-up" id="lss-pres-trend" style="display:none">▲</span>
+    <span class="lss-trend-down" id="lss-pres-trend-d" style="display:none">▼</span>
+  </div>
+  <div class="lss-item" title="Total system flowrate">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    <span class="lss-lbl">Flow</span>
+    <span class="lss-val" id="lss-flow">—</span>
+    <span class="lss-unit">L/s</span>
+  </div>
+  <div class="lss-item" title="Average reservoir level">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><path d="M12 2C8 8 4 13 4 16a8 8 0 0 0 16 0c0-3-4-8-8-14z"/></svg>
+    <span class="lss-lbl">Avg Level</span>
+    <span class="lss-val" id="lss-level">—</span>
+    <span class="lss-unit">m³</span>
+  </div>
+  <div class="lss-item" title="Total active pumps running">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4"/></svg>
+    <span class="lss-lbl">Pumps ON</span>
+    <span class="lss-val" id="lss-pumps-on">—</span>
+  </div>
+  <div class="lss-item" title="Total power consumption">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+    <span class="lss-lbl">Power</span>
+    <span class="lss-val" id="lss-power">—</span>
+    <span class="lss-unit">W</span>
+  </div>
+  <div class="lss-item" title="Total discharge today">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    <span class="lss-lbl">Discharge</span>
+    <span class="lss-val" id="lss-discharge">—</span>
+    <span class="lss-unit">m³</span>
+  </div>
+  <div class="lss-item" title="System uptime %">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><polyline points="22 11 12 2 2 11"/><path d="M12 2v20M2 11h20"/></svg>
+    <span class="lss-lbl">Uptime</span>
+    <span class="lss-val" id="lss-uptime">—</span>
+    <span class="lss-unit">%</span>
+  </div>
+  <div class="lss-sep"></div>
+  <div class="lss-item" id="lss-last-event" title="Last system event" style="max-width:200px;overflow:hidden;">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span class="lss-lbl">Last Event</span>
+    <span class="lss-val" id="lss-event-txt" style="font-size:10px;font-weight:600;max-width:130px;overflow:hidden;text-overflow:ellipsis;">—</span>
+  </div>
+  <div class="lss-time" id="lss-clock">--:--:--</div>
+</div>
 <div id="dashboard">
   <div class="card device-list">
     <h3>Smart Devices</h3> <div id="device-filter-bar">   <button onclick="toggleFilter('pressure')" id="filter-pressure" class="filter-pill active pres">📊 Pressure</button>   <button onclick="toggleFilter('reservoir')" id="filter-reservoir" class="filter-pill active res">💧 Reservoir</button>   <button onclick="toggleFilter('pumping')" id="filter-pumping" class="filter-pill active pump">⚙️ Pumping Station</button> </div>
@@ -3730,6 +3899,8 @@ function updateDashboard() {
     });
     window._lastDevices = devices;
     updateDeviceList(devices); updateMap(devices);
+    updateLiveStatsStrip(devices);
+    updateTopCardBadges(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
     var dl = document.getElementById('dash-loading');
@@ -5812,6 +5983,213 @@ function generateAIReport() {
     if (aiOutput) aiOutput.innerHTML = '<span style="color:#e05555;">⚠ Failed to load device data: '+(err.message||err)+'</span>';
   });
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// LIVE STATS STRIP + TOP CARD BADGES
+// ═══════════════════════════════════════════════════════════════════════
+
+// Clock
+(function _lssClock() {
+  function _tick() {
+    var el = document.getElementById('lss-clock');
+    if (!el) return;
+    var now = new Date();
+    var h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+    el.textContent = (h<10?'0'+h:h)+':'+(m<10?'0'+m:m)+':'+(s<10?'0'+s:s);
+  }
+  _tick();
+  setInterval(_tick, 1000);
+})();
+
+var _lssPrevPressure = null;
+
+function updateLiveStatsStrip(devices) {
+  if (!devices || !devices.length) return;
+  var HIDDEN = ['ReservoirPumpLinks','AutoShutoffLog','EventLog','Summary','DailyTotals','DeviceInfo','LoginHistory'];
+  var visible = devices.filter(function(d){ return d.device && HIDDEN.indexOf(d.device)===-1; });
+
+  var online  = visible.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
+  var fault   = visible.filter(function(d){ return (d.status||'').toLowerCase()==='fault' || d.button; });
+  var offline = visible.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; });
+  var pumps   = visible.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
+  var presDevs= visible.filter(function(d){ var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase(); return t==='pressure'||n.includes('pressure'); });
+  var resDevs = visible.filter(function(d){ var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
+
+  var total     = visible.length;
+  var onlineN   = online.length;
+  var faultN    = fault.length;
+  var uptime    = total ? ((onlineN/total)*100).toFixed(0) : '—';
+  var totalFlow = pumps.reduce(function(s,d){ return s+parseFloat(d.flow||0); },0);
+  var totalPow  = pumps.reduce(function(s,d){ return s+parseFloat(d.power||0); },0);
+  var totalDis  = pumps.reduce(function(s,d){ return s+parseFloat(d.total||d.discharge||0); },0);
+  var pumpsOn   = pumps.filter(function(d){ return d.relay===1||d.commandedRelay===1; }).length;
+  var avgPres   = presDevs.length
+    ? (presDevs.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/presDevs.length)
+    : (pumps.length ? pumps.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pumps.length : 0);
+  var avgLevel  = resDevs.length
+    ? (resDevs.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/resDevs.length) : 0;
+
+  function _set(id, val) { var e=document.getElementById(id); if(e) e.textContent=val; }
+  function _show(id, show) { var e=document.getElementById(id); if(e) e.style.display=show?'':'none'; }
+
+  _set('lss-online',   onlineN);
+  _set('lss-total-sfx','/'+(total||'—'));
+  _set('lss-faults',   faultN);
+  _set('lss-pressure', avgPres>0 ? avgPres.toFixed(1) : '—');
+  _set('lss-flow',     totalFlow>0 ? totalFlow.toFixed(1) : '—');
+  _set('lss-level',    avgLevel>0 ? avgLevel.toFixed(1) : '—');
+  _set('lss-pumps-on', pumpsOn+'/'+pumps.length);
+  _set('lss-power',    totalPow>0 ? (totalPow>=1000?(totalPow/1000).toFixed(1)+'k':totalPow.toFixed(0)) : '—');
+  _set('lss-discharge',totalDis>0 ? totalDis.toFixed(1) : '—');
+  _set('lss-uptime',   uptime);
+
+  // Fault dot
+  _show('lss-dot-fault',  faultN>0);
+  _show('lss-dot-nofault',faultN===0);
+
+  // Pressure trend arrow
+  if (_lssPrevPressure !== null && avgPres > 0) {
+    var up = avgPres > _lssPrevPressure + 0.2;
+    var dn = avgPres < _lssPrevPressure - 0.2;
+    _show('lss-pres-trend',   up);
+    _show('lss-pres-trend-d', dn);
+  }
+  if (avgPres > 0) _lssPrevPressure = avgPres;
+
+  // Last event: find most-recently-changed device
+  var sorted = visible.slice().sort(function(a,b){
+    var ta = a.lastTimestamp ? new Date(a.lastTimestamp).getTime() : 0;
+    var tb = b.lastTimestamp ? new Date(b.lastTimestamp).getTime() : 0;
+    return tb - ta;
+  });
+  if (sorted.length) {
+    var ld = sorted[0];
+    var evtText = ld.device + (ld.status ? ' · ' + ld.status : '');
+    _set('lss-event-txt', evtText);
+  }
+}
+
+// ── Top card live badges ──────────────────────────────────────────────────────
+function _setCardBadge(dataTab, text, onclick) {
+  var card = document.querySelector('.top-card[data-tab="'+dataTab+'"]');
+  if (!card) return;
+  var existing = card.querySelector('.tc-live-badge');
+  var badge = existing || document.createElement('span');
+  badge.className = 'tc-live-badge';
+  badge.textContent = text;
+  if (onclick && !existing) badge.style.cursor = 'pointer';
+  if (!existing) card.appendChild(badge);
+  if (!card.classList.contains('has-live-badge')) card.classList.add('has-live-badge');
+}
+
+var _cardBadgePrev = {};
+function updateTopCardBadges(devices) {
+  if (!devices || !devices.length) return;
+  var HIDDEN = ['ReservoirPumpLinks','AutoShutoffLog','EventLog','Summary','DailyTotals','DeviceInfo','LoginHistory'];
+  var visible = devices.filter(function(d){ return d.device && HIDDEN.indexOf(d.device)===-1; });
+
+  var online  = visible.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
+  var fault   = visible.filter(function(d){ return (d.status||'').toLowerCase()==='fault' || d.button; });
+  var pumps   = visible.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
+  var presDevs= visible.filter(function(d){ var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase(); return t==='pressure'||n.includes('pressure'); });
+  var resDevs = visible.filter(function(d){ var n=(d.device||'').toLowerCase(),t=(d.type||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
+  var pumpsOn = pumps.filter(function(d){ return d.relay===1||d.commandedRelay===1; }).length;
+  var totalFlow= pumps.reduce(function(s,d){return s+parseFloat(d.flow||0);},0);
+  var totalPow = pumps.reduce(function(s,d){return s+parseFloat(d.power||0);},0);
+  var totalDis = pumps.reduce(function(s,d){return s+parseFloat(d.total||d.discharge||0);},0);
+  var avgPres  = presDevs.length ? (presDevs.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/presDevs.length) : 0;
+  var avgLevel = resDevs.length  ? (resDevs.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/resDevs.length) : 0;
+  var avgEff   = pumps.filter(function(d){return parseFloat(d.efficiency||d.pumpeff||0)>0;}).length;
+  var effVal   = avgEff ? (pumps.reduce(function(s,d){return s+parseFloat(d.efficiency||d.pumpeff||0);},0)/avgEff).toFixed(0)+'%' : null;
+  var totalEnergy = pumps.reduce(function(s,d){return s+parseFloat(d.energy||0);},0);
+  var uptime = visible.length ? ((online.length/visible.length)*100).toFixed(0)+'%' : null;
+
+  // Map — device count + online
+  _setCardBadge('map', online.length+'/'+visible.length+' Online');
+
+  // Analytics — avg pressure
+  if (avgPres > 0) _setCardBadge('analytics', avgPres.toFixed(1)+' psi avg');
+
+  // Reports — energy
+  if (totalEnergy > 0) _setCardBadge('reports', totalEnergy.toFixed(1)+' kWh');
+
+  // Production — discharge
+  if (totalDis > 0) _setCardBadge('prod-history', totalDis.toFixed(1)+' m³');
+
+  // KPI — uptime
+  if (uptime) _setCardBadge('kpi', uptime+' uptime');
+
+  // Pressure logs — avg pressure
+  if (avgPres > 0) _setCardBadge('pressure-logger', avgPres.toFixed(1)+' psi');
+
+  // Pump links — active pumps
+  _setCardBadge('pump-links', pumpsOn+'/'+pumps.length+' ON');
+
+  // Energy — total power
+  if (totalPow > 0) {
+    var pwLabel = totalPow >= 1000 ? (totalPow/1000).toFixed(1)+'kW' : totalPow.toFixed(0)+'W';
+    _setCardBadge('energy', pwLabel);
+  }
+
+  // Efficiency — avg efficiency
+  if (effVal) _setCardBadge('efficiency', effVal+' eff');
+
+  // Water loss — flow
+  if (totalFlow > 0) _setCardBadge('water-loss', totalFlow.toFixed(1)+' L/s');
+
+  // Alarm — fault count
+  var faultTxt = fault.length > 0 ? fault.length+' FAULT'+(fault.length>1?'S':'') : 'No Faults';
+  _setCardBadge('alarm', faultTxt);
+
+  // Alarm center
+  _setCardBadge('alarm-center', fault.length > 0 ? fault.length+' Active' : 'Clear');
+
+  // Water quality — pressure as proxy
+  if (avgPres > 0) _setCardBadge('water-quality', avgPres.toFixed(1)+' psi');
+
+  // ML Risk
+  _setCardBadge('ml-risk', online.length+' Monitored');
+
+  // Forecast — flow
+  if (totalFlow > 0) _setCardBadge('forecast', totalFlow.toFixed(1)+' L/s');
+
+  // AI Report — online count
+  _setCardBadge('analytics', avgPres > 0 ? avgPres.toFixed(1)+' psi avg' : online.length+' online');
+
+  // Cost calc — energy cost indicator
+  if (totalEnergy > 0) _setCardBadge('cost-calc', totalEnergy.toFixed(1)+' kWh');
+
+  // Reservoir level badge on prod-history
+  if (avgLevel > 0) {
+    var lCard = document.querySelector('.top-card[data-tab="prod-history"]');
+    if (lCard) { var b = lCard.querySelector('.tc-live-badge'); if (b) b.title = 'Avg reservoir: '+avgLevel.toFixed(1)+' m³'; }
+  }
+}
+
+// ── Colour-code fault card badges red ────────────────────────────────────────
+var _origUpdateTopCardBadges = updateTopCardBadges;
+updateTopCardBadges = function(devices) {
+  _origUpdateTopCardBadges(devices);
+  // Post-pass: colour alarm badges
+  ['alarm','alarm-center'].forEach(function(tab) {
+    var card = document.querySelector('.top-card[data-tab="'+tab+'"]');
+    if (!card) return;
+    var badge = card.querySelector('.tc-live-badge');
+    if (!badge) return;
+    var txt = badge.textContent || '';
+    var isFault = /fault|active/i.test(txt) && !/no fault|0 fault|clear/i.test(txt);
+    badge.style.background = isFault ? 'rgba(220,38,38,0.12)' : '';
+    badge.style.borderColor = isFault ? 'rgba(220,38,38,0.3)' : '';
+    badge.style.color       = isFault ? '#b91c1c' : '';
+  });
+  // Online/offline colour on map badge
+  var mapCard = document.querySelector('.top-card[data-tab="map"]');
+  if (mapCard) {
+    var b = mapCard.querySelector('.tc-live-badge');
+    if (b) { b.style.color = '#0369a1'; b.style.background = 'rgba(3,105,161,0.09)'; }
+  }
+};
+
 </script>
 
 <!-- ========== AI CHAT ASSISTANT PANEL ========== -->
@@ -6572,6 +6950,8 @@ function recalcCostTable() {
     originalUpdateDashboard();
     apiGet('getDashboardData').then(function(devices) {
       updateMaintenanceScore(devices);
+      updateLiveStatsStrip(devices);
+      updateTopCardBadges(devices);
     }).catch(function(e) { console.warn('Maintenance score update failed', e); });
   };
 
