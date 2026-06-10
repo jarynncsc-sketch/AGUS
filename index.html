@@ -1836,9 +1836,9 @@
         <div class="nav-group-label">Data</div>
         <div class="nav-group-cards">
           <div class="top-card grp-data" data-tab="map" title="Map overview of all devices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
-          <div class="top-card grp-data" data-tab="analytics" onclick="openTabModal('analytics')" title="Multi-parameter chart analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span></div>
-          <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span></div>
-          <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span></div>
+          <div class="top-card grp-data" data-tab="analytics" onclick="openTabModal('analytics')" title="Multi-parameter chart analysis" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span><span class="date-picker-trigger" data-tab="analytics" onclick="event.stopPropagation();showDatePicker(event,'analytics')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
+          <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span class="date-picker-trigger" data-tab="reports" onclick="event.stopPropagation();showDatePicker(event,'reports')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
+          <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span class="date-picker-trigger" data-tab="prod-history" onclick="event.stopPropagation();showDatePicker(event,'prod-history')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
           <div class="top-card grp-data" data-tab="pressure-logger" onclick="openTabModal('pressure-logger')" title="Pressure sensor log viewer"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="4" width="18" height="14" rx="2"/><polyline points="3 8 21 8"/></svg><span>Pressure Logs</span></div>
           <div class="top-card grp-data" data-tab="forecast" onclick="openForecastPanel()" title="Demand forecasting based on historical data"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg><span>Forecast</span></div>
@@ -5137,6 +5137,8 @@ document.getElementById('ai-settings-modal').addEventListener('click',function(e
 
 function openTabModal(tabKey) {
   try {
+  var dp = document.getElementById('date-picker-popup');
+  if (dp) dp.remove();
   var cfg = TAB_CONFIGS[tabKey];
   if (!cfg) { alert('No config for tab: '+tabKey); return; }
   var match = document.querySelector('.top-card[data-tab="'+tabKey+'"]');
@@ -5488,21 +5490,30 @@ function openTabModal(tabKey) {
         var accDiv = document.createElement('div');
         accDiv.id = 'tab-modal-accum';
         accDiv.style.cssText = 'margin:12px;border:1.5px solid #065f4630;border-radius:12px;overflow:hidden;display:none;';
+        var storedFrom = localStorage.getItem('tab_custom_date_from_'+tabKey);
+        var storedTo = localStorage.getItem('tab_custom_date_to_'+tabKey);
         var today = new Date(), firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
         var fmt = function(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); };
+        var accumFromVal = storedFrom || fmt(firstOfMonth);
+        var accumToVal = storedTo || fmt(today);
         accDiv.innerHTML =
           '<div onclick="var n=this.nextElementSibling;n.style.display=n.style.display===\'none\'?\'block\':\'none\';this.querySelector(\'.acc-arrow\').textContent=n.style.display===\'none\'?\'\u25b6\':\'\u25bc\';" style="background:linear-gradient(90deg,#065f4618,#065f4608);padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;border-bottom:1.5px solid #065f4615;">'
           + '<span class="acc-arrow" style="font-size:11px;color:#065f46;">\u25bc</span>'
           + '<span style="font-size:13px;font-weight:800;color:#065f46;">\ud83d\udcca Accumulated Totals by Date Range</span></div>'
           + '<div style="padding:12px 14px;background:#fafcff;">'
           + '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:10px;">'
-          + '<label style="font-size:11px;font-weight:700;color:#5575a0;">From:<br><input id="accum-from" type="date" value="'+fmt(firstOfMonth)+'" style="padding:6px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;"></label>'
-          + '<label style="font-size:11px;font-weight:700;color:#5575a0;">To:<br><input id="accum-to" type="date" value="'+fmt(today)+'" style="padding:6px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;"></label>'
+          + '<label style="font-size:11px;font-weight:700;color:#5575a0;">From:<br><input id="accum-from" type="date" value="'+accumFromVal+'" style="padding:6px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;"></label>'
+          + '<label style="font-size:11px;font-weight:700;color:#5575a0;">To:<br><input id="accum-to" type="date" value="'+accumToVal+'" style="padding:6px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;"></label>'
           + '<button onclick="calcAccumTotals()" style="padding:7px 18px;background:linear-gradient(135deg,#065f46,#0d9488);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Calculate</button>'
           + '<span id="accum-spinner" style="display:none;font-size:11px;color:#7a8fa6;">Loading...</span></div>'
           + '<div id="accum-results" style="font-size:12px;color:#7a8fa6;">Select a date range and click Calculate.</div></div>';
         var dtParent = document.getElementById('tab-modal-device-table');
         if (dtParent && dtParent.parentNode) dtParent.parentNode.insertBefore(accDiv, dtParent.nextSibling);
+        if (storedFrom && storedTo) {
+          accDiv.style.display = 'block';
+          accDiv.querySelector('.acc-arrow').textContent = '\u25bc';
+          setTimeout(function(){ calcAccumTotals(); }, 100);
+        }
       }
       if (tabKey === 'reports') {
         if (!document.getElementById('tab-modal-report-summary')) {
@@ -5664,6 +5675,58 @@ window.calcAccumTotals = function calcAccumTotals() {
     if(spinner)spinner.style.display='none';
     results.innerHTML = '<span style="color:#ef4444;">Error: '+err.message+'</span>';
   });
+}
+function showDatePicker(ev, tabKey) {
+  var existing = document.getElementById('date-picker-popup');
+  if (existing) existing.remove();
+  var rect = ev.target.getBoundingClientRect();
+  var storedFrom = localStorage.getItem('tab_custom_date_from_'+tabKey) || '';
+  var storedTo = localStorage.getItem('tab_custom_date_to_'+tabKey) || '';
+  var today = new Date();
+  var fmt = function(d){ return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2); };
+  if (!storedFrom) { var f = new Date(today.getFullYear(), today.getMonth(), 1); storedFrom = fmt(f); }
+  if (!storedTo) { storedTo = fmt(today); }
+  var popup = document.createElement('div');
+  popup.id = 'date-picker-popup';
+  popup.style.cssText = 'position:fixed;z-index:9999;background:#fff;border:1.5px solid #d0e4f7;border-radius:12px;padding:14px;box-shadow:0 8px 30px rgba(0,20,40,0.2);font-size:12px;min-width:220px;';
+  popup.style.left = Math.min(rect.left, window.innerWidth-260)+'px';
+  popup.style.top = (rect.bottom+6)+'px';
+  popup.innerHTML =
+    '<div style="font-weight:800;color:#002b5c;margin-bottom:10px;font-size:13px;">Custom Date Range</div>'
+    + '<label style="font-size:11px;font-weight:700;color:#5575a0;">From:<br><input id="dp-from" type="date" value="'+storedFrom+'" style="width:100%;padding:6px 8px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;margin-top:2px;box-sizing:border-box;"></label>'
+    + '<label style="font-size:11px;font-weight:700;color:#5575a0;display:block;margin-top:8px;">To:<br><input id="dp-to" type="date" value="'+storedTo+'" style="width:100%;padding:6px 8px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;outline:none;margin-top:2px;box-sizing:border-box;"></label>'
+    + '<div style="display:flex;gap:6px;margin-top:10px;">'
+    + '<button onclick="applyDatePicker(\''+tabKey+'\')" style="flex:1;padding:7px;background:linear-gradient(135deg,#065f46,#0d9488);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Apply</button>'
+    + '<button onclick="clearDatePicker(\''+tabKey+'\')" style="padding:7px 10px;background:#f1f5f9;color:#475569;border:none;border-radius:8px;font-size:12px;cursor:pointer;">Clear</button></div>'
+    + '<div style="margin-top:6px;font-size:10px;color:#7a8fa6;">Dates are used when opening '+tabKey+'.</div>';
+  document.body.appendChild(popup);
+  var closer = function(e) {
+    if (!popup.contains(e.target) && !e.target.closest('.date-picker-trigger')) {
+      popup.remove();
+      document.removeEventListener('click', closer);
+    }
+  };
+  setTimeout(function(){ document.addEventListener('click', closer); }, 50);
+}
+function applyDatePicker(tabKey) {
+  var from = document.getElementById('dp-from');
+  var to = document.getElementById('dp-to');
+  if (from && to && from.value && to.value) {
+    localStorage.setItem('tab_custom_date_from_'+tabKey, from.value);
+    localStorage.setItem('tab_custom_date_to_'+tabKey, to.value);
+  }
+  var popup = document.getElementById('date-picker-popup');
+  if (popup) popup.remove();
+  var triggers = document.querySelectorAll('.date-picker-trigger[data-tab="'+tabKey+'"]');
+  triggers.forEach(function(t){ t.style.opacity = '1'; t.style.background = '#065f46'; t.style.color = '#fff'; });
+}
+function clearDatePicker(tabKey) {
+  localStorage.removeItem('tab_custom_date_from_'+tabKey);
+  localStorage.removeItem('tab_custom_date_to_'+tabKey);
+  var popup = document.getElementById('date-picker-popup');
+  if (popup) popup.remove();
+  var triggers = document.querySelectorAll('.date-picker-trigger[data-tab="'+tabKey+'"]');
+  triggers.forEach(function(t){ t.style.opacity = '0.7'; t.style.background = '#e5eef9'; t.style.color = 'inherit'; });
 }
 window.exportReportCSV = function exportReportCSV() {
   apiCached('getDashboardData').then(function(devices) {
