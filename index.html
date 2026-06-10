@@ -2294,6 +2294,117 @@ function toggleFilter(type){
   updateDashboard();
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
+var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.deepseek.com/v1/chat/completions';
+var AI_API_KEY  = localStorage.getItem('agus_ai_api_key') || '';
+var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'deepseek-chat';
+
+// ============================================================
+// TAB MODALS – Analytics, Reports, Alarm History, Efficiency,
+//              Production History, Pressure Loggers, Preventive Maintenance
+// ============================================================
+var tabModalChart = null;
+var tabModalCurrentDevice = null;
+var tabModalCurrentMode = 'daily'; // 'daily' | 'monthly'
+var tabModalCurrentTab = null;
+var tabModalAllRows = [];
+
+var TAB_CONFIGS = {
+  'analytics': {
+    title: '📊 Analytics',
+    icon: '📊',
+    color: '#0055cc',
+    params: [
+      {key:'pressure',   label:'Pressure (psi)',     color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
+      {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
+      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
+      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
+      {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
+      {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
+      {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
+      {key:'energy',     label:'Energy (kWh)',        color:'rgba(167,139,250,0.85)', bg:'rgba(167,139,250,0.12)', pattern:/energy/i,                                                          group:'electrical'},
+      {key:'pumpeff',    label:'Pump Efficiency (%)', color:'rgba(245,158,11,0.85)',  bg:'rgba(245,158,11,0.12)',  computed:true,                                                              group:'efficiency'}
+    ],
+    chartType: 'line',
+    yLabel: 'Value',
+    allDevices: true
+  },
+  'reports': {
+    title: '📋 Reports',
+    icon: '📋',
+    color: '#0b7c9c',
+    params: [
+      {key:'energy',     label:'Energy (kWh)',        color:'rgba(167,139,250,0.85)', bg:'rgba(167,139,250,0.12)', pattern:/energy/i,                                                          group:'electrical'},
+      {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
+      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
+      {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
+      {key:'pressure',   label:'Pressure (psi)',      color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
+      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
+      {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
+      {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
+      {key:'pumpeff',    label:'Pump Efficiency (%)', color:'rgba(245,158,11,0.85)',  bg:'rgba(245,158,11,0.12)',  computed:true,                                                              group:'efficiency'}
+    ],
+    chartType: 'bar',
+    yLabel: 'Energy / Power / Discharge / Level',
+    allDevices: true
+  },
+  'alarm': {
+    title: '🔔 Alarm History',
+    icon: '🔔',
+    color: '#dc2626',
+    params: [
+      {key:'pressure', label:'Pressure (psi)', color:'rgba(239,68,68,0.85)', bg:'rgba(239,68,68,0.12)', pattern:/pressure|psi/i},
+      {key:'relay',    label:'Relay State',    color:'rgba(100,116,139,0.85)',bg:'rgba(100,116,139,0.12)',pattern:/relay/i}
+    ],
+    chartType: 'line',
+    yLabel: 'Pressure (psi)',
+    alarmMode: true
+  },
+  'Pump/Motor Efficiency': {
+    title: '🔧 Pump/Motor Efficiency',
+    icon: '🔧',
+    color: '#b45309',
+    params: [
+      {key:'pumpeff', label:'Efficiency (%)', color:'rgba(245,158,11,0.85)', bg:'rgba(245,158,11,0.12)', computed: true, pattern:/efficienc|pump.*eff|motor.*eff/i}
+    ],
+    chartType: 'line',
+    yLabel: 'Efficiency (%)'
+  },
+  'prod-history': {
+    title: '📈 Production History',
+    icon: '📈',
+    color: '#065f46',
+    params: [
+      {key:'discharge', label:'Total Discharge (m³)', color:'rgba(139,92,246,0.85)', bg:'rgba(139,92,246,0.12)', pattern:/discharge/i},
+      {key:'flowrate',  label:'Flowrate (L/s)',       color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i}
+    ],
+    chartType: 'bar',
+    yLabel: 'Discharge / Flow'
+  },
+  'pressure-logger': {
+    title: '📟 Pressure Loggers',
+    icon: '📟',
+    color: '#1d4ed8',
+    params: [
+      {key:'pressure', label:'Pressure (psi)', color:'rgba(29,78,216,0.85)', bg:'rgba(29,78,216,0.12)', pattern:/pressure|psi/i}
+    ],
+    chartType: 'line',
+    yLabel: 'Pressure (psi)'
+  },
+  'preventive-maintenance': {
+    title: '🛠️ Preventive Maintenance',
+    icon: '🛠️',
+    color: '#7c3aed',
+    params: [
+      {key:'voltage', label:'Voltage (V)',  color:'rgba(34,197,94,0.85)',  bg:'rgba(34,197,94,0.12)',  pattern:/voltage/i},
+      {key:'current', label:'Current (A)',  color:'rgba(244,63,94,0.85)',  bg:'rgba(244,63,94,0.12)',  pattern:/current/i},
+      {key:'power',   label:'Power (W)',    color:'rgba(249,115,22,0.85)', bg:'rgba(249,115,22,0.12)', pattern:/power/i}
+    ],
+    chartType: 'bar',
+    yLabel: 'Voltage / Current / Power'
+  }
+};
+
+
 
 var FIREBASE_DATABASE_URL = 'https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app';
 var _firebaseConnected = false;
@@ -4991,7 +5102,7 @@ document.getElementById('ai-settings-modal').addEventListener('click',function(e
   btn.setAttribute('data-tab', 'ai-settings');
   btn.onclick = openAISettings;
   btn.title = 'Configure AI API endpoint & key';
-  btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>AI Config</span><span id="ai-config-dot" style="position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:'+(AI_API_KEY?'#22c55e':'#f97316')+';"></span>';
+  btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>AI Config</span><span id="ai-config-dot" style="position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:'+((typeof AI_API_KEY!=='undefined'&&AI_API_KEY)?'#22c55e':'#f97316')+';"></span>';
   ctrlGroup.appendChild(btn);
 })();
 
@@ -5023,116 +5134,8 @@ document.getElementById('ai-settings-modal').addEventListener('click',function(e
   rh.addEventListener('mousedown',function(e){initR(e,'right');}); rh.addEventListener('touchstart',function(e){initR(e,'right');},{passive:false});
 })();
 
-// ============================================================
-// TAB MODALS – Analytics, Reports, Alarm History, Efficiency,
-//              Production History, Pressure Loggers, Preventive Maintenance
-// ============================================================
-var tabModalChart = null;
-var tabModalCurrentDevice = null;
-var tabModalCurrentMode = 'daily'; // 'daily' | 'monthly'
-var tabModalCurrentTab = null;
-var tabModalAllRows = [];
-
-var TAB_CONFIGS = {
-  'analytics': {
-    title: '📊 Analytics',
-    icon: '📊',
-    color: '#0055cc',
-    params: [
-      {key:'pressure',   label:'Pressure (psi)',     color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
-      {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
-      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
-      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
-      {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
-      {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
-      {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
-      {key:'energy',     label:'Energy (kWh)',        color:'rgba(167,139,250,0.85)', bg:'rgba(167,139,250,0.12)', pattern:/energy/i,                                                          group:'electrical'},
-      {key:'pumpeff',    label:'Pump Efficiency (%)', color:'rgba(245,158,11,0.85)',  bg:'rgba(245,158,11,0.12)',  computed:true,                                                              group:'efficiency'}
-    ],
-    chartType: 'line',
-    yLabel: 'Value',
-    allDevices: true
-  },
-  'reports': {
-    title: '📋 Reports',
-    icon: '📋',
-    color: '#0b7c9c',
-    params: [
-      {key:'energy',     label:'Energy (kWh)',        color:'rgba(167,139,250,0.85)', bg:'rgba(167,139,250,0.12)', pattern:/energy/i,                                                          group:'electrical'},
-      {key:'power',      label:'Power (W)',           color:'rgba(249,115,22,0.85)',  bg:'rgba(249,115,22,0.12)',  pattern:/^power/i,                                                          group:'electrical'},
-      {key:'discharge',  label:'Discharge (m³)',      color:'rgba(139,92,246,0.85)',  bg:'rgba(139,92,246,0.12)',  pattern:/discharge/i,                                                 group:'hydraulic'},
-      {key:'flowrate',   label:'Flowrate (L/s)',      color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i,                                                   group:'hydraulic'},
-      {key:'pressure',   label:'Pressure (psi)',      color:'rgba(29,78,216,0.85)',   bg:'rgba(29,78,216,0.12)',   pattern:/pressure|psi/i,                                                    group:'hydraulic'},
-      {key:'level',      label:'Water Level (m³)',    color:'rgba(6,182,212,0.85)',   bg:'rgba(6,182,212,0.12)',   pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i,  group:'hydraulic'},
-      {key:'voltage',    label:'Voltage (V)',         color:'rgba(34,197,94,0.85)',   bg:'rgba(34,197,94,0.12)',   pattern:/voltage/i,                                                         group:'electrical'},
-      {key:'current',    label:'Current (A)',         color:'rgba(244,63,94,0.85)',   bg:'rgba(244,63,94,0.12)',   pattern:/current/i,                                                         group:'electrical'},
-      {key:'pumpeff',    label:'Pump Efficiency (%)', color:'rgba(245,158,11,0.85)',  bg:'rgba(245,158,11,0.12)',  computed:true,                                                              group:'efficiency'}
-    ],
-    chartType: 'bar',
-    yLabel: 'Energy / Power / Discharge / Level',
-    allDevices: true
-  },
-  'alarm': {
-    title: '🔔 Alarm History',
-    icon: '🔔',
-    color: '#dc2626',
-    params: [
-      {key:'pressure', label:'Pressure (psi)', color:'rgba(239,68,68,0.85)', bg:'rgba(239,68,68,0.12)', pattern:/pressure|psi/i},
-      {key:'relay',    label:'Relay State',    color:'rgba(100,116,139,0.85)',bg:'rgba(100,116,139,0.12)',pattern:/relay/i}
-    ],
-    chartType: 'line',
-    yLabel: 'Pressure (psi)',
-    alarmMode: true
-  },
-  'Pump/Motor Efficiency': {
-    title: '🔧 Pump/Motor Efficiency',
-    icon: '🔧',
-    color: '#b45309',
-    params: [
-      {key:'pumpeff', label:'Efficiency (%)', color:'rgba(245,158,11,0.85)', bg:'rgba(245,158,11,0.12)', computed: true, pattern:/efficienc|pump.*eff|motor.*eff/i}
-    ],
-    chartType: 'line',
-    yLabel: 'Efficiency (%)'
-  },
-  'prod-history': {
-    title: '📈 Production History',
-    icon: '📈',
-    color: '#065f46',
-    params: [
-      {key:'discharge', label:'Total Discharge (m³)', color:'rgba(139,92,246,0.85)', bg:'rgba(139,92,246,0.12)', pattern:/discharge/i},
-      {key:'flowrate',  label:'Flowrate (L/s)',       color:'rgba(14,165,233,0.85)',  bg:'rgba(14,165,233,0.12)',  pattern:/flowrate|flow/i}
-    ],
-    chartType: 'bar',
-    yLabel: 'Discharge / Flow'
-  },
-  'pressure-logger': {
-    title: '📟 Pressure Loggers',
-    icon: '📟',
-    color: '#1d4ed8',
-    params: [
-      {key:'pressure', label:'Pressure (psi)', color:'rgba(29,78,216,0.85)', bg:'rgba(29,78,216,0.12)', pattern:/pressure|psi/i}
-    ],
-    chartType: 'line',
-    yLabel: 'Pressure (psi)'
-  },
-  'preventive-maintenance': {
-    title: '🛠️ Preventive Maintenance',
-    icon: '🛠️',
-    color: '#7c3aed',
-    params: [
-      {key:'voltage', label:'Voltage (V)',  color:'rgba(34,197,94,0.85)',  bg:'rgba(34,197,94,0.12)',  pattern:/voltage/i},
-      {key:'current', label:'Current (A)',  color:'rgba(244,63,94,0.85)',  bg:'rgba(244,63,94,0.12)',  pattern:/current/i},
-      {key:'power',   label:'Power (W)',    color:'rgba(249,115,22,0.85)', bg:'rgba(249,115,22,0.12)', pattern:/power/i}
-    ],
-    chartType: 'bar',
-    yLabel: 'Voltage / Current / Power'
-  }
-};
-
 function openTabModal(tabKey) {
   try {
-    if (typeof TAB_CONFIGS === 'undefined') { alert('TAB_CONFIGS is undefined!'); return; }
-  } catch(e) { alert('TAB_CONFIGS check error: '+e.message); return; }
   var cfg = TAB_CONFIGS[tabKey];
   if (!cfg) { alert('No config for tab: '+tabKey); return; }
   var match = document.querySelector('.top-card[data-tab="'+tabKey+'"]');
@@ -5373,6 +5376,7 @@ function openTabModal(tabKey) {
     var load = document.getElementById('tab-modal-loading');
     if (load) load.innerHTML = '<span style="color:#e05555;">Error: '+e.message+'</span>';
   });
+} catch(e) { alert('openTabModal crash: '+e.message+'\n'+e.stack); }
 }
 
 function closeTabModal() {
@@ -6077,9 +6081,6 @@ function injectForecastDataset() {
 // ============================================================
 // AI API CONFIGURATION (configurable via settings UI)
 // ============================================================
-var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.deepseek.com/v1/chat/completions';
-var AI_API_KEY  = localStorage.getItem('agus_ai_api_key') || '';
-var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'deepseek-chat';
 var AI_CACHE = {};
 
 // ── AI Chat utilities (called from Block 2 and 3) ──
