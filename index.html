@@ -5130,8 +5130,11 @@ var TAB_CONFIGS = {
 };
 
 function openTabModal(tabKey) {
+  try {
+    if (typeof TAB_CONFIGS === 'undefined') { alert('TAB_CONFIGS is undefined!'); return; }
+  } catch(e) { alert('TAB_CONFIGS check error: '+e.message); return; }
   var cfg = TAB_CONFIGS[tabKey];
-  if (!cfg) return;
+  if (!cfg) { alert('No config for tab: '+tabKey); return; }
   var match = document.querySelector('.top-card[data-tab="'+tabKey+'"]');
   if (match) { document.querySelectorAll('.top-card').forEach(function(c){c.classList.remove('active');}); match.classList.add('active'); }
   tabModalCurrentTab = tabKey;
@@ -5139,69 +5142,56 @@ function openTabModal(tabKey) {
   tabModalCurrentDevice = null;
   tabModalAllRows = [];
 
-  // Remove existing
   var old = document.getElementById('tab-modal-overlay');
   if (old) old.remove();
   if (tabModalChart) { tabModalChart.destroy(); tabModalChart = null; }
 
   var isAITab = (tabKey === 'analytics' || tabKey === 'reports');
-  var bannerTitles = { analytics:'⚡ Live System Snapshot', reports:'📊 Energy & Resource Summary', 'prod-history':'📈 Production & Forecast Summary', 'pressure-logger':'📟 Pressure Overview', alarm:'🔔 Alarm Summary', 'preventive-maintenance':'🛠️ Maintenance Status', 'Pump/Motor Efficiency':'🔧 Efficiency Summary' };
-  var bannerTitle = bannerTitles[tabKey] || '📋 Summary';
 
   var overlay = document.createElement('div');
   overlay.id = 'tab-modal-overlay';
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.72);z-index:5500;display:flex;align-items:center;justify-content:center;';
   overlay.innerHTML =
     '<div style="background:#fff;border-radius:18px;width:880px;max-width:96vw;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 24px 70px rgba(0,0,0,0.45);">'
-    // Header
     + '<div style="background:linear-gradient(135deg,'+cfg.color+','+cfg.color+'cc);padding:18px 22px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
-    +   '<div>'
-    +     '<div style="color:#fff;font-weight:800;font-size:1.15rem;font-family:\'Syne\',sans-serif;">'+cfg.title+'</div>'
-    +     '<div style="color:rgba(255,255,255,0.72);font-size:12px;margin-top:2px;">'+(cfg.allDevices ? 'All Devices — Pumping Stations · Pressure Devices · Reservoirs' : 'Pumping Station Data')+'</div>'
-    +   '</div>'
-    +   '<button onclick="closeTabModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;">&#10005;</button>'
+    +   '<div><div style="color:#fff;font-weight:800;font-size:1.15rem;font-family:Syne,sans-serif;">'+cfg.title+'</div>'
+    +   '<div style="color:rgba(255,255,255,0.72);font-size:12px;margin-top:2px;">'+(cfg.allDevices ? 'All Devices' : 'Pumping Station Data')+'</div></div>'
+    +   '<button onclick="closeTabModal()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;">X</button>'
     + '</div>'
-    // Controls bar
     + '<div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 18px 8px;border-bottom:1px solid #e5eef9;background:#f8fbff;flex-shrink:0;">'
     +   '<div style="display:flex;align-items:center;gap:6px;">'
     +     '<label style="font-size:12px;font-weight:700;color:#5575a0;">Device:</label>'
     +     '<select id="tab-modal-device-select" onchange="onTabModalDeviceChange()" style="padding:6px 10px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:12px;color:#002b5c;background:#fff;outline:none;min-width:180px;max-width:240px;">'
-    +       '<option value="">-- Loading... --</option>'
-    +     '</select>'
-    +   '</div>'
+    +       '<option value="">-- Loading... --</option></select></div>'
     +   '<div id="tab-modal-mode-btns" style="display:flex;gap:4px;">'
-    +     '<button id="tab-mode-daily"   onclick="setTabModalMode(\'daily\')"   style="padding:5px 14px;border:1.5px solid '+cfg.color+';border-radius:7px;background:'+cfg.color+';color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Daily</button>'
-    +     '<button id="tab-mode-monthly" onclick="setTabModalMode(\'monthly\')" style="padding:5px 14px;border:1.5px solid '+cfg.color+';border-radius:7px;background:#fff;color:'+cfg.color+';font-size:12px;font-weight:700;cursor:pointer;">Monthly</button>'
-    +   '</div>'
-    +   (isAITab ? '<button onclick="generateAIReport()" style="margin-left:auto;padding:5px 14px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;">&#129302; AI Report</button>' : '<div id="tab-modal-stat-chips" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;"></div>')
+    +     '<button id="tab-mode-daily" onclick="setTabModalMode(\'daily\')" style="padding:5px 14px;border:1.5px solid '+cfg.color+';border-radius:7px;background:'+cfg.color+';color:#fff;font-size:12px;font-weight:700;cursor:pointer;">Daily</button>'
+    +     '<button id="tab-mode-monthly" onclick="setTabModalMode(\'monthly\')" style="padding:5px 14px;border:1.5px solid '+cfg.color+';border-radius:7px;background:#fff;color:'+cfg.color+';font-size:12px;font-weight:700;cursor:pointer;">Monthly</button></div>'
+    +   (isAITab ? '<button onclick="generateAIReport()" style="margin-left:auto;padding:5px 14px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">AI Report</button>' : '<div id="tab-modal-stat-chips" style="margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;"></div>')
     + '</div>'
-    // Chart area
     + '<div style="flex:1;overflow-y:auto;padding:14px 18px 16px;">'
     +   '<div id="tab-modal-live-banner" style="display:none;margin-bottom:14px;background:linear-gradient(135deg,#f0fbff,#e8f4fd);border:1.5px solid #bae6fd;border-radius:12px;padding:12px 16px;"></div>'
     +   (tabKey === 'analytics' ? '<div id="tab-modal-device-table" style="display:none;margin-bottom:14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;"></div>' : '')
     +   '<div id="tab-modal-loading" style="text-align:center;padding:50px 0;color:#7a8fa6;display:flex;flex-direction:column;align-items:center;gap:10px;">'
-    +     '<div class="spinner"></div><span>Loading devices…</span>'
-    +   '</div>'
-    +   '<div id="tab-modal-chart-area" style="display:none;position:relative;height:300px;">'
-    +     '<canvas id="tab-modal-canvas"></canvas>'
-    +   '</div>'
+    +     '<div class="spinner"></div><span>Loading devices...</span></div>'
+    +   '<div id="tab-modal-chart-area" style="display:none;position:relative;height:300px;"><canvas id="tab-modal-canvas"></canvas></div>'
     +   '<div id="tab-modal-summary-cards" style="display:none;margin-top:12px;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;"></div>'
     +   (tabKey === 'prod-history' ? '<div id="tab-modal-forecast-section" style="display:none;margin-top:12px;background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1.5px solid #86efac;border-radius:12px;padding:14px 18px;"></div>' : '')
-    +   (isAITab ? '<div id="tab-modal-ai-section" style="display:none;margin-top:14px;background:linear-gradient(135deg,#f0f8ff,#e8f4fd);border:1.5px solid #b8d9f5;border-radius:12px;padding:14px 18px;">'
-    +   +  '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
-    +   +    '<div style="font-size:12px;font-weight:800;color:#002b5c;">&#129302; AI-Driven Analysis &amp; Recommendations</div>'
-    +   +    '<div id="ai-report-spinner" style="display:none;"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div></div>'
-    +   +  '</div>'
-    +   +  '<div id="ai-report-output" style="font-size:13px;color:#1e293b;line-height:1.65;max-height:260px;overflow-y:auto;"></div>'
-    +   + '</div>' : '')
-    + '</div>'
-    + '</div>';
+    +   (isAITab ? '<div id="tab-modal-ai-section" style="display:none;margin-top:14px;background:linear-gradient(135deg,#f0f8ff,#e8f4fd);border:1.5px solid #b8d9f5;border-radius:12px;padding:14px 18px;"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;"><div style="font-size:12px;font-weight:800;color:#002b5c;">AI-Driven Analysis</div><div id="ai-report-spinner" style="display:none;"><div class="spinner" style="width:20px;height:20px;border-width:2px;"></div></div></div><div id="ai-report-output" style="font-size:13px;color:#1e293b;line-height:1.65;max-height:260px;overflow-y:auto;"></div></div>' : '')
+    + '</div></div>';
 
   document.body.appendChild(overlay);
   overlay.addEventListener('click', function(e){ if(e.target===overlay) closeTabModal(); });
 
-  // Populate device dropdown — include ALL device types when allDevices flag set
-  // Also inject a per-tab highlights banner
+  var bannerTitle = '';
+  if (tabKey === 'analytics') bannerTitle = 'Live System Snapshot';
+  else if (tabKey === 'reports') bannerTitle = 'Energy & Resource Summary';
+  else if (tabKey === 'prod-history') bannerTitle = 'Production & Forecast Summary';
+  else if (tabKey === 'pressure-logger') bannerTitle = 'Pressure Overview';
+  else if (tabKey === 'alarm') bannerTitle = 'Alarm Summary';
+  else if (tabKey === 'preventive-maintenance') bannerTitle = 'Maintenance Status';
+  else if (tabKey === 'Pump/Motor Efficiency') bannerTitle = 'Efficiency Summary';
+  else bannerTitle = 'Summary';
+
   apiCached('getDashboardData').then(function(liveDevices) {
     var banner = document.getElementById('tab-modal-live-banner');
     if (!banner) return;
@@ -5212,82 +5202,77 @@ function openTabModal(tabKey) {
     var res     = liveDevices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
     var pumps   = liveDevices.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
     var total   = liveDevices.length;
-    var uptime  = total ? ((online.length/total)*100).toFixed(0) : '—';
+    var uptime  = total ? ((online.length/total)*100).toFixed(0) : '\u2014';
     var totalFlow = pumps.reduce(function(s,d){ return s+parseFloat(d.flow||0); }, 0).toFixed(1);
-    var avgPres = pres.length ? (pres.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pres.length).toFixed(1) : '—';
-    var avgLvl  = res.length  ? (res.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/res.length).toFixed(1)  : '—';
+    var avgPres = pres.length ? (pres.reduce(function(s,d){return s+parseFloat(d.pressure||0);},0)/pres.length).toFixed(1) : '\u2014';
+    var avgLvl  = res.length  ? (res.reduce(function(s,d){return s+parseFloat(d.level||0);},0)/res.length).toFixed(1)  : '\u2014';
     var totalDischarge = pumps.reduce(function(s,d){ return s+parseFloat(d.discharge||0); }, 0).toFixed(1);
     var totalEnergy = pumps.reduce(function(s,d){ return s+parseFloat(d.energy||0); }, 0).toFixed(1);
     var totalPower = pumps.reduce(function(s,d){ return s+parseFloat(d.power||0); }, 0).toFixed(1);
     var avgEff = pumps.filter(function(d){ return d.pumpeff; }).length
-      ? (pumps.reduce(function(s,d){ return s+parseFloat(d.pumpeff||0); }, 0)/pumps.filter(function(d){return d.pumpeff;}).length).toFixed(1) : '—';
+      ? (pumps.reduce(function(s,d){ return s+parseFloat(d.pumpeff||0); }, 0)/pumps.filter(function(d){return d.pumpeff;}).length).toFixed(1) : '\u2014';
     function sc(icon,lbl,val,unit,col) {
       return '<div style="background:'+col+'12;border:1.5px solid '+col+'40;border-radius:10px;padding:9px 12px;min-width:90px;text-align:center;">'
         +'<div style="font-size:16px;">'+icon+'</div>'
         +'<div style="font-size:18px;font-weight:800;color:'+col+';">'+val+'<span style="font-size:11px;font-weight:600;"> '+unit+'</span></div>'
-        +'<div style="font-size:10px;font-weight:700;color:#7a8fa6;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">'+lbl+'</div>'
-        +'</div>';
+        +'<div style="font-size:10px;font-weight:700;color:#7a8fa6;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;">'+lbl+'</div></div>';
     }
     var faultHtml = fault.length
-      ? '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;color:#b91c1c;">⚠ Fault/Alert: '
+      ? '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;color:#b91c1c;">Fault/Alert: '
         + fault.map(function(d){return d.device;}).join(', ') + '</div>' : '';
     var statsHtml = '';
     if (tabKey === 'analytics') {
-      statsHtml = sc('🟢','Uptime',uptime,'%','#22c55e')
-        + sc('⚙️','Flow',totalFlow,'L/s','#0ea5e9')
-        + sc('📊','Avg Press.',avgPres,'psi','#1d4ed8')
-        + sc('💧','Avg Level',avgLvl,'m³','#06b6d4')
-        + sc('🔴','Faults',fault.length,'','#ef4444')
-        + sc('🟠','Offline',offline.length,'','#f97316');
+      statsHtml = sc('Uptime','Uptime',uptime,'%','#22c55e')
+        + sc('Flow','Flow',totalFlow,'L/s','#0ea5e9')
+        + sc('Press','Avg Press.',avgPres,'psi','#1d4ed8')
+        + sc('Level','Avg Level',avgLvl,'m3','#06b6d4')
+        + sc('Faults','Faults',fault.length,'','#ef4444')
+        + sc('Offline','Offline',offline.length,'','#f97316');
     } else if (tabKey === 'reports') {
-      statsHtml = sc('⚡','Energy',totalEnergy,'kWh','#a78bfa')
-        + sc('🔌','Power',totalPower,'W','#f97316')
-        + sc('💧','Discharge',totalDischarge,'m³','#8b5cf6')
-        + sc('⚙️','Flow',totalFlow,'L/s','#0ea5e9')
-        + sc('📊','Avg Press.',avgPres,'psi','#1d4ed8')
-        + sc('🔧','Efficiency',avgEff,'%','#f59e0b');
+      statsHtml = sc('Energy','Energy',totalEnergy,'kWh','#a78bfa')
+        + sc('Power','Power',totalPower,'W','#f97316')
+        + sc('Disch','Discharge',totalDischarge,'m3','#8b5cf6')
+        + sc('Flow','Flow',totalFlow,'L/s','#0ea5e9')
+        + sc('Press','Avg Press.',avgPres,'psi','#1d4ed8')
+        + sc('Eff','Efficiency',avgEff,'%','#f59e0b');
     } else if (tabKey === 'prod-history') {
-      statsHtml = sc('💧','Total Discharge',totalDischarge,'m³','#8b5cf6')
-        + sc('⚙️','Flow',totalFlow,'L/s','#0ea5e9')
-        + sc('⚡','Energy',totalEnergy,'kWh','#a78bfa')
-        + sc('🔴','Faults',fault.length,'','#ef4444')
-        + sc('🟢','Online',online.length,'/'+total,'#22c55e');
+      statsHtml = sc('Disch','Total Discharge',totalDischarge,'m3','#8b5cf6')
+        + sc('Flow','Flow',totalFlow,'L/s','#0ea5e9')
+        + sc('Energy','Energy',totalEnergy,'kWh','#a78bfa')
+        + sc('Faults','Faults',fault.length,'','#ef4444')
+        + sc('Online','Online',online.length,'/'+total,'#22c55e');
     } else if (tabKey === 'pressure-logger') {
       var presOnline = pres.filter(function(d){ return (d.status||'').toLowerCase()==='online'; });
-      var minP = pres.length ? Math.min.apply(null, pres.map(function(d){return parseFloat(d.pressure||0);})).toFixed(1) : '—';
-      var maxP = pres.length ? Math.max.apply(null, pres.map(function(d){return parseFloat(d.pressure||0);})).toFixed(1) : '—';
-      statsHtml = sc('📊','Avg Press.',avgPres,'psi','#1d4ed8')
-        + sc('⬇️','Min',minP,'psi','#22c55e')
-        + sc('⬆️','Max',maxP,'psi','#ef4444')
-        + sc('🟢','Online',presOnline.length,'/'+pres.length,'#22c55e');
+      var minP = pres.length ? Math.min.apply(null, pres.map(function(d){return parseFloat(d.pressure||0);})).toFixed(1) : '\u2014';
+      var maxP = pres.length ? Math.max.apply(null, pres.map(function(d){return parseFloat(d.pressure||0);})).toFixed(1) : '\u2014';
+      statsHtml = sc('Press','Avg Press.',avgPres,'psi','#1d4ed8')
+        + sc('Min','Min',minP,'psi','#22c55e')
+        + sc('Max','Max',maxP,'psi','#ef4444')
+        + sc('Online','Online',presOnline.length,'/'+pres.length,'#22c55e');
     } else if (tabKey === 'alarm') {
-      statsHtml = sc('🔴','Faults',fault.length,'','#ef4444')
-        + sc('🟠','Offline',offline.length,'','#f97316')
-        + sc('🟢','Online',online.length,'/'+total,'#22c55e')
-        + sc('💧','Flow',totalFlow,'L/s','#0ea5e9');
+      statsHtml = sc('Faults','Faults',fault.length,'','#ef4444')
+        + sc('Offline','Offline',offline.length,'','#f97316')
+        + sc('Online','Online',online.length,'/'+total,'#22c55e')
+        + sc('Flow','Flow',totalFlow,'L/s','#0ea5e9');
     } else if (tabKey === 'preventive-maintenance') {
-      statsHtml = sc('🟢','Online',online.length,'/'+total,'#22c55e')
-        + sc('🟠','Offline',offline.length,'','#f97316')
-        + sc('🔴','Faults',fault.length,'','#ef4444')
-        + sc('🔧','Efficiency',avgEff,'%','#f59e0b');
+      statsHtml = sc('Online','Online',online.length,'/'+total,'#22c55e')
+        + sc('Offline','Offline',offline.length,'','#f97316')
+        + sc('Faults','Faults',fault.length,'','#ef4444')
+        + sc('Eff','Efficiency',avgEff,'%','#f59e0b');
     } else if (tabKey === 'Pump/Motor Efficiency') {
-      statsHtml = sc('🔧','Avg Efficiency',avgEff,'%','#f59e0b')
-        + sc('⚙️','Pumps',pumps.length,'','#0ea5e9')
-        + sc('⚡','Energy',totalEnergy,'kWh','#a78bfa')
-        + sc('💧','Discharge',totalDischarge,'m³','#8b5cf6');
+      statsHtml = sc('Eff','Avg Efficiency',avgEff,'%','#f59e0b')
+        + sc('Pumps','Pumps',pumps.length,'','#0ea5e9')
+        + sc('Energy','Energy',totalEnergy,'kWh','#a78bfa')
+        + sc('Disch','Discharge',totalDischarge,'m3','#8b5cf6');
     } else {
-      statsHtml = sc('🟢','Online',online.length,'/'+total,'#22c55e')
-        + sc('🔴','Faults',fault.length,'','#ef4444')
-        + sc('🟠','Offline',offline.length,'','#f97316');
+      statsHtml = sc('Online','Online',online.length,'/'+total,'#22c55e')
+        + sc('Faults','Faults',fault.length,'','#ef4444')
+        + sc('Offline','Offline',offline.length,'','#f97316');
     }
     banner.innerHTML =
       '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:8px;">'+bannerTitle+'</div>'
-      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
-      +statsHtml
-      +'</div>'
-      +faultHtml;
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'+statsHtml+'</div>'+faultHtml;
     banner.style.display = 'block';
-    // Production Forecast summary
     if (tabKey === 'prod-history') {
       var fcSection = document.getElementById('tab-modal-forecast-section');
       if (fcSection) {
@@ -5298,27 +5283,26 @@ function openTabModal(tabKey) {
         var projectedFlow = (flowRate * hrsLeft).toFixed(1);
         var projectedDischarge = (dischargeRate * hrsLeft).toFixed(1);
         var dailyTarget = 500;
-        var pct = dailyTarget ? ((parseFloat(projectedDischarge) / dailyTarget) * 100).toFixed(0) : '—';
+        var pct = dailyTarget ? ((parseFloat(projectedDischarge) / dailyTarget) * 100).toFixed(0) : '\u2014';
         fcSection.innerHTML =
-          '<div style="font-size:11px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">📈 Today\'s Production Forecast</div>'
+          '<div style="font-size:11px;font-weight:800;color:#166534;text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">Today\'s Production Forecast</div>'
           + '<div style="display:flex;gap:10px;flex-wrap:wrap;">'
-          + sc('⏱️','Hours Remaining',hrsLeft,'h','#22c55e')
-          + sc('💧','Proj. Flow',projectedFlow,'L/s','#0ea5e9')
-          + sc('📊','Proj. Discharge',projectedDischarge,'m³','#8b5cf6')
-          + sc('🎯','Target',dailyTarget,'m³/day','#f59e0b')
-          + sc('📈','Progress',pct,'%','#3b82f6')
+          + sc('Hours','Hours Remaining',hrsLeft,'h','#22c55e')
+          + sc('Flow','Proj. Flow',projectedFlow,'L/s','#0ea5e9')
+          + sc('Disch','Proj. Discharge',projectedDischarge,'m3','#8b5cf6')
+          + sc('Target','Target',dailyTarget,'m3/day','#f59e0b')
+          + sc('Prog','Progress',pct,'%','#3b82f6')
           + '</div>'
           + (parseFloat(projectedDischarge) >= dailyTarget
-            ? '<div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border:1px solid #86efac;border-radius:9px;font-size:12px;font-weight:700;color:#166534;">✓ On track to meet daily target</div>'
-            : '<div style="margin-top:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde047;border-radius:9px;font-size:12px;font-weight:700;color:#854d0e;">⚠ Projected to fall short of daily target ('+pct+'%)</div>');
+            ? '<div style="margin-top:10px;padding:8px 12px;background:#dcfce7;border:1px solid #86efac;border-radius:9px;font-size:12px;font-weight:700;color:#166534;">On track to meet daily target</div>'
+            : '<div style="margin-top:10px;padding:8px 12px;background:#fef9c3;border:1px solid #fde047;border-radius:9px;font-size:12px;font-weight:700;color:#854d0e;">Projected to fall short ('+pct+'%)</div>');
         fcSection.style.display = 'block';
       }
     }
-    // Device status table for analytics
     if (tabKey === 'analytics') {
       var dt = document.getElementById('tab-modal-device-table');
       if (dt) {
-        var rows = '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.6px;padding:12px 16px 6px;">📋 All Devices — Live Readings</div>'
+        var rows = '<div style="font-size:11px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.6px;padding:12px 16px 6px;">All Devices - Live Readings</div>'
           + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
           + '<thead><tr style="background:#f8fafc;border-bottom:1.5px solid #e2e8f0;">'
           + '<th style="padding:8px 12px;text-align:left;font-weight:700;color:#475569;">Device</th>'
@@ -5327,21 +5311,18 @@ function openTabModal(tabKey) {
           + '<th style="padding:8px 12px;text-align:right;font-weight:700;color:#475569;">Flow</th>'
           + '<th style="padding:8px 12px;text-align:right;font-weight:700;color:#475569;">Level</th>'
           + '<th style="padding:8px 12px;text-align:right;font-weight:700;color:#475569;">Voltage</th>'
-          + '<th style="padding:8px 12px;text-align:right;font-weight:700;color:#475569;">Current</th>'
-          + '</tr></thead><tbody>';
+          + '<th style="padding:8px 12px;text-align:right;font-weight:700;color:#475569;">Current</th></tr></thead><tbody>';
         liveDevices.forEach(function(d) {
           var s = (d.status||'').toLowerCase();
-          var dot = s==='online' ? '🟢' : s==='fault'||d.button ? '🔴' : '🟠';
-          var nm = (d.device||'').length > 28 ? (d.device||'').substring(0,26)+'…' : (d.device||'');
+          var nm = (d.device||'').length > 28 ? (d.device||'').substring(0,26)+'..' : (d.device||'');
           rows += '<tr style="border-bottom:1px solid #f1f5f9;">'
             + '<td style="padding:7px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
-            + '<td style="padding:7px 12px;">'+dot+' '+(d.status||'—')+'</td>'
-            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#1e40af;">'+(d.pressure||'—')+'</td>'
-            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0e7490;">'+(d.flow||'—')+'</td>'
-            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0d9488;">'+(d.level||'—')+'</td>'
-            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#65a30d;">'+(d.voltage||'—')+'</td>'
-            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#d97706;">'+(d.current||'—')+'</td>'
-            + '</tr>';
+            + '<td style="padding:7px 12px;">'+(d.status||'---')+'</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#1e40af;">'+(d.pressure||'---')+'</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0e7490;">'+(d.flow||'---')+'</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0d9488;">'+(d.level||'---')+'</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#65a30d;">'+(d.voltage||'---')+'</td>'
+            + '<td style="padding:7px 12px;text-align:right;font-family:monospace;font-weight:600;color:#d97706;">'+(d.current||'---')+'</td></tr>';
         });
         rows += '</tbody></table>';
         dt.innerHTML = rows;
@@ -5368,7 +5349,6 @@ function openTabModal(tabKey) {
       document.getElementById('tab-modal-loading').innerHTML = '<span style="color:#e05555;">No devices found.</span>';
       return;
     }
-    // Group by type
     var groups = { 'Pumping Station': [], 'Pressure Device': [], 'Reservoir': [], 'Other': [] };
     filteredDevices.forEach(function(d) {
       var n = (d.device||'').toLowerCase();
@@ -5381,7 +5361,7 @@ function openTabModal(tabKey) {
     var html = '';
     Object.keys(groups).forEach(function(grp) {
       if (!groups[grp].length) return;
-      html += '<optgroup label="── ' + grp + 's ──">';
+      html += '<optgroup label="-- ' + grp + 's --">';
       groups[grp].forEach(function(d) { html += '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>'; });
       html += '</optgroup>';
     });
@@ -5391,7 +5371,7 @@ function openTabModal(tabKey) {
     loadTabModalData();
   }).catch(function(e) {
     var load = document.getElementById('tab-modal-loading');
-    if (load) load.innerHTML = '<span style="color:#e05555;">Error loading devices: '+e.message+'</span>';
+    if (load) load.innerHTML = '<span style="color:#e05555;">Error: '+e.message+'</span>';
   });
 }
 
