@@ -5174,7 +5174,7 @@ function openTabModal(tabKey) {
     + '</div>'
     + '<div style="flex:1;overflow-y:auto;padding:14px 18px 16px;">'
     +   '<div id="tab-modal-live-banner" style="display:none;margin-bottom:14px;background:linear-gradient(135deg,#f0fbff,#e8f4fd);border:1.5px solid #bae6fd;border-radius:12px;padding:12px 16px;"></div>'
-    +   (tabKey === 'analytics' ? '<div id="tab-modal-device-table" style="display:none;margin-bottom:14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;"></div>' : '')
+    +   (tabKey === 'analytics' || tabKey === 'reports' ? '<div id="tab-modal-device-table" style="display:none;margin-bottom:14px;background:#fff;border:1.5px solid #e2e8f0;border-radius:12px;overflow:hidden;"></div>' : '')
     +   '<div id="tab-modal-loading" style="text-align:center;padding:50px 0;color:#7a8fa6;display:flex;flex-direction:column;align-items:center;gap:10px;">'
     +     '<div class="spinner"></div><span>Loading devices...</span></div>'
     +   '<div id="tab-modal-chart-area" style="display:none;position:relative;height:300px;"><canvas id="tab-modal-canvas"></canvas></div>'
@@ -5348,7 +5348,7 @@ function openTabModal(tabKey) {
         fcSection.style.display = 'block';
       }
     }
-    if (tabKey === 'analytics') {
+    if (tabKey === 'analytics' || tabKey === 'reports') {
       var dt = document.getElementById('tab-modal-device-table');
       if (dt) {
         function catIcon(typ) {
@@ -5504,10 +5504,68 @@ function openTabModal(tabKey) {
         var dtParent = document.getElementById('tab-modal-device-table');
         if (dtParent && dtParent.parentNode) dtParent.parentNode.insertBefore(accDiv, dtParent.nextSibling);
       }
+      if (tabKey === 'reports') {
+        if (!document.getElementById('tab-modal-report-summary')) {
+          var rsDiv = document.createElement('div');
+          rsDiv.id = 'tab-modal-report-summary';
+          rsDiv.style.cssText = 'margin:12px;border:1.5px solid #0b7c9c30;border-radius:12px;overflow:hidden;';
+          rsDiv.innerHTML =
+            '<div style="background:linear-gradient(90deg,#0b7c9c18,#0b7c9c08);padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1.5px solid #0b7c9c15;">'
+            + '<span style="font-size:13px;font-weight:800;color:#0b7c9c;">\ud83d\udcca Resource Summary &amp; Efficiency Report</span>'
+            + '<button onclick="exportReportCSV()" style="margin-left:auto;padding:5px 12px;background:#0b7c9c;color:white;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Export CSV</button></div>'
+            + '<div style="padding:12px 14px;background:#fafcff;">'
+            + '<div id="report-summary-body" style="font-size:12px;color:#7a8fa6;">Loading resource summary...</div></div>';
+          var dtParent2 = document.getElementById('tab-modal-accum') || document.getElementById('tab-modal-device-table');
+          if (dtParent2 && dtParent2.parentNode) dtParent2.parentNode.insertBefore(rsDiv, dtParent2.nextSibling);
+          var kwhRate2 = parseFloat(localStorage.getItem('agus_cost_per_kwh') || '12');
+          var pumpCount = pumps.length;
+          var totalM3report = pumps.reduce(function(s,d){return s+parseFloat(d.discharge||0);},0);
+          var totalKwhReport = pumps.reduce(function(s,d){return s+parseFloat(d.energy||0);},0);
+          var totalCostReport = totalKwhReport * kwhRate2;
+          var avgEffReport = pumps.filter(function(d){return d.pumpeff;}).length
+            ? (pumps.reduce(function(s,d){return s+parseFloat(d.pumpeff||0);},0)/pumps.filter(function(d){return d.pumpeff;}).length).toFixed(1) : '\u2014';
+          var costPerM3rpt = totalM3report > 0 ? totalCostReport / totalM3report : 0;
+          var onlineRpt = pumps.filter(function(d){return (d.status||'').toLowerCase()==='online';}).length;
+          var effRating = avgEffReport !== '\u2014' ? (parseFloat(avgEffReport) >= 75 ? '\u2705 Excellent' : parseFloat(avgEffReport) >= 55 ? '\u26a0\ufe0f Fair' : '\u274c Poor') : '\u2014';
+          var costRating = costPerM3rpt <= 11 ? '\u2705 Efficient' : costPerM3rpt <= 20 ? '\u26a0\ufe0f Moderate' : '\u274c Costly';
+          document.getElementById('report-summary-body').innerHTML =
+            '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:10px;">'
+            + '<div style="background:#0b7c9c10;border:1.5px solid #0b7c9c35;border-radius:10px;padding:10px;text-align:center;">'
+            + '<div style="font-size:10px;font-weight:800;color:#5575a0;text-transform:uppercase;">Pump Stations</div>'
+            + '<div style="font-size:20px;font-weight:800;color:#0b7c9c;">'+pumpCount+'</div>'
+            + '<div style="font-size:10px;color:#7a8fa6;">'+onlineRpt+' online</div></div>'
+            + '<div style="background:#8b5cf610;border:1.5px solid #8b5cf635;border-radius:10px;padding:10px;text-align:center;">'
+            + '<div style="font-size:10px;font-weight:800;color:#5575a0;text-transform:uppercase;">Total m\u00b3</div>'
+            + '<div style="font-size:20px;font-weight:800;color:#7c3aed;">'+totalM3report.toFixed(1)+'</div>'
+            + '<div style="font-size:10px;color:#7a8fa6;">Cumulative</div></div>'
+            + '<div style="background:#a78bfa10;border:1.5px solid #a78bfa35;border-radius:10px;padding:10px;text-align:center;">'
+            + '<div style="font-size:10px;font-weight:800;color:#5575a0;text-transform:uppercase;">Total Energy</div>'
+            + '<div style="font-size:20px;font-weight:800;color:#7c3aed;">'+totalKwhReport.toFixed(1)+' kWh</div>'
+            + '<div style="font-size:10px;color:#7a8fa6;">\u20b1'+totalCostReport.toFixed(2)+' cost</div></div>'
+            + '<div style="background:#f59e0b10;border:1.5px solid #f59e0b35;border-radius:10px;padding:10px;text-align:center;">'
+            + '<div style="font-size:10px;font-weight:800;color:#5575a0;text-transform:uppercase;">Avg Efficiency</div>'
+            + '<div style="font-size:20px;font-weight:800;color:#d97706;">'+(avgEffReport!=='\u2014'?avgEffReport+'%':'\u2014')+'</div>'
+            + '<div style="font-size:10px;color:#7a8fa6;">'+effRating+'</div></div>'
+            + '<div style="background:'+(costPerM3rpt>11?'#ef444410':'#22c55e10')+';border:1.5px solid '+(costPerM3rpt>11?'#ef444435':'#22c55e35')+';border-radius:10px;padding:10px;text-align:center;">'
+            + '<div style="font-size:10px;font-weight:800;color:#5575a0;text-transform:uppercase;">Cost / m\u00b3</div>'
+            + '<div style="font-size:20px;font-weight:800;color:'+(costPerM3rpt>11?'#ef4444':'#22c55e')+';">\u20b1'+costPerM3rpt.toFixed(2)+'</div>'
+            + '<div style="font-size:10px;color:#7a8fa6;">'+costRating+'</div></div></div>'
+            + '<div style="display:flex;flex-wrap:wrap;gap:8px;font-size:11px;padding:8px 10px;background:#f8fafc;border-radius:8px;">'
+            + '<span style="color:#5575a0;font-weight:700;">Performance by Pump Station:</span>'
+            + pumps.map(function(d){
+              var effV = parseFloat(d.pumpeff || d.efficiency || 0);
+              var dischV = parseFloat(d.discharge || 0);
+              var enerV = parseFloat(d.energy || 0);
+              var cpmV = dischV > 0 ? (enerV * kwhRate2 / dischV) : 0;
+              var dot = effV >= 75 ? '\ud83d\udfe2' : effV >= 55 ? '\ud83d\udfe0' : '\ud83d\udd34';
+              return '<span style="padding:4px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;">'+dot+' '+(d.device||'').substring(0,18)+'</span>';
+            }).join('')+'</div>';
+        }
+      }
     }
   }).catch(function(){});
 
-function calcAccumTotals() {
+window.calcAccumTotals = function calcAccumTotals() {
   var fromVal = document.getElementById('accum-from') ? document.getElementById('accum-from').value : '';
   var toVal = document.getElementById('accum-to') ? document.getElementById('accum-to').value : '';
   var spinner = document.getElementById('accum-spinner');
@@ -5605,6 +5663,31 @@ function calcAccumTotals() {
   }).catch(function(err) {
     if(spinner)spinner.style.display='none';
     results.innerHTML = '<span style="color:#ef4444;">Error: '+err.message+'</span>';
+  });
+}
+window.exportReportCSV = function exportReportCSV() {
+  apiCached('getDashboardData').then(function(devices) {
+    var pumpDevs = devices.filter(function(d) {
+      var n = (d.device||'').toLowerCase();
+      return n.includes('pumping station') || n.includes('pump');
+    });
+    if (!pumpDevs.length) return;
+    var kwhRate = parseFloat(localStorage.getItem('agus_cost_per_kwh') || '12');
+    var rows = [['Device','Status','m3','kWh','Cost (PHP)','PHP/m3','Efficiency','Flow','Pressure']];
+    pumpDevs.forEach(function(d) {
+      var disch = parseFloat(d.discharge||0);
+      var ener = parseFloat(d.energy||0);
+      var cost = ener * kwhRate;
+      var cpm = disch > 0 ? cost / disch : 0;
+      var eff = d.pumpeff || d.efficiency || '';
+      rows.push([d.device, d.status||'', disch.toFixed(1), ener.toFixed(1), cost.toFixed(2), cpm.toFixed(2), eff, d.flow||'', d.pressure||'']);
+    });
+    var csv = rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'pump_station_report_'+new Date().toISOString().slice(0,10)+'.csv';
+    link.click();
   });
 }
   apiCached('getDashboardData').then(function(devices) {
