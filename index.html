@@ -1154,6 +1154,7 @@
     .device-list ul{list-style:none;margin:0;padding:0;}
      .device-list li{display:flex!important;flex-wrap:wrap!important;align-items:center!important;justify-content:space-between!important;padding:9px 10px!important;margin-bottom:4px;border-radius:9px;cursor:pointer;background:#fff;border:1px solid rgba(0,64,128,0.07);color:#1a2e35;font-size:13px;font-family:'DM Sans','Segoe UI',sans-serif;transition:background .15s ease,border-color .15s ease,transform .12s ease;width:100%;box-sizing:border-box;min-height:44px!important;}
     .device-list li:hover{background:#f0f7ff;border-color:rgba(0,100,200,0.18);transform:translateY(-1px);}
+    .device-list li.selected{background:#dbeafe;border-color:#3b82f6;box-shadow:0 0 0 2px rgba(59,130,246,0.2);transform:translateX(3px);}
      .device-list li span{flex:1 1 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px;font-weight:500;color:#1a2e35;}
     .device-list li .device-status{display:flex!important;align-items:center!important;margin-left:auto!important;gap:6px!important;flex-shrink:0!important;width:88px!important;min-width:88px!important;justify-content:flex-start!important;overflow:visible!important;}
 /* PRESSURE */
@@ -1252,6 +1253,7 @@
     #welcome-username{font-size:12px;font-weight:600;color:#002b5c;display:block;margin-bottom:1px;}
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
+    #conn-indicator{font-size:14px;cursor:pointer;pointer-events:auto;transition:color 0.3s;}
     #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);}
     .legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:#1a2e35;}
     .legend-circle{width:10px;height:10px;border-radius:50%;display:inline-block;}
@@ -1903,6 +1905,10 @@
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
             <span id="pwa-btn-label">Install App</span>
           </div>
+          <div class="top-card grp-sys" data-tab="logout" onclick="logout()" title="Log out of AGUS">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span style="color:#dc2626;">Log Out</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1979,6 +1985,12 @@
     <div class="legend-item"><span class="legend-circle legend-Online"></span><span>Online</span></div>
     <div class="legend-item"><span class="legend-circle legend-Offline"></span><span>Offline</span></div>
     <div class="legend-item"><span class="legend-circle legend-Fault" style="animation:gentlePulse 1.5s infinite;"></span><span>Fault</span></div>
+  </div>
+  <!-- Dashboard loading overlay -->
+  <div id="dash-loading" style="position:absolute;inset:0;z-index:4000;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.4s;">
+    <div style="width:44px;height:44px;border:4px solid #cfe4ff;border-top-color:#004080;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
+    <div style="font-size:15px;font-weight:700;color:#004080;font-family:'DM Sans',sans-serif;">Loading dashboard data…</div>
+    <div style="font-size:12px;color:#7a8fa6;font-family:'DM Sans',sans-serif;">Fetching device information from server</div>
   </div>
 </div>
 
@@ -2285,8 +2297,23 @@ var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd
 
 var FIREBASE_DATABASE_URL = 'https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app';
 var _firebaseConnected = false;
-var _firebaseDevicesCache = {}; // latest snapshot keyed by device name
+var _firebaseDevicesCache = {};
 var _firebaseInitialDataLoaded = false;
+function _updateConnStatus() {
+  var el = document.getElementById('conn-indicator');
+  if (!el) return;
+  if (_firebaseConnected && _firebaseInitialDataLoaded) {
+    el.style.color = '#22c55e';
+    el.title = 'Connected · Firebase real-time active';
+  } else if (_firebaseConnected) {
+    el.style.color = '#f97316';
+    el.title = 'Connecting… Firebase initial data pending';
+  } else {
+    el.style.color = '#ef4444';
+    el.title = 'Disconnected · Click to retry Firebase';
+    el.onclick = function(){ location.reload(); };
+  }
+}
 
 try {
   firebase.initializeApp({ databaseURL: FIREBASE_DATABASE_URL });
@@ -2296,6 +2323,7 @@ try {
     if (!val) {
       _firebaseConnected = true;
       _firebaseInitialDataLoaded = true;
+      _updateConnStatus();
       return;
     }
     _firebaseConnected = true;
@@ -2303,11 +2331,16 @@ try {
     if (!_firebaseInitialDataLoaded) {
       _firebaseInitialDataLoaded = true;
     }
+    _updateConnStatus();
     _updateDashboardFromFirebase();
   }, function(err) {
+    _firebaseConnected = false;
+    _updateConnStatus();
     console.warn('[FB] Listen error:', err);
   });
 } catch(e) {
+  _firebaseConnected = false;
+  _updateConnStatus();
   console.warn('[FB] Init error:', e);
 }
 
@@ -2610,7 +2643,7 @@ function login() {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="conn-indicator" title="Connection status">●</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -2622,6 +2655,16 @@ function login() {
       errEl.style.display = 'block';
       console.error('Login error:', err);
     });
+}
+
+function logout() {
+  if (_dashboardTimer) { clearInterval(_dashboardTimer); _dashboardTimer = null; }
+  if (graphPollInterval) { clearInterval(graphPollInterval); graphPollInterval = null; }
+  if (liveCounterInterval) { clearInterval(liveCounterInterval); liveCounterInterval = null; }
+  userToken = null; loggedInUser = ''; selectedDevice = null;
+  document.getElementById('dashboard').style.display = 'none';
+  document.getElementById('loginPage').style.display = 'flex';
+  document.getElementById('password').value = '';
 }
 
 function speakAlarm(deviceName, alarmType, isReservoir) {
@@ -3055,6 +3098,11 @@ function selectDevice(device) {
   var f = deviceMarkers[device];
   if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
   showDeviceDetails(device);
+  document.querySelectorAll('#device-list li.selected').forEach(function(el){el.classList.remove('selected');});
+  document.querySelectorAll('#device-list li').forEach(function(el){
+    var sp = el.querySelector('span');
+    if (sp && sp.textContent.trim() === device) el.classList.add('selected');
+  });
 }
 // === START ===
  
@@ -3287,14 +3335,14 @@ var _dashboardTimer = null;
 function initDashboard() {
   updateDashboard();
   loadPumpLinksFromGAS(function(){});
+  _updateConnStatus();
   if (_dashboardTimer) clearInterval(_dashboardTimer);
-  // Poll every 60s instead of 15s — reduces GAS writes by 75%
   _dashboardTimer = setInterval(function() {
     if (!document.hidden) { updateDashboard(); processOfflineQueue(); }
   }, 60000);
-  // Poll immediately when tab becomes visible again (catches up after pause)
+  setInterval(function(){ _updateConnStatus(); }, 10000);
   document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) { updateDashboard(); }
+    if (!document.hidden) { updateDashboard(); _updateConnStatus(); }
   });
 }
 
@@ -3309,18 +3357,17 @@ function initDashboard() {
 
   var APE_INTERVAL   = 60000;   // poll every 60 s
   var APE_COOL       = 300000;  // 5-min cooldown per pump:reservoir pair
-  var _apeCooldowns  = {};      // { 'pump:reservoir': timestamp }
+  window._apeCooldowns  = {};      // { 'pump:reservoir': timestamp }
   var _apeTimer      = null;
   var _apeRunning    = false;
 
-  /* Load persisted cooldowns from localStorage on startup */
   try {
     var _stored = localStorage.getItem('agus_ape_cool');
-    if (_stored) _apeCooldowns = JSON.parse(_stored) || {};
+    if (_stored) window._apeCooldowns = JSON.parse(_stored) || {};
   } catch(e) {}
 
   function _saveCooldowns() {
-    try { localStorage.setItem('agus_ape_cool', JSON.stringify(_apeCooldowns)); } catch(e) {}
+    try { localStorage.setItem('agus_ape_cool', JSON.stringify(window._apeCooldowns)); } catch(e) {}
   }
 
   async function _apeRun() {
@@ -3379,23 +3426,21 @@ function initDashboard() {
         var pOn    = cmd == 1 || cmd === true;
 
         var ck     = lnk.pump + ':' + lnk.reservoir;
-        if (_apeCooldowns[ck] && now - _apeCooldowns[ck] < APE_COOL) continue;
+        if (window._apeCooldowns[ck] && now - window._apeCooldowns[ck] < APE_COOL) continue;
 
         var needOff = pOn  && (lv >= sOff || (sOff2 > 0 && lv >= sOff2));
         var needOn  = !pOn && (lv <= sRes || (sRes2 > 0 && lv <= sRes2));
         if (!needOff && !needOn) continue;
 
-        /* Guard: don't try to turn ON if auto-shutoff state says reservoir is full */
         if (needOn) {
           var aoKey = lnk.pump + ':' + lnk.reservoir;
-          if (reservoirAutoShutoffState[aoKey]) continue; // still above resume
+          if (reservoirAutoShutoffState[aoKey]) continue;
         }
 
         var wantState = needOn ? 1 : 0;
 
-        /* Optimistic update */
         commandedRelayCache[lnk.pump] = wantState;
-        _apeCooldowns[ck] = now;
+        window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
         /* Update autoShutoffState so UI reflects it */
@@ -3477,7 +3522,7 @@ function initDashboard() {
   };
 
   window._apeStatus = function() {
-    return { running: _apeRunning, cooldowns: _apeCooldowns, interval: APE_INTERVAL };
+    return { running: _apeRunning, cooldowns: window._apeCooldowns, interval: APE_INTERVAL };
   };
 
 })(); // end Autonomous Pump Engine
@@ -3535,15 +3580,33 @@ function _updateDashboardFromFirebase() {
   updateDeviceList(devices); updateMap(devices);
   autoShutoffPumps(devices);
   if (selectedDevice) showDeviceDetails(selectedDevice);
+  var dl = document.getElementById('dash-loading');
+  if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
 }
 
 function updateDashboard() {
   _pumpLinksRefreshCounter++;
+  _updateConnStatus();
+  // Periodic cleanup of stale entries
+  if (_pumpLinksRefreshCounter % 5 === 0) {
+    var now = Date.now();
+    Object.keys(_manualToggleCooldown).forEach(function(k) {
+      if (now >= _manualToggleCooldown[k]) delete _manualToggleCooldown[k];
+    });
+    Object.keys(_apeCooldowns || {}).forEach(function(k) {
+      if (_apeCooldowns[k] && now - _apeCooldowns[k] > 600000) delete _apeCooldowns[k];
+    });
+    Object.keys(_autoShutoffCommandSent).forEach(function(k) {
+      if (now - _autoShutoffCommandSent[k] > 120000) delete _autoShutoffCommandSent[k];
+    });
+  }
   if (_pumpLinksRefreshCounter % 5 === 0) { loadPumpLinksFromGAS(function(){}); }
-  // Also update from Firebase if connected
+  // If Firebase is connected, use it for live data and only hit GAS every 3rd cycle for settings
+  var _skipGAS = _firebaseConnected && _firebaseInitialDataLoaded && (_pumpLinksRefreshCounter % 3 !== 0);
   if (_firebaseConnected && _firebaseInitialDataLoaded) {
     _updateDashboardFromFirebase();
   }
+  if (_skipGAS) return;
   apiGet('getDashboardData').then(function(devices) {
     devices.forEach(function(d) {
       if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
@@ -3553,10 +3616,12 @@ function updateDashboard() {
         deviceCoordinatesCache[d.device] = { latitude: d.latitude, longitude: d.longitude };
       }
     });
-    window._lastDevices = devices; // expose for push notification snapshot
+    window._lastDevices = devices;
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
+    var dl = document.getElementById('dash-loading');
+    if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
   }).catch(function(err) { console.error('updateDashboard error:', err); });
 }
 function updateMap(devices) {
@@ -3638,7 +3703,9 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
 }
 
 function updateDeviceList(devices) {
-  var list = document.getElementById('device-list'); list.innerHTML = '';
+  var list = document.getElementById('device-list');
+  var frag = document.createDocumentFragment();
+  var oldScrollTop = list.parentNode ? list.parentNode.scrollTop : 0;
   
   // Hidden internal sheets — never render in device list
   var HIDDEN_DEVICES = ['ReservoirPumpLinks','AutoShutoffLog','EventLog','Summary','DailyTotals','DeviceInfo','LoginHistory'];
@@ -3691,6 +3758,18 @@ if (isResBooster) {
     +   '</div>'
     +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
     + '</div>';
+
+  (function(){
+    var _aok = Object.keys(reservoirAutoShutoffState).filter(function(k){return reservoirAutoShutoffState[k].pump===d.device;});
+    if (_aok.length) {
+      var _ao = reservoirAutoShutoffState[_aok[0]];
+      var _ab = document.createElement('div');
+      _ab.className = 'auto-shutoff-badge';
+      _ab.title = 'Auto-shutoff: ' + (_ao.reservoir||'') + ' at ' + (_ao.shutoffLevel||'') + ' m³';
+      _ab.innerHTML = '🛑 AUTO-OFF · ' + (_ao.reservoir||'Reservoir');
+      li.appendChild(_ab);
+    }
+  })();
 
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
@@ -3803,8 +3882,12 @@ if (isResBooster) {
       else if (st.alarmType===alarm&&(now-st.lastSpoken)>=SPEECH_REPEAT_INTERVAL) { st.lastSpoken=now; speakAlarm(d.device,alarm,isRes); }
       else if (st.alarmType!==alarm) { st.alarmType=alarm; st.lastSpoken=now; speakAlarm(d.device,alarm,isRes); }
     } else { delete alarmSpeechState[d.device]; }
-    list.appendChild(li);
+    if (selectedDevice === d.device) li.classList.add('selected');
+    frag.appendChild(li);
   });
+  list.innerHTML = '';
+  list.appendChild(frag);
+  if (list.parentNode) list.parentNode.scrollTop = oldScrollTop;
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
