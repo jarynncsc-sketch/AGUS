@@ -2821,7 +2821,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   if (sz === 1) {
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
     var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
-    var isPS = name.toLowerCase().includes('pumping station');
+    var isPS = type==='pumping station' || name.toLowerCase().includes('pumping station') || name.toLowerCase().includes('pump') || name.toLowerCase().includes('booster');
    //reservior ── ENHANCED 3D TANK WITH GRADIENT WATER ──
     if (isRes) {
   var level = f.get('level');
@@ -2934,6 +2934,11 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   var _glow = alarmActive
     ? '<rect x="1" y="2" width="' + (_W - 2) + '" height="' + (_tY + _tH + 4) + '" rx="12" fill="none" stroke="' + alarmColor + '" stroke-width="' + (blinkOn ? 6 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>'
     : '';
+  // ─── Fault blink ring ──────────────────────────────────────
+  var _faultBtn = f.get('button');
+  var _faultGlow = _faultBtn
+    ? '<rect x="0" y="1" width="' + (_W) + '" height="' + (_tY + _tH + 5) + '" rx="14" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 6 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>'
+    : '';
 
   // Status pill indicator (top‑right)
   var _statusLabel = status === 'Online' ? 'ON' : status === 'Offline' ? 'OFF' : 'FLT';
@@ -2958,6 +2963,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + ' xmlns="http://www.w3.org/2000/svg">'
     + _wfill  // includes defs + water fill
     + _glow
+    + _faultGlow
     + _lid
     + _statusPill
     + '<rect x="' + _tX + '" y="' + _tY
@@ -3114,12 +3120,14 @@ if (isPS) {
       var _sx = _cx + _needleStart * Math.cos(_curAngle * Math.PI / 180);
       var _sy = _cy + _needleStart * Math.sin(_curAngle * Math.PI / 180);
       var _statusC = status === 'Online' ? '#22c55e' : status === 'Offline' ? '#f97316' : '#ef4444';
+      var _faultBtn = f.get('button');
       var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '" width="' + _W + '" height="' + _totalH + '" xmlns="http://www.w3.org/2000/svg">'
         // Outer status ring
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 9) + '" fill="none" stroke="' + _statusC + '" stroke-width="5" opacity="0.8"/>'
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 13) + '" fill="none" stroke="' + _statusC + '" stroke-width="2" opacity="0.3"/>'
-        // Outer glow ring
+        // Outer glow ring (pressure threshold)
         + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
+        + (_faultBtn ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>' : '')
         // Background arc (gray track)
         + _arcPath(_cx, _cy, _r, -175, 5, 1)
         + ' stroke="#e2e8f0" stroke-width="8" fill="none" stroke-linecap="round"/>'
@@ -3195,6 +3203,7 @@ var detailsOverlay = new ol.Overlay({element:document.getElementById('device-det
 map.addOverlay(detailsOverlay);
 
 function derivePressureStatus(d) {
+  if (d.button) return 'Fault';
   var raw = d.lastTimestamp || d.lastSeen || d.timestamp || null;
   if (raw) {
     var ts = parseSheetDate(raw);
@@ -3832,7 +3841,7 @@ function updateDeviceList(devices) {
     if (name.endsWith('pressurelog')||name.endsWith('reservoirlog')) return;
     var isRes = (d.type&&d.type.toLowerCase().trim()==='reservoir')||name.includes('reservoir');
     var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
-    var isPS = name.includes('pumping station');
+    var isPS = (d.type&&d.type.toLowerCase().trim()==='pumping station')||name.includes('pumping station')||name.includes('pump')||name.includes('booster');
     if (!isPres&&!isPS&&!isRes) return; if (isRes && !activeFilters.has('reservoir')) return; if (isPres && !activeFilters.has('pressure')) return; if (isPS && !activeFilters.has('pumping')) return;
     var effSt = derivePressureStatus(d);
     var sc = effSt==='Online'?'status-Online':effSt==='Offline'?'status-Offline':'status-Fault';
