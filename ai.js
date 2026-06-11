@@ -400,19 +400,34 @@ function buildAISystemContext(devices) {
     + 'Devices:\n' + lines.join('\n');
 }
 
+var _stopWords = {'what':1,'is':1,'the':1,'in':1,'at':1,'on':1,'for':1,'of':1,'and':1,'to':1,'a':1,'an':1,'or':1,'by':1,'with':1,'from':1,'my':1,'are':1,'can':1,'do':1,'does':1,'its':1,'it':1,'be':1,'has':1,'have':1,'was':1,'were':1,'not':1,'no':1,'but':1,'this':1,'that':1,'all':1,'any':1,'each':1,'which':1,'who':1,'how':1,'why':1,'when':1,'where':1,'tell':1,'show':1,'give':1,'get':1,'find':1,'list':1,'me':1,'you':1,'your':1,'please':1,'help':1,'about':1,'into':1,'over':1,'than':1,'then':1,'also':1,'just':1,'more':1,'some':1,'such':1,'only':1,'other':1,'very':1,'still':1,'here':1,'there':1,'up':1,'down':1,'out':1,'off':1,'if':1,'so':1,'like':1};
+
 function _answerSpecificDevice(q, devs) {
+  // Return answer if question maps to a single device name
   var parts = q.replace(/[^a-z0-9\s-]/g,'').split(/\s+/);
-  var name = null;
+  // First try full multi-word substrings (e.g. "reservoir a", "ps1 main")
+  for (var len = Math.min(4, parts.length); len >= 2; len--) {
+    for (var start = 0; start + len <= parts.length; start++) {
+      var phrase = parts.slice(start, start + len).join(' ');
+      if (phrase.length < 3) continue;
+      var match = devs.find(function(d){ return (d.device||'').toLowerCase() === phrase; });
+      if (match) { return _formatDeviceDetail(match); }
+      match = devs.find(function(d){ return (d.device||'').toLowerCase().includes(phrase); });
+      if (match) { return _formatDeviceDetail(match); }
+    }
+  }
+  // Then try single words, filtering stop words and metric names
   for (var pi = 0; pi < parts.length; pi++) {
     var candidate = parts[pi];
     if (candidate.length < 3) continue;
+    if (_stopWords[candidate] || candidate === 'pressure' || candidate === 'flow' || candidate === 'power' || candidate === 'voltage' || candidate === 'current' || candidate === 'level' || candidate === 'energy' || candidate === 'status' || candidate === 'reading' || candidate === 'detail' || candidate === 'device' || candidate === 'pump' || candidate === 'reservoir' || candidate === 'station') continue;
     var match = devs.find(function(d){ return (d.device||'').toLowerCase().includes(candidate); });
-    if (match) { name = match.device; break; }
+    if (match) { return _formatDeviceDetail(match); }
   }
-  if (!name) return null;
-  // check for "show", "tell", "what is", "details" before the name
-  var d = devs.find(function(x){return x.device===name;});
-  if (!d) return null;
+  return null;
+}
+
+function _formatDeviceDetail(d) {
   var lines = [];
   lines.push('Device: ' + d.device + ' (' + (d.type||'N/A') + ')');
   lines.push('Status: ' + (d.status||'N/A') + (d.button?' [FAULT]':'') + (d.relay!=null?' — Relay: ' + (d.relay==1||d.relay==='1'||d.relay===true?'● ON':'○ OFF'):''));
@@ -455,13 +470,12 @@ function aiCall(system, question, devices) {
   var stopped = devs.filter(function(d){ return d.relay==0||d.relay==='0'||d.relay===false; });
   var response;
 
-  // Specific device query ("tell me about PS1", "show me Reservoir-A details")
-  if ((q.includes('tell')||q.includes('show')||q.includes('about')||q.includes('details')||q.includes('status of')||q.includes('what is')) && devs.length) {
+  // Specific device query — always try first, no trigger words needed
+  if (devs.length) {
     var specific = _answerSpecificDevice(q, devs);
     if (specific) { response = specific; return Promise.resolve({ content: [{ text: response }] }); }
   }
 
-  // Highest / max
   if (q.includes('highest')||q.includes('maximum')||q.includes('max')) {
     if (q.includes('pressure')||q.includes('psi')) {
       var v = _safeMax(pres); var d = _findDev(devs, 'pressure', v);
