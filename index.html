@@ -2534,10 +2534,11 @@ function _isTogglePendingLocal(deviceName) {
 }
 var allGraphData = [], currentDevice = '', activeRange = 14;
 var today = new Date();
-// 👇 3 months range (past → present)
-var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 2, 1);
-var calMonth2 = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-var calMonth3 = new Date(today.getFullYear(), today.getMonth(), 1);
+// 👇 4 months range (past → present)
+var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 3, 1);
+var calMonth2 = new Date(today.getFullYear(), today.getMonth() - 2, 1);
+var calMonth3 = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+var calMonth4 = new Date(today.getFullYear(), today.getMonth(), 1);
 var rangeStart = null, rangeEnd = null, pickingStart = true;
 var graphPollInterval = null, liveCounterInterval = null;
 var graphPollRate = 15000, livePaused = false;
@@ -5053,8 +5054,7 @@ function renderCalendars() {
   var c = document.getElementById('calendar-container');
   c.innerHTML = '';
 
-  // 👇 NOW 3 months instead of 2
-  [calMonth1, calMonth2, calMonth3].forEach(function(m) {
+  [calMonth1, calMonth2, calMonth3, calMonth4].forEach(function(m) {
     c.appendChild(buildCalendarMonth(m));
   });
 }
@@ -5076,6 +5076,7 @@ function shiftCalendar(dir){
   calMonth1 = new Date(base.getFullYear(), base.getMonth() - 1, 1);
   calMonth2 = new Date(base.getFullYear(), base.getMonth(), 1);
   calMonth3 = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+  calMonth4 = new Date(base.getFullYear(), base.getMonth() + 2, 1);
 
   renderCalendars();
 }
