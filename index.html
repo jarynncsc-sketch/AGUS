@@ -4921,13 +4921,14 @@ function showHistoricalGraph(deviceName, deviceType) {
   apiGet('getSheetData',{sheet:deviceName}).then(function(rows){
     clearTimeout(_retryTimer);
     loadEl.classList.remove('visible');
-    if (!rows||!rows.length){showDebugBar('No data returned for "'+deviceName+'". Try a broader date range.');return;}
+    if (!Array.isArray(rows) || !rows.length){showDebugBar('No data returned for "'+deviceName+'". Try a broader date range.');renderCalendars();return;}
     allGraphData=rows; lastDataCount=rows.length; lastPollTime=new Date();
     detectKeys(rows);
     if (currentDeviceType==='pump'){detectPumpParamKeys(rows);buildParamSelector();}
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
-    updateDateRangeLabel(); renderRangeChart(); renderCalendars(); updateLiveCounter(); updateLastToggledBadge(allGraphData); startGraphPolling();
+    updateDateRangeLabel(); updateLiveCounter(); updateLastToggledBadge(allGraphData); renderCalendars(); startGraphPolling();
+    try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
   }).catch(function(err){
     clearTimeout(_retryTimer);
     loadEl.classList.remove('visible');
@@ -4935,6 +4936,7 @@ function showHistoricalGraph(deviceName, deviceType) {
     showDebugBar(isTimeout
       ? 'Server took too long. Please tap a range button to retry, or check your connection.'
       : 'Server error: '+(err.message||err));
+    renderCalendars();
   });
 }
 function showDebugBar(msg){
