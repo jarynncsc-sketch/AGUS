@@ -4246,7 +4246,59 @@ function openPumpLinkSettings() {
   var cardsEl = document.getElementById('pl-link-cards');
   if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#64748b;font-size:13px;">⏳ Loading links from server…</div>';
   loadPumpLinksFromGAS(function() { _renderLinkCards(); });
+  setTimeout(_checkPumpLinkTrigger, 600);
 }
+
+function _checkPumpLinkTrigger() {
+  var tok = typeof userToken !== 'undefined' && userToken ? userToken : (typeof sessionToken !== 'undefined' && sessionToken ? sessionToken : '');
+  var label = document.getElementById('pl-trigger-label');
+  var btn = document.getElementById('pl-trigger-btn');
+  if (!label || !btn) return;
+  if (!tok) { label.textContent = '🔒 Log in'; btn.style.display = 'none'; return; }
+  apiGet('checkPumpLinkTrigger', { token: tok }).then(function(r) {
+    if (!r || !r.success) { label.textContent = '⚠ Error'; btn.style.display = 'none'; return; }
+    if (r.installed) {
+      label.innerHTML = '🟢 Server trigger: <b>Active</b> (15 min)';
+      btn.textContent = '⏹ Remove';
+      btn.style.cssText = 'padding:5px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+      btn.style.display = '';
+    } else {
+      label.innerHTML = '⚪ Server trigger: <b>Off</b>';
+      btn.textContent = '▶ Install';
+      btn.style.cssText = 'padding:5px 10px;background:#ecfdf5;color:#047857;border:1.5px solid #a7f3d0;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+      btn.style.display = '';
+    }
+  }).catch(function() {
+    label.textContent = '⚠ Check failed';
+    btn.style.display = 'none';
+  });
+}
+
+window._togglePumpLinkServerTrigger = function() {
+  var tok = typeof userToken !== 'undefined' && userToken ? userToken : (typeof sessionToken !== 'undefined' && sessionToken ? sessionToken : '');
+  var label = document.getElementById('pl-trigger-label');
+  var btn = document.getElementById('pl-trigger-btn');
+  if (!label || !btn || !tok) return;
+  var installing = (btn.textContent || '').trim().startsWith('▶');
+  btn.disabled = true;
+  btn.textContent = '⏳...';
+  label.textContent = installing ? 'Installing…' : 'Removing…';
+  var action = installing ? 'installPumpLinkTrigger' : 'removePumpLinkTrigger';
+  apiGet(action, { token: tok }).then(function(r) {
+    if (r && r.success) {
+      showNotification(r.message || (installing ? '✅ Trigger installed' : '✅ Trigger removed'), 'success');
+      _checkPumpLinkTrigger();
+    } else {
+      showNotification('⚠ ' + (r && r.error ? r.error : 'Action failed'), 'warning');
+      btn.disabled = false;
+      btn.textContent = installing ? '▶ Install' : '⏹ Remove';
+    }
+  }).catch(function() {
+    showNotification('⚠ Network error contacting server', 'warning');
+    btn.disabled = false;
+    btn.textContent = installing ? '▶ Install' : '⏹ Remove';
+  });
+};
 
 function _buildPumpLinkHTML() {
   return '<div id="pl-inner" style="background:#fff;border-radius:20px;width:700px;max-width:98vw;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.48);">'
@@ -4292,8 +4344,10 @@ function _buildPumpLinkHTML() {
     +   '<div id="pl-link-cards"></div>'
     + '</div>'
     // ── Footer ────────────────────────────────────────────────────────────
-    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">'
     +   '<button onclick="openAutoShutoffLog()" style="padding:7px 14px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;">📋 Event Log</button>'
+    +   '<span id="pl-trigger-status" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#64748b;margin-left:6px;" title="GAS server-side time-driven trigger status">⏱ <span id="pl-trigger-label">Checking…</span></span>'
+    +   '<button id="pl-trigger-btn" onclick="_togglePumpLinkServerTrigger()" style="padding:5px 10px;background:#e5eef9;color:#475569;border:1.5px solid #cbd5e1;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;display:none;">⋯</button>'
     +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="margin-left:auto;padding:8px 22px;background:linear-gradient(135deg,#0a3d62,#1d4ed8);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>'
     + '</div>'
     + '</div>';
