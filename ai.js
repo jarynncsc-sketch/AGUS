@@ -415,7 +415,7 @@ function _answerSpecificDevice(q, devs) {
   if (!d) return null;
   var lines = [];
   lines.push('Device: ' + d.device + ' (' + (d.type||'N/A') + ')');
-  lines.push('Status: ' + (d.status||'N/A') + (d.button?' [FAULT]':''));
+  lines.push('Status: ' + (d.status||'N/A') + (d.button?' [FAULT]':'') + (d.relay!=null?' — Relay: ' + (d.relay==1||d.relay==='1'||d.relay===true?'● ON':'○ OFF'):''));
   if (d.pressure!=null) lines.push('Pressure: ' + d.pressure + ' psi');
   if (d.flow!=null) lines.push('Flow: ' + d.flow + ' L/s');
   if (d.power!=null) lines.push('Power: ' + d.power + ' W');
@@ -423,7 +423,6 @@ function _answerSpecificDevice(q, devs) {
   if (d.current!=null) lines.push('Current: ' + d.current + ' A');
   if (d.energy!=null) lines.push('Energy: ' + d.energy + ' kWh');
   if (d.level!=null) lines.push('Water Level: ' + d.level + ' m');
-  if (d.relay!=null) lines.push('Relay: ' + (d.relay==1||d.relay==='1'?'ON':'OFF'));
   if (d.firmware) lines.push('Firmware: ' + d.firmware);
   if (d.latitude) lines.push('GPS: ' + d.latitude + ', ' + d.longitude);
   if (d.minPsi) lines.push('Pressure Range: ' + d.minPsi + ' - ' + d.maxPsi + ' psi');
@@ -513,14 +512,27 @@ function aiCall(system, question, devices) {
     else response = 'Average pressure: ' + (_safeAvg(pres)!=null?_safeAvg(pres).toFixed(1):'N/A') + ' psi, flow: ' + (_safeAvg(flows)!=null?_safeAvg(flows).toFixed(2):'N/A') + ' L/s, voltage: ' + (_safeAvg(volts)!=null?_safeAvg(volts).toFixed(0):'N/A') + ' V.';
   // Relay / running / stopped
   } else if (q.includes('running')||(q.includes('relay')&&(q.includes('on')||q.includes('active')))) {
-    if (running.length) response = running.length + ' pump(s) running: ' + running.map(function(d){return d.device;}).join(', ') + '.';
+    if (running.length) response = running.length + ' pump(s) running:\n' + running.map(function(d){
+      var r = d.device + ' — Relay ON';
+      if (d.pressure) r += ', ' + d.pressure + ' psi';
+      if (d.flow) r += ', ' + d.flow + ' L/s';
+      return r;
+    }).join('\n');
     else response = 'No pumps currently running.';
   } else if (q.includes('stopped')||q.includes('off')||(q.includes('relay')&&q.includes('off'))) {
-    if (stopped.length) response = stopped.length + ' pump(s) stopped: ' + stopped.map(function(d){return d.device;}).join(', ') + '.';
+    if (stopped.length) response = stopped.length + ' pump(s) stopped:\n' + stopped.map(function(d){
+      var r = d.device + ' — Relay OFF';
+      if (d.pressure) r += ', ' + d.pressure + ' psi';
+      if (d.level) r += ', level: ' + d.level + ' m';
+      return r;
+    }).join('\n');
     else response = 'All pumps are running.';
   } else if (q.includes('relay')) {
     var on = running.length, off = devs.filter(function(d){return d.relay!=null&&d.relay!=1&&d.relay!='1'&&d.relay!==true;}).length;
-    response = 'Relay status: ' + on + ' ON, ' + off + ' OFF.';
+    var withRelay = devs.filter(function(d){return d.relay!=null;});
+    response = 'Relay status — ' + on + ' ON, ' + off + ' OFF:\n' + withRelay.map(function(d){
+      return d.device + ': ' + (d.relay==1||d.relay==='1'||d.relay===true?'● ON':'○ OFF');
+    }).join('\n');
   // Voltage
   } else if (q.includes('voltage')||q.includes('volt')) {
     if (q.includes('low')) { var v = _safeMin(volts); var d = _findDev(devs,'voltage',v); response = 'Lowest voltage: ' + (v!=null?v.toFixed(0):'N/A') + ' V at ' + (d?d.device:'unknown') + '.'; }
@@ -545,11 +557,25 @@ function aiCall(system, question, devices) {
     response = 'Water level range: ' + (_safeMin(lvls)!=null?_safeMin(lvls).toFixed(1):'N/A') + ' – ' + (_safeMax(lvls)!=null?_safeMax(lvls).toFixed(1):'N/A') + ' m.';
   // Pumps
   } else if (q.includes('pump')) {
-    var list = pumps.map(function(d){ return d.device + ' (' + (d.status||'?') + (d.pressure?' '+d.pressure+'psi':'') + (d.relay==1||d.relay==='1'?' RUNNING':'') + ')'; }).join('\n');
+    var list = pumps.map(function(d){
+      var s = d.device + ' (' + (d.status||'?') + ')';
+      var relayState = d.relay==1||d.relay==='1'||d.relay===true ? '● RUNNING' : '○ OFF';
+      s += ' — ' + relayState;
+      if (d.pressure) s += ', ' + d.pressure + ' psi';
+      if (d.flow) s += ', ' + d.flow + ' L/s';
+      if (d.power) s += ', ' + d.power + ' W';
+      if (d.button) s += ' ⚠ FAULT';
+      return s;
+    }).join('\n');
     response = pumps.length + ' pump(s):\n' + list;
   // Reservoirs
   } else if (q.includes('reservoir')) {
-    var list = resvrs.map(function(d){ return d.device + ' (' + (d.status||'?') + (d.level?' level:'+d.level+'m':'') + ')'; }).join('\n');
+    var list = resvrs.map(function(d){
+      var s = d.device + ' (' + (d.status||'?') + ') — Level: ' + (d.level||'N/A') + ' m';
+      if (d.relay!=null) s += ', Relay: ' + (d.relay==1||d.relay==='1'?'ON':'OFF');
+      if (d.minLevel) s += ', Range: ' + d.minLevel + '-' + d.maxLevel + ' m';
+      return s;
+    }).join('\n');
     response = resvrs.length + ' reservoir(s):\n' + list;
   // Count / how many / total
   } else if (q.includes('how many')||q.includes('count')) {
@@ -557,10 +583,11 @@ function aiCall(system, question, devices) {
     else if (q.includes('offline')) response = offln + ' device(s) offline.';
     else if (q.includes('fault')||q.includes('alarm')) response = faultN + ' device(s) in fault.';
     else if (q.includes('device')) response = devs.length + ' device(s) total.';
-    else if (q.includes('pump')) response = pumps.length + ' pump(s).';
+    else if (q.includes('pump')) response = pumps.length + ' pump(s), ' + running.length + ' running, ' + stopped.filter(function(d){return d.relay!=null;}).length + ' stopped.';
     else if (q.includes('reservoir')) response = resvrs.length + ' reservoir(s).';
     else if (q.includes('running')||q.includes('active')) response = running.length + ' pump(s) running.';
-    else response = devs.length + ' total (' + online + ' online, ' + faultN + ' fault, ' + offln + ' offline).';
+    else response = devs.length + ' total (' + online + ' online, ' + faultN + ' fault, ' + offln + ' offline). '
+      + pumps.length + ' pumps (' + running.length + ' running).';
   // List all
   } else if (q.includes('list')||q.includes('show all')||q.includes('all device')||q.includes('everything')) {
     response = devs.map(function(d){
@@ -604,7 +631,7 @@ function aiCall(system, question, devices) {
   // Last-resort: show overview
   } else {
     response = 'System: ' + devs.length + ' devices (' + online + ' online, ' + faultN + ' fault, ' + offln + ' offline). '
-      + pumps.length + ' pumps (' + running.length + ' running), ' + resvrs.length + ' reservoirs. '
+      + pumps.length + ' pumps (' + running.length + ' running, ' + (pumps.length - running.length) + ' stopped), ' + resvrs.length + ' reservoirs. '
       + (pres.length?'Pressure ' + _safeMin(pres).toFixed(0) + '-' + _safeMax(pres).toFixed(0) + ' psi. ':'')
       + (flows.length?'Flow ' + _safeMin(flows).toFixed(0) + '-' + _safeMax(flows).toFixed(0) + ' L/s. ':'')
       + 'Ask about any device or metric.';
