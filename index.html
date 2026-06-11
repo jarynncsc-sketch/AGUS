@@ -2939,6 +2939,12 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   var _faultGlow = _faultBtn
     ? '<rect x="0" y="1" width="' + (_W) + '" height="' + (_tY + _tH + 5) + '" rx="14" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 6 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>'
     : '';
+  // Isolation Forest anomaly badge
+  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
+  var _ifBadge = _ifScore !== null && _ifScore > 0.5
+    ? '<rect x="10" y="8" width="44" height="16" rx="8" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
+      + '<text x="32" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-size="7.5" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
+    : '';
 
   // Status pill indicator (top‑right)
   var _statusLabel = status === 'Online' ? 'ON' : status === 'Offline' ? 'OFF' : 'FLT';
@@ -2966,6 +2972,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + _faultGlow
     + _lid
     + _statusPill
+    + _ifBadge
     + '<rect x="' + _tX + '" y="' + _tY
     + '" width="' + _tW + '" height="' + _tH + '" rx="8" fill="#f8fafc" opacity="0.0"/>'
     + _grid
@@ -3029,6 +3036,13 @@ if (isPS) {
   var _togY=_cY+118+_dataOffset;
   var _l1Y=_cY+69+_dataOffset,_l2Y=_cY+105+_dataOffset;
   
+  // Isolation Forest anomaly badge
+  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
+  var _ifBadge = _ifScore !== null && _ifScore > 0.5
+    ? '<rect x="11" y="'+(_cY+5)+'" width="44" height="14" rx="7" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
+      + '<text x="33" y="'+(_cY+15)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
+    : '';
+
   // Relay indicator with glow
   var _relayDot = _relayOn
     ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
@@ -3049,6 +3063,7 @@ if (isPS) {
     // Status dot top-right
     +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
     +(psAnomaly&&blinkOn?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.8"/>':'')
+    +_ifBadge
     // Center gear icon
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
     +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
@@ -3121,6 +3136,12 @@ if (isPS) {
       var _sy = _cy + _needleStart * Math.sin(_curAngle * Math.PI / 180);
       var _statusC = status === 'Online' ? '#22c55e' : status === 'Offline' ? '#f97316' : '#ef4444';
       var _faultBtn = f.get('button');
+      // Isolation Forest anomaly badge
+      var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
+      var _ifBadge = _ifScore !== null && _ifScore > 0.5
+        ? '<rect x="8" y="8" width="44" height="16" rx="8" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
+          + '<text x="30" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-size="7.5" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
+        : '';
       var _svg = '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '" width="' + _W + '" height="' + _totalH + '" xmlns="http://www.w3.org/2000/svg">'
         // Outer status ring
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 9) + '" fill="none" stroke="' + _statusC + '" stroke-width="5" opacity="0.8"/>'
@@ -3128,6 +3149,7 @@ if (isPS) {
         // Outer glow ring (pressure threshold)
         + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
         + (_faultBtn ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>' : '')
+        + _ifBadge
         // Background arc (gray track)
         + _arcPath(_cx, _cy, _r, -175, 5, 1)
         + ' stroke="#e2e8f0" stroke-width="8" fill="none" stroke-linecap="round"/>'
