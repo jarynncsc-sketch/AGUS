@@ -3243,20 +3243,20 @@ function showDeviceDetails(device) {
  
     var s = pressureSettingsCache[device]  || { minPsi: 20, normalPsi: 50, maxPsi: 80 };
     var r = reservoirThresholdsCache[device] || { minLevel: 20, maxLevel: 250 };
-    var effSt = isPres ? derivePressureStatus(d) : d.status;
+    var effSt = derivePressureStatus(d);
     var fb = d.button ? '<span class="blink" style="color:red;">! Fault</span>' : '';
- 
-var lpsi = parseFloat(d.pressure), pC = '#aaa', pT = '—', pB = '';
-
-if (!isNaN(lpsi)) {
-  if (lpsi < s.minPsi) {
-    pC = '#f97316'; 
-    pT = 'LOW';
-    pB = 'blink-alarm';
-  }
-  else if (lpsi > s.maxPsi) {
-    pC = '#ef4444';
-    pT = 'HIGH';
+  
+    var lpsi = parseFloat(d.pressure), pC = '#aaa', pT = '—', pB = '';
+  
+    if (!isNaN(lpsi)) {
+      if (lpsi < s.minPsi) {
+        pC = '#f97316'; 
+        pT = 'LOW';
+        pB = 'blink-alarm';
+      }
+      else if (lpsi > s.maxPsi) {
+        pC = '#ef4444';
+        pT = 'HIGH';
     pB = 'blink-alarm';
   }
   else {
@@ -3751,7 +3751,7 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
     if (rawType !== 'pressure' && deviceName.includes('pressure')) effectiveType = 'pressure';
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
     var isPres = effectiveType === 'pressure';
-    var stat = isPres ? derivePressureStatus(d) : d.status;
+    var stat = derivePressureStatus(d);
     var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
     deviceSource.addFeature(f); deviceMarkers[d.device] = f;
   });
@@ -3834,7 +3834,7 @@ function updateDeviceList(devices) {
     var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
     var isPS = name.includes('pumping station');
     if (!isPres&&!isPS&&!isRes) return; if (isRes && !activeFilters.has('reservoir')) return; if (isPres && !activeFilters.has('pressure')) return; if (isPS && !activeFilters.has('pumping')) return;
-    var effSt = (isPres||isRes) ? derivePressureStatus(d) : d.status;
+    var effSt = derivePressureStatus(d);
     var sc = effSt==='Online'?'status-Online':effSt==='Offline'?'status-Offline':'status-Fault';
     var fi = d.button?'<span class="blink" title="Fault">!</span>':'', fb = d.button?'Fault-blink':'';
     var li = document.createElement('li'), alarm = null;
