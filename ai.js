@@ -63,6 +63,163 @@ function injectAnomalyBadge(li, deviceName, reading, isReservoir) {
     var nameEl = li.querySelector('span');
     if (nameEl) nameEl.parentNode.insertBefore(badge, nameEl.nextSibling);
   }
+  // Also show Isolation Forest badge if available
+  var ifScore = getIFScore({ device: deviceName, pressure: reading, flow: 0, power: 0, voltage: 0, level: 0, relay: 0 });
+  if (ifScore !== null && ifScore > 0.5) {
+    var ifBadge = li.querySelector('.ai-if-badge');
+    if (!ifBadge) {
+      ifBadge = document.createElement('span');
+      ifBadge.className = 'ai-if-badge';
+      ifBadge.style.cssText = 'display:inline-block;margin-left:4px;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:800;color:#fff;background:' + (ifScore>0.65?'#7c3aed':'#a78bfa') + ';cursor:help;';
+      ifBadge.title = 'Isolation Forest anomaly: ' + (ifScore*100).toFixed(0) + '%';
+      ifBadge.textContent = '🌲 ' + (ifScore*100).toFixed(0) + '%';
+      var nameEl2 = li.querySelector('span');
+      if (nameEl2) nameEl2.parentNode.insertBefore(ifBadge, nameEl2.nextSibling);
+    }
+  } else {
+    var oldIf = li.querySelector('.ai-if-badge');
+    if (oldIf) oldIf.remove();
+  }
+}
+
+// ============================================================
+// Module 1b: Isolation Forest — unsupervised anomaly detection
+// ============================================================
+function IsolationForest(trees, sampleSize) {
+  this.trees = trees || 50;
+  this.sampleSize = sampleSize || 64;
+  this.forest = [];
+  this.dataSize = 0;
+}
+IsolationForest.prototype.save = function() {
+  return JSON.stringify({ forest: this.forest, dataSize: this.dataSize, trees: this.trees, sampleSize: this.sampleSize });
+};
+IsolationForest.load = function(str) {
+  var o = JSON.parse(str);
+  var f = new IsolationForest(o.trees, o.sampleSize);
+  f.forest = o.forest; f.dataSize = o.dataSize; return f;
+};
+IsolationForest.prototype._randBetween = function(a, b) { return a + Math.random() * (b - a); };
+IsolationForest.prototype._randInt = function(a, b) { return Math.floor(this._randBetween(a, b)); };
+IsolationForest.prototype._cFactor = function(n) {
+  if (n <= 1) return 1;
+  var h = Math.log(n - 1) + 0.5772156649;
+  return 2 * h - (2 * (n - 1) / n);
+};
+IsolationForest.prototype._buildTree = function(data, depth, maxDepth) {
+  if (depth >= maxDepth || data.length <= 1) {
+    return { type: 'leaf', size: data.length };
+  }
+  var dims = data[0].length;
+  var q = this._randInt(0, dims);
+  var minVal = data[0][q], maxVal = data[0][q];
+  for (var i = 1; i < data.length; i++) {
+    if (data[i][q] < minVal) minVal = data[i][q];
+    if (data[i][q] > maxVal) maxVal = data[i][q];
+  }
+  if (minVal === maxVal) return { type: 'leaf', size: data.length };
+  var split = this._randBetween(minVal, maxVal);
+  var left = [], right = [];
+  for (var j = 0; j < data.length; j++) {
+    if (data[j][q] < split) left.push(data[j]); else right.push(data[j]);
+  }
+  if (left.length === 0 || right.length === 0) return { type: 'leaf', size: data.length };
+  return {
+    type: 'node', q: q, split: split,
+    left: this._buildTree(left, depth + 1, maxDepth),
+    right: this._buildTree(right, depth + 1, maxDepth)
+  };
+};
+IsolationForest.prototype._pathLength = function(point, tree, depth) {
+  if (tree.type === 'leaf') return depth + this._cFactor(tree.size);
+  if (point[tree.q] < tree.split) return this._pathLength(point, tree.left, depth + 1);
+  return this._pathLength(point, tree.right, depth + 1);
+};
+IsolationForest.prototype.train = function(data) {
+  if (!data || data.length < 4) return;
+  this.dataSize = data.length;
+  this.forest = [];
+  var ss = Math.min(this.sampleSize, data.length);
+  var maxDepth = Math.ceil(Math.log2(ss));
+  for (var t = 0; t < this.trees; t++) {
+    var sample = [];
+    var used = {};
+    for (var i = 0; i < ss; i++) {
+      var idx;
+      do { idx = this._randInt(0, data.length); } while (used[idx]);
+      used[idx] = true;
+      sample.push(data[idx]);
+    }
+    this.forest.push(this._buildTree(sample, 0, maxDepth));
+  }
+};
+IsolationForest.prototype.score = function(point) {
+  if (this.forest.length === 0) return 0.5;
+  var avgPath = 0;
+  for (var t = 0; t < this.forest.length; t++) avgPath += this._pathLength(point, this.forest[t], 0);
+  avgPath /= this.forest.length;
+  var c = this._cFactor(this.dataSize);
+  return Math.pow(2, -avgPath / c);
+};
+
+// ============================================================
+// Module 1c: Persistent Isolation Forest — auto-trains on pump data
+// ============================================================
+var IF_TRAIN_INTERVAL = 5;  // retrain every N dashboard updates
+var _ifUpdateCounter = 0;
+var ifAnomalyModel = (function() {
+  try {
+    var saved = localStorage.getItem('agus_iforest');
+    if (saved) return IsolationForest.load(saved);
+  } catch(e) {}
+  return new IsolationForest(30, 40);
+})();
+function trainIFModel(devices) {
+  if (!devices || devices.length < 3) return;
+  _ifUpdateCounter++;
+  if (_ifUpdateCounter > 1 && _ifUpdateCounter % IF_TRAIN_INTERVAL !== 0) return;
+  var features = [];
+  devices.forEach(function(d) {
+    var p = parseFloat(d.pressure) || 0;
+    var f = parseFloat(d.flow) || 0;
+    var w = (parseFloat(d.power) || 0) / 500;
+    var v = (parseFloat(d.voltage) || 0) / 100;
+    var l = (parseFloat(d.level) || 0) / 10;
+    var r = d.relay == 1 || d.relay === '1' ? 1 : 0;
+    if (p || f || w || v || l) {
+      features.push([p, f, w, v, l, r]);
+    }
+  });
+  if (features.length >= 4) {
+    ifAnomalyModel.train(features);
+    try { localStorage.setItem('agus_iforest', ifAnomalyModel.save()); } catch(e) {}
+  }
+}
+function getIFScore(device) {
+  if (!device || ifAnomalyModel.forest.length === 0) return null;
+  var p = parseFloat(device.pressure) || 0;
+  var f = parseFloat(device.flow) || 0;
+  var w = (parseFloat(device.power) || 0) / 500;
+  var v = (parseFloat(device.voltage) || 0) / 100;
+  var l = (parseFloat(device.level) || 0) / 10;
+  var r = device.relay == 1 || device.relay === '1' ? 1 : 0;
+  if (!p && !f && !w && !v && !l) return null;
+  return ifAnomalyModel.score([p, f, w, v, l, r]);
+}
+
+// ============================================================
+// Module 1d: Sigmoid Health Scoring
+// ============================================================
+function sigmoid(x, midpoint, steepness) {
+  return 1 / (1 + Math.exp(-steepness * (x - midpoint)));
+}
+function computeHealthScore(onlineRatio, faultRatio, avgAnomalyScore, maintenanceScore) {
+  var base = sigmoid(onlineRatio, 0.7, 10) * 100;
+  var penalty = (1 - sigmoid(faultRatio, 0.1, 20)) * 100;
+  var anomalyScore = Math.max(0, 100 - (avgAnomalyScore || 0) * 100);
+  var maintScore = maintenanceScore !== undefined ? Math.max(0, 100 - maintenanceScore) : 100;
+  var raw = base * 0.35 + penalty * 0.30 + anomalyScore * 0.20 + maintScore * 0.15;
+  return Math.round(Math.min(100, Math.max(0, raw)));
 }
 
 // ============================================================
@@ -94,6 +251,10 @@ function buildMaintenanceBadge(deviceName) {
 }
 function updateMaintenanceScore(devices) {
   devices.forEach(function(d) { trackMaintenanceEvent(d.device, d); });
+}
+function resetMaintScore(deviceName) {
+  if (maintenanceData[deviceName]) delete maintenanceData[deviceName];
+  if (window.updateDashboard) window.updateDashboard();
 }
 
 // ============================================================
@@ -677,6 +838,7 @@ function recalcCostTable() {
     originalUpdateDashboard();
     apiGet('getDashboardData').then(function(devices) {
       updateMaintenanceScore(devices);
+      trainIFModel(devices);
     }).catch(function(e) { console.warn('Maintenance score update failed', e); });
   };
 
@@ -1175,7 +1337,22 @@ function _updateAIHealthCard(devices) {
   var online  = devices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; }).length;
   var fault   = devices.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; }).length;
   var offline = devices.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; }).length;
-  var score = Math.round(Math.max(0, 100 - (fault * 14) - (offline * 7)));
+  var avgZ = 0, cnt = 0;
+  devices.forEach(function(d) {
+    var n = d.device + ':pressure', s = anomalyState[n];
+    if (s && s.values.length > 1) { avgZ += Math.abs((s.values[s.values.length-1] - s.ema) / (Math.sqrt(s.emaVariance)||1)); cnt++; }
+  });
+  avgZ = cnt ? avgZ / cnt / 3 : 0;
+  var ifScores = 0, ifCnt = 0;
+  devices.forEach(function(d) {
+    var s = getIFScore(d);
+    if (s !== null) { ifScores += s; ifCnt++; }
+  });
+  var avgIF = ifCnt ? ifScores / ifCnt : 0;
+  var maintScores = Object.keys(maintenanceData).map(function(k){return maintenanceData[k].lastScore;}).filter(function(v){return v>0;});
+  var avgMaint = maintScores.length ? maintScores.reduce(function(a,b){return a+b;},0)/maintScores.length : 0;
+  var blendedAnomaly = Math.min(1, (avgZ * 0.5) + (avgIF * 0.5));
+  var score = computeHealthScore(online/total, fault/total, blendedAnomaly, avgMaint);
   var color = score >= 85 ? '#22c55e' : score >= 60 ? '#f97316' : '#ef4444';
   var label = score >= 85 ? 'System Healthy' : score >= 60 ? 'Attention Needed' : 'Critical Issues';
   scoreEl.textContent = score;
@@ -1219,7 +1396,17 @@ function runAIDiagnostics() {
     var pres    = devices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='pressure'||n.includes('pressure'); });
     var res     = devices.filter(function(d){ var t=(d.type||'').toLowerCase(),n=(d.device||'').toLowerCase(); return t==='reservoir'||n.includes('reservoir'); });
     var pumps   = devices.filter(function(d){ var n=(d.device||'').toLowerCase(); return n.includes('pumping station')||n.includes('pump'); });
-    var score   = Math.max(0, 100 - fault.length*14 - offline.length*7);
+    var avgZ = 0, zc = 0;
+    devices.forEach(function(d) {
+      var n = d.device + ':pressure', s = anomalyState[n];
+      if (s && s.values.length > 1) { avgZ += Math.abs((s.values[s.values.length-1] - s.ema) / (Math.sqrt(s.emaVariance)||1)); zc++; }
+    });
+    avgZ = zc ? avgZ / zc / 3 : 0;
+    var ifS = 0, ifC = 0;
+    devices.forEach(function(d) { var s2 = getIFScore(d); if (s2 !== null) { ifS += s2; ifC++; } });
+    var avgIF2 = ifC ? ifS / ifC : 0;
+    var blendedAnom = Math.min(1, (avgZ * 0.5) + (avgIF2 * 0.5));
+    var score   = computeHealthScore(online.length/devices.length, fault.length/devices.length, blendedAnom, 0);
     var scoreColor = score>=85?'#22c55e':score>=60?'#f97316':'#ef4444';
 
     function diagRow(icon, label, value, status, statusColor) {
@@ -1271,6 +1458,36 @@ function runAIDiagnostics() {
       html += diagRow('💧','Total Flow', totalFlow+' L/s', 'Live', '#0ea5e9');
       html += diagRow('⚡','Total Power', totalPow+' W', 'Live', '#f97316');
       html += '</div>';
+    }
+
+    // Isolation Forest unsupervised anomaly detection
+    var ifFeatures = [];
+    var ifKeys = [];
+    devices.forEach(function(d) {
+      var p = parseFloat(d.pressure) || 0;
+      var f = parseFloat(d.flow) || 0;
+      var w = parseFloat(d.power) || 0;
+      var v = parseFloat(d.voltage) || 0;
+      var l = parseFloat(d.level) || 0;
+      if (p || f || w || v || l) {
+        ifFeatures.push([p, f, w / 1000, v / 100, l / 10]);
+        ifKeys.push(d.device);
+      }
+    });
+    if (ifFeatures.length >= 4) {
+      var ifModel = new IsolationForest(30, Math.min(ifFeatures.length, 32));
+      ifModel.train(ifFeatures);
+      var ifResults = ifFeatures.map(function(f, i) { return { device: ifKeys[i], score: ifModel.score(f) }; });
+      ifResults.sort(function(a, b) { return b.score - a.score; });
+      var ifAnomalous = ifResults.filter(function(r) { return r.score > 0.6; });
+      if (ifAnomalous.length) {
+        html += '<div class="ai-diag-section"><h4>🔬 Isolation Forest Anomaly Detection</h4>';
+        ifAnomalous.forEach(function(r) {
+          var c = r.score > 0.75 ? '#ef4444' : '#f97316';
+          html += diagRow('⚠️', r.device, (r.score * 100).toFixed(0) + '%', r.score > 0.75 ? 'Critical' : 'Elevated', c);
+        });
+        html += '</div>';
+      }
     }
 
     // AI Recommendations section
