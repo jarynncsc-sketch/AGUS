@@ -2023,6 +2023,285 @@
 .filter-pill.active.res{background:#0F6E56;border-color:#0F6E56;}
 .filter-pill.active.pump{background:#854F0B;border-color:#854F0B;}
 #device-filter-bar{display:flex;gap:5px;padding:8px 10px 8px;border-bottom:1px solid rgba(0,64,128,0.08);flex-wrap:wrap;background:#f8fbff;}
+
+/* ══════════════════════════════════════════════════════════════
+   MODERN UI REFRESH — 2026 Design Upgrade
+   ══════════════════════════════════════════════════════════════ */
+:root {
+  --m-glow-blue: 0 0 0 3px rgba(59,130,246,0.15);
+  --m-glow-green: 0 0 0 3px rgba(34,197,94,0.15);
+  --m-glow-amber: 0 0 0 3px rgba(245,158,11,0.15);
+  --m-glow-purple: 0 0 0 3px rgba(139,92,246,0.15);
+  --m-shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+  --m-shadow-md: 0 4px 14px rgba(0,40,100,0.10), 0 1px 4px rgba(0,0,0,0.04);
+  --m-shadow-lg: 0 8px 30px rgba(0,40,100,0.12);
+  --m-radius-sm: 8px;
+  --m-radius-md: 12px;
+  --m-radius-lg: 16px;
+  --m-transition: 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── Top menu bar: elevated glass surface ── */
+#top-menu-bar {
+  background: rgba(255,255,255,0.82) !important;
+  backdrop-filter: blur(16px) saturate(1.4) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  box-shadow: 0 4px 24px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+@media (prefers-color-scheme: dark) {
+  body:not(.dark-mode) #top-menu-bar {
+    background: rgba(20,30,50,0.75) !important;
+    border-color: rgba(255,255,255,0.08) !important;
+  }
+}
+
+/* ── Nav cards: vibrant glass tile ── */
+.nav-group-label {
+  font-size: 8px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  color: #8aa5af !important;
+  padding: 0 4px 2px !important;
+}
+.top-card {
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  transition: all 0.18s cubic-bezier(0.34,1.4,0.64,1) !important;
+  will-change: transform, box-shadow, background !important;
+}
+.top-card:hover {
+  transform: translateY(-3px) !important;
+  box-shadow: 0 6px 16px rgba(0,40,100,0.12) !important;
+}
+.top-card:active {
+  transform: scale(0.92) !important;
+  transition-duration: 0.06s !important;
+}
+.top-card span {
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+}
+/* Group-specific hover glow */
+.top-card.grp-data:hover {
+  background: linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%) !important;
+  border-color: #7dd3fc !important;
+  box-shadow: var(--m-glow-blue), 0 4px 12px rgba(59,130,246,0.10) !important;
+}
+.top-card.grp-ctrl:hover {
+  background: linear-gradient(135deg,#dcfce7 0%,#f0fdf4 100%) !important;
+  border-color: #86efac !important;
+  box-shadow: var(--m-glow-green), 0 4px 12px rgba(34,197,94,0.10) !important;
+}
+.top-card.grp-ai:hover {
+  background: linear-gradient(135deg,#ede9fe 0%,#f5f3ff 100%) !important;
+  border-color: #c4b5fd !important;
+  box-shadow: var(--m-glow-purple), 0 4px 12px rgba(139,92,246,0.10) !important;
+}
+.top-card.grp-sys:hover {
+  background: linear-gradient(135deg,#f1f5f9 0%,#fafafa 100%) !important;
+  border-color: #cbd5e1 !important;
+}
+.top-card.active {
+  transform: translateY(-2px) !important;
+  border-width: 1.5px !important;
+}
+
+/* ── Device list: modern card with floating appearance ── */
+.device-list {
+  background: rgba(255,255,255,0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  box-shadow: 0 8px 32px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.5) !important;
+}
+.device-list h3 {
+  background: linear-gradient(135deg,#f0f7ff 0%,#f8fbff 100%) !important;
+  font-size: 0.9rem !important;
+  letter-spacing: 0.02em !important;
+  padding: 0.65rem 1rem !important;
+}
+.device-list li {
+  border-radius: 10px !important;
+  border: 1px solid rgba(0,64,128,0.06) !important;
+  background: rgba(255,255,255,0.9) !important;
+  margin-bottom: 5px !important;
+  padding: 10px 12px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
+  transition: all 0.16s cubic-bezier(0.34,1.4,0.64,1) !important;
+  backdrop-filter: blur(4px) !important;
+}
+.device-list li:hover {
+  background: rgba(240,247,255,0.95) !important;
+  border-color: rgba(59,130,246,0.20) !important;
+  box-shadow: 0 4px 12px rgba(0,40,100,0.06), 0 0 0 1px rgba(59,130,246,0.10) !important;
+  transform: translateX(4px) !important;
+}
+.device-list li.selected {
+  background: linear-gradient(135deg,#dbeafe 0%,#eff6ff 100%) !important;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.20), 0 4px 12px rgba(59,130,246,0.08) !important;
+}
+.device-list li span:first-child {
+  font-weight: 600 !important;
+  color: #0f172a !important;
+}
+/* Status indicators: larger, with glow */
+.status-Online {
+  box-shadow: 0 0 0 4px rgba(22,163,74,0.15), 0 0 0 1px rgba(22,163,74,0.3) !important;
+  width: 12px !important; height: 12px !important;
+}
+.status-Offline {
+  box-shadow: 0 0 0 4px rgba(234,88,12,0.15), 0 0 0 1px rgba(234,88,12,0.3) !important;
+  width: 12px !important; height: 12px !important;
+}
+.status-Fault {
+  box-shadow: 0 0 0 4px rgba(220,38,38,0.15), 0 0 0 1px rgba(220,38,38,0.3) !important;
+  width: 12px !important; height: 12px !important;
+  animation: faultPulse 1.2s ease-in-out infinite !important;
+}
+@keyframes faultPulse {
+  0%,100% { box-shadow: 0 0 0 4px rgba(220,38,38,0.15), 0 0 0 1px rgba(220,38,38,0.3); }
+  50%     { box-shadow: 0 0 0 7px rgba(220,38,38,0), 0 0 0 1px rgba(220,38,38,0.5); }
+}
+/* Pill values: gradient accent */
+.pressure-value, .waterlevel-value {
+  background: linear-gradient(135deg, var(--pbg, #e6f1fb) 0%, rgba(255,255,255,0.8) 100%) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  backdrop-filter: blur(4px) !important;
+}
+
+/* ── Map container: floating glass card ── */
+#map-container {
+  background: rgba(255,255,255,0.85) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255,255,255,0.5) !important;
+  box-shadow: 0 8px 32px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
+  border-radius: 16px !important;
+  overflow: hidden !important;
+}
+#map {
+  border-radius: 16px !important;
+}
+
+/* ── Filter pills: modern pill shape with icon ── */
+.filter-pill {
+  padding: 5px 14px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  border-radius: 20px !important;
+  gap: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  transition: all 0.15s cubic-bezier(0.34,1.56,0.64,1) !important;
+  background: rgba(255,255,255,0.8) !important;
+  backdrop-filter: blur(4px) !important;
+  border: 1.5px solid rgba(0,64,128,0.12) !important;
+  color: #475569 !important;
+}
+.filter-pill:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+.filter-pill.active {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+}
+
+/* ── Welcome bar: subtle elevation ── */
+#welcome-user-topright {
+  box-shadow: 0 2px 8px rgba(0,40,100,0.08) !important;
+  background: rgba(255,255,255,0.92) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ── Offline bar: refined ── */
+#offline-bar {
+  font-size: 12px !important;
+  padding: 6px 16px !important;
+  backdrop-filter: blur(8px) !important;
+  background: rgba(180,83,9,0.92) !important;
+  letter-spacing: 0.02em !important;
+}
+
+/* ── Modal overlays: deeper backdrop blur ── */
+#tab-modal-overlay,
+#graph-modal,
+#kpi-overlay,
+#alarm-center-overlay,
+#wq-overlay,
+#logbook-overlay,
+#maint-cal-overlay,
+#wl-overlay,
+#bench-overlay,
+#forecast-overlay,
+#pump-link-overlay,
+#energy-advisor-overlay,
+#cost-calc-overlay,
+#ml-risk-overlay,
+#ml-trend-overlay,
+#alarm-timeline-overlay {
+  background: rgba(15,23,42,0.5) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+}
+
+/* ── Toast notifications: elevated ── */
+.toast {
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.20), 0 1px 2px rgba(0,0,0,0.06) !important;
+  border: 1px solid rgba(255,255,255,0.15) !important;
+}
+
+/* ── Smooth entrance for device list items ── */
+.device-list li {
+  animation: deviceSlideIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
+  animation-delay: calc(var(--i,0) * 0.04s);
+}
+@keyframes deviceSlideIn {
+  from { opacity: 0; transform: translateX(-8px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ── Nav group separator: subtle gradient ── */
+.nav-group-sep {
+  width: 1px;
+  background: linear-gradient(180deg, transparent 0%, rgba(0,64,128,0.12) 30%, rgba(0,64,128,0.12) 70%, transparent 100%) !important;
+  border-radius: 1px !important;
+}
+
+/* ── Dark mode refinements ── */
+body.dark-mode .device-list {
+  background: rgba(30,41,59,0.85) !important;
+  border-color: rgba(255,255,255,0.06) !important;
+}
+body.dark-mode .device-list h3 {
+  background: linear-gradient(135deg,#1e293b 0%,#1a2332 100%) !important;
+  color: #e2e8f0 !important;
+}
+body.dark-mode .device-list li {
+  background: rgba(30,41,59,0.7) !important;
+  border-color: rgba(255,255,255,0.04) !important;
+}
+body.dark-mode .device-list li:hover {
+  background: rgba(30,41,59,0.9) !important;
+  border-color: rgba(59,130,246,0.3) !important;
+}
+body.dark-mode .device-list li span:first-child { color: #e2e8f0 !important; }
+body.dark-mode .filter-pill { background: rgba(30,41,59,0.6) !important; color: #94a3b8 !important; border-color: rgba(255,255,255,0.08) !important; }
+body.dark-mode .filter-pill.active { color: #fff !important; }
+body.dark-mode #welcome-user-topright { background: rgba(30,41,59,0.9) !important; }
+body.dark-mode .nav-group-label { color: #64748b !important; }
+body.dark-mode #map-container { background: rgba(30,41,59,0.85) !important; border-color: rgba(255,255,255,0.06) !important; }
+body.dark-mode #top-menu-bar { background: rgba(15,23,42,0.85) !important; border-color: rgba(255,255,255,0.06) !important; }
+body.dark-mode .top-card span { color: #94a3b8 !important; }
+body.dark-mode .top-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; }
 </style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
@@ -4262,6 +4541,28 @@ function openPumpLinkSettings() {
   loadPumpLinksFromGAS(function() { _renderLinkCards(); });
 }
 
+/* ── GAS server trigger install/remove ── */
+function togglePumpLinkServerTrigger() {
+  var dot = document.getElementById('pl-trigger-dot');
+  var lbl = document.getElementById('pl-trigger-label');
+  var btn = document.getElementById('pl-trigger-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  var was = btn.textContent;
+  btn.textContent = '…';
+  var action = was === 'remove' ? 'removePumpLinkTrigger' : 'installPumpLinkTrigger';
+  apiGet(action, { token: typeof userToken !== 'undefined' ? userToken : '' }).then(function(r) {
+    var installed = action === 'installPumpLinkTrigger';
+    if (dot) dot.style.background = installed ? '#22c55e' : '#94a3b8';
+    if (lbl) lbl.textContent = installed ? 'Server trigger: every 15 min ✅' : 'Server trigger: off';
+    if (btn) { btn.textContent = installed ? 'remove' : 'install'; btn.disabled = false; }
+    showNotification(installed ? '✅ Server pump-link trigger installed (every 15 min)' : '⏹ Server pump-link trigger removed', installed ? 'success' : 'info');
+  }).catch(function(e) {
+    if (btn) { btn.textContent = was; btn.disabled = false; }
+    showNotification('⚠ Failed: ' + (e.message||'check GAS deployment URL'), 'error');
+  });
+}
+
 function _buildPumpLinkHTML() {
   return '<div id="pl-inner" style="background:#fff;border-radius:20px;width:700px;max-width:98vw;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.48);">'
     // ── Header ──────────────────────────────────────────────────────────
@@ -4306,8 +4607,13 @@ function _buildPumpLinkHTML() {
     +   '<div id="pl-link-cards"></div>'
     + '</div>'
     // ── Footer ────────────────────────────────────────────────────────────
-    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex-shrink:0;">'
     +   '<button onclick="openAutoShutoffLog()" style="padding:7px 14px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;">📋 Event Log</button>'
+    +       '<span style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:4px;" title="GAS time-driven trigger checks only linked devices every 15 min, no dashboard needed.">'
+    +     '<span id="pl-trigger-dot" style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>'
+    +     '<span id="pl-trigger-label">Server trigger: ?</span>'
+    +     '<button id="pl-trigger-btn" onclick="togglePumpLinkServerTrigger()" style="padding:2px 8px;font-size:9px;font-weight:700;border-radius:5px;border:1px solid #cbd5e1;background:#f1f5f9;cursor:pointer;color:#334155;">check</button>'
+    +   '</span>'
     +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="margin-left:auto;padding:8px 22px;background:linear-gradient(135deg,#0a3d62,#1d4ed8);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>'
     + '</div>'
     + '</div>';
@@ -6304,6 +6610,7 @@ function generateAIReport() {
       if (aiSpinner) aiSpinner.style.display = 'none';
       var text = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Unable to generate report.';
       // Render markdown-lite
+      text = esc(text);
       var html = text
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/^#{1,3}\s(.+)$/gm, '<div style="font-weight:800;color:#002b5c;font-size:13px;margin:12px 0 4px;border-bottom:1px solid #d0e4f7;padding-bottom:3px;">$1</div>')
@@ -6590,6 +6897,7 @@ function injectForecastDataset() {
 // AI API CONFIGURATION (configurable via settings UI)
 // ============================================================
 var AI_CACHE = {};
+function clearAICache() { AI_CACHE = {}; }
 
 // ── AI Chat utilities (called from Block 2 and 3) ──
 var aiChatHistory = [];
@@ -6612,24 +6920,47 @@ function buildAISystemContext(devices) {
   return 'You are an AI assistant for the AGUS water utility SCADA system.\n'
     + devices.length + ' devices total, ' + online + ' online.\nDevices:\n' + lines.join('\n');
 }
+/* ── AI abort controller registry ── */
+window._aiAbort = function() { if (window.__aiController) { window.__aiController.abort(); window.__aiController = null; } };
+function _aiTimeout(ms) {
+  var ctrl = new AbortController();
+  window.__aiController = ctrl;
+  setTimeout(function() { ctrl.abort(); }, ms || 30000);
+  return ctrl;
+}
+
 function aiCall(system, question) {
   if (AI_API_KEY) {
     return aiFetch({ model: AI_MODEL, max_tokens: 1000, system: system, messages: [{ role: 'user', content: question }] });
   }
   var q = (question||'').toLowerCase();
   var response;
-  if (q.includes('pressure')&&q.includes('high')) response = 'High pressure readings suggest possible pump over-speed or valve restrictions. Check PRV settings and pump curves.';
-  else if (q.includes('pressure')) response = 'Pressure readings are within normal ranges. Monitor for sudden drops indicating possible leaks.';
-  else if (q.includes('flow')) response = 'Flow rates are consistent with expected demand. Significant deviation may indicate pump wear.';
-  else if (q.includes('alarm')) response = 'Active alarms should be prioritised by severity. Cross-reference with pressure and flow data.';
-  else if (q.includes('energy')||q.includes('power')) response = 'Energy consumption correlates with pumping volume. Consider off-peak scheduling.';
-  else if (q.includes('efficiency')) response = 'Pump efficiency degrades over time. Monitor vibration, power consumption, and flow output.';
-  else if (q.includes('leak')||q.includes('loss')) response = 'NRW losses above 25% indicate potential leaks. Compare night vs day flow.';
-  else response = 'I have access to live SCADA data. I can help with pressure, flow, alarms, energy, and efficiency analysis.';
+  if (q.includes('pressure')&&q.includes('high')) response = '⚠ High pressure readings suggest possible pump over-speed or valve restrictions. Check PRV settings and pump curves.';
+  else if (q.includes('pressure')&&q.includes('low')) response = '⚠ Low pressure may indicate a leak, failing pump, or partially closed valve. Check the pressure log for drop timing.';
+  else if (q.includes('pressure')) response = 'Pressure readings are within normal ranges. Monitor for sudden drops indicating possible leaks or PRV failure.';
+  else if (q.includes('flow')&&q.includes('low')) response = 'Low flow could indicate pump wear, blockages, or demand-side restrictions. Compare with pump speed and pressure.';
+  else if (q.includes('flow')) response = 'Flow rates are consistent with expected demand. Significant deviation (>15%) may indicate pump wear or pipe obstruction.';
+  else if (q.includes('alarm')) response = 'Active alarms should be prioritised by severity. Cross-reference with pressure, flow, and relay state data.';
+  else if (q.includes('energy')||q.includes('power')) response = 'Energy consumption correlates with pumping volume. Consider off-peak scheduling to reduce kWh costs by 15–25%.';
+  else if (q.includes('efficiency')) response = 'Pump efficiency degrades 2–5% per year due to impeller wear. Monitor vibration, power per m³, and discharge pressure.';
+  else if (q.includes('leak')||q.includes('loss')||q.includes('nrw')) response = 'NRW losses above 25% indicate potential leaks. Compare minimum night flow vs average day flow. A gap >40% suggests leakage.';
+  else if (q.includes('kpi')||q.includes('performance')) response = 'Key metrics: specific energy (kWh/m³), wire-to-water efficiency, pump run-time %, and pressure stability (std dev).';
+  else if (q.includes('water quality')) response = 'Water quality parameters to monitor: residual chlorine, turbidity, pH, conductivity. Sudden changes may indicate contamination.';
+  else if (q.includes('forecast')||q.includes('predict')) response = 'Demand forecasting uses WMA + seasonal decomposition. Accuracy typically ±12% for 24h and ±18% for 7d forecasts.';
+  else if (q.includes('hello')||q.includes('hi')) response = 'Hello! I\'m your AGUS SCADA assistant. Ask me about pressure, flow, alarms, energy, efficiency, water quality, or maintenance.';
+  else response = 'I can help with: pressure trends, flow analysis, alarm correlation, energy optimization, pump efficiency, NRW/leak detection, water quality, maintenance schedules, and KPI tracking. What would you like to explore?';
   return Promise.resolve({ content: [{ text: response }] });
 }
 function aiLocalFallback(body, context) {
-  return Promise.resolve({ content: [{ text: 'AI service unavailable. ' + (context ? context.slice(0,150) : 'Check AI config.') }] });
+  var hint = context ? context.slice(0,150) : '';
+  var fallbacks = [
+    'The AI service is currently unavailable. I can still show your live dashboard data.',
+    'AI engine offline — check your API key in AI Config (gear icon in the nav bar).',
+    'Cannot reach the AI provider. Your device data continues to update normally.',
+    'AI temporarily unavailable. Try again in a few moments, or configure a different API endpoint.'
+  ];
+  var msg = fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  return Promise.resolve({ content: [{ text: msg + '\n\n' + hint }] });
 }
 function toggleAIChat() {
   var panel = document.getElementById('ai-chat-panel');
@@ -6661,14 +6992,18 @@ function aiFetch(bodyOverrides, retries) {
   }
   var headers = { 'Content-Type': 'application/json' };
   if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
-  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
+  var ctrl = _aiTimeout(30000);
+  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal })
     .then(function(r) {
+      window.__aiController = null;
       if (!r.ok) throw new Error('API ' + r.status);
       return r.json();
     }).then(function(data) {
       AI_CACHE[ck] = { data: data, ts: Date.now() };
       return { content: [{ text: (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '' }] };
     }).catch(function(err) {
+      window.__aiController = null;
+      if (err.name === 'AbortError') return aiLocalFallback(JSON.stringify(body), 'Request timed out');
       if (retries > 0) return aiFetch(bodyOverrides, retries - 1);
       return aiLocalFallback(JSON.stringify(body), body.messages ? body.messages.map(function(m){return m.content;}).join(' ') : '');
     });
@@ -6685,8 +7020,10 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
   var headers = { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' };
   if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
   var fullText = '';
-  fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
+  var ctrl = _aiTimeout(60000);
+  fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal })
     .then(function(r) {
+      window.__aiController = null;
       if (!r.ok) throw new Error('API ' + r.status);
       var reader = r.body.getReader();
       var decoder = new TextDecoder();
@@ -6711,9 +7048,11 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
       }
       readChunk();
     }).catch(function(err) {
-      if (onError) onError(err);
+      window.__aiController = null;
+      var msg = err.name === 'AbortError' ? 'Stream timed out' : (err.message || 'Stream error');
+      if (onError) onError(new Error(msg));
       else {
-        aiLocalFallback(JSON.stringify(body), 'Stream fallback').then(function(data) {
+        aiLocalFallback(JSON.stringify(body), msg).then(function(data) {
           fullText = data.content[0].text;
           onToken(fullText);
           onDone(fullText);
@@ -6728,6 +7067,12 @@ function sendAIMessage() {
   if (input) input.value = '';
   addAIChatMessage(question, 'user');
   aiChatHistory.push({ role: 'user', content: question });
+  /* Trim chat history to last 20 messages to avoid context window overflow */
+  if (aiChatHistory.length > 20) {
+    aiChatHistory = aiChatHistory.slice(aiChatHistory.length - 20);
+    var warn = document.getElementById('ai-chat-status');
+    if (warn) warn.innerText = 'Chat trimmed — older context cleared';
+  }
   var typingEl = addAIChatMessage('', 'bot');
   if (typingEl) typingEl.classList.add('ai-msg-typing');
   document.getElementById('ai-chat-status').innerText = 'AI is thinking…';
@@ -6740,6 +7085,12 @@ function sendAIMessage() {
     }
     if (AI_API_KEY) {
       var fullReply = '';
+      var estChars = aiChatHistory.reduce(function(a,m){return a + (m.content||'').length + (m.role||'').length;}, 0);
+      var estTokens = Math.ceil(estChars / 3.5);
+      if (estTokens > 3200) {
+        var slug = document.getElementById('ai-chat-status');
+        if (slug) slug.innerText = '⚠ Long context (~' + estTokens + ' tokens) — response may be slow';
+      }
       aiFetchStream(
         { model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory },
         function(token) {
@@ -6820,7 +7171,7 @@ function flushAlarmBuffer() {
     }
     showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
     logAlarmCorrelation(snapshot, cause);
-  }).catch(function() { snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
+  }).catch(function(_err) { console.warn('Alarm correlator AI error:', _err); snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
 }
 
 // ============================================================
@@ -6881,7 +7232,7 @@ function openEnergyAdvisor() {
       aiCall('You are an energy efficiency advisor for a water utility (AGUS).', 'Analyse this pump energy data and give 3-5 concrete, numbered recommendations.\nFocus on optimal run-time scheduling, load balancing, efficiency improvements.\nUse plain English. Each recommendation 1-2 sentences.\n\n' + statsText).then(function(data) {
         var advice = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Unable to generate recommendations.';
         var statsHtml = statsArray.map(function(s) { return '<div style="background:#f8faff;border:1px solid #d0e4f7;border-radius:8px;padding:10px 14px;margin-bottom:10px;"><div style="font-weight:700;color:#002b5c;">&#9881;&#65039; ' + esc(s.device) + '</div><div style="font-size:12px;color:#475569;display:grid;grid-template-columns:1fr 1fr;gap:3px;"><span>Energy: <b>' + s.totalEnergyKwh + ' kWh</b></span><span>Peak power: <b>' + s.peakPowerW + ' W</b></span><span>Low-flow events: <b>' + s.lowFlowEvents + '</b></span><span>Peak hours: <b>' + s.peakHours + '</b></span></div></div>'; }).join('');
-        var adviceHtml = advice.split('
+        var adviceHtml = esc(advice).split('
 ').map(function(line){ return line.trim() ? '<p style="margin:6px 0;color:#1e293b;font-size:13px;">' + line + '</p>' : ''; }).join('');
         document.getElementById('energy-advisor-body').innerHTML = statsHtml + '<div style="margin-top:18px;padding:16px;background:linear-gradient(135deg,#f0f8ff,#e8f4fd);border-radius:10px;"><div style="font-size:12px;font-weight:800;color:#0044aa;margin-bottom:10px;">&#129302; AI Recommendations</div>' + adviceHtml + '</div>';
       }).catch(function(err) { document.getElementById('energy-advisor-body').innerHTML = '<p style="color:#e53935;">Error: ' + esc(err.message || err) + '</p>'; });
@@ -7276,7 +7627,7 @@ function genKPIInsight(stats) {
       +'Give a 3-bullet operational commentary with status assessment and top 2 action items. Be concise.'
     ).then(function(data){
     var t = data.content&&data.content[0]?data.content[0].text:'No response.';
-    out.innerHTML = '<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+    out.innerHTML = '<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
   }).catch(function(e){ out.innerHTML='<span style="color:#e05555;">AI error: '+esc(e.message)+'</span>'; });
 }
 
@@ -7461,7 +7812,7 @@ function genWQReport() {
     'Data:\n'+summary+'\n\nProvide:\n1. Compliance status (WHO/Philippine PNSDW standards)\n2. Any parameters out of safe range and health risk\n3. Recommended corrective actions\n4. Overall water safety verdict. Be specific and concise.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'No response.';
-    out.innerHTML='<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+    out.innerHTML='<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
   }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
 }
 
@@ -7702,7 +8053,7 @@ function genNRWReport(pumped, stored, nrw) {
     'Total pumped: '+pumped+' m³\nTotal stored in reservoirs: '+stored+' m³\nEstimated NRW: '+nrw+'%\n\nProvide:\n1. NRW assessment vs IWA benchmarks\n2. Likely causes of water loss at this level\n3. Three prioritized actions to reduce NRW\n4. Financial impact estimate. Be concise and practical.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'';
-    out.innerHTML='<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+    out.innerHTML='<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
   }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
 }
 
@@ -7797,7 +8148,7 @@ function genBenchmarkInsight() {
   aiCall('Performance trend analysis.', 'Analyze performance trends for AGUS device "'+s.device+'" comparing last '+s.days+' days vs prior '+s.days+' days:\n'+summary+'\n\nProvide:\n1. Key improvements and declines\n2. Possible operational causes\n3. Two recommendations. Concise.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'';
-    out.innerHTML='<div style="background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+    out.innerHTML='<div style="background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
   }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
 }
 
@@ -9020,7 +9371,7 @@ function runAIDiagnostics() {
       var t = data.content&&data.content[0]?data.content[0].text.trim():'No recommendations available.';
       var recEl = document.getElementById('ai-diag-recs');
       if (recEl) {
-        recEl.innerHTML = t
+        recEl.innerHTML = esc(t)
           .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
           .replace(/^\d+\.\s(.+)$/gm,'<div style="margin:6px 0;display:flex;gap:8px;"><span style="font-weight:800;color:#7c3aed;flex-shrink:0;">▸</span><span>$1</span></div>')
           .replace(/\n/g,'<br>');
@@ -9391,7 +9742,7 @@ function exportDashboardPDF() {
   var STATES_KEY    = 'agus_push_states';
   var DEDUP_KEY     = 'agus_push_dedup';
   var COOLDOWN      = 300000;   // 5 min per event key
-  var POLL_MS       = 30000;    // in-page poll every 30 s
+  var POLL_MS       = 60000;    // in-page poll every 60 s (conserves GAS quota)
 
   /* ── State ─────────────────────────────────────────────── */
   var _on     = localStorage.getItem(PUSH_KEY) === '1';
@@ -9671,10 +10022,11 @@ function exportDashboardPDF() {
   '  return self.registration.showNotification(title,{' +
   '    body:body,tag:tag,requireInteraction:!!urgent,' +
   '    vibrate:urgent?[400,150,400,150,400]:[200,100,200],' +
-  '    icon:"https://img.icons8.com/color/96/water.png",' +
-  '    badge:"https://img.icons8.com/color/48/water.png"' +
+  '    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
+  '    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
   '  });' +
   '}' +
+  'var _swErr=0;' +
   /* Background poll */
   'async function bgPoll(){' +
   '  try{' +
@@ -9741,7 +10093,8 @@ function exportDashboardPDF() {
   '    await dbSet(db,"prev",prev);' +
   '    await pumpLinkControl(cfg,devs,db,ps);' +
   '    await Promise.all(ps);' +
-  '  }catch(err){}' +
+  '    _swErr=0;' +
+  '  }catch(err){console.error("[SW] bgPoll:",err);_swErr++}if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");await new Promise(function(r){setTimeout(r,600000);})}' +
   '}' +
   /* Pump-link toggle — calls GAS togglePump via POST */
   'async function swTogglePump(apiUrl,token,device){' +
@@ -9753,7 +10106,7 @@ function exportDashboardPDF() {
   'async function pumpLinkControl(cfg,devs,db,ps){' +
   '  var links=cfg.pumpLinks||[];' +
   '  if(!links.length){try{' +
-  '    var lr=await fetch(cfg.apiUrl+"?action=getPumpLinks&token="+encodeURIComponent(cfg.token));' +
+  '    var lr=await fetch(cfg.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"getPumpLinks",token:cfg.token})});' +
   '    if(lr.ok){var ld=await lr.json();if(Array.isArray(ld)){links=ld;}}' +
   '  }catch(e){}}' +
   '  if(!links.length)return;' +
@@ -9773,7 +10126,7 @@ function exportDashboardPDF() {
   '    var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;' +
   '    if(isNaN(sOff)||isNaN(sRes))continue;' +
   '    var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";' +
-  '    var ck=lnk.pump+":"+lnk.reservoir;' +
+  '    var ck=lnk.pump;' +  // pump-only key to prevent race when two reservoirs share one pump
   '    if(cool[ck]&&now-cool[ck]<PL_COOL)continue;' +
   '    var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));' +
   '    var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));' +
@@ -9827,23 +10180,30 @@ function exportDashboardPDF() {
   /* ── Register SW ─────────────────────────────────────────── */
   function _registerSW() {
     if (!('serviceWorker' in navigator)) return;
-    var blob = new Blob(['(' + SW_SRC], { type: 'application/javascript' });
-    var url  = URL.createObjectURL(blob);
-    navigator.serviceWorker.register(url)
-      .then(function(reg) {
-        _swReg = reg;
-        _sendCfg(reg);
-        /* Periodic background sync for installed PWA */
-        if (reg.periodicSync) {
-          navigator.permissions.query({ name: 'periodic-background-sync' })
-            .then(function(status) {
-              if (status.state === 'granted') {
-                reg.periodicSync.register('agus-bg', { minInterval: 15 * 60 * 1000 })
-                  .catch(function(e){console.warn('[SW] periodicSync register error:',e);});
-              }
-            }).catch(function(e){console.warn('[apiCached] Error:',e);});
-        }
-      }).catch(function(e){console.warn('[apiCached] Error:',e);});
+    /* Try standalone sw.js first (survives browser restart); fall back to Blob (GAS deployment) */
+    function _onReg(reg) {
+      _swReg = reg;
+      _sendCfg(reg);
+      if (reg.periodicSync) {
+        navigator.permissions.query({ name: 'periodic-background-sync' })
+          .then(function(status) {
+            if (status.state === 'granted') {
+              reg.periodicSync.register('agus-bg', { minInterval: 15 * 60 * 1000 })
+                .catch(function(e){console.warn('[SW] periodicSync register error:',e);});
+            }
+          }).catch(function(e){console.warn('[apiCached] Error:',e);});
+      }
+    }
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+      .then(function(reg) { _onReg(reg); })
+      .catch(function() {
+        /* Fallback: Blob URL (works for GAS-hosted deployments) */
+        var blob = new Blob(['(' + SW_SRC], { type: 'application/javascript' });
+        var url  = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(url)
+          .then(function(reg) { _onReg(reg); })
+          .catch(function(e){console.warn('[apiCached] Error:',e);});
+      });
   }
 
   function _sendCfg(reg) {
@@ -9893,7 +10253,7 @@ function exportDashboardPDF() {
           token:  (typeof userToken !== 'undefined' ? userToken : '')
         }
       });
-    } catch(e) {}
+    } catch(e) { console.warn('[SW] _sendPumpLinksToSW failed:', e); }
   };
 
 
