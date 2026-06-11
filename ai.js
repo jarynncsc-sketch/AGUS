@@ -351,26 +351,126 @@ function addAIChatMessage(text, role) {
 function buildAISystemContext(devices) {
   if (!devices || !devices.length) return 'AGUS SCADA assistant with no device data available.';
   var online = devices.filter(function(d){ return (d.status||'').toLowerCase()==='online'; }).length;
+  var fault = devices.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; }).length;
+  var offline = devices.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; }).length;
+  var pressures = devices.map(function(d){return parseFloat(d.pressure);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var flows = devices.map(function(d){return parseFloat(d.flow);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var powers = devices.map(function(d){return parseFloat(d.power);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var levels = devices.map(function(d){return parseFloat(d.level);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var maxP = pressures.length ? Math.max.apply(null, pressures).toFixed(1) : 'N/A';
+  var minP = pressures.length ? Math.min.apply(null, pressures).toFixed(1) : 'N/A';
+  var avgP = pressures.length ? (pressures.reduce(function(a,b){return a+b;},0)/pressures.length).toFixed(1) : 'N/A';
+  var maxF = flows.length ? Math.max.apply(null, flows).toFixed(1) : 'N/A';
+  var totalF = flows.length ? flows.reduce(function(a,b){return a+b;},0).toFixed(1) : 'N/A';
+  var maxPow = powers.length ? Math.max.apply(null, powers).toFixed(0) : 'N/A';
+  var totalPow = powers.length ? powers.reduce(function(a,b){return a+b;},0).toFixed(0) : 'N/A';
   var lines = devices.map(function(d) {
-    return d.device + ' (' + (d.type||'Unknown') + ') — Status: ' + (d.status||'?') + ', Pressure: ' + (d.pressure||'N/A') + ', Flow: ' + (d.flow||'N/A');
+    return d.device + ' (' + (d.type||'Unknown') + ') — Status: ' + (d.status||'?') + ', Pressure: ' + (d.pressure||'N/A') + ', Flow: ' + (d.flow||'N/A') + ', Power: ' + (d.power||'N/A') + 'W';
   });
   return 'You are an AI assistant for the AGUS water utility SCADA system.\n'
-    + devices.length + ' devices total, ' + online + ' online.\nDevices:\n' + lines.join('\n');
+    + devices.length + ' total devices (' + online + ' online, ' + fault + ' fault, ' + offline + ' offline).\n'
+    + 'Stats — Pressure: max ' + maxP + ', min ' + minP + ', avg ' + avgP + ' psi.\n'
+    + 'Flow: max ' + maxF + ', total ' + totalF + ' L/s.\n'
+    + 'Power: max ' + maxPow + ', total ' + totalPow + ' W.\n'
+    + 'Devices:\n' + lines.join('\n');
 }
-function aiCall(system, question) {
+function aiCall(system, question, devices) {
   if (AI_API_KEY) {
     return aiFetch({ model: AI_MODEL, max_tokens: 1000, system: system, messages: [{ role: 'user', content: question }] });
   }
   var q = (question||'').toLowerCase();
+  var devs = devices || [];
+  var pressures = devs.map(function(d){return parseFloat(d.pressure);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var flows = devs.map(function(d){return parseFloat(d.flow);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var powers = devs.map(function(d){return parseFloat(d.power);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var levels = devs.map(function(d){return parseFloat(d.level);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var voltages = devs.map(function(d){return parseFloat(d.voltage);}).filter(function(v){return !isNaN(v)&&v>0;});
+  var online = devs.filter(function(d){ return (d.status||'').toLowerCase()==='online'; }).length;
+  var fault = devs.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; }).length;
+  var offline = devs.filter(function(d){ return (d.status||'').toLowerCase()==='offline'; }).length;
   var response;
-  if (q.includes('pressure')&&q.includes('high')) response = 'High pressure readings suggest possible pump over-speed or valve restrictions. Check PRV settings and pump curves.';
-  else if (q.includes('pressure')) response = 'Pressure readings are within normal ranges. Monitor for sudden drops indicating possible leaks.';
-  else if (q.includes('flow')) response = 'Flow rates are consistent with expected demand. Significant deviation may indicate pump wear.';
-  else if (q.includes('alarm')) response = 'Active alarms should be prioritised by severity. Cross-reference with pressure and flow data.';
-  else if (q.includes('energy')||q.includes('power')) response = 'Energy consumption correlates with pumping volume. Consider off-peak scheduling.';
-  else if (q.includes('efficiency')) response = 'Pump efficiency degrades over time. Monitor vibration, power consumption, and flow output.';
-  else if (q.includes('leak')||q.includes('loss')) response = 'NRW losses above 25% indicate potential leaks. Compare night vs day flow.';
-  else response = 'I have access to live SCADA data. I can help with pressure, flow, alarms, energy, and efficiency analysis.';
+
+  if (q.includes('highest')||q.includes('maximum')||q.includes('max')) {
+    if (q.includes('pressure')||q.includes('psi')) {
+      var maxP = Math.max.apply(null, pressures);
+      var dev = devs.find(function(d){return parseFloat(d.pressure)==maxP;});
+      response = 'Highest pressure is ' + maxP.toFixed(1) + ' psi at ' + (dev?dev.device:'unknown device') + '.';
+    } else if (q.includes('flow')) {
+      var maxF = Math.max.apply(null, flows);
+      var dev = devs.find(function(d){return parseFloat(d.flow)==maxF;});
+      response = 'Highest flow is ' + maxF.toFixed(1) + ' L/s at ' + (dev?dev.device:'unknown device') + '.';
+    } else if (q.includes('power')||q.includes('energy')||q.includes('watt')) {
+      var maxPw = Math.max.apply(null, powers);
+      var dev = devs.find(function(d){return parseFloat(d.power)==maxPw;});
+      response = 'Highest power draw is ' + maxPw.toFixed(0) + ' W at ' + (dev?dev.device:'unknown device') + '.';
+    } else if (q.includes('level')||q.includes('water')) {
+      var maxL = Math.max.apply(null, levels);
+      var dev = devs.find(function(d){return parseFloat(d.level)==maxL;});
+      response = 'Highest water level is ' + maxL.toFixed(1) + ' m at ' + (dev?dev.device:'unknown device') + '.';
+    } else {
+      response = 'Specify what you want the highest of: pressure, flow, power, or water level.';
+    }
+  } else if (q.includes('lowest')||q.includes('minimum')||q.includes('min')) {
+    if (q.includes('pressure')||q.includes('psi')) {
+      var minP = Math.min.apply(null, pressures);
+      var dev = devs.find(function(d){return parseFloat(d.pressure)==minP;});
+      response = 'Lowest pressure is ' + minP.toFixed(1) + ' psi at ' + (dev?dev.device:'unknown device') + '.';
+    } else if (q.includes('flow')) {
+      var minF = Math.min.apply(null, flows);
+      var dev = devs.find(function(d){return parseFloat(d.flow)==minF;});
+      response = 'Lowest flow is ' + minF.toFixed(1) + ' L/s at ' + (dev?dev.device:'unknown device') + '.';
+    } else {
+      var minL = Math.min.apply(null, levels);
+      var dev = devs.find(function(d){return parseFloat(d.level)==minL;});
+      response = 'Lowest water level is ' + minL.toFixed(1) + ' m at ' + (dev?dev.device:'unknown device') + '.';
+    }
+  } else if (q.includes('average')||q.includes('avg')||q.includes('mean')) {
+    if (q.includes('pressure')||q.includes('psi')) {
+      var avgP = pressures.reduce(function(a,b){return a+b;},0)/pressures.length;
+      response = 'Average pressure across all devices is ' + avgP.toFixed(1) + ' psi.';
+    } else if (q.includes('flow')) {
+      var avgF = flows.reduce(function(a,b){return a+b;},0)/flows.length;
+      response = 'Average flow rate is ' + avgF.toFixed(2) + ' L/s.';
+    } else {
+      response = 'Average pressure: ' + (pressures.reduce(function(a,b){return a+b;},0)/pressures.length).toFixed(1)
+        + ' psi. Average flow: ' + (flows.reduce(function(a,b){return a+b;},0)/flows.length).toFixed(2) + ' L/s.';
+    }
+  } else if (q.includes('power')||q.includes('energy')||q.includes('watt')) {
+    response = 'Power range: ' + Math.min.apply(null, powers).toFixed(0) + ' – ' + Math.max.apply(null, powers).toFixed(0) + ' W. '
+      + 'Total: ' + powers.reduce(function(a,b){return a+b;},0).toFixed(0) + ' W.';
+  } else if (q.includes('how many')||q.includes('count')||q.includes('total')) {
+    if (q.includes('online')) response = online + ' device(s) currently online out of ' + devs.length + ' total.';
+    else if (q.includes('offline')) response = offline + ' device(s) currently offline.';
+    else if (q.includes('fault')||q.includes('alarm')) response = fault + ' device(s) in fault/alarm state.';
+    else if (q.includes('device')) response = devs.length + ' device(s) total in the system.';
+    else if (q.includes('pump')) response = devs.filter(function(d){return (d.device||'').toLowerCase().includes('pump');}).length + ' pump(s) in the system.';
+    else response = 'Total devices: ' + devs.length + ' (' + online + ' online, ' + fault + ' fault, ' + offline + ' offline).';
+  } else if (q.includes('list')||q.includes('show')||q.includes('all device')) {
+    var names = devs.map(function(d){return d.device + ' (' + (d.status||'?') + (d.pressure?' - '+d.pressure+' psi':'') + ')';}).join('\n');
+    response = 'Devices:\n' + names;
+  } else if (q.includes('pressure')) {
+    response = 'Pressure range: ' + Math.min.apply(null, pressures).toFixed(1) + ' – ' + Math.max.apply(null, pressures).toFixed(1) + ' psi. '
+      + 'Average: ' + (pressures.reduce(function(a,b){return a+b;},0)/pressures.length).toFixed(1) + ' psi.';
+  } else if (q.includes('flow')) {
+    response = 'Flow range: ' + Math.min.apply(null, flows).toFixed(1) + ' – ' + Math.max.apply(null, flows).toFixed(1) + ' L/s. '
+      + 'Total flow: ' + flows.reduce(function(a,b){return a+b;},0).toFixed(1) + ' L/s.';
+  } else if (q.includes('power')||q.includes('energy')||q.includes('watt')) {
+    response = 'Power range: ' + Math.min.apply(null, powers).toFixed(0) + ' – ' + Math.max.apply(null, powers).toFixed(0) + ' W. '
+      + 'Total: ' + powers.reduce(function(a,b){return a+b;},0).toFixed(0) + ' W.';
+  } else if (q.includes('alarm')||q.includes('fault')||q.includes('error')) {
+    var faultDevs = devs.filter(function(d){ return (d.status||'').toLowerCase()==='fault'||d.button; });
+    if (faultDevs.length) response = faultDevs.length + ' device(s) in fault: ' + faultDevs.map(function(d){return d.device;}).join(', ') + '.';
+    else response = 'No active faults. All devices operating normally.';
+  } else if (q.includes('efficiency')) {
+    var avgEff = powers.length && flows.length ? (flows.reduce(function(a,b){return a+b;},0) / (powers.reduce(function(a,b){return a+b;},0)||1) * 100).toFixed(2) : 'N/A';
+    response = 'Overall system efficiency: ' + avgEff + ' L/s per kW.';
+  } else if (q.includes('online')||q.includes('status')) {
+    response = 'Online: ' + online + ', Fault: ' + fault + ', Offline: ' + offline + ' (out of ' + devs.length + ' total).';
+  } else if (q.includes('help')||q.includes('what can you')) {
+    response = 'I can answer questions about your live SCADA data: "highest pressure", "average flow", "how many pumps", "list all devices", "total power", "active faults", "efficiency".';
+  } else {
+    response = 'I have live SCADA data for ' + devs.length + ' devices. Ask me about pressure, flow, power, alarms, or device status.';
+  }
   return Promise.resolve({ content: [{ text: response }] });
 }
 function aiLocalFallback(body, context) {
@@ -541,7 +641,7 @@ function sendAIMessage() {
         }
       );
     } else {
-      aiCall(sysPrompt, question).then(function(data) {
+      aiCall(sysPrompt, question, devices).then(function(data) {
         var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
         aiChatHistory.push({ role: 'assistant', content: reply });
         if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
