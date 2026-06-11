@@ -4279,6 +4279,20 @@ window._togglePumpLinkServerTrigger = function() {
   var label = document.getElementById('pl-trigger-label');
   var btn = document.getElementById('pl-trigger-btn');
   if (!label || !btn || !tok) return;
+  /* If button says "Authorize", open GAS URL in new tab for OAuth */
+  if ((btn.textContent || '').trim() === '🔗 Authorize') {
+    var url = API_URL + '?action=installPumpLinkTrigger&token=' + encodeURIComponent(tok);
+    window.open(url, '_blank');
+    label.textContent = '⏳ Check after authorizing…';
+    btn.textContent = 'Retry';
+    btn.style.cssText = 'padding:5px 10px;background:#e5eef9;color:#475569;border:1.5px solid #cbd5e1;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+    return;
+  }
+  /* If button says "Retry", re-check instead of toggling */
+  if ((btn.textContent || '').trim() === 'Retry') {
+    _checkPumpLinkTrigger();
+    return;
+  }
   var installing = (btn.textContent || '').trim().startsWith('▶');
   btn.disabled = true;
   btn.textContent = '⏳...';
@@ -4294,9 +4308,12 @@ window._togglePumpLinkServerTrigger = function() {
       btn.textContent = installing ? '▶ Install' : '⏹ Remove';
     }
   }).catch(function() {
-    showNotification('⚠ Network error contacting server', 'warning');
+    /* Likely OAuth authorization required — ScriptApp scope not yet granted */
+    label.innerHTML = '⚠ <b>Authorization needed</b>';
+    btn.textContent = '🔗 Authorize';
+    btn.style.cssText = 'padding:5px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
     btn.disabled = false;
-    btn.textContent = installing ? '▶ Install' : '⏹ Remove';
+    showNotification('⚠ Google authorization required. Click "🔗 Authorize" to approve in a new tab.', 'warning');
   });
 };
 
