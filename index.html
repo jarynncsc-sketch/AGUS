@@ -4823,7 +4823,7 @@ function detectKeys(rows) {
   window._relayKey = keys.find(function(k){return /^relay$/i.test(k.trim());})||null;
 }
 function getFilteredData() {
-  if (!allGraphData.length) return [];
+  if (!Array.isArray(allGraphData) || !allGraphData.length) return [];
   var s = rangeStart?new Date(rangeStart):new Date(); s.setHours(0,0,0,0);
   var e = rangeEnd?new Date(rangeEnd):new Date(); e.setHours(23,59,59,999);
   return allGraphData.filter(function(r){var t=parseSheetDate(r[window._timeKey]);return t&&t>=s&&t<=e;});
@@ -4884,7 +4884,7 @@ addEventListener('beforeunload', stopGraphPolling);
 function pollGraphData(){
   if (!currentDevice) return;
   apiGet('getSheetData',{sheet:currentDevice}).then(function(rows){
-    if (!rows||!rows.length) return;
+    if (!Array.isArray(rows) || !rows.length) return;
     var nc=rows.length, hadNew=nc>lastDataCount;
     allGraphData=rows; lastPollTime=new Date(); lastDataCount=nc; updateLiveCounter();
     if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} renderRangeChart(); updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
@@ -5043,7 +5043,8 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
     activeRange=parseInt(btn.dataset.range); pickingStart=true; isQuickRange=true;
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.getElementById('graph-no-data').classList.remove('visible');
-    updateDateRangeLabel(); renderRangeChart(); renderCalendars(); updateLastToggledBadge(getFilteredData());
+    updateDateRangeLabel(); renderCalendars(); updateLastToggledBadge(getFilteredData());
+    try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
   });
 });
 function updateDateRangeLabel(){if(!rangeStart||!rangeEnd)return;var fmt=function(d){return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};document.getElementById('date-range-label').innerText=fmt(rangeStart)+' – '+fmt(rangeEnd);}
