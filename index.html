@@ -104,7 +104,7 @@
     })();
 
     // Poll every 1 second
-    _regInterval('devTools1', setInterval(_checkDevTools, 1000));
+    setInterval(_checkDevTools, 1000);
     window.addEventListener('resize', _checkDevTools, { passive: true });
 
     /* ── 4. Console Trap — clears and warns if console is opened ── */
@@ -116,10 +116,10 @@
         'color:#f97316;font-size:13px;');
       return '⛔ Restricted';
     };
-    _regInterval('consoleTrap', setInterval(function() {
+    setInterval(function() {
       console.log(_consoleTrap);
       console.clear();
-    }, 2000));
+    }, 2000);
 
     /* ── 5. Disable Text Selection ── */
     document.addEventListener('selectstart', function(e) {
@@ -191,11 +191,11 @@
     var _dbgInterval = null;
     function _startDebuggerTrap() {
       if (_dbgInterval) return;
-      _dbgInterval = _regInterval('dbg', setInterval(function() {
+      _dbgInterval = setInterval(function() {
         (function() {
           try { (function(c){if(('' + c / c).length !== 1 || c % 20 === 0) { (function(){}).constructor('debugger')(); } else { (function(){}).constructor('debugger')(); }})(1); } catch(e) {}
         })();
-      }, 50));
+      }, 50);
     }
     _startDebuggerTrap();
 
@@ -319,8 +319,6 @@
       wm.style.backgroundImage = 'url("data:image/svg+xml,' + svgText + '")';
       wm.style.backgroundRepeat = 'repeat';
       document.body.appendChild(wm);
-      /* Restart Autonomous Pump Engine on re-login */
-      if (typeof window._startAPE === 'function') window._startAPE();
 
     };
 
@@ -368,18 +366,14 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
   /* ── DARK MODE ── */
-  body.dark-mode { filter: invert(1) hue-rotate(180deg); background:#0f172a; }
-  body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport,
-  body.dark-mode #pressureChart, body.dark-mode #tab-modal-canvas, body.dark-mode #fc-canvas { filter: invert(1) hue-rotate(180deg) !important; }
+  body.dark-mode { filter: invert(1) hue-rotate(180deg); }
+  body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport { filter: invert(1) hue-rotate(180deg); }
   body.dark-mode #bg-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
   body.dark-mode .top-card { background:#1e293b!important; }
   body.dark-mode .nav-group-label { color:#94a3b8!important; }
   body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
   @keyframes spin { to { transform: rotate(360deg); } }
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
-  body.dark-mode .ol-attribution, body.dark-mode .ol-zoom { filter: invert(1) hue-rotate(180deg); }
-  body.dark-mode .ti-sun { display:none; }
-  body.dark-mode .ti-moon { display:inline-block; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
@@ -1925,7 +1919,7 @@
       <div class="sheet-body"><table id="sheet-table"><thead></thead><tbody></tbody></table></div>
     </div>
 <div id="welcome-user-topright">
-  <span></span>
+  <span id="welcome-username"></span>
   <div style="display:flex;align-items:center;gap:8px;">
     <span id="weather-display"></span>
     <div id="datetime-display">
@@ -2023,285 +2017,6 @@
 .filter-pill.active.res{background:#0F6E56;border-color:#0F6E56;}
 .filter-pill.active.pump{background:#854F0B;border-color:#854F0B;}
 #device-filter-bar{display:flex;gap:5px;padding:8px 10px 8px;border-bottom:1px solid rgba(0,64,128,0.08);flex-wrap:wrap;background:#f8fbff;}
-
-/* ══════════════════════════════════════════════════════════════
-   MODERN UI REFRESH — 2026 Design Upgrade
-   ══════════════════════════════════════════════════════════════ */
-:root {
-  --m-glow-blue: 0 0 0 3px rgba(59,130,246,0.15);
-  --m-glow-green: 0 0 0 3px rgba(34,197,94,0.15);
-  --m-glow-amber: 0 0 0 3px rgba(245,158,11,0.15);
-  --m-glow-purple: 0 0 0 3px rgba(139,92,246,0.15);
-  --m-shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-  --m-shadow-md: 0 4px 14px rgba(0,40,100,0.10), 0 1px 4px rgba(0,0,0,0.04);
-  --m-shadow-lg: 0 8px 30px rgba(0,40,100,0.12);
-  --m-radius-sm: 8px;
-  --m-radius-md: 12px;
-  --m-radius-lg: 16px;
-  --m-transition: 0.2s cubic-bezier(0.34,1.56,0.64,1);
-}
-
-/* ── Top menu bar: elevated glass surface ── */
-#top-menu-bar {
-  background: rgba(255,255,255,0.82) !important;
-  backdrop-filter: blur(16px) saturate(1.4) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(1.4) !important;
-  border: 1px solid rgba(255,255,255,0.5) !important;
-  box-shadow: 0 4px 24px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
-}
-@media (prefers-color-scheme: dark) {
-  body:not(.dark-mode) #top-menu-bar {
-    background: rgba(20,30,50,0.75) !important;
-    border-color: rgba(255,255,255,0.08) !important;
-  }
-}
-
-/* ── Nav cards: vibrant glass tile ── */
-.nav-group-label {
-  font-size: 8px !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.08em !important;
-  color: #8aa5af !important;
-  padding: 0 4px 2px !important;
-}
-.top-card {
-  border-radius: 10px !important;
-  border: 1px solid transparent !important;
-  transition: all 0.18s cubic-bezier(0.34,1.4,0.64,1) !important;
-  will-change: transform, box-shadow, background !important;
-}
-.top-card:hover {
-  transform: translateY(-3px) !important;
-  box-shadow: 0 6px 16px rgba(0,40,100,0.12) !important;
-}
-.top-card:active {
-  transform: scale(0.92) !important;
-  transition-duration: 0.06s !important;
-}
-.top-card span {
-  font-weight: 600 !important;
-  letter-spacing: 0.02em !important;
-}
-/* Group-specific hover glow */
-.top-card.grp-data:hover {
-  background: linear-gradient(135deg,#e0f2fe 0%,#f0f9ff 100%) !important;
-  border-color: #7dd3fc !important;
-  box-shadow: var(--m-glow-blue), 0 4px 12px rgba(59,130,246,0.10) !important;
-}
-.top-card.grp-ctrl:hover {
-  background: linear-gradient(135deg,#dcfce7 0%,#f0fdf4 100%) !important;
-  border-color: #86efac !important;
-  box-shadow: var(--m-glow-green), 0 4px 12px rgba(34,197,94,0.10) !important;
-}
-.top-card.grp-ai:hover {
-  background: linear-gradient(135deg,#ede9fe 0%,#f5f3ff 100%) !important;
-  border-color: #c4b5fd !important;
-  box-shadow: var(--m-glow-purple), 0 4px 12px rgba(139,92,246,0.10) !important;
-}
-.top-card.grp-sys:hover {
-  background: linear-gradient(135deg,#f1f5f9 0%,#fafafa 100%) !important;
-  border-color: #cbd5e1 !important;
-}
-.top-card.active {
-  transform: translateY(-2px) !important;
-  border-width: 1.5px !important;
-}
-
-/* ── Device list: modern card with floating appearance ── */
-.device-list {
-  background: rgba(255,255,255,0.85) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  box-shadow: 0 8px 32px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
-  border: 1px solid rgba(255,255,255,0.5) !important;
-}
-.device-list h3 {
-  background: linear-gradient(135deg,#f0f7ff 0%,#f8fbff 100%) !important;
-  font-size: 0.9rem !important;
-  letter-spacing: 0.02em !important;
-  padding: 0.65rem 1rem !important;
-}
-.device-list li {
-  border-radius: 10px !important;
-  border: 1px solid rgba(0,64,128,0.06) !important;
-  background: rgba(255,255,255,0.9) !important;
-  margin-bottom: 5px !important;
-  padding: 10px 12px !important;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.03) !important;
-  transition: all 0.16s cubic-bezier(0.34,1.4,0.64,1) !important;
-  backdrop-filter: blur(4px) !important;
-}
-.device-list li:hover {
-  background: rgba(240,247,255,0.95) !important;
-  border-color: rgba(59,130,246,0.20) !important;
-  box-shadow: 0 4px 12px rgba(0,40,100,0.06), 0 0 0 1px rgba(59,130,246,0.10) !important;
-  transform: translateX(4px) !important;
-}
-.device-list li.selected {
-  background: linear-gradient(135deg,#dbeafe 0%,#eff6ff 100%) !important;
-  border-color: #3b82f6 !important;
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.20), 0 4px 12px rgba(59,130,246,0.08) !important;
-}
-.device-list li span:first-child {
-  font-weight: 600 !important;
-  color: #0f172a !important;
-}
-/* Status indicators: larger, with glow */
-.status-Online {
-  box-shadow: 0 0 0 4px rgba(22,163,74,0.15), 0 0 0 1px rgba(22,163,74,0.3) !important;
-  width: 12px !important; height: 12px !important;
-}
-.status-Offline {
-  box-shadow: 0 0 0 4px rgba(234,88,12,0.15), 0 0 0 1px rgba(234,88,12,0.3) !important;
-  width: 12px !important; height: 12px !important;
-}
-.status-Fault {
-  box-shadow: 0 0 0 4px rgba(220,38,38,0.15), 0 0 0 1px rgba(220,38,38,0.3) !important;
-  width: 12px !important; height: 12px !important;
-  animation: faultPulse 1.2s ease-in-out infinite !important;
-}
-@keyframes faultPulse {
-  0%,100% { box-shadow: 0 0 0 4px rgba(220,38,38,0.15), 0 0 0 1px rgba(220,38,38,0.3); }
-  50%     { box-shadow: 0 0 0 7px rgba(220,38,38,0), 0 0 0 1px rgba(220,38,38,0.5); }
-}
-/* Pill values: gradient accent */
-.pressure-value, .waterlevel-value {
-  background: linear-gradient(135deg, var(--pbg, #e6f1fb) 0%, rgba(255,255,255,0.8) 100%) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.01em !important;
-  backdrop-filter: blur(4px) !important;
-}
-
-/* ── Map container: floating glass card ── */
-#map-container {
-  background: rgba(255,255,255,0.85) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  border: 1px solid rgba(255,255,255,0.5) !important;
-  box-shadow: 0 8px 32px rgba(0,40,100,0.10), 0 1px 2px rgba(0,0,0,0.04) !important;
-  border-radius: 16px !important;
-  overflow: hidden !important;
-}
-#map {
-  border-radius: 16px !important;
-}
-
-/* ── Filter pills: modern pill shape with icon ── */
-.filter-pill {
-  padding: 5px 14px !important;
-  font-size: 11px !important;
-  font-weight: 700 !important;
-  border-radius: 20px !important;
-  gap: 4px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  transition: all 0.15s cubic-bezier(0.34,1.56,0.64,1) !important;
-  background: rgba(255,255,255,0.8) !important;
-  backdrop-filter: blur(4px) !important;
-  border: 1.5px solid rgba(0,64,128,0.12) !important;
-  color: #475569 !important;
-}
-.filter-pill:hover {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
-}
-.filter-pill.active {
-  transform: translateY(-1px) !important;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
-}
-
-/* ── Welcome bar: subtle elevation ── */
-#welcome-user-topright {
-  box-shadow: 0 2px 8px rgba(0,40,100,0.08) !important;
-  background: rgba(255,255,255,0.92) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
-
-/* ── Offline bar: refined ── */
-#offline-bar {
-  font-size: 12px !important;
-  padding: 6px 16px !important;
-  backdrop-filter: blur(8px) !important;
-  background: rgba(180,83,9,0.92) !important;
-  letter-spacing: 0.02em !important;
-}
-
-/* ── Modal overlays: deeper backdrop blur ── */
-#tab-modal-overlay,
-#graph-modal,
-#kpi-overlay,
-#alarm-center-overlay,
-#wq-overlay,
-#logbook-overlay,
-#maint-cal-overlay,
-#wl-overlay,
-#bench-overlay,
-#forecast-overlay,
-#pump-link-overlay,
-#energy-advisor-overlay,
-#cost-calc-overlay,
-#ml-risk-overlay,
-#ml-trend-overlay,
-#alarm-timeline-overlay {
-  background: rgba(15,23,42,0.5) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-}
-
-/* ── Toast notifications: elevated ── */
-.toast {
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  font-weight: 700 !important;
-  letter-spacing: 0.01em !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.20), 0 1px 2px rgba(0,0,0,0.06) !important;
-  border: 1px solid rgba(255,255,255,0.15) !important;
-}
-
-/* ── Smooth entrance for device list items ── */
-.device-list li {
-  animation: deviceSlideIn 0.3s cubic-bezier(0.34,1.56,0.64,1) both;
-  animation-delay: calc(var(--i,0) * 0.04s);
-}
-@keyframes deviceSlideIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to   { opacity: 1; transform: translateX(0); }
-}
-
-/* ── Nav group separator: subtle gradient ── */
-.nav-group-sep {
-  width: 1px;
-  background: linear-gradient(180deg, transparent 0%, rgba(0,64,128,0.12) 30%, rgba(0,64,128,0.12) 70%, transparent 100%) !important;
-  border-radius: 1px !important;
-}
-
-/* ── Dark mode refinements ── */
-body.dark-mode .device-list {
-  background: rgba(30,41,59,0.85) !important;
-  border-color: rgba(255,255,255,0.06) !important;
-}
-body.dark-mode .device-list h3 {
-  background: linear-gradient(135deg,#1e293b 0%,#1a2332 100%) !important;
-  color: #e2e8f0 !important;
-}
-body.dark-mode .device-list li {
-  background: rgba(30,41,59,0.7) !important;
-  border-color: rgba(255,255,255,0.04) !important;
-}
-body.dark-mode .device-list li:hover {
-  background: rgba(30,41,59,0.9) !important;
-  border-color: rgba(59,130,246,0.3) !important;
-}
-body.dark-mode .device-list li span:first-child { color: #e2e8f0 !important; }
-body.dark-mode .filter-pill { background: rgba(30,41,59,0.6) !important; color: #94a3b8 !important; border-color: rgba(255,255,255,0.08) !important; }
-body.dark-mode .filter-pill.active { color: #fff !important; }
-body.dark-mode #welcome-user-topright { background: rgba(30,41,59,0.9) !important; }
-body.dark-mode .nav-group-label { color: #64748b !important; }
-body.dark-mode #map-container { background: rgba(30,41,59,0.85) !important; border-color: rgba(255,255,255,0.06) !important; }
-body.dark-mode #top-menu-bar { background: rgba(15,23,42,0.85) !important; border-color: rgba(255,255,255,0.06) !important; }
-body.dark-mode .top-card span { color: #94a3b8 !important; }
-body.dark-mode .top-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2) !important; }
 </style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
@@ -2571,14 +2286,6 @@ body.dark-mode .top-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.2) !importa
 <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.js" data-agus-trusted="1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" data-agus-trusted="1"></script>
 <script>
-  'use strict';
-  function esc(str){return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-  window._regInterval = function(id, timer) { (window._regIntervals||(window._regIntervals={}))[id]=timer; return timer; };
-  function _clearAllIntervals() {
-    if (!window._regIntervals) return;
-    Object.keys(window._regIntervals).forEach(function(k) { clearInterval(window._regIntervals[k]); });
-    window._regIntervals = {};
-  }
   var activeFilters = new Set(['pressure','reservoir','pumping']);
 function toggleFilter(type){
   if(activeFilters.has(type)) activeFilters.delete(type); else activeFilters.add(type);
@@ -3017,7 +2724,7 @@ function updateDateTime() {
                        (s < 10 ? '0' + s : s) + ' ' + ampm;
 }
 updateDateTime();
-_regInterval('loginDateTime', setInterval(updateDateTime, 1000));
+setInterval(updateDateTime, 1000);
 var _resizeRAF; window.addEventListener('resize', function() { if (_resizeRAF) return; _resizeRAF = requestAnimationFrame(function() { _resizeRAF = null; W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; }); });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
@@ -3049,8 +2756,7 @@ function login() {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + esc(user) + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="conn-indicator" title="Connection status">●</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); _regInterval('mainDateTime', setInterval(updateDateTime, 1000));
-fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="conn-indicator" title="Connection status">●</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -3065,7 +2771,9 @@ fetchWeather();
 }
 
 function logout() {
-  _clearAllIntervals();
+  if (_dashboardTimer) { clearInterval(_dashboardTimer); _dashboardTimer = null; }
+  if (graphPollInterval) { clearInterval(graphPollInterval); graphPollInterval = null; }
+  if (liveCounterInterval) { clearInterval(liveCounterInterval); liveCounterInterval = null; }
   userToken = null; loggedInUser = ''; selectedDevice = null;
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
@@ -3465,7 +3173,7 @@ window.pipelineLayer = pipelineLayer;
 map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
 fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
-_regInterval('clusterBlink', setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500));
+setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
@@ -3588,10 +3296,10 @@ if (!isNaN(llvl)) {
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + esc(d.device) + '</b><br>' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
             '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
-            'Status: ' + esc(effSt) + ' ' + fb + '<br>' +
-            'Water Level: <b style="color:' + lC + ';">' + esc(d.level || '0') + ' m³</b> ' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
             '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -3602,7 +3310,7 @@ if (!isNaN(llvl)) {
               '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
               '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
             '</div>' +
-            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + esc(r.updatedBy) + '</b>' + (r.updatedAt ? ' on ' + esc(r.updatedAt) : '') + '</div>' : '') +
+            (r.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
             '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Reservoir Thresholds</button>' +
           '</div>' +
         '</div>';
@@ -3612,10 +3320,10 @@ if (!isNaN(llvl)) {
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + esc(d.device) + '</b><br>' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
             '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>' +
-            'Status: ' + esc(effSt) + ' ' + fb + '<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + esc(d.pressure || '0') + ' psi</b> ' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
             '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -3627,7 +3335,7 @@ if (!isNaN(llvl)) {
               '<span class="pth-item high">🔴 Max: ' + s.maxPsi + ' psi</span>' +
             '</div>' +
             '<div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
-            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + esc(s.updatedBy) + '</b>' + (s.updatedAt ? ' on ' + esc(s.updatedAt) : '') + '</div>' : '') +
+            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
             '<button class="ps-gear-btn" onclick="openPressureSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Pressure Range Settings</button>' +
           '</div>' +
         '</div>';
@@ -3658,20 +3366,20 @@ if (!isNaN(llvl)) {
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + esc(d.device) + '</b><br>' +
-            'Status: ' + esc(effSt) + ' ' + fb + '<br>' +
-            'Flow: '     + esc(d.flow     || 0) + ' L/s<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + esc(d.pressure || 0) + ' psi</b> ' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
+            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
             '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            'Voltage: '  + esc(d.voltage  || 0) + ' V<br>' +
-            'Current: '  + esc(d.current  || 0) + ' A<br>' +
-            'Power: '    + esc(d.power    || 0) + ' W<br>' +
-            'Energy: '   + esc(d.energy   || 0) + ' kWh<br>' +
+            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
+            'Current: '  + (d.current  || 0) + ' A<br>' +
+            'Power: '    + (d.power    || 0) + ' W<br>' +
+            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
             // ★ v3: show commanded (dashboard) vs actual (Smart Device)
             'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
               +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
             +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + esc(d.lastToggledBy || 'N/A') + '</b><br>' +
+            'Last toggle by: <b>' + (d.lastToggledBy || 'N/A') + '</b><br>' +
             _effBadge + '<br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -3683,7 +3391,7 @@ if (!isNaN(llvl)) {
               '<span class="pth-item high">🔴 Max: ' + s.maxPsi + ' psi</span>' +
             '</div>' +
             '<div style="margin:10px 0 8px;height:10px;border-radius:5px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
-            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + esc(s.updatedBy) + '</b>' + (s.updatedAt ? ' on ' + esc(s.updatedAt) : '') + '</div>' : '') +
+            (s.updatedBy ? '<div style="font-size:11px;color:#7a8fa6;margin-bottom:6px;">Last updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
             '<button class="ps-gear-btn" onclick="openPressureSettings(\'' + escapeForAttr(d.device) + '\')">⚙️ Edit Pressure Range Settings</button>' +
           '</div>' +
         '</div>';
@@ -3742,10 +3450,10 @@ function initDashboard() {
   loadPumpLinksFromGAS(function(){});
   _updateConnStatus();
   if (_dashboardTimer) clearInterval(_dashboardTimer);
-  _dashboardTimer = _regInterval('dashboardTimer', setInterval(function() {
+  _dashboardTimer = setInterval(function() {
     if (!document.hidden) { updateDashboard(); processOfflineQueue(); }
-  }, 60000));
-  _regInterval('connStatus', setInterval(function(){ _updateConnStatus(); }, 10000));
+  }, 60000);
+  setInterval(function(){ _updateConnStatus(); }, 10000);
   document.addEventListener('visibilitychange', function() {
     if (!document.hidden) { updateDashboard(); _updateConnStatus(); }
   });
@@ -3902,18 +3610,18 @@ function initDashboard() {
   /* Start engine after login token is available */
   function _startAPE() {
     if (_apeTimer) return;
-    _apeTimer = _regInterval('apeTimer', setInterval(function() { _apeRun(); }, APE_INTERVAL));
+    _apeTimer = setInterval(function() { _apeRun(); }, APE_INTERVAL);
     /* Also run once immediately after a short delay so first poll is fast */
     setTimeout(function() { _apeRun(); }, 3000);
   }
 
   /* Hook into login — start engine as soon as token is set */
-  var _apeTokenWatch = _regInterval('apeTokenWatch', setInterval(function() {
+  var _apeTokenWatch = setInterval(function() {
     if (typeof userToken !== 'undefined' && userToken) {
       clearInterval(_apeTokenWatch);
       _startAPE();
     }
-  }, 2000));
+  }, 2000);
 
   /* Also re-sync SW cooldowns whenever a manual toggle happens */
   var _origDTP = window.dashboardTogglePump;
@@ -3929,7 +3637,6 @@ function initDashboard() {
   window._apeStatus = function() {
     return { running: _apeRunning, cooldowns: window._apeCooldowns, interval: APE_INTERVAL };
   };
-  window._startAPE = _startAPE;
 
 })(); // end Autonomous Pump Engine
 function _firebaseDeviceToArray() {
@@ -4152,7 +3859,7 @@ if (isResBooster) {
     + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+wv+'</span>'
     +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-    +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+esc(d.device)+'</span>'
+    +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
     +     '<div style="display:flex;align-items:center;gap:6px;width:88px;min-width:88px;flex-shrink:0;justify-content:flex-start;overflow:visible;">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
@@ -4171,8 +3878,8 @@ if (isResBooster) {
       var _ao = reservoirAutoShutoffState[_aok[0]];
       var _ab = document.createElement('div');
       _ab.className = 'auto-shutoff-badge';
-      _ab.title = 'Auto-shutoff: ' + esc(_ao.reservoir||'') + ' at ' + esc(_ao.shutoffLevel||'') + ' m³';
-      _ab.innerHTML = '🛑 AUTO-OFF · ' + esc(_ao.reservoir||'Reservoir');
+      _ab.title = 'Auto-shutoff: ' + (_ao.reservoir||'') + ' at ' + (_ao.shutoffLevel||'') + ' m³';
+      _ab.innerHTML = '🛑 AUTO-OFF · ' + (_ao.reservoir||'Reservoir');
       li.appendChild(_ab);
     }
   })();
@@ -4185,7 +3892,7 @@ if (isResBooster) {
   li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
 }
     else {
-        li.innerHTML = '<span>'+esc(d.device)+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
+        li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
         li.addEventListener('click', function(){selectDevice(d.device);});
       }
     } else if (isPres) {
@@ -4193,7 +3900,7 @@ if (isResBooster) {
       var _presVal = parseFloat(d.pressure);
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
-      li.innerHTML = '<span>'+esc(d.device)+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
+      li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
       li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
@@ -4209,13 +3916,13 @@ if (isResBooster) {
         if (reservoirAutoShutoffState[k].pump === d.device) autoOff = reservoirAutoShutoffState[k];
       });
       var autoOffBadge = autoOff
-        ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + esc(autoOff.reservoir||'') + ' hit shutoff level ' + esc(autoOff.shutoffLevel||'') + ' m³ at ' + esc(autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+esc(autoOff.reservoir||'Reservoir')+'</div>'
+        ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
         : '';
       // ★ v3: build switch — state from commandedRelay (server authority)
       var pendingBadge = relayPending
         ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
         : '';
-      li.innerHTML = '<span>'+esc(d.device)+'</span>'
+      li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
@@ -4471,7 +4178,7 @@ function _showReservoirFullBanner(resName, pumpName, level, shutoff, resume) {
   var b = document.createElement('div');
   b.id = 'res-full-banner';
   b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,#7f1d1d,#dc2626);color:white;text-align:center;font-size:12.5px;font-weight:700;padding:9px 44px 9px 16px;box-shadow:0 3px 14px rgba(220,38,38,0.55);letter-spacing:0.2px;';
-  b.innerHTML = '🛑 AUTO-SHUTOFF — <b>' + esc(resName) + '</b> hit ' + level.toFixed(0) + ' m³ (shutoff: ' + shutoff + ' m³). <b>' + esc(pumpName) + '</b> turned OFF automatically. Will resume below ' + resume + ' m³.'
+  b.innerHTML = '🛑 AUTO-SHUTOFF — <b>' + resName + '</b> hit ' + level.toFixed(0) + ' m³ (shutoff: ' + shutoff + ' m³). <b>' + pumpName + '</b> turned OFF automatically. Will resume below ' + resume + ' m³.'
     + ' <span style="opacity:0.75;font-size:11px;margin-left:6px;">Auto-dismiss in 20 s</span>'
     + '<button onclick="document.getElementById(\'res-full-banner\').remove()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.18);border:none;color:white;width:26px;height:26px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;">✕</button>';
   document.body.appendChild(b);
@@ -4483,7 +4190,7 @@ function _showResumeBanner(resName, pumpName, level, resume) {
   var b = document.createElement('div');
   b.id = 'res-resume-banner';
   b.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9998;background:linear-gradient(90deg,#14532d,#16a34a);color:white;text-align:center;font-size:12.5px;font-weight:700;padding:9px 44px 9px 16px;box-shadow:0 3px 14px rgba(22,163,74,0.55);letter-spacing:0.2px;';
-  b.innerHTML = '✅ AUTO-RESUME — <b>' + esc(resName) + '</b> dropped to ' + level.toFixed(0) + ' m³ (resume level: ' + resume + ' m³). <b>' + esc(pumpName) + '</b> turned back ON automatically.'
+  b.innerHTML = '✅ AUTO-RESUME — <b>' + resName + '</b> dropped to ' + level.toFixed(0) + ' m³ (resume level: ' + resume + ' m³). <b>' + pumpName + '</b> turned back ON automatically.'
     + ' <span style="opacity:0.75;font-size:11px;margin-left:6px;">Auto-dismiss in 15 s</span>'
     + '<button onclick="document.getElementById(\'res-resume-banner\').remove()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,0.18);border:none;color:white;width:26px;height:26px;border-radius:50%;font-size:15px;cursor:pointer;line-height:1;">✕</button>';
   document.body.appendChild(b);
@@ -4501,8 +4208,8 @@ function _updateAutoShutoffBadges() {
       if (nameEl && nameEl.textContent.trim() === entry.pump) {
         var badge = document.createElement('div');
         badge.className = 'auto-shutoff-badge';
-        badge.title = 'Auto-shutoff at ' + esc(entry.timestamp) + '\n' + esc(entry.reservoir) + ' hit shutoff level ' + esc(entry.shutoffLevel) + ' m³\nResume when ≤ ' + esc(entry.resumeLevel) + ' m³';
-        badge.innerHTML = '🛑 AUTO-OFF · ' + esc(entry.reservoir);
+        badge.title = 'Auto-shutoff at ' + entry.timestamp + '\n' + entry.reservoir + ' hit shutoff level ' + entry.shutoffLevel + ' m³\nResume when ≤ ' + entry.resumeLevel + ' m³';
+        badge.innerHTML = '🛑 AUTO-OFF · ' + entry.reservoir;
         li.appendChild(badge);
       }
     });
@@ -4539,28 +4246,6 @@ function openPumpLinkSettings() {
   var cardsEl = document.getElementById('pl-link-cards');
   if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#64748b;font-size:13px;">⏳ Loading links from server…</div>';
   loadPumpLinksFromGAS(function() { _renderLinkCards(); });
-}
-
-/* ── GAS server trigger install/remove ── */
-function togglePumpLinkServerTrigger() {
-  var dot = document.getElementById('pl-trigger-dot');
-  var lbl = document.getElementById('pl-trigger-label');
-  var btn = document.getElementById('pl-trigger-btn');
-  if (!btn) return;
-  btn.disabled = true;
-  var was = btn.textContent;
-  btn.textContent = '…';
-  var action = was === 'remove' ? 'removePumpLinkTrigger' : 'installPumpLinkTrigger';
-  apiGet(action, { token: typeof userToken !== 'undefined' ? userToken : '' }).then(function(r) {
-    var installed = action === 'installPumpLinkTrigger';
-    if (dot) dot.style.background = installed ? '#22c55e' : '#94a3b8';
-    if (lbl) lbl.textContent = installed ? 'Server trigger: every 15 min ✅' : 'Server trigger: off';
-    if (btn) { btn.textContent = installed ? 'remove' : 'install'; btn.disabled = false; }
-    showNotification(installed ? '✅ Server pump-link trigger installed (every 15 min)' : '⏹ Server pump-link trigger removed', installed ? 'success' : 'info');
-  }).catch(function(e) {
-    if (btn) { btn.textContent = was; btn.disabled = false; }
-    showNotification('⚠ Failed: ' + (e.message||'check GAS deployment URL'), 'error');
-  });
 }
 
 function _buildPumpLinkHTML() {
@@ -4607,13 +4292,8 @@ function _buildPumpLinkHTML() {
     +   '<div id="pl-link-cards"></div>'
     + '</div>'
     // ── Footer ────────────────────────────────────────────────────────────
-    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;flex-wrap:wrap;align-items:center;gap:8px;flex-shrink:0;">'
+    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;">'
     +   '<button onclick="openAutoShutoffLog()" style="padding:7px 14px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:9px;font-size:12px;font-weight:700;cursor:pointer;touch-action:manipulation;">📋 Event Log</button>'
-    +       '<span style="font-size:10px;color:#64748b;display:flex;align-items:center;gap:4px;" title="GAS time-driven trigger checks only linked devices every 15 min, no dashboard needed.">'
-    +     '<span id="pl-trigger-dot" style="width:7px;height:7px;border-radius:50%;background:#94a3b8;display:inline-block;"></span>'
-    +     '<span id="pl-trigger-label">Server trigger: ?</span>'
-    +     '<button id="pl-trigger-btn" onclick="togglePumpLinkServerTrigger()" style="padding:2px 8px;font-size:9px;font-weight:700;border-radius:5px;border:1px solid #cbd5e1;background:#f1f5f9;cursor:pointer;color:#334155;">check</button>'
-    +   '</span>'
     +   '<button onclick="document.getElementById(\'pump-link-overlay\').remove()" style="margin-left:auto;padding:8px 22px;background:linear-gradient(135deg,#0a3d62,#1d4ed8);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>'
     + '</div>'
     + '</div>';
@@ -4661,7 +4341,7 @@ function _populatePumpLinkDeviceDropdowns() {
         if (ri && !ri.value) ri.value = Math.round((thr.maxLevel || 250) * 0.80) || '';
       }
     });
-  }).catch(function(e){console.warn('[apiCached] Error:',e);});
+  }).catch(function() {});
 }
 
 function _renderLinkCards() {
@@ -4700,14 +4380,14 @@ function _renderLinkCards() {
         ? '<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">🛑 PUMP HALTED</span>'
         : '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">✅ ACTIVE</span>');
     var triggerInfo = cfg.triggerCount > 0
-      ? '<div style="font-size:10px;color:#94a3b8;margin-top:4px;">Triggered ' + cfg.triggerCount + ' time' + (cfg.triggerCount!==1?'s':'') + (cfg.lastTriggered ? ' · Last: ' + esc(cfg.lastTriggered) : '') + '</div>'
+      ? '<div style="font-size:10px;color:#94a3b8;margin-top:4px;">Triggered ' + cfg.triggerCount + ' time' + (cfg.triggerCount!==1?'s':'') + (cfg.lastTriggered ? ' · Last: ' + cfg.lastTriggered : '') + '</div>'
       : '';
     return '<div style="background:' + (cfg.manualOverride?'#fefce8':autoState?'#fef2f2':'#f8fbff') + ';border:1.5px solid ' + (cfg.manualOverride?'#fde047':autoState?'#fca5a5':'#bfdbfe') + ';border-radius:13px;padding:13px 15px;margin-bottom:10px;">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
       +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
-      +     '<span style="font-size:12px;font-weight:800;color:#0c4a6e;">💧 ' + esc(cfg.reservoir) + '</span>'
+      +     '<span style="font-size:12px;font-weight:800;color:#0c4a6e;">💧 ' + cfg.reservoir + '</span>'
       +     '<span style="color:#94a3b8;font-size:12px;">→</span>'
-      +     '<span style="font-size:12px;font-weight:800;color:#064e3b;">⚙️ ' + esc(cfg.pump) + '</span>'
+      +     '<span style="font-size:12px;font-weight:800;color:#064e3b;">⚙️ ' + cfg.pump + '</span>'
       +     statusBadge
       +   '</div>'
       +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
@@ -4925,13 +4605,13 @@ function openAutoShutoffLog() {  // ← now correctly at top level
       var lvl = e['level (m³)'] || e.level || '--';
       var thr = e.threshold || '--';
       return '<tr style="border-bottom:1px solid #e5eef9;">'
-        + '<td style="padding:7px 10px;font-size:11.5px;color:#475569;">' + esc(e.timestamp||'') + '</td>'
-        + '<td style="padding:7px 10px;font-size:11.5px;font-weight:800;color:'+ac+';">' + esc(e.action||'') + '</td>'
-        + '<td style="padding:7px 10px;font-size:11.5px;color:#002b5c;">' + esc(e.pump||'') + '</td>'
-        + '<td style="padding:7px 10px;font-size:11.5px;color:#0369a1;">' + esc(e.reservoir||'') + '</td>'
-        + '<td style="padding:7px 10px;font-size:11.5px;text-align:right;">' + (isNaN(parseFloat(lvl)) ? esc(lvl) : parseFloat(lvl).toFixed(0)) + ' m³</td>'
-        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + esc(thr) + ' m³</td>'
-        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + esc(e.triggeredby||'System') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#475569;">' + (e.timestamp||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;font-weight:800;color:'+ac+';">' + (e.action||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#002b5c;">' + (e.pump||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;color:#0369a1;">' + (e.reservoir||'') + '</td>'
+        + '<td style="padding:7px 10px;font-size:11.5px;text-align:right;">' + (isNaN(parseFloat(lvl)) ? lvl : parseFloat(lvl).toFixed(0)) + ' m³</td>'
+        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + thr + ' m³</td>'
+        + '<td style="padding:7px 10px;font-size:11px;color:#64748b;">' + (e.triggeredby||'System') + '</td>'
         + '</tr>';
     }).join('');
     body.style.padding = '0';
@@ -5096,57 +4776,23 @@ function buildParamSelector() {
 function toggleAllParams(){PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id];}).forEach(function(p){activePumpParams.add(p.id);});buildParamSelector();renderRangeChart();}
 function clearAllParams(){var av=PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id]&&!p.isEvent;});activePumpParams=new Set();activePumpParams.add(av[0]?av[0].id:'pressure');buildParamSelector();renderRangeChart();}
 
-function startGraphPolling(){stopGraphPolling();livePaused=false;updateLivePauseBtn();graphPollInterval=_regInterval('graphPoll',setInterval(function(){if(!livePaused&&currentDevice)pollGraphData();},graphPollRate));liveCounterInterval=_regInterval('liveCounter',setInterval(updateLiveCounter,1000));}
+function startGraphPolling(){stopGraphPolling();livePaused=false;updateLivePauseBtn();graphPollInterval=setInterval(function(){if(!livePaused&&currentDevice)pollGraphData();},graphPollRate);liveCounterInterval=setInterval(updateLiveCounter,1000);}
 function stopGraphPolling(){if(graphPollInterval){clearInterval(graphPollInterval);graphPollInterval=null;}if(liveCounterInterval){clearInterval(liveCounterInterval);liveCounterInterval=null;}}
 addEventListener('beforeunload', stopGraphPolling);
-function updateChartLive() {
-  if (!myChart || !allGraphData.length) return false;
-  var data = getFilteredData();
-  if (!data.length) return false;
-  var labels = data.map(function(r){var d=parseSheetDate(r[window._timeKey]);if(!d)return'';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});});
-  myChart.data.labels = labels;
-  myChart.data.datasets.forEach(function(ds, i) {
-    if (ds.label === 'AI Forecast') return;
-    if (currentDeviceType !== 'pump') {
-      var pressKey = window._levelKey || window._pressKey;
-      if (!pressKey && data.length) {
-        var ks = Object.keys(data[0]).filter(function(k){return k !== window._timeKey && !/lat|lon|lng|relay|toggle|status|device|id|name|by|user/i.test(k);});
-        for (var ki=0;ki<ks.length;ki++) { var s = data.slice(0,10).map(function(r){return parseFloat(r[ks[ki]]);}).filter(function(v){return !isNaN(v);}); if (s.length >= 3) { pressKey = ks[ki]; break; } }
-      }
-      if (pressKey) ds.data = data.map(function(r){var v=parseFloat(r[pressKey]);return isNaN(v)?null:v;});
-    } else {
-      var pumpParam = PUMP_PARAMS[i];
-      if (!pumpParam) return;
-      var ck = pumpParamKeys[pumpParam.id];
-      if (!ck) return;
-      ds.data = data.map(function(r) {
-        if (pumpParam.computed) return computeEffVal(pumpParam.id, r, Object.keys(data[0]));
-        var v = parseFloat(r[ck]); return isNaN(v)?null:v;
-      });
-    }
-  });
-  myChart.update('none');
-  return true;
-}
 function pollGraphData(){
   if (!currentDevice) return;
   apiGet('getSheetData',{sheet:currentDevice}).then(function(rows){
     if (!rows||!rows.length) return;
     var nc=rows.length, hadNew=nc>lastDataCount;
     allGraphData=rows; lastPollTime=new Date(); lastDataCount=nc; updateLiveCounter();
-    if (hadNew) {
-      if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();}
-      if (!updateChartLive()) renderRangeChart();
-      updateLastToggledBadge(allGraphData);
-      flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000);
-    }
+    if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} renderRangeChart(); updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
   }).catch(function(e){console.warn('[AGUS LIVE] Poll failed:',e);});
 }
 function flashChartUpdate(){var w=document.getElementById('graph-chart-wrap');w.classList.remove('chart-flash-anim');void w.offsetWidth;w.classList.add('chart-flash-anim');setTimeout(function(){w.classList.remove('chart-flash-anim');},1000);}
 var _liveEl=null;function updateLiveCounter(){if(!_liveEl)_liveEl=document.getElementById('live-updated');var el=_liveEl;if(!el)return;if(livePaused){el.innerText='Paused';return;}if(!lastPollTime){el.innerText='Waiting…';return;}var s=Math.floor((Date.now()-lastPollTime.getTime())/1000);if(s<5){el.innerText='Updated just now';return;}if(s<60){el.innerText='Updated '+s+'s ago';return;}el.innerText='Updated '+Math.floor(s/60)+'m ago';}
 function toggleLivePause(){livePaused=!livePaused;updateLivePauseBtn();updateLiveCounter();document.getElementById('live-dot').classList.toggle('paused',livePaused);if(!livePaused)pollGraphData();}
 function updateLivePauseBtn(){var btn=document.getElementById('live-pause-btn');if(!btn)return;btn.innerText=livePaused?'▶ Resume':'⏸ Pause';btn.classList.toggle('paused',livePaused);}
-function setLivePollRate(ms){graphPollRate=parseInt(ms,10);startGraphPolling();}
+function setLivePollRate(ms){graphPollRate=parseInt(ms);startGraphPolling();}
 
 function showHistoricalGraph(deviceName, deviceType) {
   currentDevice=deviceName; currentDeviceType=deviceType||'pressure';
@@ -5178,7 +4824,7 @@ function showHistoricalGraph(deviceName, deviceType) {
     detectKeys(rows);
     if (currentDeviceType==='pump'){detectPumpParamKeys(rows);buildParamSelector();}
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
-    document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range,10)===activeRange);});
+    document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); renderRangeChart(); renderCalendars(); updateLiveCounter(); updateLastToggledBadge(allGraphData); startGraphPolling();
   }).catch(function(err){
     clearTimeout(_retryTimer);
@@ -5264,7 +4910,7 @@ function buildToggleAnnotations(data) {
   var ann={},cnt=0;
   data.forEach(function(row,i){
     var who=String(row[window._toggleKey]||'').trim(); if(!who) return;
-    var rn=parseInt(row[window._relayKey],10),rp=i>0?parseInt(data[i-1][window._relayKey],10):-1; if(rn===rp) return;
+    var rn=parseInt(row[window._relayKey]),rp=i>0?parseInt(data[i-1][window._relayKey]):-1; if(rn===rp) return;
     var isOn=rn===1,lc=isOn?'rgba(34,197,94,0.90)':'rgba(239,68,68,0.90)',bg=isOn?'rgba(240,255,248,0.97)':'rgba(255,240,240,0.97)',tc=isOn?'#064e3b':'#7f1d1d',sym=isOn?'▲ ON':'▼ OFF';
     ann['t'+(cnt++)]={type:'line',scaleID:'x',value:i,borderColor:lc,borderWidth:2,borderDash:[6,4],label:{display:true,content:[sym,who],position:cnt%2===0?'start':'end',yAdjust:cnt%2===0?8:-8,backgroundColor:bg,borderColor:lc,borderWidth:1.5,borderRadius:5,color:tc,font:{size:10.5,weight:'700'},padding:{top:4,bottom:4,left:7,right:7}}};
   });
@@ -5275,22 +4921,22 @@ function updateLastToggledBadge(data) {
   if (!window._toggleKey||!window._relayKey||!data.length){badge.style.display='none';return;}
   var found=null; for(var i=data.length-1;i>=0;i--){var who=String(data[i][window._toggleKey]||'').trim();if(who){found={row:data[i]};break;}}
   if (!found){badge.style.display='none';return;}
-  var who=String(found.row[window._toggleKey]).trim(),rv=parseInt(found.row[window._relayKey],10),ts=parseSheetDate(found.row[window._timeKey]),isOn=rv===1,act=isOn?'▲ Turned ON':'▼ Turned OFF';
+  var who=String(found.row[window._toggleKey]).trim(),rv=parseInt(found.row[window._relayKey]),ts=parseSheetDate(found.row[window._timeKey]),isOn=rv===1,act=isOn?'▲ Turned ON':'▼ Turned OFF';
   var tsStr=ts?ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
   badge.style.display='flex';badge.style.borderColor=isOn?'#22c55e':'#ef4444';badge.style.background=isOn?'#f0fdf4':'#fff5f5';
-  badge.innerHTML='<span style="font-size:13px;margin-right:2px;">'+(isOn?'🟢':'🔴')+'</span><strong style="color:'+(isOn?'#14532d':'#7f1d1d')+'">Last Toggle:</strong><span style="color:#334155;margin-left:5px;">👤 <b>'+esc(who)+'</b></span><span style="color:'+(isOn?'#15803d':'#dc2626')+';margin-left:8px;font-weight:700;">'+esc(act)+'</span>'+(tsStr?'<span style="color:#94a3b8;margin-left:8px;font-size:11px;">@ '+tsStr+'</span>':'');
+  badge.innerHTML='<span style="font-size:13px;margin-right:2px;">'+(isOn?'🟢':'🔴')+'</span><strong style="color:'+(isOn?'#14532d':'#7f1d1d')+'">Last Toggle:</strong><span style="color:#334155;margin-left:5px;">👤 <b>'+who+'</b></span><span style="color:'+(isOn?'#15803d':'#dc2626')+';margin-left:8px;font-weight:700;">'+act+'</span>'+(tsStr?'<span style="color:#94a3b8;margin-left:8px;font-size:11px;">@ '+tsStr+'</span>':'');
 }
 function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#334155',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(0,64,128,0.07)',lineWidth:1},border:{color:'rgba(0,64,128,0.15)'}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#334155',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#002b5c',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(0,0,0,0.55)':(ax.pos==='left'?'rgba(0,64,128,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(0,64,128,0.15)'}};});
-  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey],10):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 document.querySelectorAll('.range-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
-    activeRange=parseInt(btn.dataset.range,10); pickingStart=true; isQuickRange=true;
+    activeRange=parseInt(btn.dataset.range); pickingStart=true; isQuickRange=true;
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.getElementById('graph-no-data').classList.remove('visible');
     updateDateRangeLabel(); renderRangeChart(); renderCalendars(); updateLastToggledBadge(getFilteredData());
@@ -5769,7 +5415,7 @@ function openTabModal(tabKey) {
             devs.forEach(function(d) {
               var nm = (d.device||'').length>28 ? (d.device||'').substring(0,26)+'..' : (d.device||'');
               html += '<tr style="border-bottom:1px solid #f1f5f9;">'
-                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+escapeForAttr(d.device||'')+'">'+esc(nm)+'</td>'
+                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
                 + '<td style="padding:6px 12px;">'+(d.status||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#1e40af;">'+(d.pressure||'---')+'</td></tr>';
             });
@@ -5797,7 +5443,7 @@ function openTabModal(tabKey) {
               var ener = parseFloat(d.energy||0);
               var costPerM3 = disch > 0 ? (ener * kwhRate / disch) : 0;
               html += '<tr style="border-bottom:1px solid #f1f5f9;">'
-                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+escapeForAttr(d.device||'')+'">'+esc(nm)+'</td>'
+                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
                 + '<td style="padding:6px 12px;">'+(d.status||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#8b5cf6;">'+(d.discharge||'0')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#a78bfa;">'+(d.energy||'0')+'</td>'
@@ -5817,7 +5463,7 @@ function openTabModal(tabKey) {
             devs.forEach(function(d) {
               var nm = (d.device||'').length>28 ? (d.device||'').substring(0,26)+'..' : (d.device||'');
               html += '<tr style="border-bottom:1px solid #f1f5f9;">'
-                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+escapeForAttr(d.device||'')+'">'+esc(nm)+'</td>'
+                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
                 + '<td style="padding:6px 12px;">'+(d.status||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0d9488;">'+(d.level||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0e7490;">'+(d.flow||'---')+'</td></tr>';
@@ -5834,7 +5480,7 @@ function openTabModal(tabKey) {
             devs.forEach(function(d) {
               var nm = (d.device||'').length>28 ? (d.device||'').substring(0,26)+'..' : (d.device||'');
               html += '<tr style="border-bottom:1px solid #f1f5f9;">'
-                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+escapeForAttr(d.device||'')+'">'+esc(nm)+'</td>'
+                + '<td style="padding:6px 12px;font-weight:600;color:#0f172a;" title="'+(d.device||'')+'">'+nm+'</td>'
                 + '<td style="padding:6px 12px;">'+(d.status||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#1e40af;">'+(d.pressure||'---')+'</td>'
                 + '<td style="padding:6px 12px;text-align:right;font-family:monospace;font-weight:600;color:#0e7490;">'+(d.flow||'---')+'</td>'
@@ -5930,12 +5576,12 @@ function openTabModal(tabKey) {
               var enerV = parseFloat(d.energy || 0);
               var cpmV = dischV > 0 ? (enerV * kwhRate2 / dischV) : 0;
               var dot = effV >= 75 ? '\ud83d\udfe2' : effV >= 55 ? '\ud83d\udfe0' : '\ud83d\udd34';
-              return '<span style="padding:4px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;">'+dot+' '+esc((d.device||'').substring(0,18))+'</span>';
+              return '<span style="padding:4px 8px;background:#fff;border:1px solid #e2e8f0;border-radius:6px;">'+dot+' '+(d.device||'').substring(0,18)+'</span>';
             }).join('')+'</div>';
         }
       }
     }
-  }).catch(function(e){console.warn('[apiCached] Error:',e);});
+  }).catch(function(){});
 
 window.calcAccumTotals = function calcAccumTotals() {
   var fromVal = document.getElementById('accum-from') ? document.getElementById('accum-from').value : '';
@@ -6018,7 +5664,7 @@ window.calcAccumTotals = function calcAccumTotals() {
           var cost = r.kwh * kwhRate;
           var cpm = r.m3 > 0 ? cost / r.m3 : 0;
           html += '<tr style="border-bottom:1px solid #f1f5f9;">'
-            + '<td style="padding:6px 10px;font-weight:600;color:#0f172a;">'+esc(r.name)+'</td>'
+            + '<td style="padding:6px 10px;font-weight:600;color:#0f172a;">'+r.name+'</td>'
             + '<td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:600;color:#065f46;">'+r.m3.toFixed(1)+'</td>'
             + '<td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:600;color:#7c3aed;">'+r.kwh.toFixed(1)+'</td>'
             + '<td style="padding:6px 10px;text-align:right;font-family:monospace;font-weight:600;color:#d97706;">\u20b1'+cost.toFixed(2)+'</td>'
@@ -6030,11 +5676,11 @@ window.calcAccumTotals = function calcAccumTotals() {
       results.innerHTML = html;
     }).catch(function(err) {
       if(spinner)spinner.style.display='none';
-      results.innerHTML = '<span style="color:#ef4444;">Error loading data: '+esc(err.message)+'</span>';
+      results.innerHTML = '<span style="color:#ef4444;">Error loading data: '+err.message+'</span>';
     });
   }).catch(function(err) {
     if(spinner)spinner.style.display='none';
-    results.innerHTML = '<span style="color:#ef4444;">Error: '+esc(err.message)+'</span>';
+    results.innerHTML = '<span style="color:#ef4444;">Error: '+err.message+'</span>';
   });
 }
 function showDatePicker(ev, tabKey) {
@@ -6146,7 +5792,7 @@ window.exportReportCSV = function exportReportCSV() {
     Object.keys(groups).forEach(function(grp) {
       if (!groups[grp].length) return;
       html += '<optgroup label="-- ' + grp + 's --">';
-      groups[grp].forEach(function(d) { html += '<option value="'+escapeForAttr(d.device)+'">'+esc(d.device)+'</option>'; });
+      groups[grp].forEach(function(d) { html += '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>'; });
       html += '</optgroup>';
     });
     sel.innerHTML = html;
@@ -6165,7 +5811,7 @@ window.exportReportCSV = function exportReportCSV() {
     loadTabModalData();
   }).catch(function(e) {
     var load = document.getElementById('tab-modal-loading');
-    if (load) load.innerHTML = '<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';
+    if (load) load.innerHTML = '<span style="color:#e05555;">Error: '+e.message+'</span>';
   });
 } catch(e) { alert('openTabModal crash: '+e.message+'\n'+e.stack); }
 }
@@ -6243,7 +5889,7 @@ function loadTabModalData() {
     console.log('[ANALYTICS] getSheetData returned', rows ? rows.length + ' rows' : 'null/undefined', rows && rows.length ? Object.keys(rows[0]) : 'no rows');
     renderTabModalChart(tabModalAllRows);
   }).catch(function(e) {
-    if (load) { load.style.display = 'flex'; load.innerHTML = '<span style="color:#e05555;">Could not load data: '+esc(e.message)+'</span>'; }
+    if (load) { load.style.display = 'flex'; load.innerHTML = '<span style="color:#e05555;">Could not load data: '+e.message+'</span>'; }
   });
 }
 
@@ -6360,7 +6006,7 @@ function renderTabModalChart(rows) {
     if (tabModalCurrentMode==='monthly') {
       var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       var pa=a.split(' '), pb=b.split(' ');
-      var ya=parseInt(pa[1],10),yb=parseInt(pb[1],10);
+      var ya=parseInt(pa[1]),yb=parseInt(pb[1]);
       if (ya!==yb) return ya-yb;
       return months.indexOf(pa[0])-months.indexOf(pb[0]);
     }
@@ -6610,7 +6256,6 @@ function generateAIReport() {
       if (aiSpinner) aiSpinner.style.display = 'none';
       var text = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Unable to generate report.';
       // Render markdown-lite
-      text = esc(text);
       var html = text
         .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
         .replace(/^#{1,3}\s(.+)$/gm, '<div style="font-weight:800;color:#002b5c;font-size:13px;margin:12px 0 4px;border-bottom:1px solid #d0e4f7;padding-bottom:3px;">$1</div>')
@@ -6621,11 +6266,11 @@ function generateAIReport() {
     })
     .catch(function(err) {
       if (aiSpinner) aiSpinner.style.display = 'none';
-      aiOutput.innerHTML = '<span style="color:#e05555;">⚠ AI report failed: ' + esc(err.message||err) + '</span>';
+      aiOutput.innerHTML = '<span style="color:#e05555;">⚠ AI report failed: ' + (err.message||err) + '</span>';
     });
   }).catch(function(err) {
     if (aiSpinner) aiSpinner.style.display = 'none';
-    if (aiOutput) aiOutput.innerHTML = '<span style="color:#e05555;">⚠ Failed to load device data: '+esc(err.message||err)+'</span>';
+    if (aiOutput) aiOutput.innerHTML = '<span style="color:#e05555;">⚠ Failed to load device data: '+(err.message||err)+'</span>';
   });
 }
 </script>
@@ -6897,7 +6542,6 @@ function injectForecastDataset() {
 // AI API CONFIGURATION (configurable via settings UI)
 // ============================================================
 var AI_CACHE = {};
-function clearAICache() { AI_CACHE = {}; }
 
 // ── AI Chat utilities (called from Block 2 and 3) ──
 var aiChatHistory = [];
@@ -6920,47 +6564,24 @@ function buildAISystemContext(devices) {
   return 'You are an AI assistant for the AGUS water utility SCADA system.\n'
     + devices.length + ' devices total, ' + online + ' online.\nDevices:\n' + lines.join('\n');
 }
-/* ── AI abort controller registry ── */
-window._aiAbort = function() { if (window.__aiController) { window.__aiController.abort(); window.__aiController = null; } };
-function _aiTimeout(ms) {
-  var ctrl = new AbortController();
-  window.__aiController = ctrl;
-  setTimeout(function() { ctrl.abort(); }, ms || 30000);
-  return ctrl;
-}
-
 function aiCall(system, question) {
   if (AI_API_KEY) {
     return aiFetch({ model: AI_MODEL, max_tokens: 1000, system: system, messages: [{ role: 'user', content: question }] });
   }
   var q = (question||'').toLowerCase();
   var response;
-  if (q.includes('pressure')&&q.includes('high')) response = '⚠ High pressure readings suggest possible pump over-speed or valve restrictions. Check PRV settings and pump curves.';
-  else if (q.includes('pressure')&&q.includes('low')) response = '⚠ Low pressure may indicate a leak, failing pump, or partially closed valve. Check the pressure log for drop timing.';
-  else if (q.includes('pressure')) response = 'Pressure readings are within normal ranges. Monitor for sudden drops indicating possible leaks or PRV failure.';
-  else if (q.includes('flow')&&q.includes('low')) response = 'Low flow could indicate pump wear, blockages, or demand-side restrictions. Compare with pump speed and pressure.';
-  else if (q.includes('flow')) response = 'Flow rates are consistent with expected demand. Significant deviation (>15%) may indicate pump wear or pipe obstruction.';
-  else if (q.includes('alarm')) response = 'Active alarms should be prioritised by severity. Cross-reference with pressure, flow, and relay state data.';
-  else if (q.includes('energy')||q.includes('power')) response = 'Energy consumption correlates with pumping volume. Consider off-peak scheduling to reduce kWh costs by 15–25%.';
-  else if (q.includes('efficiency')) response = 'Pump efficiency degrades 2–5% per year due to impeller wear. Monitor vibration, power per m³, and discharge pressure.';
-  else if (q.includes('leak')||q.includes('loss')||q.includes('nrw')) response = 'NRW losses above 25% indicate potential leaks. Compare minimum night flow vs average day flow. A gap >40% suggests leakage.';
-  else if (q.includes('kpi')||q.includes('performance')) response = 'Key metrics: specific energy (kWh/m³), wire-to-water efficiency, pump run-time %, and pressure stability (std dev).';
-  else if (q.includes('water quality')) response = 'Water quality parameters to monitor: residual chlorine, turbidity, pH, conductivity. Sudden changes may indicate contamination.';
-  else if (q.includes('forecast')||q.includes('predict')) response = 'Demand forecasting uses WMA + seasonal decomposition. Accuracy typically ±12% for 24h and ±18% for 7d forecasts.';
-  else if (q.includes('hello')||q.includes('hi')) response = 'Hello! I\'m your AGUS SCADA assistant. Ask me about pressure, flow, alarms, energy, efficiency, water quality, or maintenance.';
-  else response = 'I can help with: pressure trends, flow analysis, alarm correlation, energy optimization, pump efficiency, NRW/leak detection, water quality, maintenance schedules, and KPI tracking. What would you like to explore?';
+  if (q.includes('pressure')&&q.includes('high')) response = 'High pressure readings suggest possible pump over-speed or valve restrictions. Check PRV settings and pump curves.';
+  else if (q.includes('pressure')) response = 'Pressure readings are within normal ranges. Monitor for sudden drops indicating possible leaks.';
+  else if (q.includes('flow')) response = 'Flow rates are consistent with expected demand. Significant deviation may indicate pump wear.';
+  else if (q.includes('alarm')) response = 'Active alarms should be prioritised by severity. Cross-reference with pressure and flow data.';
+  else if (q.includes('energy')||q.includes('power')) response = 'Energy consumption correlates with pumping volume. Consider off-peak scheduling.';
+  else if (q.includes('efficiency')) response = 'Pump efficiency degrades over time. Monitor vibration, power consumption, and flow output.';
+  else if (q.includes('leak')||q.includes('loss')) response = 'NRW losses above 25% indicate potential leaks. Compare night vs day flow.';
+  else response = 'I have access to live SCADA data. I can help with pressure, flow, alarms, energy, and efficiency analysis.';
   return Promise.resolve({ content: [{ text: response }] });
 }
 function aiLocalFallback(body, context) {
-  var hint = context ? context.slice(0,150) : '';
-  var fallbacks = [
-    'The AI service is currently unavailable. I can still show your live dashboard data.',
-    'AI engine offline — check your API key in AI Config (gear icon in the nav bar).',
-    'Cannot reach the AI provider. Your device data continues to update normally.',
-    'AI temporarily unavailable. Try again in a few moments, or configure a different API endpoint.'
-  ];
-  var msg = fallbacks[Math.floor(Math.random() * fallbacks.length)];
-  return Promise.resolve({ content: [{ text: msg + '\n\n' + hint }] });
+  return Promise.resolve({ content: [{ text: 'AI service unavailable. ' + (context ? context.slice(0,150) : 'Check AI config.') }] });
 }
 function toggleAIChat() {
   var panel = document.getElementById('ai-chat-panel');
@@ -6992,18 +6613,14 @@ function aiFetch(bodyOverrides, retries) {
   }
   var headers = { 'Content-Type': 'application/json' };
   if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
-  var ctrl = _aiTimeout(30000);
-  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal })
+  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
     .then(function(r) {
-      window.__aiController = null;
       if (!r.ok) throw new Error('API ' + r.status);
       return r.json();
     }).then(function(data) {
       AI_CACHE[ck] = { data: data, ts: Date.now() };
       return { content: [{ text: (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '' }] };
     }).catch(function(err) {
-      window.__aiController = null;
-      if (err.name === 'AbortError') return aiLocalFallback(JSON.stringify(body), 'Request timed out');
       if (retries > 0) return aiFetch(bodyOverrides, retries - 1);
       return aiLocalFallback(JSON.stringify(body), body.messages ? body.messages.map(function(m){return m.content;}).join(' ') : '');
     });
@@ -7020,10 +6637,8 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
   var headers = { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' };
   if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
   var fullText = '';
-  var ctrl = _aiTimeout(60000);
-  fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ctrl.signal })
+  fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
     .then(function(r) {
-      window.__aiController = null;
       if (!r.ok) throw new Error('API ' + r.status);
       var reader = r.body.getReader();
       var decoder = new TextDecoder();
@@ -7048,11 +6663,9 @@ function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
       }
       readChunk();
     }).catch(function(err) {
-      window.__aiController = null;
-      var msg = err.name === 'AbortError' ? 'Stream timed out' : (err.message || 'Stream error');
-      if (onError) onError(new Error(msg));
+      if (onError) onError(err);
       else {
-        aiLocalFallback(JSON.stringify(body), msg).then(function(data) {
+        aiLocalFallback(JSON.stringify(body), 'Stream fallback').then(function(data) {
           fullText = data.content[0].text;
           onToken(fullText);
           onDone(fullText);
@@ -7067,12 +6680,6 @@ function sendAIMessage() {
   if (input) input.value = '';
   addAIChatMessage(question, 'user');
   aiChatHistory.push({ role: 'user', content: question });
-  /* Trim chat history to last 20 messages to avoid context window overflow */
-  if (aiChatHistory.length > 20) {
-    aiChatHistory = aiChatHistory.slice(aiChatHistory.length - 20);
-    var warn = document.getElementById('ai-chat-status');
-    if (warn) warn.innerText = 'Chat trimmed — older context cleared';
-  }
   var typingEl = addAIChatMessage('', 'bot');
   if (typingEl) typingEl.classList.add('ai-msg-typing');
   document.getElementById('ai-chat-status').innerText = 'AI is thinking…';
@@ -7085,12 +6692,6 @@ function sendAIMessage() {
     }
     if (AI_API_KEY) {
       var fullReply = '';
-      var estChars = aiChatHistory.reduce(function(a,m){return a + (m.content||'').length + (m.role||'').length;}, 0);
-      var estTokens = Math.ceil(estChars / 3.5);
-      if (estTokens > 3200) {
-        var slug = document.getElementById('ai-chat-status');
-        if (slug) slug.innerText = '⚠ Long context (~' + estTokens + ' tokens) — response may be slow';
-      }
       aiFetchStream(
         { model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory },
         function(token) {
@@ -7171,7 +6772,7 @@ function flushAlarmBuffer() {
     }
     showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
     logAlarmCorrelation(snapshot, cause);
-  }).catch(function(_err) { console.warn('Alarm correlator AI error:', _err); snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
+  }).catch(function() { snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
 }
 
 // ============================================================
@@ -7231,11 +6832,11 @@ function openEnergyAdvisor() {
 ');
       aiCall('You are an energy efficiency advisor for a water utility (AGUS).', 'Analyse this pump energy data and give 3-5 concrete, numbered recommendations.\nFocus on optimal run-time scheduling, load balancing, efficiency improvements.\nUse plain English. Each recommendation 1-2 sentences.\n\n' + statsText).then(function(data) {
         var advice = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Unable to generate recommendations.';
-        var statsHtml = statsArray.map(function(s) { return '<div style="background:#f8faff;border:1px solid #d0e4f7;border-radius:8px;padding:10px 14px;margin-bottom:10px;"><div style="font-weight:700;color:#002b5c;">&#9881;&#65039; ' + esc(s.device) + '</div><div style="font-size:12px;color:#475569;display:grid;grid-template-columns:1fr 1fr;gap:3px;"><span>Energy: <b>' + s.totalEnergyKwh + ' kWh</b></span><span>Peak power: <b>' + s.peakPowerW + ' W</b></span><span>Low-flow events: <b>' + s.lowFlowEvents + '</b></span><span>Peak hours: <b>' + s.peakHours + '</b></span></div></div>'; }).join('');
-        var adviceHtml = esc(advice).split('
+        var statsHtml = statsArray.map(function(s) { return '<div style="background:#f8faff;border:1px solid #d0e4f7;border-radius:8px;padding:10px 14px;margin-bottom:10px;"><div style="font-weight:700;color:#002b5c;">&#9881;&#65039; ' + s.device + '</div><div style="font-size:12px;color:#475569;display:grid;grid-template-columns:1fr 1fr;gap:3px;"><span>Energy: <b>' + s.totalEnergyKwh + ' kWh</b></span><span>Peak power: <b>' + s.peakPowerW + ' W</b></span><span>Low-flow events: <b>' + s.lowFlowEvents + '</b></span><span>Peak hours: <b>' + s.peakHours + '</b></span></div></div>'; }).join('');
+        var adviceHtml = advice.split('
 ').map(function(line){ return line.trim() ? '<p style="margin:6px 0;color:#1e293b;font-size:13px;">' + line + '</p>' : ''; }).join('');
         document.getElementById('energy-advisor-body').innerHTML = statsHtml + '<div style="margin-top:18px;padding:16px;background:linear-gradient(135deg,#f0f8ff,#e8f4fd);border-radius:10px;"><div style="font-size:12px;font-weight:800;color:#0044aa;margin-bottom:10px;">&#129302; AI Recommendations</div>' + adviceHtml + '</div>';
-      }).catch(function(err) { document.getElementById('energy-advisor-body').innerHTML = '<p style="color:#e53935;">Error: ' + esc(err.message || err) + '</p>'; });
+      }).catch(function(err) { document.getElementById('energy-advisor-body').innerHTML = '<p style="color:#e53935;">Error: ' + (err.message || err) + '</p>'; });
     });
   }).catch(function(err) {
     showNotification('⚠ Failed to load device data: ' + (err.message || err), 'error');
@@ -7276,7 +6877,7 @@ function openCostCalculator() {
     });
   }).catch(function(err) {
     var body = document.getElementById('cost-calc-body');
-    if (body) body.innerHTML = '<p style="color:#e53935;padding:20px;">&#9888; Error loading data: ' + esc(err.message || err) + '</p>';
+    if (body) body.innerHTML = '<p style="color:#e53935;padding:20px;">&#9888; Error loading data: ' + (err.message || err) + '</p>';
   });
 }
 
@@ -7289,7 +6890,7 @@ function renderCostCalcTable(statsArray) {
 
   var rowsHtml = statsArray.map(function(s) {
     return '<tr>'
-      + '<td style="padding:8px 10px;font-weight:700;color:#002b5c;border-bottom:1px solid #e5eef9;">' + esc(s.device) + '</td>'
+      + '<td style="padding:8px 10px;font-weight:700;color:#002b5c;border-bottom:1px solid #e5eef9;">' + s.device + '</td>'
       + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;">' + s.totalEnergyKwh + '</td>'
       + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;font-weight:700;color:#15803d;" class="cost-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
       + '<td style="padding:8px 10px;text-align:right;border-bottom:1px solid #e5eef9;" class="daily-cell" data-idx="' + statsArray.indexOf(s) + '">—</td>'
@@ -7597,7 +7198,7 @@ function openKPIDashboard() {
       var devType = t==='reservoir'||n.includes('reservoir') ? '💦 Reservoir' : t==='pressure'||n.includes('pressure') ? '📊 Pressure' : '⚙️ Pump';
       var reading = (t==='reservoir'||n.includes('reservoir')) ? (d.level||'—')+' m³' : (d.pressure||'—')+' psi';
       html += '<tr style="background:'+(i%2?'#f8fbff':'#fff')+';border-bottom:1px solid #e5eef9;">'
-        + '<td style="padding:6px 10px;font-weight:600;color:#002b5c;">'+esc(d.device)+'</td>'
+        + '<td style="padding:6px 10px;font-weight:600;color:#002b5c;">'+d.device+'</td>'
         + '<td style="padding:6px 10px;text-align:center;">'+devType+'</td>'
         + '<td style="padding:6px 10px;text-align:center;"><span style="background:'+sc+'22;color:'+sc+';border-radius:20px;padding:2px 10px;font-weight:700;font-size:11px;">'+d.status+'</span></td>'
         + '<td style="padding:6px 10px;text-align:center;font-weight:600;">'+reading+'</td>'
@@ -7612,7 +7213,7 @@ function openKPIDashboard() {
     html += '<div style="margin-top:18px;"><button onclick="genKPIInsight('+JSON.stringify({uptime,totalFlow,totalPower,totalEnergy,faults:fault.length,offline:offline.length,pumpsOn,avgPres,avgLevel}).replace(/"/g,"\'")+')" style="padding:7px 18px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 Generate AI KPI Insight</button><div id="kpi-ai-output" style="margin-top:10px;font-size:13px;color:#1e293b;line-height:1.6;"></div></div>';
 
     document.getElementById('kpi-body').innerHTML = html;
-  }).catch(function(e){ document.getElementById('kpi-body').innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>'; });
+  }).catch(function(e){ document.getElementById('kpi-body').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>'; });
 }
 
 function genKPIInsight(stats) {
@@ -7627,8 +7228,8 @@ function genKPIInsight(stats) {
       +'Give a 3-bullet operational commentary with status assessment and top 2 action items. Be concise.'
     ).then(function(data){
     var t = data.content&&data.content[0]?data.content[0].text:'No response.';
-    out.innerHTML = '<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
-  }).catch(function(e){ out.innerHTML='<span style="color:#e05555;">AI error: '+esc(e.message)+'</span>'; });
+    out.innerHTML = '<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+  }).catch(function(e){ out.innerHTML='<span style="color:#e05555;">AI error: '+e.message+'</span>'; });
 }
 
 // ============================================================
@@ -7681,7 +7282,7 @@ function renderAlarmList(filter) {
     var sc = a.status==='Active'?'#ef4444':a.status==='Acknowledged'?'#f97316':'#22c55e';
     return '<div id="alarm-row-'+a.id+'" style="background:#fff;border:1.5px solid '+sc+'33;border-radius:10px;padding:10px 14px;margin-bottom:8px;">'
       + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
-      + '<div><span style="font-weight:700;color:#002b5c;">'+esc(a.device)+'</span> &nbsp;<span style="background:'+sc+'22;color:'+sc+';border-radius:12px;padding:2px 9px;font-size:11px;font-weight:700;">'+a.status+'</span>'
+      + '<div><span style="font-weight:700;color:#002b5c;">'+a.device+'</span> &nbsp;<span style="background:'+sc+'22;color:'+sc+';border-radius:12px;padding:2px 9px;font-size:11px;font-weight:700;">'+a.status+'</span>'
       + '<div style="font-size:12px;color:#475569;margin-top:2px;">'+a.type+(a.reading?' · '+a.reading:'')+' &nbsp;|&nbsp; '+a.time+'</div>'
       + (a.note?'<div style="font-size:11px;color:#7a8fa6;margin-top:2px;">📝 '+a.note+'</div>':'')
       + (a.resolvedBy?'<div style="font-size:11px;color:#22c55e;margin-top:2px;">✓ Resolved by '+a.resolvedBy+' at '+a.resolvedAt+'</div>':'')
@@ -7812,8 +7413,8 @@ function genWQReport() {
     'Data:\n'+summary+'\n\nProvide:\n1. Compliance status (WHO/Philippine PNSDW standards)\n2. Any parameters out of safe range and health risk\n3. Recommended corrective actions\n4. Overall water safety verdict. Be specific and concise.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'No response.';
-    out.innerHTML='<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
-  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
+    out.innerHTML='<div style="background:#f0f8ff;border:1px solid #b8d9f5;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
 }
 
 // ============================================================
@@ -7868,9 +7469,9 @@ function renderLogbook() {
     var c = typeColors[e.type]||'#64748b';
     return '<div style="background:#fff;border-left:4px solid '+c+';border-radius:0 10px 10px 0;padding:10px 14px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.06);">'
       +'<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:4px;">'
-      +'<span style="font-weight:700;color:#002b5c;">'+esc(e.icon)+' '+esc(e.type.charAt(0).toUpperCase()+e.type.slice(1))+(e.device?' — '+esc(e.device):'')+'</span>'
-      +'<span style="font-size:11px;color:#94a3b8;">'+esc(e.operator)+' · '+esc(e.time)+'</span></div>'
-      +'<div style="font-size:13px;color:#1e293b;margin-top:4px;">'+esc(e.text)+'</div>'
+      +'<span style="font-weight:700;color:#002b5c;">'+e.icon+' '+e.type.charAt(0).toUpperCase()+e.type.slice(1)+(e.device?' — '+e.device:'')+'</span>'
+      +'<span style="font-size:11px;color:#94a3b8;">'+e.operator+' · '+e.time+'</span></div>'
+      +'<div style="font-size:13px;color:#1e293b;margin-top:4px;">'+e.text+'</div>'
       +'</div>';
   }).join('');
 }
@@ -7929,7 +7530,7 @@ function openMaintenanceCalendar() {
       +(dayTasks.length?dayTasks.map(function(t){
         var sc=t.status==='Done'?'#22c55e':t.status==='Overdue'?'#ef4444':'#f97316';
         return '<div style="background:#f8fbff;border-left:3px solid '+sc+';padding:6px 10px;border-radius:0 8px 8px 0;margin-bottom:5px;font-size:12px;">'
-          +'<b>'+esc(t.device)+'</b> — '+t.task+' <span style="color:'+sc+';font-weight:700;">'+t.status+'</span>'
+          +'<b>'+t.device+'</b> — '+t.task+' <span style="color:'+sc+';font-weight:700;">'+t.status+'</span>'
           +(t.status!=='Done'?'<button onclick="markTaskDone('+t.id+')" style="margin-left:8px;padding:2px 8px;border:1px solid #22c55e;border-radius:5px;background:white;color:#22c55e;font-size:10px;cursor:pointer;">✓ Done</button>':'')
           +'</div>';
       }).join(''):'<div style="color:#7a8fa6;font-size:12px;">No tasks for this day.</div>');
@@ -7987,7 +7588,7 @@ function renderMaintTasks() {
     var sc=t.status==='Overdue'?'#ef4444':'#f97316'; var prC=pc[t.priority]||'#3b82f6';
     return '<div style="background:#f8fbff;border:1px solid #e5eef9;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px;">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
-      +'<div><b style="color:#002b5c;">'+esc(t.device)+'</b><div style="color:#475569;margin-top:2px;">'+t.task+'</div></div>'
+      +'<div><b style="color:#002b5c;">'+t.device+'</b><div style="color:#475569;margin-top:2px;">'+t.task+'</div></div>'
       +'<div style="text-align:right;flex-shrink:0;"><span style="background:'+prC+'22;color:'+prC+';border-radius:8px;padding:1px 7px;font-size:10px;font-weight:700;">'+t.priority+'</span><br>'
       +'<span style="color:'+sc+';font-size:11px;font-weight:600;">'+t.dueDate+'</span></div>'
       +'</div></div>';
@@ -8021,8 +7622,8 @@ function openWaterLoss() {
     var nrwColor = !nrwPct?'#94a3b8':parseFloat(nrwPct)<15?'#22c55e':parseFloat(nrwPct)<25?'#f97316':'#ef4444';
     var nrwLabel = !nrwPct?'Insufficient data':parseFloat(nrwPct)<15?'Excellent (<15%)':parseFloat(nrwPct)<25?'Acceptable (15–25%)':'High NRW — investigate (>25%)';
 
-    var pumpRows = pumps.map(function(d){ return '<tr><td style="padding:6px 10px;color:#002b5c;font-weight:600;">'+esc(d.device)+'</td><td style="padding:6px 10px;text-align:center;">'+(d.discharge||d.flow||'—')+'</td><td style="padding:6px 10px;text-align:center;">'+(d.energy||'—')+' kWh</td></tr>'; }).join('');
-    var resRows = reservoirs.map(function(d){ return '<tr><td style="padding:6px 10px;color:#002b5c;font-weight:600;">'+esc(d.device)+'</td><td style="padding:6px 10px;text-align:center;">'+(d.level||'—')+' m³</td><td style="padding:6px 10px;text-align:center;">'+d.status+'</td></tr>'; }).join('');
+    var pumpRows = pumps.map(function(d){ return '<tr><td style="padding:6px 10px;color:#002b5c;font-weight:600;">'+d.device+'</td><td style="padding:6px 10px;text-align:center;">'+(d.discharge||d.flow||'—')+'</td><td style="padding:6px 10px;text-align:center;">'+(d.energy||'—')+' kWh</td></tr>'; }).join('');
+    var resRows = reservoirs.map(function(d){ return '<tr><td style="padding:6px 10px;color:#002b5c;font-weight:600;">'+d.device+'</td><td style="padding:6px 10px;text-align:center;">'+(d.level||'—')+' m³</td><td style="padding:6px 10px;text-align:center;">'+d.status+'</td></tr>'; }).join('');
 
     var html = '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:18px;">'
       +'<div style="background:#f0f8ff;border:1.5px solid #b8d9f5;border-radius:12px;padding:14px;text-align:center;">'
@@ -8053,8 +7654,8 @@ function genNRWReport(pumped, stored, nrw) {
     'Total pumped: '+pumped+' m³\nTotal stored in reservoirs: '+stored+' m³\nEstimated NRW: '+nrw+'%\n\nProvide:\n1. NRW assessment vs IWA benchmarks\n2. Likely causes of water loss at this level\n3. Three prioritized actions to reduce NRW\n4. Financial impact estimate. Be concise and practical.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'';
-    out.innerHTML='<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
-  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
+    out.innerHTML='<div style="background:#f5f0ff;border:1px solid #c4b5fd;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
 }
 
 // ============================================================
@@ -8084,13 +7685,13 @@ function openBenchmark() {
   document.body.appendChild(ov);
   apiCached('getDashboardData').then(function(devices) {
     var sel = document.getElementById('bench-device'); if (!sel) return;
-    sel.innerHTML = devices.filter(function(d){var n=(d.device||'').toLowerCase();return !n.endsWith('pressurelog')&&!n.endsWith('reservoirlog');}).map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+esc(d.device)+'</option>';}).join('');
+    sel.innerHTML = devices.filter(function(d){var n=(d.device||'').toLowerCase();return !n.endsWith('pressurelog')&&!n.endsWith('reservoirlog');}).map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>';}).join('');
   });
 }
 
 function runBenchmark() {
   var device = document.getElementById('bench-device').value;
-  var days = parseInt(document.getElementById('bench-period').value,10)||30;
+  var days = parseInt(document.getElementById('bench-period').value)||30;
   var body = document.getElementById('bench-body'); if (!body) return;
   body.innerHTML='<div style="text-align:center;padding:40px;"><div class="spinner" style="margin:0 auto 12px;"></div>Loading…</div>';
   apiGet('getSheetData',{sheet:device}).then(function(rows){
@@ -8137,7 +7738,7 @@ function runBenchmark() {
       +'<div style="margin-top:16px;"><button onclick="genBenchmarkInsight()" style="padding:7px 18px;background:linear-gradient(135deg,#0f172a,#1e40af);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 AI Trend Insight</button><div id="bench-ai-out" style="margin-top:10px;font-size:13px;line-height:1.6;"></div></div>';
 
     window._benchSummary = {device:device,days:days,current:rowsA.length,prior:rowsB.length,metrics:metrics.map(function(m){return {label:m.label,current:avgOf(rowsA,m.pat),prior:avgOf(rowsB,m.pat)};})};
-  }).catch(function(e){ body.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>'; });
+  }).catch(function(e){ body.innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>'; });
 }
 
 function genBenchmarkInsight() {
@@ -8148,8 +7749,8 @@ function genBenchmarkInsight() {
   aiCall('Performance trend analysis.', 'Analyze performance trends for AGUS device "'+s.device+'" comparing last '+s.days+' days vs prior '+s.days+' days:\n'+summary+'\n\nProvide:\n1. Key improvements and declines\n2. Possible operational causes\n3. Two recommendations. Concise.'
   ).then(function(data){
     var t=data.content&&data.content[0]?data.content[0].text:'';
-    out.innerHTML='<div style="background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">🤖 '+esc(t).replace(/\n/g,'<br>')+'</div>';
-  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
+    out.innerHTML='<div style="background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;">🤖 '+t.replace(/\n/g,'<br>')+'</div>';
+  }).catch(function(e){out.innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
 }
 
 // ============================================================
@@ -8336,12 +7937,12 @@ function openMLRiskEngine() {
       return !n.endsWith('pressurelog') && !n.endsWith('reservoirlog');
     });
     sel.innerHTML = filtered.map(function(d) {
-      return '<option value="' + escapeForAttr(d.device) + '">' + esc(d.device) + '</option>';
+      return '<option value="' + d.device.replace(/"/g, '&quot;') + '">' + d.device + '</option>';
     }).join('');
     if (filtered.length) runMLAnalysis();
   }).catch(function(e) {
     var l = document.getElementById('ml-loading');
-    if (l) l.innerHTML = '<span style="color:#e05555;">Error loading devices: ' + esc(e.message) + '</span>';
+    if (l) l.innerHTML = '<span style="color:#e05555;">Error loading devices: ' + e.message + '</span>';
   });
 }
 
@@ -8350,7 +7951,7 @@ function runMLAnalysis() {
   var windowSel = document.getElementById('ml-window-sel');
   if (!deviceSel) return;
   var device = deviceSel.value;
-  var winSize = parseInt(windowSel ? windowSel.value : '96',10) || 96;
+  var winSize = parseInt(windowSel ? windowSel.value : '96') || 96;
 
   var loading = document.getElementById('ml-loading');
   var body = document.getElementById('ml-body');
@@ -8468,7 +8069,7 @@ function runMLAnalysis() {
     }
 
   }).catch(function(e) {
-    if (loading) loading.innerHTML = '<span style="color:#e05555;">Error: ' + esc(e.message) + '</span>';
+    if (loading) loading.innerHTML = '<span style="color:#e05555;">Error: ' + e.message + '</span>';
   });
 }
 
@@ -8629,7 +8230,7 @@ function genMLAIInterpretation() {
   var insight = document.getElementById('ml-ai-insight');
   if (!insight) return;
   insight.style.display = 'block';
-  insight.innerHTML = '<div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with DeepSeek AI…</span></div>';
+  insight.innerHTML = '<div id="ml-ai-insight"><div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with DeepSeek AI…</span></div></div>';
 
   // Build a rich summary of ML findings for the AI
   var summary = _mlResults.map(function(a) {
@@ -8671,14 +8272,16 @@ function genMLAIInterpretation() {
       .replace(/^\d+\.\s(.+)$/gm, '<div style="margin:5px 0 5px 12px;color:#1e293b;">$1</div>')
       .replace(/^- (.+)$/gm, '<div style="margin:3px 0 3px 10px;color:#334155;">– $1</div>')
       .replace(/\n/g, '<br>');
-    insight.innerHTML = '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
+    insight.innerHTML = '<div id="ml-ai-insight">'
+      + '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">'
       +   '<span style="font-size:18px;">🤖</span>'
       +   '<span style="font-weight:800;color:#1e3a5f;font-size:13px;">AI Maintenance Interpretation</span>'
-      +   '<span style="font-size:10px;color:#7a8fa6;margin-left:auto;">Based on ML analysis of ' + esc(_mlResults.length) + ' parameters</span>'
+      +   '<span style="font-size:10px;color:#7a8fa6;margin-left:auto;">Based on ML analysis of ' + _mlResults.length + ' parameters</span>'
       + '</div>'
-      + html;
+      + html
+      + '</div>';
   }).catch(function(e) {
-    insight.innerHTML = '<span style="color:#e05555;">AI interpretation error: ' + esc(e.message) + '</span>';
+    insight.innerHTML = '<span style="color:#e05555;">AI interpretation error: ' + e.message + '</span>';
   });
 }
 
@@ -8713,7 +8316,7 @@ function openForecastPanel() {
   apiCached('getDashboardData').then(function(devices) {
     var sel=document.getElementById('fc-device'); if(!sel) return;
     var filtered=devices.filter(function(d){var n=(d.device||'').toLowerCase();return !n.endsWith('pressurelog')&&!n.endsWith('reservoirlog');});
-    sel.innerHTML=filtered.map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+esc(d.device)+'</option>';}).join('');
+    sel.innerHTML=filtered.map(function(d){return '<option value="'+d.device.replace(/"/g,'&quot;')+'">'+d.device+'</option>';}).join('');
     if(filtered.length) loadForecast();
   });
 }
@@ -8768,7 +8371,7 @@ function loadForecast() {
         +'<br><b>🤖 Forecast Method:</b> Weighted Moving Average with hourly seasonality — last 48 data points projected forward.'
         +'</div>';
     }
-  }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+esc(e.message)+'</span>';});
+  }).catch(function(e){if(document.getElementById('fc-loading'))document.getElementById('fc-loading').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>';});
 }
   // ============================================================
 // Ensure pump links are loaded on dashboard init
@@ -8889,7 +8492,7 @@ function fetchWeather() {
   }
 }
 // Refresh weather every 10 minutes
-_regInterval('weather', setInterval(fetchWeather, 600000));
+setInterval(fetchWeather, 600000);
 
 // ============================================================
 // WORLD-CLASS FEATURE: ML Risk Score Persistence + Trend Chart
@@ -8974,7 +8577,7 @@ function mlPrintReport() {
     + '<table><thead><tr><th>Time</th><th>Device</th><th>Overall Risk</th><th>Parameters</th></tr></thead><tbody>';
   mlRiskHistory.slice(-100).forEach(function(e) {
     var params = (e.scores||[]).map(function(s){ return s.label + ': ' + s.risk; }).join(', ');
-    html += '<tr><td>' + e.time + '</td><td>' + esc(e.device||'') + '</td><td>' + e.overall + '</td><td>' + params + '</td></tr>';
+    html += '<tr><td>' + e.time + '</td><td>' + (e.device||'') + '</td><td>' + e.overall + '</td><td>' + params + '</td></tr>';
   });
   html += '</tbody></table></body></html>';
   var w = window.open('', '_blank');
@@ -9043,7 +8646,7 @@ function openAlarmTimeline() {
   var timelineHTML = recent.map(function(e, idx) {
     var alarmDots = e.alarms.map(function(a) {
       var c = a.type.toLowerCase().indexOf('fault') >= 0 ? '#ef4444' : a.type.toLowerCase().indexOf('warn') >= 0 ? '#f97316' : '#3b82f6';
-      return '<span title="' + escapeForAttr(a.device) + ': ' + a.type + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';margin:0 2px;"></span>';
+      return '<span title="' + a.device + ': ' + a.type + '" style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + c + ';margin:0 2px;"></span>';
     }).join('');
     return '<div style="display:flex;gap:12px;padding:8px 0;border-bottom:1px solid #e5eef9;font-size:12px;">'
       + '<div style="min-width:70px;color:#94a3b8;font-size:10px;">' + e.time + '</div>'
@@ -9371,7 +8974,7 @@ function runAIDiagnostics() {
       var t = data.content&&data.content[0]?data.content[0].text.trim():'No recommendations available.';
       var recEl = document.getElementById('ai-diag-recs');
       if (recEl) {
-        recEl.innerHTML = esc(t)
+        recEl.innerHTML = t
           .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
           .replace(/^\d+\.\s(.+)$/gm,'<div style="margin:6px 0;display:flex;gap:8px;"><span style="font-weight:800;color:#7c3aed;flex-shrink:0;">▸</span><span>$1</span></div>')
           .replace(/\n/g,'<br>');
@@ -9381,7 +8984,7 @@ function runAIDiagnostics() {
       if (recEl) recEl.innerHTML = '<span style="color:#94a3b8;">⚠ AI offline — configure API key in AI Config for live recommendations.</span>';
     });
   }).catch(function(e) {
-    body.innerHTML = '<p style="color:#ef4444;padding:20px;">⚠ Failed to load device data: '+esc(e.message||e)+'</p>';
+    body.innerHTML = '<p style="color:#ef4444;padding:20px;">⚠ Failed to load device data: '+(e.message||e)+'</p>';
   });
 }
 
@@ -9420,7 +9023,7 @@ function runAIDiagnostics() {
     _buildAIHealthCard();
     apiGet('getDashboardData').then(function(devices) {
       _updateAIHealthCard(devices);
-    }).catch(function(e){console.warn('[apiCached] Error:',e);});
+    }).catch(function(){});
   };
   // Also build the card after login
   var _origLogin = window.login;
@@ -9742,7 +9345,7 @@ function exportDashboardPDF() {
   var STATES_KEY    = 'agus_push_states';
   var DEDUP_KEY     = 'agus_push_dedup';
   var COOLDOWN      = 300000;   // 5 min per event key
-  var POLL_MS       = 60000;    // in-page poll every 60 s (conserves GAS quota)
+  var POLL_MS       = 30000;    // in-page poll every 30 s
 
   /* ── State ─────────────────────────────────────────────── */
   var _on     = localStorage.getItem(PUSH_KEY) === '1';
@@ -9943,13 +9546,13 @@ function exportDashboardPDF() {
   var _pollTimer = null;
   function _startPagePoll() {
     if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = _regInterval('pollTimer', setInterval(function() {
+    _pollTimer = setInterval(function() {
       if (!_on || Notification.permission !== 'granted') return;
       if (typeof apiGet !== 'function') return;
       apiGet('getDashboardData').then(function(devices) {
         if (Array.isArray(devices)) _checkDevices(devices);
-      }).catch(function(e){console.warn('[apiCached] Error:',e);});
-    }, POLL_MS));
+      }).catch(function() {});
+    }, POLL_MS);
   }
 
   /* Also hook _lastDevices — fires each time updateDashboard gets data */
@@ -9996,7 +9599,7 @@ function exportDashboardPDF() {
   '        dbSet(db,"cfg",d.cfg),' +
   '        d.prev?dbSet(db,"prev",d.prev):Promise.resolve()' +
   '      ]);' +
-  '    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
+      '    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
   '  }' +
   '  if(d.type==="AGUS_NOTIFY"){' +
   '    self.registration.showNotification(d.title,d.opts||{});' +
@@ -10015,21 +9618,21 @@ function exportDashboardPDF() {
   '  if(e.tag==="agus-bg")e.waitUntil(bgPoll());' +
   '});' +
   /* Dedup */
-  'var _dd={};var COOL=300000;' +
+  'var _swErr=0;var _dd={};var COOL=300000;' +
   'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
   /* Notify helper */
   'function pop(title,body,tag,urgent){' +
   '  return self.registration.showNotification(title,{' +
   '    body:body,tag:tag,requireInteraction:!!urgent,' +
   '    vibrate:urgent?[400,150,400,150,400]:[200,100,200],' +
-  '    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
-  '    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
+'    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
+'    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
   '  });' +
   '}' +
-  'var _swErr=0;' +
   /* Background poll */
   'async function bgPoll(){' +
   '  try{' +
+  '    if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}' +
   '    var db=await dbOpen();' +
   '    var cfg=await dbGet(db,"cfg");' +
   '    if(!cfg||!cfg.apiUrl||!cfg.token)return;' +
@@ -10091,24 +9694,26 @@ function exportDashboardPDF() {
   '      prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};' +
   '    });' +
   '    await dbSet(db,"prev",prev);' +
-  '    await pumpLinkControl(cfg,devs,db,ps);' +
-  '    await Promise.all(ps);' +
-  '    _swErr=0;' +
-  '  }catch(err){console.error("[SW] bgPoll:",err);_swErr++}if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");await new Promise(function(r){setTimeout(r,600000);})}' +
-  '}' +
+'    await pumpLinkControl(cfg,devs,db,ps);' +
+'    await Promise.all(ps);' +
+'    _swErr=0;' +
+'  }catch(err){console.error("[SW] bgPoll:",err);_swErr++}' +
+'  if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}' +
+'}' +
   /* Pump-link toggle — calls GAS togglePump via POST */
   'async function swTogglePump(apiUrl,token,device){' +
   '  try{var r=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},' +
   '    body:JSON.stringify({action:"togglePump",token:token,device:device,latitude:"",longitude:""})});' +
-  '  if(!r.ok)return null;return await r.json();}catch(e){return null;}' +
+  '  if(!r.ok)return null;return await r.json();}catch(e){console.warn("[SW] togglePump error:",e);return null;}' +
   '}' +
   /* Pump-link auto-control — runs even when dashboard tab is closed */
   'async function pumpLinkControl(cfg,devs,db,ps){' +
   '  var links=cfg.pumpLinks||[];' +
   '  if(!links.length){try{' +
-  '    var lr=await fetch(cfg.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"getPumpLinks",token:cfg.token})});' +
+  '    var lr=await fetch(cfg.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},' +
+  '      body:JSON.stringify({action:"getPumpLinks",token:cfg.token})});' +
   '    if(lr.ok){var ld=await lr.json();if(Array.isArray(ld)){links=ld;}}' +
-  '  }catch(e){}}' +
+  '  }catch(e){console.warn("[SW] getPumpLinks error:",e);}}' +
   '  if(!links.length)return;' +
   '  var cool=(await dbGet(db,"pl_cool"))||{};' +
   '  var manCool=(await dbGet(db,"pl_man_cool"))||{};' +
@@ -10126,7 +9731,7 @@ function exportDashboardPDF() {
   '    var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;' +
   '    if(isNaN(sOff)||isNaN(sRes))continue;' +
   '    var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";' +
-  '    var ck=lnk.pump;' +  // pump-only key to prevent race when two reservoirs share one pump
+  '    var ck=lnk.pump;  // pump-only key prevents race when two reservoirs share one pump' +
   '    if(cool[ck]&&now-cool[ck]<PL_COOL)continue;' +
   '    var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));' +
   '    var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));' +
@@ -10156,13 +9761,13 @@ function exportDashboardPDF() {
   '          if(d2.baseCfg.token)merged.token=d2.baseCfg.token;' +
   '        }' +
   '        return Promise.all([' +
-  '          dbSet(db2,"cfg",merged),' +
-  '          d2.manCool?dbSet(db2,"pl_man_cool",d2.manCool):Promise.resolve()' +
-  '        ]);' +
-  '      });' +
-  '    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
-  '  }' +
-  '});' +
+'          dbSet(db2,"cfg",merged),' +
+'          d2.manCool?dbSet(db2,"pl_man_cool",d2.manCool):Promise.resolve()' +
+'        ]);' +
+'      });' +
+'    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
+'  }' +
+'});' +
   /* Also run on push event (for future server-push) */
   'self.addEventListener("push",function(e){' +
   '  e.waitUntil(bgPoll());' +
@@ -10172,7 +9777,7 @@ function exportDashboardPDF() {
   'self.addEventListener("activate",function(eAct){' +
   '  eAct.waitUntil(self.clients.claim().then(function(){' +
   '    if(_swHb)clearInterval(_swHb);' +
-  '    _swHb=setInterval(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});},60000);' +
+  '    self._swHb=setInterval(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});},60000);' +
   '  }));' +
   '});' +
   ')();';
@@ -10180,8 +9785,7 @@ function exportDashboardPDF() {
   /* ── Register SW ─────────────────────────────────────────── */
   function _registerSW() {
     if (!('serviceWorker' in navigator)) return;
-    /* Try standalone sw.js first (survives browser restart); fall back to Blob (GAS deployment) */
-    function _onReg(reg) {
+    function regDone(reg) {
       _swReg = reg;
       _sendCfg(reg);
       if (reg.periodicSync) {
@@ -10189,20 +9793,17 @@ function exportDashboardPDF() {
           .then(function(status) {
             if (status.state === 'granted') {
               reg.periodicSync.register('agus-bg', { minInterval: 15 * 60 * 1000 })
-                .catch(function(e){console.warn('[SW] periodicSync register error:',e);});
+                .catch(function() {});
             }
-          }).catch(function(e){console.warn('[apiCached] Error:',e);});
+          }).catch(function() {});
       }
     }
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
-      .then(function(reg) { _onReg(reg); })
+      .then(regDone)
       .catch(function() {
-        /* Fallback: Blob URL (works for GAS-hosted deployments) */
         var blob = new Blob(['(' + SW_SRC], { type: 'application/javascript' });
         var url  = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(url)
-          .then(function(reg) { _onReg(reg); })
-          .catch(function(e){console.warn('[apiCached] Error:',e);});
+        navigator.serviceWorker.register(url).then(regDone).catch(function() {});
       });
   }
 
@@ -10229,13 +9830,13 @@ function exportDashboardPDF() {
   /* Re-send config whenever token changes (login) */
   function _watchToken() {
     var _lastToken = typeof userToken !== 'undefined' ? userToken : '';
-    _regInterval('watchToken', setInterval(function() {
+    setInterval(function() {
       var t = typeof userToken !== 'undefined' ? userToken : '';
       if (t && t !== _lastToken) {
         _lastToken = t;
         if (_swReg) _sendCfg(_swReg);
       }
-    }, 5000));
+    }, 5000);
   }
 
   /* ── Push pump links + manual cooldowns to SW whenever they change ── */
@@ -10253,7 +9854,7 @@ function exportDashboardPDF() {
           token:  (typeof userToken !== 'undefined' ? userToken : '')
         }
       });
-    } catch(e) { console.warn('[SW] _sendPumpLinksToSW failed:', e); }
+    } catch(e) {}
   };
 
 
@@ -10355,11 +9956,11 @@ function exportDashboardPDF() {
     _registerSW();
     /* Keep SW alive while any page tab is open — send ping every 30s */
     if (_keepaliveTimer) clearInterval(_keepaliveTimer);
-    _keepaliveTimer = _regInterval('keepalive', setInterval(function() {
+    _keepaliveTimer = setInterval(function() {
       var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
                || (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (sw) { try { sw.postMessage({ type: 'AGUS_PING' }); } catch(e) {} }
-    }, 30000));
+    }, 30000);
     if (_on && Notification.permission === 'granted') {
       _startPagePoll();
     }
@@ -10473,7 +10074,7 @@ function _parseRow(r, keys) {
     volt: volK  ? parseFloat(r[volK])  : NaN,
     curr: curK  ? parseFloat(r[curK])  : NaN,
     ene:  eneK  ? parseFloat(r[eneK])  : NaN,
-    relay: relK ? parseInt(r[relK],10)    : NaN
+    relay: relK ? parseInt(r[relK])    : NaN
   };
 }
 
@@ -10589,7 +10190,7 @@ function _renderSummary(body, stats, period) {
   }).join('');
 
   var colHtml = [
-    {h:'Device',         f:function(s){return '<span style="font-weight:700;color:#0f172a;">'+esc(s.device)+'</span>';}},
+    {h:'Device',         f:function(s){return '<span style="font-weight:700;color:#0f172a;">'+s.device+'</span>';}},
     {h:'Runtime (h)',    f:function(s,p){return s[p]?s[p].runtime:'—';}},
     {h:'Flow (m³)',      f:function(s,p){return s[p]?s[p].totalFlow:'—';}},
     {h:'Avg L/s',        f:function(s,p){return s[p]?s[p].avgFlow:'—';}},
@@ -10652,7 +10253,7 @@ window.openHeatmap = function() {
   body.innerHTML = _loading();
 
   // Device + metric selectors
-  var devOptions = devices.map(function(d){ return '<option value="'+escapeForAttr(d.device)+'">'+esc(d.device)+'</option>'; }).join('');
+  var devOptions = devices.map(function(d){ return '<option value="'+d.device+'">'+d.device+'</option>'; }).join('');
   var metricOptions = '<option value="flow">Flow (L/s)</option><option value="pow">Power (kW)</option><option value="pres">Pressure (psi)</option><option value="lvl">Water Level (m³)</option><option value="volt">Voltage (V)</option><option value="curr">Current (A)</option>';
 
   body.innerHTML =
@@ -10780,7 +10381,7 @@ window.openEfficiency = function() {
       var health = e.trend===null?'Insufficient data':e.trend<-5?'⚠️ Significant decline — inspect pump':e.trend<-2?'Monitor closely':e.trend>2?'Improving':'Stable';
       var ringPct = Math.min(100,Math.max(0,(e.avg/10)*100));
       return '<div class="ana-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:18px 20px;transition:box-shadow 0.2s;" onmouseover="this.style.boxShadow=\'0 4px 24px rgba(8,145,178,0.13)\'" onmouseout="this.style.boxShadow=\'none\'">'
-        +'<div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px;">'+esc(e.device)+'</div>'
+        +'<div style="font-weight:800;font-size:14px;color:#0f172a;margin-bottom:4px;">'+e.device+'</div>'
         +'<div style="font-size:26px;font-weight:900;color:#0891b2;letter-spacing:-1px;">'+e.avg.toFixed(2)+' <span style="font-size:13px;font-weight:600;color:#64748b;">L/s·kW</span></div>'
         +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:12px 0;background:#f8fafc;border-radius:8px;padding:10px;">'
         +'<div><div style="font-size:10px;color:#94a3b8;font-weight:700;">MIN</div><div style="font-size:13px;font-weight:700;color:#475569;">'+e.min.toFixed(2)+'</div></div>'
@@ -10911,8 +10512,8 @@ window.openWaterLossTracker = function() {
   if (!pumps.length||!reservoirs.length) { body.innerHTML='<p style="color:#94a3b8;">Need at least one pump device and one reservoir device.</p>'; return; }
 
   // Device pickers
-  var pumpOpts = pumps.map(function(d){return '<option>'+esc(d.device)+'</option>';}).join('');
-  var resOpts  = reservoirs.map(function(d){return '<option>'+esc(d.device)+'</option>';}).join('');
+  var pumpOpts = pumps.map(function(d){return '<option>'+d.device+'</option>';}).join('');
+  var resOpts  = reservoirs.map(function(d){return '<option>'+d.device+'</option>';}).join('');
 
   body.innerHTML =
     '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px;">'
@@ -10927,7 +10528,7 @@ window.openWaterLossTracker = function() {
   window._calcWaterLoss = function() {
     var pDev = document.getElementById('wlt-pump').value;
     var rDev = document.getElementById('wlt-res').value;
-    var hrs  = parseInt(document.getElementById('wlt-period').value,10);
+    var hrs  = parseInt(document.getElementById('wlt-period').value);
     var wrap = document.getElementById('wlt-result');
     wrap.innerHTML = _loading('Calculating water balance…');
     Promise.all([
