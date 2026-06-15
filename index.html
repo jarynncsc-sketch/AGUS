@@ -1478,8 +1478,6 @@
     .rs-gear-btn:hover{background:linear-gradient(135deg,#c8e9fe,#a0d6f0);}
   
     /* ========== AI MODULES ADDITIONAL STYLES ========== */
-    .ai-anomaly-badge { font-size:10px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.4); color:#ef4444; border-radius:6px; padding:2px 6px; margin-top:3px; display:flex; align-items:center; gap:4px; cursor:pointer; transition:0.2s; }
-    .ai-anomaly-badge:hover { background:rgba(239,68,68,0.2); }
     .ai-msg { padding: 9px 13px; border-radius: 10px; font-size: 13px; line-height: 1.55; max-width: 88%; }
     .ai-msg-user { background: #004080; color: white; align-self: flex-end; border-radius: 10px 10px 2px 10px; }
     .ai-msg-bot  { background: #f0f6ff; color: #002b5c; align-self: flex-start; border-radius: 10px 10px 10px 2px; border: 1px solid #d0e4f7; }
@@ -4929,7 +4927,7 @@ function showHistoricalGraph(deviceName, deviceType) {
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); updateLiveCounter(); updateLastToggledBadge(allGraphData); renderCalendars(); startGraphPolling();
-    try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
+    try { renderRangeChart(); } catch(e) { console.error('[AGUS CHART]', e); showDebugBar('Chart render error: '+(e.message||e)); }
   }).catch(function(err){
     clearTimeout(_retryTimer);
     loadEl.classList.remove('visible');
@@ -4949,10 +4947,12 @@ function showDebugBar(msg){
 }
 
 function renderRangeChart() {
-  var data=getFilteredData();
+  var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
+  var data=Array.isArray(raw)?raw:[];
   if (!data.length){nd.classList.add('visible');return;}nd.classList.remove('visible');
-  var labels=data.map(function(r){var d=parseSheetDate(r[window._timeKey]);if(!d)return'';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});});
+  var labels=[];
+  try { labels=data.map(function(r){var d=parseSheetDate(r[window._timeKey]);if(!d)return'';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});}); } catch(e){nd.classList.add('visible');showDebugBar('Data format error: invalid time column');return;}
   var canvas=document.getElementById('pressureChart'),ctx=canvas.getContext('2d');
   if (myChart) myChart.destroy();
   if (currentDeviceType==='reservoir') {
