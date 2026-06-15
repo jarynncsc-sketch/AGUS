@@ -9380,8 +9380,10 @@ function _metCard(label, icon, value, unit, color) {
 
 
 <!-- ═══════════════════════════════════════════════════════════════
-     NDRRMC-STYLE CRITICAL ALARM SYSTEM
-     Full-screen takeover · Repeating TTS · Flash · Acknowledge-to-stop
+     NDRRMC-STYLE CRITICAL ALARM SYSTEM v2
+     Multi-alarm QUEUE · Each alarm acknowledged one by one
+     New alarms re-trigger even if previous was acknowledged
+     Returns to normal ONLY when ALL alarms cleared + acknowledged
      ═══════════════════════════════════════════════════════════════ -->
 <style>
 /* ── NDRRMC Alarm Overlay ── */
@@ -9600,30 +9602,46 @@ function _metCard(label, icon, value, unit, color) {
 }
 </style>
 
-<!-- NDRRMC Alarm Overlay DOM -->
+<!-- ══════════════════════════════════════════════════════════
+     NDRRMC ALARM OVERLAY — Multi-Alarm Queue System
+     ══════════════════════════════════════════════════════════ -->
 <div id="ndrrmc-alarm-overlay" role="alertdialog" aria-live="assertive">
-  <!-- Logo strip -->
+
+  <!-- Logo bar -->
   <div class="ndrrmc-logo-strip">
     🛡️ AGUS · CARCAR WATER DISTRICT &nbsp;|&nbsp; EMERGENCY ALERT SYSTEM
   </div>
 
-  <!-- Pulse rings behind bell -->
+  <!-- Pulse rings -->
   <div class="ndrrmc-pulse-ring" style="animation-delay:0s;"></div>
   <div class="ndrrmc-pulse-ring" style="animation-delay:0.4s;"></div>
 
-  <!-- Bell icon -->
+  <!-- Bell -->
   <div class="ndrrmc-bell">🔔</div>
 
   <div class="ndrrmc-header">⚠ CRITICAL ALERT ⚠</div>
   <div class="ndrrmc-subheader">AGUS Water Monitoring System</div>
   <hr class="ndrrmc-divider">
 
+  <!-- Current alarm being shown -->
   <div class="ndrrmc-device-name" id="ndrrmc-device-name">—</div>
-  <div class="ndrrmc-alarm-type" id="ndrrmc-alarm-type">—</div>
+  <div class="ndrrmc-alarm-type"  id="ndrrmc-alarm-type">—</div>
   <div class="ndrrmc-alarm-value" id="ndrrmc-alarm-value"></div>
 
-  <div class="ndrrmc-repeat-badge" id="ndrrmc-repeat-badge">🔁 REPEATING EVERY 2 MIN UNTIL ACKNOWLEDGED</div>
+  <!-- Queue status badge -->
+  <div class="ndrrmc-repeat-badge" id="ndrrmc-queue-badge">
+    🔁 REPEATING UNTIL ACKNOWLEDGED
+  </div>
 
+  <!-- All active alarms list -->
+  <div id="ndrrmc-alarm-list" style="
+    width:90%; max-width:420px;
+    max-height:90px; overflow-y:auto;
+    margin:6px auto 10px;
+    display:none;
+  "></div>
+
+  <!-- TTS speaking indicator -->
   <div class="ndrrmc-speaking" id="ndrrmc-speaking-indicator">
     <div class="ndrrmc-wave-bar"></div>
     <div class="ndrrmc-wave-bar"></div>
@@ -9632,9 +9650,12 @@ function _metCard(label, icon, value, unit, color) {
     <span>ANNOUNCING ALERT…</span>
   </div>
 
+  <!-- Acknowledge current alarm → proceed to next -->
   <button id="ndrrmc-ack-btn" onclick="window.ndrrmcAcknowledge()">
-    ✅ ACKNOWLEDGE &amp; STOP ALARM
+    ✅ ACKNOWLEDGE THIS ALARM
   </button>
+
+  <!-- Silence TTS for 5 min, overlay stays -->
   <button id="ndrrmc-silence-btn" onclick="window.ndrrmcSilence5()">
     🔇 SILENCE 5 MINUTES
   </button>
@@ -9642,131 +9663,178 @@ function _metCard(label, icon, value, unit, color) {
   <!-- Ticker -->
   <div class="ndrrmc-ticker">
     <span class="ndrrmc-ticker-inner" id="ndrrmc-ticker-text">
-      ⚠ CRITICAL ALERT — TAP ACKNOWLEDGE TO STOP ⚠ &nbsp;&nbsp;&nbsp; AGUS WATER MONITORING SYSTEM &nbsp;&nbsp;&nbsp;
+      ⚠ CRITICAL ALERT — TAP ACKNOWLEDGE TO PROCEED ⚠ &nbsp;&nbsp;&nbsp; AGUS WATER MONITORING SYSTEM &nbsp;&nbsp;&nbsp;
     </span>
   </div>
 </div>
 
+<!-- Extra CSS for alarm list + queue badge -->
+<style>
+#ndrrmc-alarm-list .nal-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,215,0,0.25);
+  border-radius: 8px;
+  padding: 5px 10px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  color: #fff;
+  font-family: Arial, sans-serif;
+  text-align: left;
+}
+#ndrrmc-alarm-list .nal-item.current {
+  background: rgba(255,215,0,0.18);
+  border-color: #ffd700;
+  color: #ffd700;
+  font-weight: 800;
+}
+#ndrrmc-alarm-list .nal-item.acked {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
+#ndrrmc-alarm-list .nal-num {
+  background: #ffd700;
+  color: #1a0000;
+  border-radius: 50%;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; flex-shrink: 0;
+}
+#ndrrmc-alarm-list .nal-item.acked .nal-num {
+  background: rgba(255,255,255,0.3);
+  color: #fff;
+}
+/* All-clear success flash */
+@keyframes ndrrmc-allclear {
+  0%   { background: #065f46; }
+  50%  { background: #047857; }
+  100% { background: #065f46; }
+}
+#ndrrmc-alarm-overlay.all-clear {
+  animation: ndrrmc-allclear 1s ease infinite !important;
+}
+</style>
+
 <script data-agus-trusted="1">
-/* ═══════════════════════════════════════════════════════════════
-   NDRRMC Alarm Engine — replaces simple speakAlarm / showNotification
-   ═══════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════
+   NDRRMC Alarm Engine v2 — Multi-Alarm Queue
+   ─────────────────────────────────────────────────────────────────
+   LOGIC:
+   • Every unique alarm (device+type) is added to _alarmQueue[]
+   • Only ONE alarm shown at a time (_currentAlarmKey)
+   • ACKNOWLEDGE → marks current acked → moves to next unacked alarm
+   • If more alarms in queue → show next with full red flash + siren + TTS
+   • If ALL acked AND no active alarms remain → show "All Clear" briefly, then hide
+   • If sensor re-triggers a previously acked alarm → re-adds to queue, red screen again
+   • New alarms arriving while viewing another → queued, badge shows count
+   ═══════════════════════════════════════════════════════════════════ */
 (function() {
   'use strict';
 
   /* ── State ── */
-  var _overlay       = null;
-  var _activeAlarms  = {};   // key: deviceKey → { deviceName, alarmType, message, ts }
-  var _ackAlarms     = {};   // acknowledged, suppressed until next data-clear
-  var _silenceUntil  = 0;
-  var _speechTimer   = null;
-  var _flashTimer    = null;
-  var _repeatTimer   = null;
-  var _speaking      = false;
-  var _audioCtx      = null;
-  var _alarmSound    = null;
-  var _soundPlaying  = false;
-  var REPEAT_MS      = 2 * 60 * 1000;   // repeat TTS every 2 min
+  var _alarmQueue      = [];     // ordered list of alarm keys (insertion order)
+  var _alarmData       = {};     // key → alarm object
+  var _ackedKeys       = {};     // keys that have been acknowledged THIS cycle
+  var _currentKey      = null;   // key of alarm currently displayed
+  var _silenceUntil    = 0;
+  var _speechTimer     = null;
+  var _flashTimer      = null;
+  var _repeatTimer     = null;
+  var _audioCtx        = null;
+  var REPEAT_MS        = 2 * 60 * 1000;
 
-  /* ── Create AudioContext alarm tone (siren-like beeps) ── */
-  function _getAudioCtx() {
-    if (!_audioCtx) {
-      try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
-    }
+  var TYPE_LABELS = {
+    'low':           '⬇ LOW LEVEL',
+    'high':          '⬆ HIGH LEVEL',
+    'offline':       '📡 OFFLINE',
+    'fault':         '⚙ FAULT',
+    'low pressure':  '⬇ LOW PRESSURE',
+    'high pressure': '⬆ HIGH PRESSURE'
+  };
+
+  /* ── Audio siren ── */
+  function _getCtx() {
+    if (!_audioCtx) try { _audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e) {}
     return _audioCtx;
   }
-
-  function _playSirenTone() {
-    var ctx = _getAudioCtx();
-    if (!ctx) return;
+  function _playSiren() {
+    var ctx = _getCtx(); if (!ctx) return;
     var t = ctx.currentTime;
-    var osc = ctx.createOscillator();
-    var gain = ctx.createGain();
+    var osc = ctx.createOscillator(), gain = ctx.createGain();
     osc.connect(gain); gain.connect(ctx.destination);
-    // Siren: sweep 440→880 Hz, 3 times
     osc.type = 'sawtooth';
     osc.frequency.setValueAtTime(440, t);
-    osc.frequency.linearRampToValueAtTime(880, t + 0.5);
-    osc.frequency.linearRampToValueAtTime(440, t + 1.0);
-    osc.frequency.linearRampToValueAtTime(880, t + 1.5);
-    osc.frequency.linearRampToValueAtTime(440, t + 2.0);
-    gain.gain.setValueAtTime(0.0, t);
-    gain.gain.linearRampToValueAtTime(0.55, t + 0.05);
-    gain.gain.setValueAtTime(0.55, t + 1.9);
-    gain.gain.linearRampToValueAtTime(0.0, t + 2.1);
-    osc.start(t);
-    osc.stop(t + 2.2);
+    osc.frequency.linearRampToValueAtTime(960, t+0.45);
+    osc.frequency.linearRampToValueAtTime(440, t+0.9);
+    osc.frequency.linearRampToValueAtTime(960, t+1.35);
+    osc.frequency.linearRampToValueAtTime(440, t+1.8);
+    osc.frequency.linearRampToValueAtTime(960, t+2.25);
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(0.6, t+0.05);
+    gain.gain.setValueAtTime(0.6, t+2.1);
+    gain.gain.linearRampToValueAtTime(0, t+2.3);
+    osc.start(t); osc.stop(t+2.4);
   }
+  function _vibrate() { try { if (navigator.vibrate) navigator.vibrate([400,100,400,100,600,150,800,150,400]); } catch(e) {} }
 
-  /* ── Vibrate ── */
-  function _vibrate() {
-    try { if (navigator.vibrate) navigator.vibrate([400,100,400,100,600,200,800]); } catch(e) {}
-  }
-
-  /* ── Flash screen ── */
+  /* ── Flash ── */
   function _startFlash() {
     _stopFlash();
-    _overlay.classList.add('flashing');
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (ov) { ov.classList.remove('all-clear'); ov.classList.add('flashing'); }
     _flashTimer = setTimeout(function() {
-      if (_overlay) _overlay.classList.remove('flashing');
-    }, 8000); // flash for 8s then go solid red
+      var ov2 = document.getElementById('ndrrmc-alarm-overlay');
+      if (ov2) ov2.classList.remove('flashing');
+    }, 10000);
   }
   function _stopFlash() {
     if (_flashTimer) { clearTimeout(_flashTimer); _flashTimer = null; }
-    if (_overlay) _overlay.classList.remove('flashing');
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (ov) ov.classList.remove('flashing');
   }
 
-  /* ── Text-to-Speech — keeps speaking until acknowledged ── */
-  function _buildMessage(alarm) {
-    var msgs = {
-      'low':           alarm.deviceName + '. Critical alert. Low ' + (alarm.isReservoir ? 'water level' : 'pressure') + ' alarm. Current value: ' + (alarm.value || 'unknown') + '. Immediate action required. Tap acknowledge to stop this alarm.',
-      'high':          alarm.deviceName + '. Critical alert. High ' + (alarm.isReservoir ? 'water level' : 'pressure') + ' alarm. Current value: ' + (alarm.value || 'unknown') + '. Immediate action required. Tap acknowledge to stop this alarm.',
-      'offline':       alarm.deviceName + ' is offline. Device connection lost. Please check immediately. Tap acknowledge to stop this alarm.',
-      'fault':         alarm.deviceName + ' has a critical fault. Immediate attention required. Tap acknowledge to stop this alarm.',
-      'low pressure':  alarm.deviceName + '. Low pressure alarm. Check pump operation immediately. Tap acknowledge to stop this alarm.',
-      'high pressure': alarm.deviceName + '. High pressure alarm. Check pipeline for obstruction immediately. Tap acknowledge to stop this alarm.'
+  /* ── TTS ── */
+  function _buildMsg(alarm) {
+    var remaining = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; }).length;
+    var queueNote = remaining > 1 ? ' There are ' + remaining + ' active alarms remaining.' : '';
+    var map = {
+      'low':           alarm.deviceName+'. Critical alert. Low '+(alarm.isReservoir?'water level':'pressure')+' alarm.'+(alarm.value?' Current value '+alarm.value+'.':'')+' Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
+      'high':          alarm.deviceName+'. Critical alert. High '+(alarm.isReservoir?'water level':'pressure')+' alarm.'+(alarm.value?' Current value '+alarm.value+'.':'')+' Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
+      'offline':       alarm.deviceName+' is offline. Device connection lost. Please check immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'fault':         alarm.deviceName+' has a critical fault. Immediate attention required.'+queueNote+' Tap acknowledge to proceed.',
+      'low pressure':  alarm.deviceName+'. Low pressure alarm. Check pump operation immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'high pressure': alarm.deviceName+'. High pressure alarm. Check pipeline for obstruction.'+queueNote+' Tap acknowledge to proceed.'
     };
-    return msgs[alarm.alarmType] || (alarm.deviceName + '. ' + alarm.alarmType + ' alarm. Take action immediately. Tap acknowledge to stop this alarm.');
+    return map[alarm.alarmType] || (alarm.deviceName+'. '+alarm.alarmType+' alarm. Take immediate action.'+queueNote+' Tap acknowledge to proceed.');
   }
 
-  function _selectVoice(synth) {
-    var voices = synth.getVoices();
-    return voices.find(function(v) {
+  function _getVoice() {
+    if (!window.speechSynthesis) return null;
+    var voices = window.speechSynthesis.getVoices();
+    return voices.find(function(v){
       return ['Google UK English Female','Google US English','Samantha','Karen','Daniel','Alex'].some(function(n){ return v.name.includes(n); }) && v.lang.startsWith('en');
     }) || voices.find(function(v){ return v.lang.startsWith('en'); }) || null;
   }
 
-  function _speakNow(alarm) {
-    if (!window.speechSynthesis) return;
-    if (Date.now() < _silenceUntil) return;
-
+  function _speakAlarm(alarm) {
+    if (!window.speechSynthesis || Date.now() < _silenceUntil) return;
     window.speechSynthesis.cancel();
-    var msg = _buildMessage(alarm);
-    var utt = new SpeechSynthesisUtterance(msg);
-    utt.lang   = 'en-US';
-    utt.rate   = 0.88;
-    utt.pitch  = 1.05;
-    utt.volume = 1.0;
-    var voice = _selectVoice(window.speechSynthesis);
-    if (voice) utt.voice = voice;
-
-    // Show speaking indicator
+    var utt = new SpeechSynthesisUtterance(_buildMsg(alarm));
+    utt.lang='en-US'; utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
+    var voice = _getVoice(); if (voice) utt.voice = voice;
     var ind = document.getElementById('ndrrmc-speaking-indicator');
     if (ind) ind.classList.add('visible');
-    _speaking = true;
-
     utt.onend = utt.onerror = function() {
-      _speaking = false;
       if (ind) ind.classList.remove('visible');
-      // Speak again after 2s gap (looping while alarm active)
-      if (_isAlarmActive(alarm.key) && Date.now() >= _silenceUntil) {
-        _speechTimer = setTimeout(function(){ _speakNow(alarm); }, 2000);
+      // Loop TTS while this alarm is still the current one and not acked
+      if (_currentKey === alarm.key && !_ackedKeys[alarm.key] && Date.now() >= _silenceUntil) {
+        _speechTimer = setTimeout(function(){ _speakAlarm(alarm); }, 2500);
       }
     };
-
-    // iOS/Android TTS sometimes needs voices loaded
     if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.speak(utt); };
+      window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.speak(utt); };
     } else {
       window.speechSynthesis.speak(utt);
     }
@@ -9774,160 +9842,260 @@ function _metCard(label, icon, value, unit, color) {
 
   function _stopSpeech() {
     if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
-    if (window.speechSynthesis) { try { window.speechSynthesis.cancel(); } catch(e) {} }
-    _speaking = false;
+    try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
     var ind = document.getElementById('ndrrmc-speaking-indicator');
     if (ind) ind.classList.remove('visible');
   }
 
-  /* ── Is any un-acked alarm still active? ── */
-  function _isAlarmActive(key) {
-    return !!(_activeAlarms[key] && !_ackAlarms[key]);
+  /* ── Render alarm list (all queued, showing acked/current) ── */
+  function _renderList() {
+    var listEl = document.getElementById('ndrrmc-alarm-list');
+    if (!listEl) return;
+    var total = _alarmQueue.length;
+    if (total <= 1) { listEl.style.display = 'none'; return; }
+    listEl.style.display = 'block';
+    var html = '';
+    _alarmQueue.forEach(function(k, i) {
+      var a = _alarmData[k]; if (!a) return;
+      var cls = _ackedKeys[k] ? 'acked' : (k === _currentKey ? 'current' : '');
+      var icon = _ackedKeys[k] ? '✅' : (k === _currentKey ? '🔴' : '⏳');
+      var label = TYPE_LABELS[a.alarmType] || a.alarmType.toUpperCase();
+      html += '<div class="nal-item '+cls+'">'
+            + '<div class="nal-num">'+(i+1)+'</div>'
+            + icon + ' ' + a.deviceName.toUpperCase() + ' — ' + label
+            + (a.value ? ' ('+a.value+')' : '')
+            + '</div>';
+    });
+    listEl.innerHTML = html;
   }
 
-  function _hasActiveAlarms() {
-    return Object.keys(_activeAlarms).some(function(k){ return !_ackAlarms[k]; });
-  }
-
-  /* ── Show / update overlay ── */
-  function _showOverlay(alarm) {
-    _overlay = document.getElementById('ndrrmc-alarm-overlay');
-    if (!_overlay) return;
+  /* ── Update overlay content for a given alarm ── */
+  function _renderOverlay(alarm) {
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (!ov) return;
 
     document.getElementById('ndrrmc-device-name').textContent = alarm.deviceName.toUpperCase();
+    document.getElementById('ndrrmc-alarm-type').textContent  = TYPE_LABELS[alarm.alarmType] || alarm.alarmType.toUpperCase();
 
-    var typeLabels = {
-      'low':           '⬇ LOW LEVEL',
-      'high':          '⬆ HIGH LEVEL',
-      'offline':       '📡 OFFLINE',
-      'fault':         '⚙ FAULT',
-      'low pressure':  '⬇ LOW PRESSURE',
-      'high pressure': '⬆ HIGH PRESSURE'
-    };
-    document.getElementById('ndrrmc-alarm-type').textContent = typeLabels[alarm.alarmType] || alarm.alarmType.toUpperCase();
+    var valTxt = '';
+    if (alarm.value) valTxt += 'Current: ' + alarm.value;
+    if (alarm.isReservoir) valTxt += (valTxt?' · ':'') + 'Water Level Alarm';
+    document.getElementById('ndrrmc-alarm-value').textContent = valTxt;
 
-    var valueText = '';
-    if (alarm.value)    valueText += 'Current: ' + alarm.value;
-    if (alarm.isReservoir) valueText += (valueText ? ' · ' : '') + 'Water Level Alarm';
-    document.getElementById('ndrrmc-alarm-value').textContent = valueText;
+    // Update ack button label based on queue
+    var unacked = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+    var remaining = unacked.length;
+    var ackBtn = document.getElementById('ndrrmc-ack-btn');
+    if (ackBtn) {
+      ackBtn.innerHTML = remaining > 1
+        ? '✅ ACKNOWLEDGE &amp; SEE NEXT ALARM (' + (remaining-1) + ' MORE)'
+        : '✅ ACKNOWLEDGE &amp; CLEAR ALL ALARMS';
+    }
+
+    // Queue badge
+    var badge = document.getElementById('ndrrmc-queue-badge');
+    if (badge) {
+      badge.textContent = remaining > 1
+        ? '🚨 ' + remaining + ' ACTIVE ALARMS — ACKNOWLEDGE ONE BY ONE'
+        : '🔁 REPEATING UNTIL ACKNOWLEDGED';
+    }
 
     // Ticker
-    var tickerEl = document.getElementById('ndrrmc-ticker-text');
-    if (tickerEl) tickerEl.textContent = '⚠ CRITICAL ALERT — ' + alarm.deviceName.toUpperCase() + ' — ' + (typeLabels[alarm.alarmType] || alarm.alarmType.toUpperCase()) + '   ·   TAP ACKNOWLEDGE TO STOP   ·   AGUS WATER MONITORING SYSTEM   ·   ';
+    var ticker = document.getElementById('ndrrmc-ticker-text');
+    if (ticker) {
+      var allLabels = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; })
+        .map(function(k){ var a=_alarmData[k]; return a.deviceName.toUpperCase()+' — '+(TYPE_LABELS[a.alarmType]||a.alarmType.toUpperCase()); })
+        .join('   ·   ');
+      ticker.textContent = '⚠ ACTIVE ALARMS: ' + allLabels + '   ·   TAP ACKNOWLEDGE TO PROCEED   ·   AGUS WATER MONITORING SYSTEM   ·   ';
+    }
 
-    _overlay.classList.add('active');
+    _renderList();
+  }
+
+  /* ── Show overlay with full alert effects ── */
+  function _showAlarm(alarm) {
+    _currentKey = alarm.key;
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (ov) { ov.classList.remove('all-clear'); ov.classList.add('active'); }
+    _renderOverlay(alarm);
     _startFlash();
+    _vibrate();
+    _playSiren();
+    _stopSpeech();
+    setTimeout(function(){ _speakAlarm(alarm); }, 900);
+
+    // Periodic repeat siren + vibrate
+    if (!_repeatTimer) {
+      _repeatTimer = setInterval(function() {
+        var active = _alarmQueue.some(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+        if (!active) { clearInterval(_repeatTimer); _repeatTimer = null; return; }
+        _vibrate();
+        _playSiren();
+      }, REPEAT_MS);
+    }
   }
 
-  function _hideOverlay() {
-    _overlay = document.getElementById('ndrrmc-alarm-overlay');
-    if (_overlay) _overlay.classList.remove('active', 'flashing');
-    _stopFlash();
+  /* ── Hide overlay / show all-clear ── */
+  function _showAllClear() {
+    _stopSpeech();
+    if (_repeatTimer) { clearInterval(_repeatTimer); _repeatTimer = null; }
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (!ov) return;
+    // Show green "All Clear" for 3s then hide
+    ov.classList.remove('flashing');
+    ov.classList.add('all-clear');
+    document.getElementById('ndrrmc-device-name').textContent = '✅ ALL ALARMS ACKNOWLEDGED';
+    document.getElementById('ndrrmc-alarm-type').textContent  = 'MONITORING RESUMED';
+    document.getElementById('ndrrmc-alarm-value').textContent = 'System is back to normal monitoring.';
+    var badge = document.getElementById('ndrrmc-queue-badge');
+    if (badge) badge.textContent = '✅ NO ACTIVE ALARMS';
+    var ackBtn = document.getElementById('ndrrmc-ack-btn');
+    if (ackBtn) ackBtn.style.display = 'none';
+    document.getElementById('ndrrmc-alarm-list').style.display = 'none';
+    if (window.speechSynthesis) {
+      var utt = new SpeechSynthesisUtterance('All alarms acknowledged. System is back to normal monitoring.');
+      utt.lang='en-US'; utt.rate=0.9; utt.volume=1.0;
+      var voice = _getVoice(); if (voice) utt.voice = voice;
+      window.speechSynthesis.speak(utt);
+    }
+    setTimeout(function() {
+      ov.classList.remove('active','all-clear');
+      // Reset ack button visibility for next time
+      var b2 = document.getElementById('ndrrmc-ack-btn');
+      if (b2) b2.style.display = '';
+    }, 4000);
+    if (typeof showNotification === 'function') {
+      showNotification('✅ All alarms acknowledged. Monitoring resumed.', 'success');
+    }
   }
 
-  /* ── Main trigger: called by the alarm detection logic ── */
+  /* ── MAIN TRIGGER — called by speakAlarm / speakPSAlarm ── */
   window.ndrrmcTriggerAlarm = function(deviceName, alarmType, opts) {
     opts = opts || {};
     var key = (opts.key || deviceName) + ':' + alarmType;
 
-    if (_ackAlarms[key]) return;   // already acknowledged this session
-
+    // Build alarm object
     var alarm = {
       key:         key,
       deviceName:  deviceName,
       alarmType:   alarmType,
       isReservoir: !!opts.isReservoir,
-      value:       opts.value || ''
+      value:       opts.value || '',
+      ts:          Date.now()
     };
-    _activeAlarms[key] = alarm;
 
-    _showOverlay(alarm);
-    _vibrate();
-    _playSirenTone();
+    // If this alarm is already in queue and active — just update data (don't re-add)
+    if (_alarmData[key] && !_ackedKeys[key]) {
+      _alarmData[key].value = alarm.value; // refresh value
+      if (_currentKey === key) _renderOverlay(alarm);
+      return;
+    }
 
-    // Start TTS loop
+    // If it was previously acked but sensor re-fired → remove old ack, re-queue
+    if (_ackedKeys[key]) {
+      delete _ackedKeys[key];
+      // Remove from queue, will re-add below at end
+      _alarmQueue = _alarmQueue.filter(function(k){ return k !== key; });
+    }
+
+    // Add to queue
+    _alarmData[key] = alarm;
+    if (_alarmQueue.indexOf(key) === -1) _alarmQueue.push(key);
+
+    // If currently showing another alarm — just update the list/badge, don't interrupt
+    if (_currentKey && !_ackedKeys[_currentKey] && _alarmData[_currentKey]) {
+      _renderOverlay(_alarmData[_currentKey]); // refresh badge/list only
+      if (typeof showNotification === 'function') {
+        showNotification('🚨 NEW ALARM: ' + deviceName + ' — ' + (TYPE_LABELS[alarmType]||alarmType), 'error');
+      }
+      return;
+    }
+
+    // Nothing currently shown → show this alarm
+    _showAlarm(alarm);
+  };
+
+  /* ── ACKNOWLEDGE current alarm → advance to next ── */
+  window.ndrrmcAcknowledge = function() {
+    if (!_currentKey) return;
+    _ackedKeys[_currentKey] = true;
     _stopSpeech();
-    setTimeout(function(){ _speakNow(alarm); }, 800); // slight delay after siren
+    _stopFlash();
 
-    // Repeat siren every 2 min
-    if (!_repeatTimer) {
-      _repeatTimer = setInterval(function() {
-        if (!_hasActiveAlarms()) { clearInterval(_repeatTimer); _repeatTimer = null; return; }
-        _vibrate();
-        _playSirenTone();
-      }, REPEAT_MS);
+    // Find next unacked alarm in queue
+    var nextKey = null;
+    for (var i = 0; i < _alarmQueue.length; i++) {
+      var k = _alarmQueue[i];
+      if (!_ackedKeys[k] && _alarmData[k]) { nextKey = k; break; }
+    }
+
+    if (nextKey) {
+      // Show next alarm with full red alert
+      _showAlarm(_alarmData[nextKey]);
+    } else {
+      // All acknowledged → check if any new ones came in
+      var anyActive = _alarmQueue.some(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+      if (!anyActive) {
+        _showAllClear();
+        _currentKey = null;
+      }
     }
   };
 
-  /* ── Clear alarm key (called when sensor returns to normal) ── */
+  /* ── CLEAR alarm (sensor returns to normal) ── */
   window.ndrrmcClearAlarm = function(deviceName, alarmType) {
     var key = deviceName + ':' + alarmType;
-    delete _activeAlarms[key];
-    delete _ackAlarms[key];
-    if (!_hasActiveAlarms()) {
-      _hideOverlay();
+    // Remove from data — keep in queue for display (acked state) until all clear
+    delete _alarmData[key];
+    _alarmQueue = _alarmQueue.filter(function(k){ return k !== key; });
+    delete _ackedKeys[key];
+
+    // If this was current, advance
+    if (_currentKey === key) {
       _stopSpeech();
-      if (_repeatTimer) { clearInterval(_repeatTimer); _repeatTimer = null; }
+      _currentKey = null;
+      var nextKey = null;
+      for (var i = 0; i < _alarmQueue.length; i++) {
+        var k2 = _alarmQueue[i];
+        if (!_ackedKeys[k2] && _alarmData[k2]) { nextKey = k2; break; }
+      }
+      if (nextKey) {
+        _showAlarm(_alarmData[nextKey]);
+      } else {
+        var anyLeft = _alarmQueue.some(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+        if (!anyLeft) _showAllClear();
+      }
     }
   };
 
-  /* ── Acknowledge: stop everything until sensor re-triggers ── */
-  window.ndrrmcAcknowledge = function() {
-    Object.keys(_activeAlarms).forEach(function(k){ _ackAlarms[k] = true; });
-    _hideOverlay();
-    _stopSpeech();
-    if (_repeatTimer) { clearInterval(_repeatTimer); _repeatTimer = null; }
-    if (typeof showNotification === 'function') {
-      showNotification('✅ Alarm acknowledged. Monitoring continues.', 'success');
-    }
-  };
-
-  /* ── Silence 5 min (keep overlay, stop voice only) ── */
+  /* ── SILENCE 5 min ── */
   window.ndrrmcSilence5 = function() {
-    _silenceUntil = Date.now() + 5 * 60 * 1000;
+    _silenceUntil = Date.now() + 5*60*1000;
     _stopSpeech();
-    var badge = document.getElementById('ndrrmc-repeat-badge');
-    if (badge) badge.textContent = '🔇 SILENCED 5 MIN — WILL RESUME SPEAKING';
-    if (typeof showNotification === 'function') {
-      showNotification('🔇 Voice silenced for 5 minutes. Visual alarm still active.', 'warning');
-    }
-    setTimeout(function() {
-      var badge2 = document.getElementById('ndrrmc-repeat-badge');
-      if (badge2) badge2.textContent = '🔁 REPEATING EVERY 2 MIN UNTIL ACKNOWLEDGED';
-      // Resume TTS if still active
-      var firstKey = Object.keys(_activeAlarms).find(function(k){ return !_ackAlarms[k]; });
-      if (firstKey) _speakNow(_activeAlarms[firstKey]);
-    }, 5 * 60 * 1000);
+    var badge = document.getElementById('ndrrmc-queue-badge');
+    if (badge) { var orig = badge.textContent; badge.textContent = '🔇 SILENCED 5 MIN — WILL RESUME SPEAKING'; setTimeout(function(){ badge.textContent = orig; if (_currentKey && _alarmData[_currentKey] && !_ackedKeys[_currentKey]) _speakAlarm(_alarmData[_currentKey]); }, 5*60*1000); }
+    if (typeof showNotification === 'function') showNotification('🔇 Voice silenced 5 min. Visual alarm still active.', 'warning');
   };
 
-  /* ════════════════════════════════════════════════
-     HOOK into existing speakAlarm / speakPSAlarm
-     Replace them with NDRRMC triggers
-     ════════════════════════════════════════════════ */
+  /* ══════════════════════════════════════
+     HOOKS — replace existing alarm funcs
+     ══════════════════════════════════════ */
   window.speakAlarm = function(deviceName, alarmType, isReservoir) {
     window.ndrrmcTriggerAlarm(deviceName, alarmType, { isReservoir: isReservoir, key: deviceName });
   };
-
   window.speakPSAlarm = function(deviceName, alarmType) {
-    window.ndrrmcTriggerAlarm(deviceName, alarmType, { isReservoir: false, key: deviceName + ':ps' });
+    window.ndrrmcTriggerAlarm(deviceName, alarmType, { isReservoir: false, key: deviceName+':ps' });
   };
 
-  /* ════════════════════════════════════════════════
-     HOOK alarmSpeechState clearing (sensor normal)
-     Patch the delete calls by monitoring the state obj
-     ════════════════════════════════════════════════ */
-  // Wrap the existing alarmSpeechState delete via a Proxy when available
+  /* Proxy alarmSpeechState to catch sensor-normal clears */
   if (typeof Proxy !== 'undefined' && typeof alarmSpeechState !== 'undefined') {
     try {
       window.alarmSpeechState = new Proxy(alarmSpeechState, {
         deleteProperty: function(target, key) {
-          // key is like "DEVICE_NAME" or "DEVICE_NAME:ps"
           var isPS = key.endsWith(':ps');
-          var devName = isPS ? key.slice(0, -3) : key;
-          var aType = isPS ? 'ps' : 'level';
-          window.ndrrmcClearAlarm(devName, aType);
-          delete target[key];
-          return true;
+          var devName = isPS ? key.slice(0,-3) : key;
+          window.ndrrmcClearAlarm(devName, isPS ? 'ps' : 'level');
+          delete target[key]; return true;
         }
       });
     } catch(e) {}
