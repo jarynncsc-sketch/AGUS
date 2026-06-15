@@ -3995,36 +3995,168 @@ if (isResBooster) {
         dashboardTogglePump(d.device, newStateInt, function(confirmed) { cb.checked = confirmed === 1; });
       });
       li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
-      // ─── Pumping Station audio alarm ──────────────────────────────────
-      var psAl = null;
-      if (effSt === 'Offline') psAl = 'offline';
-      else if (effSt === 'Fault' || d.button) psAl = 'fault';
-      else {
-        var psP = parseFloat(d.pressure);
-        var psThr = pressureSettingsCache[d.device] || {minPsi:20, maxPsi:80};
-        if (!isNaN(psP)) {
-          if (psP < psThr.minPsi)      psAl = 'low pressure';
-          else if (psP > psThr.maxPsi) psAl = 'high pressure';
+      // ══════════════════════════════════════════════════════════════
+      // COMPREHENSIVE ALARM DETECTION — Pumping Stations
+      // Covers: offline, fault, low/high pressure, low/high voltage,
+      //         overcurrent, low current, low/high flow, high power
+      // ══════════════════════════════════════════════════════════════
+      var psAlarms = []; // collect ALL active alarms for this PS device
+
+      if (effSt === 'Offline') {
+        psAlarms.push({ key: 'offline', type: 'offline', value: '', label: 'Offline' });
+      } else if (effSt === 'Fault' || d.button) {
+        psAlarms.push({ key: 'fault', type: 'fault', value: '', label: 'Fault' });
+      } else {
+        var psThr2 = pressureSettingsCache[d.device] || {minPsi:20, maxPsi:80};
+        var _DEF_PS = { minVolt:210, maxVolt:240, minCurrent:0, maxCurrent:30, minFlow:0.5, maxFlow:50, minPower:0, maxPower:15000 };
+
+        // Discharge pressure
+        var _psP = parseFloat(d.pressure);
+        if (!isNaN(_psP)) {
+          if (_psP < psThr2.minPsi && _psP > 0)
+            psAlarms.push({ key:'low-pressure', type:'low pressure', value: _psP.toFixed(1)+' psi', label:'Low Discharge Pressure' });
+          else if (_psP > psThr2.maxPsi)
+            psAlarms.push({ key:'high-pressure', type:'high pressure', value: _psP.toFixed(1)+' psi', label:'High Discharge Pressure' });
+        }
+
+        // Voltage
+        var _psV = parseFloat(d.voltage);
+        if (!isNaN(_psV) && _psV > 0) {
+          var _minV = _DEF_PS.minVolt, _maxV = _DEF_PS.maxVolt;
+          if (_psV < _minV)
+            psAlarms.push({ key:'low-voltage', type:'low voltage', value: _psV.toFixed(1)+' V', label:'Low Voltage' });
+          else if (_psV > _maxV)
+            psAlarms.push({ key:'high-voltage', type:'high voltage', value: _psV.toFixed(1)+' V', label:'High Voltage' });
+        }
+
+        // Current / Overcurrent
+        var _psA = parseFloat(d.current);
+        if (!isNaN(_psA) && _psA >= 0) {
+          var _maxA = _DEF_PS.maxCurrent, _minA = _DEF_PS.minCurrent;
+          if (_psA > _maxA)
+            psAlarms.push({ key:'overcurrent', type:'overcurrent', value: _psA.toFixed(2)+' A', label:'Overcurrent — Motor Overload' });
+          else if (_psA < _minA && _minA > 0 && parseInt(d.relay) === 1)
+            psAlarms.push({ key:'low-current', type:'low current', value: _psA.toFixed(2)+' A', label:'Low Current While Running' });
+        }
+
+        // Flow rate
+        var _psFL = parseFloat(d.flow);
+        if (!isNaN(_psFL) && parseInt(d.relay) === 1) {
+          var _maxFL = _DEF_PS.maxFlow, _minFL = _DEF_PS.minFlow;
+          if (_psFL > _maxFL)
+            psAlarms.push({ key:'high-flow', type:'high flow', value: _psFL.toFixed(2)+' L/s', label:'High Flow — Possible Pipe Burst' });
+          else if (_psFL < _minFL && _psFL >= 0)
+            psAlarms.push({ key:'low-flow', type:'low flow', value: _psFL.toFixed(2)+' L/s', label:'Low Flow While Pump ON' });
+        }
+
+        // Power
+        var _psPW = parseFloat(d.power);
+        if (!isNaN(_psPW) && _psPW > _DEF_PS.maxPower)
+          psAlarms.push({ key:'high-power', type:'high power', value: _psPW.toFixed(0)+' W', label:'High Power Draw' });
+      }
+
+      // Fire each PS alarm through NDRRMC queue
+      var _psAlarmKeys = psAlarms.map(function(a){ return a.key; });
+      psAlarms.forEach(function(a) {
+        var stKey = d.device + ':ps:' + a.key;
+        var psNow2 = Date.now(), psStt2 = alarmSpeechState[stKey];
+        var opts2 = { isReservoir: false, key: d.device + ':ps:' + a.key, value: a.value };
+        if (!psStt2) {
+          alarmSpeechState[stKey] = { lastSpoken: psNow2, alarmType: a.type };
+          window.ndrrmcTriggerAlarm(d.device, a.type, opts2);
+        } else if (psStt2.alarmType === a.type && (psNow2 - psStt2.lastSpoken) >= SPEECH_REPEAT_INTERVAL) {
+          psStt2.lastSpoken = psNow2;
+          window.ndrrmcTriggerAlarm(d.device, a.type, opts2);
+        } else if (psStt2.alarmType !== a.type) {
+          psStt2.alarmType = a.type; psStt2.lastSpoken = psNow2;
+          window.ndrrmcTriggerAlarm(d.device, a.type, opts2);
+        }
+      });
+      // Clear resolved PS alarms
+      Object.keys(alarmSpeechState).forEach(function(stKey) {
+        if (stKey.startsWith(d.device + ':ps:')) {
+          var subKey = stKey.replace(d.device + ':ps:', '');
+          if (_psAlarmKeys.indexOf(subKey) === -1) {
+            window.ndrrmcClearAlarm(d.device, alarmSpeechState[stKey].alarmType || subKey);
+            delete alarmSpeechState[stKey];
+          }
+        }
+      });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // COMPREHENSIVE ALARM DETECTION — Reservoir & Pressure devices
+    // Covers: offline, fault, low/high level, low/high pressure,
+    //         voltage, current, flow, power anomalies
+    // ══════════════════════════════════════════════════════════════
+    var devAlarms = [];
+
+    if (effSt === 'Offline') {
+      devAlarms.push({ key:'offline', type:'offline', value:'', label:'Device Offline' });
+    } else if (effSt === 'Fault' || d.button) {
+      devAlarms.push({ key:'fault', type:'fault', value:'', label:'Device Fault' });
+    } else {
+      // ── Reservoir: low/high water level ──────────────────────────────────────
+      if (isRes && alarm) {
+        var _resLv = parseFloat(d.level);
+        devAlarms.push({ key: alarm+'-level', type: alarm, value: (!isNaN(_resLv)?_resLv.toFixed(0)+' m³':''), label: (alarm==='low'?'Low Water Level':'High Water Level') });
+      }
+      // ── Pressure sensor device: low/high pressure ────────────────────
+      if (isPres) {
+        var _prV = parseFloat(d.pressure);
+        var _prThr = pressureSettingsCache[d.device] || {minPsi:20, maxPsi:80};
+        if (!isNaN(_prV)) {
+          if (_prV < _prThr.minPsi && _prV > 0)
+            devAlarms.push({ key:'low-pressure', type:'low pressure', value: _prV.toFixed(1)+' psi', label:'Low Pressure' });
+          else if (_prV > _prThr.maxPsi)
+            devAlarms.push({ key:'high-pressure', type:'high pressure', value: _prV.toFixed(1)+' psi', label:'High Pressure' });
         }
       }
-      if (psAl) {
-        var psNow=Date.now(), psStt=alarmSpeechState[d.device+':ps'];
-        if (!psStt) {
-          alarmSpeechState[d.device+':ps']={lastSpoken:psNow,alarmType:psAl};
-          speakPSAlarm(d.device, psAl);
-        } else if (psStt.alarmType===psAl && (psNow-psStt.lastSpoken)>=SPEECH_REPEAT_INTERVAL) {
-          psStt.lastSpoken=psNow; speakPSAlarm(d.device, psAl);
-        } else if (psStt.alarmType!==psAl) {
-          psStt.alarmType=psAl; psStt.lastSpoken=psNow; speakPSAlarm(d.device, psAl);
-        }
-      } else { delete alarmSpeechState[d.device+':ps']; }
+      // Voltage anomaly (applies to any device type)
+      var _dV = parseFloat(d.voltage);
+      if (!isNaN(_dV) && _dV > 0) {
+        if (_dV < 210) devAlarms.push({ key:'low-voltage', type:'low voltage', value: _dV.toFixed(1)+' V', label:'Low Voltage' });
+        else if (_dV > 240) devAlarms.push({ key:'high-voltage', type:'high voltage', value: _dV.toFixed(1)+' V', label:'High Voltage' });
+      }
+      // Overcurrent
+      var _dA = parseFloat(d.current);
+      if (!isNaN(_dA) && _dA > 30)
+        devAlarms.push({ key:'overcurrent', type:'overcurrent', value: _dA.toFixed(2)+' A', label:'Overcurrent' });
+      // High flow
+      var _dFL = parseFloat(d.flow);
+      if (!isNaN(_dFL) && parseInt(d.relay) === 1) {
+        if (_dFL > 50) devAlarms.push({ key:'high-flow', type:'high flow', value: _dFL.toFixed(2)+' L/s', label:'High Flow Rate — Pipe Burst?' });
+        else if (_dFL < 0.5 && _dFL >= 0) devAlarms.push({ key:'low-flow', type:'low flow', value: _dFL.toFixed(2)+' L/s', label:'Low Flow While Pump ON' });
+      }
     }
-    if (alarm) {
-      var now=Date.now(), st=alarmSpeechState[d.device];
-      if (!st) { alarmSpeechState[d.device]={lastSpoken:now,alarmType:alarm}; speakAlarm(d.device,alarm,isRes); }
-      else if (st.alarmType===alarm&&(now-st.lastSpoken)>=SPEECH_REPEAT_INTERVAL) { st.lastSpoken=now; speakAlarm(d.device,alarm,isRes); }
-      else if (st.alarmType!==alarm) { st.alarmType=alarm; st.lastSpoken=now; speakAlarm(d.device,alarm,isRes); }
-    } else { delete alarmSpeechState[d.device]; }
+
+    // Fire each device alarm through NDRRMC queue
+    var _devAlarmKeys = devAlarms.map(function(a){ return a.key; });
+    devAlarms.forEach(function(a) {
+      var stKey2 = d.device + ':dev:' + a.key;
+      var devNow = Date.now(), devStt = alarmSpeechState[stKey2];
+      var devOpts = { isReservoir: isRes, key: d.device + ':dev:' + a.key, value: a.value };
+      if (!devStt) {
+        alarmSpeechState[stKey2] = { lastSpoken: devNow, alarmType: a.type };
+        window.ndrrmcTriggerAlarm(d.device, a.type, devOpts);
+      } else if (devStt.alarmType === a.type && (devNow - devStt.lastSpoken) >= SPEECH_REPEAT_INTERVAL) {
+        devStt.lastSpoken = devNow;
+        window.ndrrmcTriggerAlarm(d.device, a.type, devOpts);
+      } else if (devStt.alarmType !== a.type) {
+        devStt.alarmType = a.type; devStt.lastSpoken = devNow;
+        window.ndrrmcTriggerAlarm(d.device, a.type, devOpts);
+      }
+    });
+    // Clear resolved device alarms
+    Object.keys(alarmSpeechState).forEach(function(stKey2) {
+      if (stKey2.startsWith(d.device + ':dev:')) {
+        var subKey2 = stKey2.replace(d.device + ':dev:', '');
+        if (_devAlarmKeys.indexOf(subKey2) === -1) {
+          window.ndrrmcClearAlarm(d.device, alarmSpeechState[stKey2].alarmType || subKey2);
+          delete alarmSpeechState[stKey2];
+        }
+      }
+    });
     if (selectedDevice === d.device) li.classList.add('selected');
     frag.appendChild(li);
   });
@@ -8054,22 +8186,90 @@ function exportDashboardPDF() {
   }
 
   /* ── Fire a native OS notification ─────────────────────── */
+  /* ── Fire a native OS notification + speak in page/background ── */
   function _fire(title, body, tag, urgent) {
     if (!_on || Notification.permission !== 'granted') return;
     if (!_can(tag)) return;
+    var ttsText = title + '. ' + body;
     var opts = {
-      body: body,
-      tag: tag,
+      body: body, tag: tag,
       requireInteraction: !!urgent,
-      vibrate: urgent ? [400,150,400,150,400] : [200,100,200],
+      vibrate: urgent ? [400,150,400,150,800,150,400] : [200,100,200],
       icon:  'https://img.icons8.com/color/96/water.png',
-      badge: 'https://img.icons8.com/color/48/water.png'
+      badge: 'https://img.icons8.com/color/48/water.png',
+      data:  { tts: ttsText, tag: tag, urgent: !!urgent }
     };
     if (_swReg && _swReg.showNotification) {
       _swReg.showNotification(title, opts);
     } else if ('Notification' in window && Notification.permission === 'granted') {
       try { new Notification(title, opts); } catch(e){}
     }
+    // Speak in page immediately — works when tab is open (even in background)
+    if (urgent) _bgSpeak(ttsText);
+  }
+
+  /* ════════════════════════════════════════════════════
+     BACKGROUND TTS ENGINE
+     Speaks notifications even when tab is not focused.
+     Chrome background TTS workaround: keep-alive ping.
+     ════════════════════════════════════════════════════ */
+  var _bgSpeakQueue = [];
+  var _bgSpeaking   = false;
+
+  function _bgSpeak(text) {
+    if (!window.speechSynthesis) return;
+    _bgSpeakQueue.push(text);
+    if (!_bgSpeaking) _bgSpeakNext();
+  }
+
+  function _bgSpeakNext() {
+    if (!_bgSpeakQueue.length) { _bgSpeaking = false; return; }
+    _bgSpeaking = true;
+    var text = _bgSpeakQueue.shift();
+    var utt  = new SpeechSynthesisUtterance(text);
+    utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.05; utt.volume = 1.0;
+    var voices = window.speechSynthesis.getVoices();
+    var voice = voices.find(function(v){
+      return ['Google UK English Female','Google US English','Samantha','Karen','Daniel'].some(function(n){ return v.name.includes(n); }) && v.lang.startsWith('en');
+    }) || voices.find(function(v){ return v.lang.startsWith('en'); });
+    if (voice) utt.voice = voice;
+
+    // Keep TTS alive in Chrome background (pauses/resumes every 10s)
+    var _kaTimer = setInterval(function() {
+      if (!window.speechSynthesis.speaking) { clearInterval(_kaTimer); return; }
+      window.speechSynthesis.pause();
+      window.speechSynthesis.resume();
+    }, 10000);
+
+    utt.onend = utt.onerror = function() {
+      clearInterval(_kaTimer);
+      _bgSpeaking = false;
+      setTimeout(_bgSpeakNext, 600);
+    };
+
+    // iOS/Android: wait for voices
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.speak(utt); };
+    } else {
+      window.speechSynthesis.speak(utt);
+    }
+  }
+
+  /* ── Listen for SW → Page messages (speak when tab backgrounded) ── */
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.addEventListener('message', function(e) {
+      var d = e.data || {};
+      // SW tells page to speak a notification text
+      if (d.type === 'AGUS_SPEAK' && d.text) {
+        _bgSpeak(d.text);
+      }
+      // SW tells page to trigger NDRRMC full alarm
+      if (d.type === 'AGUS_NDRRMC' && d.deviceName && window.ndrrmcTriggerAlarm) {
+        window.ndrrmcTriggerAlarm(d.deviceName, d.alarmType || 'alarm', {
+          isReservoir: !!d.isReservoir, value: d.value || '', key: d.key || d.deviceName
+        });
+      }
+    });
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -8312,9 +8512,16 @@ function exportDashboardPDF() {
   'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
   /* Notify helper */
   'function pop(title,body,tag,urgent){' +
+  '  var ttsMsg=title+". "+body;' +
+  '  if(urgent){' +
+  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
+  '      cs.forEach(function(c){c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});});' +
+  '    });' +
+  '  }' +
   '  return self.registration.showNotification(title,{' +
   '    body:body,tag:tag,requireInteraction:!!urgent,' +
-  '    vibrate:urgent?[400,150,400,150,400]:[200,100,200],' +
+  '    vibrate:urgent?[400,150,800,150,400,100,400]:[200,100,200],' +
+  '    data:{tts:ttsMsg,tag:tag,urgent:!!urgent},' +
 '    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
 '    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
   '  });' +
@@ -8337,50 +8544,50 @@ function exportDashboardPDF() {
   '    var thr={};try{thr=cfg.thr||{};}catch(e){}' +
   '    devs.forEach(function(d){' +
   '      var n=d.device||"",st=d.status||"",p=prev[n]||{},t=Object.assign({},DEF,thr[n]||{});' +
-  '      if((st==="Fault"||d.button)&&p.status!=="Fault"&&can("fault:"+n))' +
-  '        ps.push(pop("⚠️ Fault — "+n,n+" FAULT detected. Immediate attention required.","fault:"+n,true));' +
-  '      if(st==="Offline"&&p.status==="Online"&&can("off:"+n))' +
-  '        ps.push(pop("📴 Offline — "+n,n+" went offline. Check connection.","off:"+n,true));' +
+  '      if((st==="Fault"||d.button)&&can("fault:"+n))' +
+  '        ps.push(pop("⚠️ FAULT — "+n,n+": Device FAULT detected. Immediate attention required.","fault:"+n,true));' +
+  '      if(st==="Offline"&&(p.status==="Online"||!p.status)&&can("off:"+n))' +
+  '        ps.push(pop("📴 OFFLINE — "+n,n+": Device went offline. Check connection immediately.","off:"+n,true));' +
   '      if(st==="Online"&&(p.status==="Fault"||p.status==="Offline")&&can("ok:"+n))' +
-  '        ps.push(pop("✅ Recovered — "+n,n+" is back online.","ok:"+n,false));' +
+  '        ps.push(pop("✅ Recovered — "+n,n+": Device is back online.","ok:"+n,false));' +
   '      var lv=parseFloat(d.level);' +
   '      if(!isNaN(lv)){' +
-  '        if(lv>=t.maxLevel&&(p.lv==null||p.lv<t.maxLevel)&&can("wl-hi:"+n))' +
-  '          ps.push(pop("🚰 Reservoir Full — "+n,n+" at "+lv.toFixed(1)+" m³ (max "+t.maxLevel+" m³). Pump may shut off.","wl-hi:"+n,true));' +
-  '        if(lv<=t.minLevel&&(p.lv==null||p.lv>t.minLevel)&&can("wl-lo:"+n))' +
-  '          ps.push(pop("💧 Low Water — "+n,n+" at "+lv.toFixed(1)+" m³ (min "+t.minLevel+" m³). Check supply.","wl-lo:"+n,true));' +
+  '        if(lv>=t.maxLevel&&can("wl-hi:"+n))' +
+  '          ps.push(pop("🚰 HIGH WATER LEVEL — "+n,n+": "+lv.toFixed(1)+" m³ exceeds max "+t.maxLevel+" m³. Overflow risk!","wl-hi:"+n,true));' +
+  '        if(lv<=t.minLevel&&can("wl-lo:"+n))' +
+  '          ps.push(pop("💧 LOW WATER LEVEL — "+n,n+": "+lv.toFixed(1)+" m³ below min "+t.minLevel+" m³. Check supply immediately.","wl-lo:"+n,true));' +
   '      }' +
   '      var psi=parseFloat(d.pressure);' +
   '      if(!isNaN(psi)){' +
-  '        if(psi>t.maxPsi&&(p.psi==null||p.psi<=t.maxPsi)&&can("psi-hi:"+n))' +
-  '          ps.push(pop("🔴 High Pressure — "+n,n+": "+psi.toFixed(1)+" psi > "+t.maxPsi+" psi. Check for blockage.","psi-hi:"+n,true));' +
-  '        if(psi<t.minPsi&&psi>0&&(p.psi==null||p.psi>=t.minPsi)&&can("psi-lo:"+n))' +
-  '          ps.push(pop("🟠 Low Pressure — "+n,n+": "+psi.toFixed(1)+" psi < "+t.minPsi+" psi. Check pump.","psi-lo:"+n,true));' +
+  '        if(psi>t.maxPsi&&can("psi-hi:"+n))' +
+  '          ps.push(pop("🔴 HIGH PRESSURE — "+n,n+": "+psi.toFixed(1)+" psi > "+t.maxPsi+" psi. Check pipeline for blockage.","psi-hi:"+n,true));' +
+  '        if(psi<t.minPsi&&psi>0&&can("psi-lo:"+n))' +
+  '          ps.push(pop("🟠 LOW PRESSURE — "+n,n+": "+psi.toFixed(1)+" psi < "+t.minPsi+" psi. Check pump operation.","psi-lo:"+n,true));' +
   '      }' +
   '      var fl=parseFloat(d.flow);' +
   '      if(!isNaN(fl)&&d.relay==1){' +
-  '        if(fl>t.maxFlow&&(p.fl==null||p.fl<=t.maxFlow)&&can("fl-hi:"+n))' +
-  '          ps.push(pop("💦 High Flow — "+n,n+": "+fl.toFixed(2)+" L/s > "+t.maxFlow+" L/s. Possible pipe burst.","fl-hi:"+n,true));' +
-  '        if(fl<t.minFlow&&fl>=0&&(p.fl==null||p.fl>=t.minFlow)&&can("fl-lo:"+n))' +
-  '          ps.push(pop("⚠️ Low Flow — "+n,n+": "+fl.toFixed(2)+" L/s < "+t.minFlow+" L/s while pump ON.","fl-lo:"+n,true));' +
+  '        if(fl>t.maxFlow&&can("fl-hi:"+n))' +
+  '          ps.push(pop("💦 HIGH FLOW RATE — "+n,n+": "+fl.toFixed(2)+" L/s > "+t.maxFlow+" L/s. Possible PIPE BURST!","fl-hi:"+n,true));' +
+  '        if(fl<t.minFlow&&fl>=0&&can("fl-lo:"+n))' +
+  '          ps.push(pop("⚠️ LOW FLOW RATE — "+n,n+": "+fl.toFixed(2)+" L/s < "+t.minFlow+" L/s while pump ON. Check for blockage.","fl-lo:"+n,true));' +
   '      }' +
   '      var vt=parseFloat(d.voltage);' +
   '      if(!isNaN(vt)&&vt>0){' +
-  '        if(vt>t.maxVolt&&(p.vt==null||p.vt<=t.maxVolt)&&can("vt-hi:"+n))' +
-  '          ps.push(pop("⚡ High Voltage — "+n,n+": "+vt.toFixed(1)+" V > "+t.maxVolt+" V. Risk of damage.","vt-hi:"+n,true));' +
-  '        if(vt<t.minVolt&&(p.vt==null||p.vt>=t.minVolt)&&can("vt-lo:"+n))' +
-  '          ps.push(pop("🔋 Low Voltage — "+n,n+": "+vt.toFixed(1)+" V < "+t.minVolt+" V. Power issue.","vt-lo:"+n,true));' +
+  '        if(vt>t.maxVolt&&can("vt-hi:"+n))' +
+  '          ps.push(pop("⚡ HIGH VOLTAGE — "+n,n+": "+vt.toFixed(1)+" V > "+t.maxVolt+" V. Risk of equipment damage!","vt-hi:"+n,true));' +
+  '        if(vt<t.minVolt&&can("vt-lo:"+n))' +
+  '          ps.push(pop("🔋 LOW VOLTAGE — "+n,n+": "+vt.toFixed(1)+" V < "+t.minVolt+" V. Power supply issue detected.","vt-lo:"+n,true));' +
   '      }' +
   '      var am=parseFloat(d.current);' +
   '      if(!isNaN(am)&&am>=0){' +
-  '        if(am>t.maxCurrent&&(p.am==null||p.am<=t.maxCurrent)&&can("am-hi:"+n))' +
-  '          ps.push(pop("⚡ Overcurrent — "+n,n+": "+am.toFixed(2)+" A > "+t.maxCurrent+" A. Motor overload!","am-hi:"+n,true));' +
-  '        if(am<t.minCurrent&&t.minCurrent>0&&d.relay==1&&(p.am==null||p.am>=t.minCurrent)&&can("am-lo:"+n))' +
-  '          ps.push(pop("⚠️ Low Current — "+n,n+": "+am.toFixed(2)+" A < "+t.minCurrent+" A while running.","am-lo:"+n,true));' +
+  '        if(am>t.maxCurrent&&can("am-hi:"+n))' +
+  '          ps.push(pop("⚡ OVERCURRENT — "+n,n+": "+am.toFixed(2)+" A > "+t.maxCurrent+" A. Motor overload! Stop pump immediately.","am-hi:"+n,true));' +
+  '        if(am<t.minCurrent&&t.minCurrent>0&&d.relay==1&&can("am-lo:"+n))' +
+  '          ps.push(pop("⬇️ LOW CURRENT — "+n,n+": "+am.toFixed(2)+" A < "+t.minCurrent+" A while running. Possible dry run.","am-lo:"+n,true));' +
   '      }' +
   '      var pw=parseFloat(d.power);' +
-  '      if(!isNaN(pw)&&pw>t.maxPower&&(p.pw==null||p.pw<=t.maxPower)&&can("pw-hi:"+n))' +
-  '        ps.push(pop("🔌 High Power — "+n,n+": "+pw.toFixed(0)+" W > "+t.maxPower+" W. Abnormal load.","pw-hi:"+n,true));' +
+  '      if(!isNaN(pw)&&pw>t.maxPower&&can("pw-hi:"+n))' +
+  '        ps.push(pop("🔌 HIGH POWER DRAW — "+n,n+": "+pw.toFixed(0)+" W > "+t.maxPower+" W. Abnormal electrical load detected.","pw-hi:"+n,true));' +
   '      prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};' +
   '    });' +
   '    await dbSet(db,"prev",prev);' +
@@ -9746,12 +9953,19 @@ function _metCard(label, icon, value, unit, color) {
   var REPEAT_MS        = 2 * 60 * 1000;
 
   var TYPE_LABELS = {
-    'low':           '⬇ LOW LEVEL',
-    'high':          '⬆ HIGH LEVEL',
-    'offline':       '📡 OFFLINE',
-    'fault':         '⚙ FAULT',
-    'low pressure':  '⬇ LOW PRESSURE',
-    'high pressure': '⬆ HIGH PRESSURE'
+    'low':           '⬇ LOW WATER LEVEL',
+    'high':          '⬆ HIGH WATER LEVEL',
+    'offline':       '📡 DEVICE OFFLINE',
+    'fault':         '⚙ DEVICE FAULT',
+    'low pressure':  '⬇ LOW DISCHARGE PRESSURE',
+    'high pressure': '⬆ HIGH DISCHARGE PRESSURE',
+    'low voltage':   '🔋 LOW VOLTAGE',
+    'high voltage':  '⚡ HIGH VOLTAGE',
+    'overcurrent':   '⚡ OVERCURRENT / OVERLOAD',
+    'low current':   '⬇ LOW CURRENT (DRY RUN?)',
+    'high flow':     '💦 HIGH FLOW — PIPE BURST?',
+    'low flow':      '⬇ LOW FLOW WHILE RUNNING',
+    'high power':    '🔌 HIGH POWER DRAW'
   };
 
   /* ── Audio siren ── */
@@ -9799,15 +10013,24 @@ function _metCard(label, icon, value, unit, color) {
   function _buildMsg(alarm) {
     var remaining = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; }).length;
     var queueNote = remaining > 1 ? ' There are ' + remaining + ' active alarms remaining.' : '';
+    var _v = alarm.value ? ' Current value: ' + alarm.value + '.' : '';
+    var _dev = alarm.deviceName;
     var map = {
-      'low':           alarm.deviceName+'. Critical alert. Low '+(alarm.isReservoir?'water level':'pressure')+' alarm.'+(alarm.value?' Current value '+alarm.value+'.':'')+' Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
-      'high':          alarm.deviceName+'. Critical alert. High '+(alarm.isReservoir?'water level':'pressure')+' alarm.'+(alarm.value?' Current value '+alarm.value+'.':'')+' Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
-      'offline':       alarm.deviceName+' is offline. Device connection lost. Please check immediately.'+queueNote+' Tap acknowledge to proceed.',
-      'fault':         alarm.deviceName+' has a critical fault. Immediate attention required.'+queueNote+' Tap acknowledge to proceed.',
-      'low pressure':  alarm.deviceName+'. Low pressure alarm. Check pump operation immediately.'+queueNote+' Tap acknowledge to proceed.',
-      'high pressure': alarm.deviceName+'. High pressure alarm. Check pipeline for obstruction.'+queueNote+' Tap acknowledge to proceed.'
+      'low':           _dev+'. Critical alert. Low water level alarm.'+_v+' Reservoir is critically low. Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
+      'high':          _dev+'. Critical alert. High water level alarm.'+_v+' Reservoir is overflowing. Immediate action required.'+queueNote+' Tap acknowledge to proceed.',
+      'offline':       _dev+' is offline. Device connection has been lost. Please check the device immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'fault':         _dev+' has a critical fault. The device requires immediate attention.'+queueNote+' Tap acknowledge to proceed.',
+      'low pressure':  _dev+'. Low pressure alarm.'+_v+' Pressure is below minimum threshold. Check pump operation, pipeline, and valves immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'high pressure': _dev+'. High pressure alarm.'+_v+' Pressure exceeds maximum threshold. Check pipeline for obstruction or blockage immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'low voltage':   _dev+'. Low voltage alarm.'+_v+' Power supply issue detected. Check electrical connection.'+queueNote+' Tap acknowledge to proceed.',
+      'high voltage':  _dev+'. High voltage alarm.'+_v+' Risk of equipment damage. Check power supply immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'overcurrent':   _dev+'. Overcurrent alarm.'+_v+' Motor overload detected. Stop the pump and check immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'low current':   _dev+'. Low current alarm.'+_v+' Pump is running but drawing low current. Possible dry run or motor issue.'+queueNote+' Tap acknowledge to proceed.',
+      'high flow':     _dev+'. High flow rate alarm.'+_v+' Possible pipe burst or leak detected. Check pipeline immediately.'+queueNote+' Tap acknowledge to proceed.',
+      'low flow':      _dev+'. Low flow rate alarm.'+_v+' Pump is ON but flow is critically low. Check for blockage or dry run.'+queueNote+' Tap acknowledge to proceed.',
+      'high power':    _dev+'. High power consumption alarm.'+_v+' Abnormal electrical load detected. Check motor and pump.'+queueNote+' Tap acknowledge to proceed.'
     };
-    return map[alarm.alarmType] || (alarm.deviceName+'. '+alarm.alarmType+' alarm. Take immediate action.'+queueNote+' Tap acknowledge to proceed.');
+    return map[alarm.alarmType] || (_dev+'. '+alarm.alarmType+' alarm.'+_v+' Take immediate action.'+queueNote+' Tap acknowledge to proceed.');
   }
 
   function _getVoice() {
