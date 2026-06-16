@@ -10125,6 +10125,19 @@ function _metCard(label, icon, value, unit, color) {
   background: rgba(255,255,255,0.3);
   color: #fff;
 }
+#ndrrmc-alarm-list .nal-ck {
+  width: 22px; height: 22px;
+  cursor: pointer;
+  accent-color: #ffd700;
+  flex-shrink: 0;
+  margin: 0;
+}
+#ndrrmc-alarm-list .nal-ackall-row {
+  background: rgba(255,215,0,0.15) !important;
+  border-color: #ffd700 !important;
+  margin-bottom: 8px !important;
+  font-size: 14px !important;
+}
 /* All-clear success flash */
 @keyframes ndrrmc-allclear {
   0%   { background: #065f46; }
@@ -10295,9 +10308,14 @@ function _metCard(label, icon, value, unit, color) {
     var listEl = document.getElementById('ndrrmc-alarm-list');
     if (!listEl) return;
     var total = _alarmQueue.length;
-    if (total <= 1) { listEl.style.display = 'none'; return; }
+    if (total === 0) { listEl.style.display = 'none'; return; }
     listEl.style.display = 'block';
+    var allAcked = _alarmQueue.every(function(k){ return _ackedKeys[k] || !_alarmData[k]; });
     var html = '';
+    html += '<div class="nal-item nal-ackall-row">'
+          + '<input type="checkbox" class="nal-ck" id="ndrrmc-ack-all" '+(allAcked?'checked':'')+' onchange="window._ndrrmcAckAll()"> '
+          + '<span style="font-weight:800;">✅ ACKNOWLEDGE ALL FAULTS</span>'
+          + '</div>';
     _alarmQueue.forEach(function(k, i) {
       var a = _alarmData[k]; if (!a) return;
       var cls = _ackedKeys[k] ? 'acked' : (k === _currentKey ? 'current' : '');
@@ -10311,6 +10329,15 @@ function _metCard(label, icon, value, unit, color) {
     });
     listEl.innerHTML = html;
   }
+
+  /* ── One checkbox acks ALL fault alarms ── */
+  window._ndrrmcAckAll = function() {
+    _alarmQueue.forEach(function(k) {
+      if (_alarmData[k]) _ackedKeys[k] = true;
+    });
+    _showAllClear();
+    _currentKey = null;
+  };
 
   /* ── Update overlay content for a given alarm ── */
   function _renderOverlay(alarm) {
