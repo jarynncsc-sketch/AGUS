@@ -1,4 +1,47 @@
 // ============================================================
+// Module 0: Termux Android Alert Integration
+// ============================================================
+var TERMUX_ALERT_NUMBER = ''; // Set to phone number like '+639123456789'
+var TERMUX_ALERT_PORT = 8150;
+var _termuxAlerted = {}; // tracks already-alerted states per device
+var TERMUX_ALERT_DEBOUNCE_MS = 120000; // 2 min between alerts for same device
+
+function triggerTermuxAlert(deviceName, reason) {
+  if (!TERMUX_ALERT_NUMBER) return;
+  var key = deviceName + ':' + reason;
+  var now = Date.now();
+  if (_termuxAlerted[key] && now - _termuxAlerted[key] < TERMUX_ALERT_DEBOUNCE_MS) return;
+  _termuxAlerted[key] = now;
+  var url = 'http://127.0.0.1:' + TERMUX_ALERT_PORT + '/alert?device=' + encodeURIComponent(deviceName) + '&reason=' + encodeURIComponent(reason);
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', url, true);
+  xhr.timeout = 5000;
+  xhr.onload = function() { if (xhr.status === 200) console.log('[TERMUX] Alerted:', deviceName, reason); };
+  xhr.onerror = function() { console.warn('[TERMUX] Alert server unreachable'); };
+  xhr.send();
+}
+
+function scanDevicesForAlert(devices) {
+  if (!TERMUX_ALERT_NUMBER || !devices) return;
+  devices.forEach(function(d) {
+    if (!d.device) return;
+    var name = d.device;
+    var st = (d.status || '').toLowerCase();
+    if (d.button) {
+      triggerTermuxAlert(name, 'Fault button triggered');
+    } else if (st === 'offline') {
+      triggerTermuxAlert(name, 'Device went offline');
+    } else if (st === 'fault') {
+      triggerTermuxAlert(name, 'Status is Fault');
+    }
+    var ifScore = typeof getIFScore === 'function' ? getIFScore(d) : null;
+    if (ifScore !== null && ifScore > 0.65) {
+      triggerTermuxAlert(name, 'Anomaly score ' + (ifScore * 100).toFixed(0) + '%');
+    }
+  });
+}
+
+// ============================================================
 // Module 1: Enhanced Anomaly Detection (adaptive EWMA + trend-aware)
 // ============================================================
 var ANOMALY_WINDOW = 30;
@@ -51,39 +94,8 @@ function detectAnomaly(deviceName, value) {
   return { anomaly: anomaly, zscore: Math.max(zscore, emaZ), direction: direction, type: type };
 }
 
-function injectAnomalyBadge(li, deviceName, reading, isReservoir) {
-  var result = detectAnomaly(deviceName + (isReservoir ? ':level' : ':pressure'), parseFloat(reading));
-  if (result && result.anomaly) {
-    var existing = li.querySelector('.ai-anomaly-badge');
-    if (existing) existing.remove();
-    var badge = document.createElement('span');
-    badge.className = 'ai-anomaly-badge';
-    badge.style.cssText = 'display:inline-block;margin-left:6px;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:800;color:#fff;background:' + (result.direction==='up'?'#ef4444':'#f97316') + ';';
-    badge.textContent = (result.type==='trend'?'⚡':result.type==='level_shift'?'⬆':'⚠') + ' ' + result.zscore.toFixed(1) + 'σ';
-    var nameEl = li.querySelector('span');
-    if (nameEl) nameEl.parentNode.insertBefore(badge, nameEl.nextSibling);
-  }
-  // Also show Isolation Forest badge if available
-  var ifScore = getIFScore({ device: deviceName, pressure: reading, flow: 0, power: 0, voltage: 0, level: 0, relay: 0 });
-  if (ifScore !== null && ifScore > 0.5) {
-    var ifBadge = li.querySelector('.ai-if-badge');
-    if (!ifBadge) {
-      ifBadge = document.createElement('span');
-      ifBadge.className = 'ai-if-badge';
-      ifBadge.style.cssText = 'display:inline-block;margin-left:4px;padding:1px 7px;border-radius:10px;font-size:9px;font-weight:800;color:#fff;background:' + (ifScore>0.65?'#7c3aed':'#a78bfa') + ';cursor:help;';
-      ifBadge.title = 'Isolation Forest anomaly: ' + (ifScore*100).toFixed(0) + '%';
-      ifBadge.textContent = '🌲 ' + (ifScore*100).toFixed(0) + '%';
-      var nameEl2 = li.querySelector('span');
-      if (nameEl2) nameEl2.parentNode.insertBefore(ifBadge, nameEl2.nextSibling);
-    }
-  } else {
-    var oldIf = li.querySelector('.ai-if-badge');
-    if (oldIf) oldIf.remove();
-  }
-}
-
 // ============================================================
-// Module 1b: Isolation Forest — unsupervised anomaly detection
+// Module 1b: Isolation Forest — unsupervised anomaly detection (tree-based, shown on map pins)
 // ============================================================
 function IsolationForest(trees, sampleSize) {
   this.trees = trees || 50;
@@ -1091,33 +1103,13 @@ function recalcCostTable() {
   window.speakAlarm = function(deviceName, alarmType, isReservoir) { correlateAndAnnounce(deviceName, alarmType, null); };
   window.speakPSAlarm = function(deviceName, alarmType) { correlateAndAnnounce(deviceName, alarmType, null); };
 
-  var originalUpdateDeviceList = window.updateDeviceList;
-  window.updateDeviceList = function(devices) {
-    originalUpdateDeviceList(devices);
-    var list = document.getElementById('device-list');
-    if (!list) return;
-    var items = list.querySelectorAll('li');
-    items.forEach(function(li) {
-      var deviceName = li.querySelector('span') ? li.querySelector('span').innerText : '';
-      if (!deviceName) return;
-      var device = devices.find(function(d) { return d.device === deviceName; });
-      if (!device) return;
-      var isRes = (device.type && device.type.toLowerCase().trim() === 'reservoir') || deviceName.toLowerCase().includes('reservoir');
-      var isPres = (device.type && device.type.toLowerCase().trim() === 'pressure') || deviceName.toLowerCase().includes('pressure');
-      if (isRes) {
-        injectAnomalyBadge(li, deviceName, device.level, true);
-      } else if (isPres) {
-        injectAnomalyBadge(li, deviceName, device.pressure, false);
-      }
-    });
-  };
-
   var originalUpdateDashboard = window.updateDashboard;
   window.updateDashboard = function() {
     originalUpdateDashboard();
     apiGet('getDashboardData').then(function(devices) {
       updateMaintenanceScore(devices);
       trainIFModel(devices);
+      scanDevicesForAlert(devices);
     }).catch(function(e) { console.warn('Maintenance score update failed', e); });
   };
 
