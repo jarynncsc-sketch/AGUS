@@ -1899,6 +1899,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
             <span style="color:#dc2626;font-weight:800;">PUSH OFF</span>
           </div>
+          <div class="top-card grp-sys" id="call-contacts-btn" data-tab="call-contacts" onclick="window.agusOpenCallSettings()" title="Emergency call contacts — auto-dial supervisors on alarm" style="cursor:pointer;">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6 6l.87-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>Call Contacts</span>
+          </div>
           <div class="top-card grp-sys" id="pwa-install-btn" data-tab="install-app" onclick="agusInstallPWA()" style="display:none;" title="Install AGUS as an app on your device">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M12 2v13M8 11l4 4 4-4"/><rect x="2" y="17" width="20" height="5" rx="2"/></svg>
             <span id="pwa-btn-label">Install App</span>
@@ -8208,68 +8212,187 @@ function exportDashboardPDF() {
     if (urgent) _bgSpeak(ttsText);
   }
 
-  /* ════════════════════════════════════════════════════
-     BACKGROUND TTS ENGINE
-     Speaks notifications even when tab is not focused.
-     Chrome background TTS workaround: keep-alive ping.
-     ════════════════════════════════════════════════════ */
-  var _bgSpeakQueue = [];
-  var _bgSpeaking   = false;
+  /* ════════════════════════════════════════════════════════════════
+     BACKGROUND TTS ENGINE — v3 FULL BACKGROUND AUDIO
+     ─────────────────────────────────────────────────────────────
+     Works even when browser is MINIMIZED or screen is OFF.
+
+     HOW IT WORKS:
+     1. AudioContext silent buffer plays in a loop — this keeps
+        the browser audio thread alive (prevents Android/iOS from
+        suspending audio when tab is backgrounded).
+     2. speechSynthesis speaks the alarm text.
+     3. A pause/resume ping every 5s prevents Chrome from
+        killing long TTS utterances in background.
+     4. Service Worker → postMessage channel: when SW fires a
+        push notification, it also messages the page to speak.
+     5. On visibility change: if page was hidden and queue
+        accumulated, flush queue when page becomes visible again
+        AND also re-speak if still in alarm state.
+     ════════════════════════════════════════════════════════════════ */
+
+  /* ── Audio unlock: play silent buffer on first user interaction ── */
+  var _bgAudioCtx    = null;
+  var _bgSilentNode  = null;
+  var _bgAudioLocked = true;
+
+  function _unlockAudio() {
+    if (!_bgAudioLocked) return;
+    try {
+      _bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      // Create 1-second silent looping buffer
+      var buf = _bgAudioCtx.createBuffer(1, _bgAudioCtx.sampleRate, _bgAudioCtx.sampleRate);
+      var src = _bgAudioCtx.createBufferSource();
+      src.buffer    = buf;
+      src.loop      = true;
+      src.connect(_bgAudioCtx.destination);
+      src.start(0);
+      _bgSilentNode = src;
+      _bgAudioLocked = false;
+      console.log('[AGUS] Audio unlocked for background TTS');
+    } catch(e) { console.warn('[AGUS] Audio unlock failed:', e); }
+  }
+
+  // Unlock on any user gesture
+  ['click','touchstart','keydown','touchend'].forEach(function(ev) {
+    document.addEventListener(ev, function _once() {
+      _unlockAudio();
+      document.removeEventListener(ev, _once);
+    }, { once: true, passive: true });
+  });
+
+  /* ── TTS Queue ── */
+  var _bgSpeakQueue  = [];
+  var _bgSpeaking    = false;
+  var _bgKaTimer     = null;
+  var _bgCurrUtt     = null;
+
+  function _getVoice() {
+    if (!window.speechSynthesis) return null;
+    var vs = window.speechSynthesis.getVoices();
+    return vs.find(function(v) {
+      return ['Google UK English Female','Google US English','Samantha','Karen','Daniel','Alex'].some(function(n){
+        return v.name.includes(n);
+      }) && v.lang.startsWith('en');
+    }) || vs.find(function(v){ return v.lang.startsWith('en'); }) || null;
+  }
 
   function _bgSpeak(text) {
     if (!window.speechSynthesis) return;
+    // Avoid exact duplicate at head of queue
+    if (_bgSpeakQueue[_bgSpeakQueue.length - 1] === text) return;
     _bgSpeakQueue.push(text);
     if (!_bgSpeaking) _bgSpeakNext();
   }
 
   function _bgSpeakNext() {
-    if (!_bgSpeakQueue.length) { _bgSpeaking = false; return; }
+    if (!_bgSpeakQueue.length) { _bgSpeaking = false; _bgStopKA(); return; }
     _bgSpeaking = true;
+
+    // Resume AudioContext if suspended (happens when tab is backgrounded)
+    if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+      _bgAudioCtx.resume().catch(function(){});
+    }
+
     var text = _bgSpeakQueue.shift();
     var utt  = new SpeechSynthesisUtterance(text);
-    utt.lang = 'en-US'; utt.rate = 0.85; utt.pitch = 1.05; utt.volume = 1.0;
-    var voices = window.speechSynthesis.getVoices();
-    var voice = voices.find(function(v){
-      return ['Google UK English Female','Google US English','Samantha','Karen','Daniel'].some(function(n){ return v.name.includes(n); }) && v.lang.startsWith('en');
-    }) || voices.find(function(v){ return v.lang.startsWith('en'); });
+    utt.lang   = 'en-US';
+    utt.rate   = 0.86;
+    utt.pitch  = 1.05;
+    utt.volume = 1.0;
+    var voice = _getVoice();
     if (voice) utt.voice = voice;
+    _bgCurrUtt = utt;
 
-    // Keep TTS alive in Chrome background (pauses/resumes every 10s)
-    var _kaTimer = setInterval(function() {
-      if (!window.speechSynthesis.speaking) { clearInterval(_kaTimer); return; }
+    /* Keep-alive: Chrome kills TTS after ~15s in background.
+       We pause+resume every 5s to reset the timer. */
+    _bgStopKA();
+    _bgKaTimer = setInterval(function() {
+      if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
+        _bgStopKA(); return;
+      }
       window.speechSynthesis.pause();
       window.speechSynthesis.resume();
-    }, 10000);
+    }, 5000);
 
-    utt.onend = utt.onerror = function() {
-      clearInterval(_kaTimer);
+    utt.onend = function() {
+      _bgStopKA();
+      _bgCurrUtt = null;
       _bgSpeaking = false;
-      setTimeout(_bgSpeakNext, 600);
+      setTimeout(_bgSpeakNext, 500);
+    };
+    utt.onerror = function(e) {
+      // 'interrupted' fires when a new speak() cancels old — not a real error
+      if (e.error === 'interrupted') return;
+      _bgStopKA();
+      _bgCurrUtt = null;
+      _bgSpeaking = false;
+      setTimeout(_bgSpeakNext, 800);
     };
 
-    // iOS/Android: wait for voices
-    if (voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = function() { window.speechSynthesis.speak(utt); };
+    // Ensure voices are loaded (needed on first load / iOS)
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = function() {
+        utt.voice = _getVoice();
+        window.speechSynthesis.speak(utt);
+      };
     } else {
       window.speechSynthesis.speak(utt);
     }
   }
 
-  /* ── Listen for SW → Page messages (speak when tab backgrounded) ── */
+  function _bgStopKA() {
+    if (_bgKaTimer) { clearInterval(_bgKaTimer); _bgKaTimer = null; }
+  }
+
+  /* ── Visibility change: re-unlock audio when tab comes back ── */
+  document.addEventListener('visibilitychange', function() {
+    if (document.visibilityState === 'visible') {
+      // Re-unlock audio context
+      if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+        _bgAudioCtx.resume().catch(function(){});
+      }
+      // If TTS stalled, restart queue
+      if (_bgSpeakQueue.length && !_bgSpeaking) _bgSpeakNext();
+    }
+  });
+
+  /* ── Page focus: same as visibility ── */
+  window.addEventListener('focus', function() {
+    if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+      _bgAudioCtx.resume().catch(function(){});
+    }
+    if (_bgSpeakQueue.length && !_bgSpeaking) _bgSpeakNext();
+  });
+
+  /* ── SW → Page message channel ── */
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.addEventListener('message', function(e) {
       var d = e.data || {};
-      // SW tells page to speak a notification text
+
+      // SW fires a push notification → page speaks it
       if (d.type === 'AGUS_SPEAK' && d.text) {
+        // Unlock audio if user hasn't interacted yet (Android workaround)
+        if (_bgAudioLocked) _unlockAudio();
         _bgSpeak(d.text);
       }
-      // SW tells page to trigger NDRRMC full alarm
+
+      // SW tells page to trigger full NDRRMC alarm overlay
       if (d.type === 'AGUS_NDRRMC' && d.deviceName && window.ndrrmcTriggerAlarm) {
         window.ndrrmcTriggerAlarm(d.deviceName, d.alarmType || 'alarm', {
           isReservoir: !!d.isReservoir, value: d.value || '', key: d.key || d.deviceName
         });
       }
     });
+
+    /* ── Keep SW alive with a periodic ping ── */
+    setInterval(function() {
+      navigator.serviceWorker.ready.then(function(reg) {
+        if (reg.active) {
+          try { reg.active.postMessage({ type: 'AGUS_KEEPALIVE' }); } catch(e){}
+        }
+      }).catch(function(){});
+    }, 20000);
   }
 
   /* ══════════════════════════════════════════════════════════
@@ -8495,13 +8618,28 @@ function exportDashboardPDF() {
   '    self.registration.showNotification(d.title,d.opts||{});' +
   '  }' +
   '});' +
-  /* Notification click */
+  /* Notification click — open page and speak TTS */
   'self.addEventListener("notificationclick",function(e){' +
+  '  var nd=e.notification.data||{};' +
   '  e.notification.close();' +
   '  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '    for(var i=0;i<cs.length;i++){if(cs[i].focus)return cs[i].focus();}' +
-  '    if(self.clients.openWindow)return self.clients.openWindow("/");' +
+  '    var target=null;' +
+  '    for(var i=0;i<cs.length;i++){if(cs[i].url&&cs[i].focus){cs[i].focus();target=cs[i];break;}}' +
+  '    var p=target?Promise.resolve(target):(self.clients.openWindow?self.clients.openWindow("/"):Promise.resolve(null));' +
+  '    return p.then(function(c){if(c&&nd.tts)setTimeout(function(){c.postMessage({type:"AGUS_SPEAK",text:nd.tts});},800);});' +
   '  }));' +
+  '});' +
+  /* SW message handler: keepalive ping + speak relay */
+  'self.addEventListener("message",function(e){' +
+  '  var d=e.data||{};' +
+  '  if(d.type==="AGUS_KEEPALIVE"||d.type==="AGUS_PING"){' +
+  '    if(e.source)try{e.source.postMessage({type:"AGUS_ALIVE"});}catch(x){}' +
+  '  }' +
+  '  if(d.type==="AGUS_SPEAK_RELAY"&&d.text){' +
+  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
+  '      cs.forEach(function(c){try{c.postMessage({type:"AGUS_SPEAK",text:d.text});}catch(x){}});' +
+  '    });' +
+  '  }' +
   '});' +
   /* Periodic background sync — wakes SW on Android PWA */
   'self.addEventListener("periodicsync",function(e){' +
@@ -9670,20 +9808,21 @@ function _metCard(label, icon, value, unit, color) {
 }
 .ndrrmc-device-name {
   color: #fff;
-  font-size: clamp(14px, 4vw, 22px);
+  font-size: clamp(22px, 6.5vw, 42px);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 1px;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
   margin: 6px 0;
+  line-height: 1.1;
 }
 .ndrrmc-alarm-type {
   color: #ffd700;
-  font-size: clamp(28px, 10vw, 64px);
+  font-size: clamp(22px, 6.5vw, 42px);
   font-weight: 900;
-  text-shadow: 0 0 30px #ffd700, 0 4px 8px rgba(0,0,0,0.8);
-  line-height: 1;
-  margin: 8px 0;
+  text-shadow: 0 0 24px #ffd700, 0 3px 6px rgba(0,0,0,0.8);
+  line-height: 1.1;
+  margin: 6px 0;
 }
 .ndrrmc-alarm-value {
   color: #fff;
@@ -9803,7 +9942,7 @@ function _metCard(label, icon, value, unit, color) {
 }
 .ndrrmc-ticker-inner {
   display: inline-block;
-  animation: ndrrmc-ticker-scroll 14s linear infinite;
+  animation: ndrrmc-ticker-scroll 35s linear infinite;
   padding-left: 40px;
   letter-spacing: 1px;
 }
@@ -9865,6 +10004,14 @@ function _metCard(label, icon, value, unit, color) {
   <!-- Silence TTS for 5 min, overlay stays -->
   <button id="ndrrmc-silence-btn" onclick="window.ndrrmcSilence5()">
     🔇 SILENCE 5 MINUTES
+  </button>
+  <button onclick="window.agusOpenCallSettings()" style="
+    background:transparent;color:rgba(255,215,0,0.7);
+    border:1px solid rgba(255,215,0,0.3);border-radius:10px;
+    font-family:Arial,sans-serif;font-size:11px;font-weight:700;
+    padding:6px 16px;cursor:pointer;letter-spacing:1px;
+    text-transform:uppercase;margin-top:6px;">
+    📞 CALL CONTACTS SETTINGS
   </button>
 
   <!-- Ticker -->
@@ -10323,6 +10470,546 @@ function _metCard(label, icon, value, unit, color) {
       });
     } catch(e) {}
   }
+
+})();
+</script>
+
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     AUTO-CALL ESCALATION SYSTEM
+     When an anomaly fires, automatically opens phone dialer to call
+     supervisors/operators one by one until alarm is acknowledged.
+     Settings UI to manage contact list with name + mobile number.
+     ═══════════════════════════════════════════════════════════════════ -->
+
+<!-- ── CALL ESCALATION OVERLAY ── -->
+<div id="agus-call-overlay" style="
+  display:none; position:fixed; inset:0; z-index:2147484000;
+  background:rgba(0,0,0,0.82); align-items:center; justify-content:center;
+  font-family:'Arial Black',Arial,sans-serif;
+">
+  <div id="agus-call-panel" style="
+    background:#0a0a1a; border:2px solid #ffd700;
+    border-radius:20px; padding:28px 24px; max-width:360px; width:92%;
+    text-align:center; box-shadow:0 0 60px rgba(255,215,0,0.3);
+    position:relative;
+  ">
+    <!-- Pulse ring -->
+    <div style="position:absolute;top:-18px;left:50%;transform:translateX(-50%);
+      width:48px;height:48px;background:#c0020a;border-radius:50%;
+      display:flex;align-items:center;justify-content:center;font-size:24px;
+      border:3px solid #ffd700;box-shadow:0 0 20px rgba(255,0,0,0.7);">📞</div>
+
+    <div style="margin-top:18px;color:#ffd700;font-size:11px;font-weight:800;letter-spacing:2px;">
+      AUTO-CALL ESCALATION
+    </div>
+    <div style="color:#fff;font-size:13px;font-weight:700;margin:6px 0 14px;opacity:0.8;">
+      AGUS Water Monitoring System
+    </div>
+
+    <div id="agus-call-alarm-info" style="
+      background:rgba(192,2,10,0.3);border:1px solid rgba(255,100,100,0.4);
+      border-radius:10px;padding:10px 14px;margin-bottom:14px;
+      color:#fff;font-size:12px;font-weight:700;line-height:1.5;
+    "></div>
+
+    <div style="color:#ffd700;font-size:11px;font-weight:800;letter-spacing:1px;margin-bottom:6px;">
+      CALLING CONTACT
+    </div>
+    <div id="agus-call-contact-name" style="color:#fff;font-size:20px;font-weight:900;margin-bottom:4px;">—</div>
+    <div id="agus-call-contact-num" style="color:#ffd700;font-size:15px;font-weight:700;letter-spacing:2px;margin-bottom:4px;">—</div>
+    <div id="agus-call-contact-role" style="color:rgba(255,255,255,0.6);font-size:11px;margin-bottom:16px;">—</div>
+
+    <!-- Progress dots -->
+    <div id="agus-call-progress" style="display:flex;justify-content:center;gap:6px;margin-bottom:16px;flex-wrap:wrap;"></div>
+
+    <!-- Status -->
+    <div id="agus-call-status" style="
+      color:#fff;font-size:12px;font-weight:700;margin-bottom:16px;
+      background:rgba(255,255,255,0.07);border-radius:8px;padding:8px 12px;
+      min-height:36px;display:flex;align-items:center;justify-content:center;
+    ">Preparing to call…</div>
+
+    <!-- Countdown timer -->
+    <div style="color:rgba(255,255,255,0.5);font-size:11px;margin-bottom:14px;">
+      Next call in: <span id="agus-call-countdown" style="color:#ffd700;font-weight:900;">—</span>
+    </div>
+
+    <!-- Buttons -->
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button id="agus-call-now-btn" onclick="window.agusCallNow()" style="
+        background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;
+        border:none;border-radius:12px;font-size:15px;font-weight:900;
+        padding:14px;cursor:pointer;letter-spacing:1px;
+        box-shadow:0 4px 20px rgba(34,197,94,0.5);
+      ">📞 CALL NOW</button>
+      <button onclick="window.agusCallSkip()" style="
+        background:rgba(255,255,255,0.1);color:#fff;border:1px solid rgba(255,255,255,0.3);
+        border-radius:10px;font-size:12px;font-weight:700;padding:10px;cursor:pointer;
+      ">⏭ Skip to Next Contact</button>
+      <button onclick="window.agusCallDismiss()" style="
+        background:transparent;color:rgba(255,255,255,0.5);border:none;
+        font-size:11px;cursor:pointer;padding:6px;
+      ">✅ Alarm Acknowledged — Stop Calling</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── CONTACTS SETTINGS MODAL ── -->
+<div id="agus-contacts-modal" style="
+  display:none;position:fixed;inset:0;z-index:2147485000;
+  background:rgba(0,0,0,0.75);align-items:center;justify-content:center;
+">
+  <div style="
+    background:#fff;border-radius:18px;padding:0;max-width:440px;width:94%;
+    max-height:88vh;overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  ">
+    <div style="background:#004080;color:#fff;padding:16px 20px;
+      border-radius:18px 18px 0 0;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:15px;font-weight:900;">📞 Emergency Call Contacts</div>
+        <div style="font-size:11px;opacity:0.8;margin-top:2px;">Called automatically when an alarm fires</div>
+      </div>
+      <button onclick="document.getElementById('agus-contacts-modal').style.display='none'"
+        style="background:rgba(255,255,255,0.2);border:none;color:#fff;border-radius:8px;
+        padding:6px 12px;cursor:pointer;font-size:16px;font-weight:900;">✕</button>
+    </div>
+
+    <div style="padding:16px 20px;overflow-y:auto;flex:1;">
+      <!-- Call settings -->
+      <div style="background:#f0f7ff;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;">
+        <div style="font-weight:800;color:#004080;margin-bottom:8px;">⚙ Call Settings</div>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
+          <input type="checkbox" id="agus-call-enabled" onchange="agusCallSaveSettings()" style="width:16px;height:16px;">
+          <span style="font-weight:700;">Enable auto-call on alarm</span>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
+          <input type="checkbox" id="agus-call-repeat" onchange="agusCallSaveSettings()" style="width:16px;height:16px;" checked>
+          <span style="font-weight:700;">Repeat cycle until acknowledged</span>
+        </label>
+        <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+          <span style="font-weight:700;min-width:120px;">Delay between calls:</span>
+          <select id="agus-call-delay" onchange="agusCallSaveSettings()" style="
+            border:1px solid #ddd;border-radius:6px;padding:4px 8px;font-size:12px;">
+            <option value="15">15 seconds</option>
+            <option value="30" selected>30 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="120">2 minutes</option>
+            <option value="300">5 minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Contact list -->
+      <div style="font-weight:800;color:#004080;font-size:13px;margin-bottom:10px;">
+        👥 Contact List <span style="font-weight:400;color:#666;font-size:11px;">(called in order)</span>
+      </div>
+      <div id="agus-contacts-list" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px;"></div>
+
+      <!-- Add contact form -->
+      <div style="background:#f8faff;border:1px dashed #90c0ff;border-radius:10px;padding:12px;">
+        <div style="font-weight:800;color:#004080;font-size:12px;margin-bottom:8px;">➕ Add Contact</div>
+        <input id="agus-new-name" placeholder="Full name (e.g. Juan dela Cruz)" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;
+          padding:8px 10px;font-size:13px;margin-bottom:6px;">
+        <input id="agus-new-role" placeholder="Role (e.g. Supervisor, Operator)" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;
+          padding:8px 10px;font-size:13px;margin-bottom:6px;">
+        <input id="agus-new-number" placeholder="Mobile number (e.g. 09171234567)" type="tel" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:8px;
+          padding:8px 10px;font-size:13px;margin-bottom:10px;">
+        <button onclick="agusCallAddContact()" style="
+          width:100%;background:#004080;color:#fff;border:none;border-radius:8px;
+          padding:10px;font-size:13px;font-weight:800;cursor:pointer;">
+          ➕ Add Contact
+        </button>
+      </div>
+
+      <!-- Info box -->
+      <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;
+        padding:10px 12px;margin-top:12px;font-size:11px;color:#92400e;line-height:1.6;">
+        <strong>📱 How it works:</strong><br>
+        When an alarm fires, this panel opens and automatically opens the phone dialer
+        to call each contact in order. Each call must be made manually (tap CALL NOW)
+        — the system cannot force a call without your confirmation due to browser security.
+        After each call, it waits and then prompts the next contact automatically.
+      </div>
+    </div>
+
+    <div style="padding:12px 20px;border-top:1px solid #eee;display:flex;gap:8px;">
+      <button onclick="agusCallTestAlarm()" style="
+        flex:1;background:#dc2626;color:#fff;border:none;border-radius:8px;
+        padding:10px;font-size:12px;font-weight:800;cursor:pointer;">
+        🧪 Test Call System
+      </button>
+      <button onclick="document.getElementById('agus-contacts-modal').style.display='none'"
+        style="flex:1;background:#004080;color:#fff;border:none;border-radius:8px;
+        padding:10px;font-size:12px;font-weight:800;cursor:pointer;">
+        ✅ Done
+      </button>
+    </div>
+  </div>
+</div>
+
+<script data-agus-trusted="1">
+/* ═══════════════════════════════════════════════════════════════════
+   AGUS AUTO-CALL ESCALATION ENGINE
+   ─────────────────────────────────────────────────────────────────
+   FLOW:
+   1. Alarm fires → ndrrmcTriggerAlarm() → also calls agusEscalateCall()
+   2. agusEscalateCall() shows call overlay, starts countdown
+   3. Every N seconds: opens tel: link for next contact in list
+   4. Cycles through all contacts, repeats if "repeat" is enabled
+   5. Stops when alarm is acknowledged (ndrrmcAcknowledge)
+   ═══════════════════════════════════════════════════════════════════ */
+(function() {
+  'use strict';
+
+  var STORAGE_KEY    = 'agus_call_contacts_v2';
+  var SETTINGS_KEY   = 'agus_call_settings_v2';
+  var _contacts      = [];
+  var _settings      = { enabled: false, repeat: true, delaySeconds: 30 };
+  var _callIndex     = 0;
+  var _callTimer     = null;
+  var _countdownTimer = null;
+  var _countdownSecs = 0;
+  var _active        = false;
+  var _currentAlarm  = null;
+  var _callLog       = []; // log of calls made this session
+
+  /* ── Load / Save ── */
+  function _load() {
+    try { _contacts = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e){ _contacts=[]; }
+    try {
+      var s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+      _settings.enabled      = !!s.enabled;
+      _settings.repeat       = s.repeat !== false;
+      _settings.delaySeconds = parseInt(s.delaySeconds) || 30;
+    } catch(e){}
+  }
+  function _save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(_contacts)); } catch(e){}
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(_settings)); } catch(e){}
+  }
+  _load();
+
+  /* ── Show/hide call overlay ── */
+  function _showOverlay(alarm) {
+    var ov = document.getElementById('agus-call-overlay');
+    if (!ov) return;
+    ov.style.display = 'flex';
+
+    var info = document.getElementById('agus-call-alarm-info');
+    if (info && alarm) {
+      info.innerHTML = '🚨 <b>' + alarm.deviceName.toUpperCase() + '</b><br>'
+        + (alarm.alarmType || '').toUpperCase()
+        + (alarm.value ? ' &nbsp;·&nbsp; ' + alarm.value : '');
+    }
+    _renderProgress();
+    _updateContactDisplay();
+  }
+  function _hideOverlay() {
+    var ov = document.getElementById('agus-call-overlay');
+    if (ov) ov.style.display = 'none';
+  }
+
+  /* ── Render contact progress dots ── */
+  function _renderProgress() {
+    var el = document.getElementById('agus-call-progress');
+    if (!el) return;
+    el.innerHTML = _contacts.map(function(c, i) {
+      var called = _callLog.some(function(l){ return l.index === i; });
+      var isCur  = i === _callIndex;
+      var bg     = isCur ? '#ffd700' : (called ? '#22c55e' : 'rgba(255,255,255,0.2)');
+      var title  = c.name + ' ' + c.number;
+      return '<div title="' + title + '" style="width:10px;height:10px;border-radius:50%;background:' + bg + ';'
+        + (isCur ? 'box-shadow:0 0 8px #ffd700;transform:scale(1.4);' : '') + '"></div>';
+    }).join('');
+  }
+
+  /* ── Update who we're calling now ── */
+  function _updateContactDisplay() {
+    var c = _contacts[_callIndex];
+    if (!c) return;
+    var nameEl = document.getElementById('agus-call-contact-name');
+    var numEl  = document.getElementById('agus-call-contact-num');
+    var roleEl = document.getElementById('agus-call-contact-role');
+    if (nameEl) nameEl.textContent = c.name;
+    if (numEl)  numEl.textContent  = c.number;
+    if (roleEl) roleEl.textContent = c.role || 'Emergency Contact';
+    _renderProgress();
+  }
+
+  /* ── Set status message ── */
+  function _setStatus(msg) {
+    var el = document.getElementById('agus-call-status');
+    if (el) el.innerHTML = msg;
+  }
+
+  /* ── Start countdown then auto-dial ── */
+  function _startCountdown(secs, onDone) {
+    _stopCountdown();
+    _countdownSecs = secs;
+    var cdEl = document.getElementById('agus-call-countdown');
+
+    function tick() {
+      if (!_active) return;
+      if (cdEl) cdEl.textContent = _countdownSecs + 's';
+      if (_countdownSecs <= 0) { _stopCountdown(); if (onDone) onDone(); return; }
+      _countdownSecs--;
+      _countdownTimer = setTimeout(tick, 1000);
+    }
+    tick();
+  }
+  function _stopCountdown() {
+    if (_countdownTimer) { clearTimeout(_countdownTimer); _countdownTimer = null; }
+    var cdEl = document.getElementById('agus-call-countdown');
+    if (cdEl) cdEl.textContent = '—';
+  }
+
+  /* ── Open phone dialer ── */
+  function _dial(contact) {
+    var num = (contact.number || '').replace(/\s+/g,'');
+    if (!num) return;
+    // Speak announcement before dialing
+    if (window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
+        var utt = new SpeechSynthesisUtterance(
+          'Calling ' + contact.name + '. ' + (contact.role || 'Emergency contact') + '. '
+          + 'There is an active alarm on the water monitoring system. Please respond immediately.'
+        );
+        utt.lang='en-US'; utt.rate=0.9; utt.volume=1.0;
+        window.speechSynthesis.speak(utt);
+      } catch(e){}
+    }
+    // Log the call
+    _callLog.push({ index: _callIndex, name: contact.name, number: num, time: new Date().toLocaleTimeString() });
+    // Open tel: link — triggers native phone dialer
+    window.open('tel:' + num);
+  }
+
+  /* ── Advance to next contact ── */
+  function _nextContact() {
+    if (!_active) return;
+    _callIndex++;
+
+    // End of list
+    if (_callIndex >= _contacts.length) {
+      if (_settings.repeat) {
+        _callIndex = 0;
+        _setStatus('♻️ Cycling back to first contact…');
+        var cycleCount = Math.floor(_callLog.length / _contacts.length) + 1;
+        _setStatus('♻️ Cycle ' + cycleCount + ' — calling list again until acknowledged');
+      } else {
+        _setStatus('📋 All contacts called. Alarm still active. Please acknowledge.');
+        _stopCountdown();
+        return;
+      }
+    }
+
+    _updateContactDisplay();
+    var c = _contacts[_callIndex];
+    _setStatus('⏳ Calling <b>' + c.name + '</b> in <b>' + _settings.delaySeconds + 's</b>…');
+    _startCountdown(_settings.delaySeconds, function() {
+      if (!_active) return;
+      _setStatus('📞 Opening dialer for <b>' + c.name + '</b>…');
+      _dial(c);
+      setTimeout(function() {
+        if (_active) {
+          _setStatus('✅ Called <b>' + c.name + '</b>. Moving to next contact…');
+          setTimeout(_nextContact, 3000);
+        }
+      }, _settings.delaySeconds * 1000);
+    });
+  }
+
+  /* ── PUBLIC: Start escalation for an alarm ── */
+  window.agusEscalateCall = function(alarm) {
+    _load();
+    if (!_settings.enabled) return;
+    if (!_contacts.length) return;
+    if (_active) return; // already calling
+
+    _active       = true;
+    _callIndex    = 0;
+    _callLog      = [];
+    _currentAlarm = alarm;
+
+    _showOverlay(alarm);
+
+    var c = _contacts[0];
+    _setStatus('🚨 Alarm detected! Calling <b>' + c.name + '</b> in <b>' + _settings.delaySeconds + 's</b>…');
+    _startCountdown(_settings.delaySeconds, function() {
+      if (!_active) return;
+      _setStatus('📞 Opening dialer for <b>' + c.name + '</b>…');
+      _dial(c);
+      setTimeout(function() {
+        if (_active) {
+          _setStatus('✅ Called <b>' + c.name + '</b>. Moving to next…');
+          setTimeout(_nextContact, 3000);
+        }
+      }, _settings.delaySeconds * 1000);
+    });
+  };
+
+  /* ── PUBLIC: Call NOW (bypass countdown) ── */
+  window.agusCallNow = function() {
+    _stopCountdown();
+    var c = _contacts[_callIndex];
+    if (!c) return;
+    _setStatus('📞 Opening dialer for <b>' + c.name + '</b>…');
+    _dial(c);
+    setTimeout(function() {
+      if (_active) {
+        _setStatus('✅ Called <b>' + c.name + '</b>.');
+        setTimeout(_nextContact, 3000);
+      }
+    }, _settings.delaySeconds * 1000);
+  };
+
+  /* ── PUBLIC: Skip current contact ── */
+  window.agusCallSkip = function() {
+    _stopCountdown();
+    _setStatus('⏭ Skipped. Moving to next contact…');
+    setTimeout(_nextContact, 500);
+  };
+
+  /* ── PUBLIC: Dismiss / alarm acknowledged ── */
+  window.agusCallDismiss = function() {
+    _active = false;
+    _stopCountdown();
+    _hideOverlay();
+    if (window.ndrrmcAcknowledge) window.ndrrmcAcknowledge();
+  };
+
+  /* ── PUBLIC: Stop calling (called by ndrrmcAcknowledge) ── */
+  window.agusCallStop = function() {
+    _active = false;
+    _stopCountdown();
+    _hideOverlay();
+  };
+
+  /* ── Patch ndrrmcTriggerAlarm to also fire escalation ── */
+  var _origTrigger = window.ndrrmcTriggerAlarm;
+  window.ndrrmcTriggerAlarm = function(deviceName, alarmType, opts) {
+    if (_origTrigger) _origTrigger(deviceName, alarmType, opts);
+    // Only start call escalation for the FIRST alarm (don't re-trigger if already calling)
+    if (!_active) {
+      var alarm = { deviceName: deviceName, alarmType: alarmType, value: (opts&&opts.value)||'' };
+      window.agusEscalateCall(alarm);
+    }
+  };
+
+  /* ── Patch ndrrmcAcknowledge to also stop calls ── */
+  var _origAck = window.ndrrmcAcknowledge;
+  window.ndrrmcAcknowledge = function() {
+    window.agusCallStop();
+    if (_origAck) _origAck();
+  };
+
+  /* ═══════════════════════════════════════════════
+     CONTACTS SETTINGS UI FUNCTIONS
+     ═══════════════════════════════════════════════ */
+
+  /* ── Open settings modal ── */
+  window.agusOpenCallSettings = function() {
+    _load();
+    var modal = document.getElementById('agus-contacts-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    // Sync settings to UI
+    var en = document.getElementById('agus-call-enabled');
+    var rep = document.getElementById('agus-call-repeat');
+    var del = document.getElementById('agus-call-delay');
+    if (en)  en.checked  = _settings.enabled;
+    if (rep) rep.checked = _settings.repeat;
+    if (del) del.value   = String(_settings.delaySeconds);
+    _renderContactsList();
+  };
+
+  /* ── Render contacts list in settings ── */
+  function _renderContactsList() {
+    var el = document.getElementById('agus-contacts-list');
+    if (!el) return;
+    if (!_contacts.length) {
+      el.innerHTML = '<div style="color:#888;font-size:12px;text-align:center;padding:12px;">No contacts yet. Add one below.</div>';
+      return;
+    }
+    el.innerHTML = _contacts.map(function(c, i) {
+      return '<div style="background:#f8faff;border:1px solid #dce8ff;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px;">'
+        + '<div style="width:32px;height:32px;background:#004080;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:900;font-size:14px;flex-shrink:0;">' + (i+1) + '</div>'
+        + '<div style="flex:1;min-width:0;">'
+        +   '<div style="font-weight:800;font-size:13px;color:#004080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _esc(c.name) + '</div>'
+        +   '<div style="font-size:11px;color:#666;">' + _esc(c.role||'') + '</div>'
+        +   '<div style="font-size:13px;font-weight:700;color:#333;letter-spacing:1px;">' + _esc(c.number) + '</div>'
+        + '</div>'
+        + '<div style="display:flex;flex-direction:column;gap:4px;">'
+        +   (i > 0 ? '<button onclick="agusCallMoveContact('+i+',-1)" style="background:#e2e8f0;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;">▲</button>' : '<div style="width:28px;height:28px;"></div>')
+        +   (i < _contacts.length-1 ? '<button onclick="agusCallMoveContact('+i+',1)" style="background:#e2e8f0;border:none;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:12px;">▼</button>' : '<div style="width:28px;height:28px;"></div>')
+        + '</div>'
+        + '<button onclick="agusCallDeleteContact('+i+')" style="background:#fee2e2;border:none;border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;flex-shrink:0;">🗑</button>'
+        + '</div>';
+    }).join('');
+  }
+
+  function _esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  /* ── Add contact ── */
+  window.agusCallAddContact = function() {
+    var name   = (document.getElementById('agus-new-name')  ||{}).value||'';
+    var role   = (document.getElementById('agus-new-role')  ||{}).value||'';
+    var number = (document.getElementById('agus-new-number')||{}).value||'';
+    name = name.trim(); role = role.trim(); number = number.trim().replace(/\s+/g,'');
+    if (!name || !number) { alert('Please enter both name and mobile number.'); return; }
+    if (!/^[+\d][\d\s\-\(\)]{6,}$/.test(number)) { alert('Please enter a valid mobile number (e.g. 09171234567 or +639171234567).'); return; }
+    _contacts.push({ name: name, role: role, number: number });
+    _save();
+    _renderContactsList();
+    ['agus-new-name','agus-new-role','agus-new-number'].forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+    if (typeof showNotification==='function') showNotification('✅ Contact added: '+name, 'success');
+  };
+
+  /* ── Delete contact ── */
+  window.agusCallDeleteContact = function(i) {
+    if (!confirm('Remove ' + (_contacts[i]||{}).name + '?')) return;
+    _contacts.splice(i, 1);
+    _save();
+    _renderContactsList();
+  };
+
+  /* ── Move contact up/down ── */
+  window.agusCallMoveContact = function(i, dir) {
+    var j = i + dir;
+    if (j < 0 || j >= _contacts.length) return;
+    var tmp = _contacts[i]; _contacts[i] = _contacts[j]; _contacts[j] = tmp;
+    _save();
+    _renderContactsList();
+  };
+
+  /* ── Save settings from UI ── */
+  window.agusCallSaveSettings = function() {
+    var en  = document.getElementById('agus-call-enabled');
+    var rep = document.getElementById('agus-call-repeat');
+    var del = document.getElementById('agus-call-delay');
+    _settings.enabled      = en  ? en.checked  : false;
+    _settings.repeat       = rep ? rep.checked  : true;
+    _settings.delaySeconds = del ? parseInt(del.value)||30 : 30;
+    _save();
+  };
+
+  /* ── Test call system ── */
+  window.agusCallTestAlarm = function() {
+    _load();
+    if (!_contacts.length) { alert('Please add at least one contact first.'); return; }
+    if (!_settings.enabled) { alert('Enable auto-call first using the checkbox.'); return; }
+    document.getElementById('agus-contacts-modal').style.display = 'none';
+    window.agusEscalateCall({ deviceName: 'TEST DEVICE', alarmType: 'test alarm', value: '' });
+  };
+
+  /* ── Expose open settings ── */
+  window.agusOpenCallSettings = window.agusOpenCallSettings;
 
 })();
 </script>
