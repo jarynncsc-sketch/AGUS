@@ -2571,7 +2571,7 @@ var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
 var pressureSettingsCache = {}, pressureSettingsModalDev = '';
 var reservoirThresholdsCache = {}, reservoirSettingsModalDev = '';
 var alarmSpeechState = {};
-var SPEECH_REPEAT_INTERVAL = 5 * 60 * 1000, ONLINE_THRESHOLD_MINUTES = 30, RESERVOIR_THRESHOLD_MINUTES = 120;
+var SPEECH_REPEAT_INTERVAL = 120 * 1000, ONLINE_THRESHOLD_MINUTES = 30, RESERVOIR_THRESHOLD_MINUTES = 120;
 
 // ── Reservoir–Pump Link — GAS-backed (ReservoirPumpLinks sheet) ──────────
 // pumpLinkConfigs: array of link objects from GAS
@@ -8320,7 +8320,7 @@ function exportDashboardPDF() {
     _bgCurrUtt = utt;
 
     /* Keep-alive: Chrome kills TTS after ~15s in background.
-       We pause+resume every 5s to reset the timer. */
+       We pause+resume every 2s to reset the timer. */
     _bgStopKA();
     _bgKaTimer = setInterval(function() {
       if (!window.speechSynthesis || !window.speechSynthesis.speaking) {
@@ -8328,7 +8328,7 @@ function exportDashboardPDF() {
       }
       window.speechSynthesis.pause();
       window.speechSynthesis.resume();
-    }, 5000);
+    }, 2000);
 
     utt.onend = function() {
       _bgStopKA();
@@ -8337,11 +8337,14 @@ function exportDashboardPDF() {
       setTimeout(_bgSpeakNext, 500);
     };
     utt.onerror = function(e) {
-      // 'interrupted' fires when a new speak() cancels old — not a real error
-      if (e.error === 'interrupted') return;
       _bgStopKA();
       _bgCurrUtt = null;
       _bgSpeaking = false;
+      // 'interrupted' fires when _stopSpeech / cancel() kills old speech — reset state so queue can proceed
+      if (e.error === 'interrupted') {
+        if (_bgSpeakQueue.length) setTimeout(_bgSpeakNext, 300);
+        return;
+      }
       setTimeout(_bgSpeakNext, 800);
     };
 
@@ -8359,6 +8362,27 @@ function exportDashboardPDF() {
   function _bgStopKA() {
     if (_bgKaTimer) { clearInterval(_bgKaTimer); _bgKaTimer = null; }
   }
+
+  /* Background keepalive: runs every 10s even between TTS utterances to prevent
+     Chrome from suspending the AudioContext or freezing the page entirely. */
+  var _bgHealthTimer = null;
+  function _bgStartHealthCheck() {
+    if (_bgHealthTimer) return;
+    _bgHealthTimer = setInterval(function() {
+      // Resume AudioContext if Chrome suspended it
+      if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+        _bgAudioCtx.resume().catch(function(){});
+      }
+      // Recreate silent loop if AudioContext was fully closed / null
+      if (!_bgAudioCtx || _bgAudioCtx.state === 'closed') {
+        _bgAudioLocked = true;
+        _unlockAudio();
+      }
+      // If queue is stuck and nothing speaking, restart it
+      if (_bgSpeakQueue.length && !_bgSpeaking) _bgSpeakNext();
+    }, 10000);
+  }
+  _bgStartHealthCheck();
 
   /* ── Visibility change: re-unlock audio when tab comes back ── */
   document.addEventListener('visibilitychange', function() {
@@ -8655,13 +8679,18 @@ function exportDashboardPDF() {
   '      cs.forEach(function(c){try{c.postMessage({type:"AGUS_SPEAK",text:d.text});}catch(x){}});' +
   '    });' +
   '  }' +
+  '  if(d.type==="AGUS_FOCUS"){' +
+  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
+  '      cs.forEach(function(c){if(c.url)c.focus().catch(function(){});});' +
+  '    });' +
+  '  }' +
   '});' +
   /* Periodic background sync — wakes SW on Android PWA */
   'self.addEventListener("periodicsync",function(e){' +
   '  if(e.tag==="agus-bg")e.waitUntil(bgPoll());' +
   '});' +
   /* Dedup */
-  'var _swErr=0;var _dd={};var COOL=300000;' +
+  'var _swErr=0;var _dd={};var COOL=30000;' +
   'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
   /* Notify helper */
   'var _alarmMap={fault:"fault",off:"offline",' +
@@ -10128,6 +10157,7 @@ function _metCard(label, icon, value, unit, color) {
   var _speechTimer     = null;
   var _flashTimer      = null;
   var _repeatTimer     = null;
+  var _attentionTimer  = null;
   var _audioCtx        = null;
   var REPEAT_MS        = 2 * 60 * 1000;
 
@@ -10246,7 +10276,7 @@ function _metCard(label, icon, value, unit, color) {
       if (_currentKey === alarm.key && !_ackedKeys[alarm.key] && Date.now() >= _silenceUntil) {
         _speakAlarm(alarm);
       }
-    }, 10000);
+    }, 30000);
   }
 
   function _stopSpeech() {
@@ -10333,14 +10363,28 @@ function _metCard(label, icon, value, unit, color) {
     _stopSpeech();
     setTimeout(function(){ _speakAlarm(alarm); }, 900);
 
-    // Periodic repeat siren + vibrate
-    if (!_repeatTimer) {
-      _repeatTimer = setInterval(function() {
+    // Aggressive attention loop: siren + vibrate + flash + SW focus every 10s
+    if (_attentionTimer) { clearInterval(_attentionTimer); _attentionTimer = null; }
+    _attentionTimer = setInterval(function() {
         var active = _alarmQueue.some(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
-        if (!active) { clearInterval(_repeatTimer); _repeatTimer = null; return; }
-        _vibrate();
+        if (!active) { clearInterval(_attentionTimer); _attentionTimer = null; return; }
         _playSiren();
-      }, REPEAT_MS);
+        _vibrate();
+        _startFlash();
+        if (_currentKey && _alarmData[_currentKey]) _renderOverlay(_alarmData[_currentKey]);
+        _sendFocusToSW();
+      }, 10000);
+    }
+  }
+
+  /* ── Send focus request to SW → forces page to front on Android ── */
+  function _sendFocusToSW() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then(function(reg) {
+        if (reg.active) {
+          try { reg.active.postMessage({ type: 'AGUS_FOCUS' }); } catch(e){}
+        }
+      }).catch(function(){});
     }
   }
 
@@ -10348,6 +10392,7 @@ function _metCard(label, icon, value, unit, color) {
   function _showAllClear() {
     _stopSpeech();
     if (_repeatTimer) { clearInterval(_repeatTimer); _repeatTimer = null; }
+    if (_attentionTimer) { clearInterval(_attentionTimer); _attentionTimer = null; }
     var ov = document.getElementById('ndrrmc-alarm-overlay');
     if (!ov) return;
     // Show green "All Clear" for 3s then hide
