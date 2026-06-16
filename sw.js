@@ -23,9 +23,16 @@ function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;
 var _swErr=0;
 /* ═══════════════ Notification helper ═══════════════ */
 function pop(title,body,tag,urgent){
+  var ttsMsg = title + ". " + body;
+  if (urgent) {
+    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
+      cs.forEach(function(c){ c.postMessage({type:"AGUS_SPEAK",text:ttsMsg}); });
+    });
+  }
   return self.registration.showNotification(title,{
     body:body,tag:tag,requireInteraction:!!urgent,
-    vibrate:urgent?[400,150,400,150,400]:[200,100,200],
+    vibrate:urgent?[400,150,800,150,400,100,400]:[200,100,200],
+    data:{tts:ttsMsg,tag:tag,urgent:!!urgent},
     icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",
     badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"
   });
@@ -190,12 +197,23 @@ self.addEventListener("message",function(e){
       });
     }).then(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});});
   }
+  if(d.type==="AGUS_KEEPALIVE"||d.type==="AGUS_PING"){
+    if(e.source)try{e.source.postMessage({type:"AGUS_ALIVE"});}catch(x){}
+  }
+  if(d.type==="AGUS_SPEAK_RELAY"&&d.text){
+    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
+      cs.forEach(function(c){try{c.postMessage({type:"AGUS_SPEAK",text:d.text});}catch(x){}});
+    });
+  }
 });
 self.addEventListener("notificationclick",function(e){
+  var nd=e.notification.data||{};
   e.notification.close();
   e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
-    for(var i=0;i<cs.length;i++){if(cs[i].focus)return cs[i].focus();}
-    if(self.clients.openWindow)return self.clients.openWindow("/");
+    var target=null;
+    for(var i=0;i<cs.length;i++){if(cs[i].url&&cs[i].focus){cs[i].focus();target=cs[i];break;}}
+    var p=target?Promise.resolve(target):(self.clients.openWindow?self.clients.openWindow("/"):Promise.resolve(null));
+    return p.then(function(c){if(c&&nd.tts)setTimeout(function(){c.postMessage({type:"AGUS_SPEAK",text:nd.tts});},800);});
   }));
 });
 self.addEventListener("periodicsync",function(e){
