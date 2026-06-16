@@ -8253,10 +8253,24 @@ function exportDashboardPDF() {
     } catch(e) { console.warn('[AGUS] Audio unlock failed:', e); }
   }
 
+  // Wake lock to prevent page freeze while backgrounded
+  var _wakeLock = null;
+  function _requestWakeLock() {
+    if (_wakeLock) return;
+    try {
+      if ('wakeLock' in navigator) {
+        navigator.wakeLock.request('screen').then(function(wl) {
+          _wakeLock = wl;
+          _wakeLock.onrelease = function(){ _wakeLock = null; };
+        }).catch(function(){});
+      }
+    } catch(e) {}
+  }
   // Unlock on any user gesture
   ['click','touchstart','keydown','touchend'].forEach(function(ev) {
     document.addEventListener(ev, function _once() {
       _unlockAudio();
+      _requestWakeLock();
       document.removeEventListener(ev, _once);
     }, { once: true, passive: true });
   });
@@ -8650,19 +8664,36 @@ function exportDashboardPDF() {
   'var _swErr=0;var _dd={};var COOL=300000;' +
   'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
   /* Notify helper */
+  'var _alarmMap={fault:"fault",off:"offline",' +
+  '  "wl-hi":"high","wl-lo":"low",' +
+  '  "psi-hi":"high pressure","psi-lo":"low pressure",' +
+  '  "fl-hi":"high flow","fl-lo":"low flow",' +
+  '  "vt-hi":"high voltage","vt-lo":"low voltage",' +
+  '  "am-hi":"overcurrent","am-lo":"low current",' +
+  '  "pw-hi":"high power"};' +
   'function pop(title,body,tag,urgent){' +
   '  var ttsMsg=title+". "+body;' +
   '  if(urgent){' +
   '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '      cs.forEach(function(c){c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});});' +
+  '      var parts=(tag||"").split(":");' +
+  '      var devName=parts.slice(1).join(":")||"";' +
+  '      var alarmType=_alarmMap[parts[0]]||parts[0];' +
+'      cs.forEach(function(c){' +
+'        if(c.url){c.focus().catch(function(){})}' +
+'        if(devName&&parts[0]!=="pl"){' +
+'          c.postMessage({type:"AGUS_NDRRMC",deviceName:devName,alarmType:alarmType,value:body,isReservoir:!!(parts[0]==="wl-hi"||parts[0]==="wl-lo"),key:devName+":"+alarmType});' +
+'        }else{' +
+'          c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});' +
+'        }' +
+'      });' +
   '    });' +
   '  }' +
   '  return self.registration.showNotification(title,{' +
   '    body:body,tag:tag,requireInteraction:!!urgent,' +
   '    vibrate:urgent?[400,150,800,150,400,100,400]:[200,100,200],' +
   '    data:{tts:ttsMsg,tag:tag,urgent:!!urgent},' +
-'    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
-'    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
+  '    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
+  '    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
   '  });' +
   '}' +
   /* Background poll */
