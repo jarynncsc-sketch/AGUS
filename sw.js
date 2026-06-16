@@ -18,15 +18,35 @@ function dbSet(db,k,v){return new Promise(function(res,rej){
   r.onsuccess=res;r.onerror=rej;
 });}
 /* ═══════════════ Cache helpers ═══════════════ */
-var _dd={};var COOL=300000;
+var _dd={};var COOL=30000;
 function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}
 var _swErr=0;
+/* ── Tag-prefix to NDRRMC alarm type map ── */
+var _alarmMap = {
+  'fault':'fault','off':'offline',
+  'wl-hi':'high','wl-lo':'low',
+  'psi-hi':'high pressure','psi-lo':'low pressure',
+  'fl-hi':'high flow','fl-lo':'low flow',
+  'vt-hi':'high voltage','vt-lo':'low voltage',
+  'am-hi':'overcurrent','am-lo':'low current',
+  'pw-hi':'high power'
+};
 /* ═══════════════ Notification helper ═══════════════ */
 function pop(title,body,tag,urgent){
   var ttsMsg = title + ". " + body;
   if (urgent) {
     self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
-      cs.forEach(function(c){ c.postMessage({type:"AGUS_SPEAK",text:ttsMsg}); });
+      var parts = (tag||'').split(':');
+      var devName = parts.slice(1).join(':') || '';
+      var alarmType = _alarmMap[parts[0]] || parts[0];
+      cs.forEach(function(c){
+        if (c.url) { c.focus().catch(function(){}); }
+        if (devName && parts[0] !== 'pl') {
+          c.postMessage({type:"AGUS_NDRRMC",deviceName:devName,alarmType:alarmType,value:body,isReservoir:!!(parts[0]==='wl-hi'||parts[0]==='wl-lo'),key:devName+':'+alarmType});
+        } else {
+          c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});
+        }
+      });
     });
   }
   return self.registration.showNotification(title,{
@@ -203,6 +223,11 @@ self.addEventListener("message",function(e){
   if(d.type==="AGUS_SPEAK_RELAY"&&d.text){
     self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
       cs.forEach(function(c){try{c.postMessage({type:"AGUS_SPEAK",text:d.text});}catch(x){}});
+    });
+  }
+  if(d.type==="AGUS_FOCUS"){
+    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){
+      cs.forEach(function(c){if(c.url)c.focus().catch(function(){});});
     });
   }
 });
