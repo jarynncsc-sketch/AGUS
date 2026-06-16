@@ -8284,6 +8284,7 @@ function exportDashboardPDF() {
     _bgSpeakQueue.push(text);
     if (!_bgSpeaking) _bgSpeakNext();
   }
+  window._bgSpeak = _bgSpeak;
 
   function _bgSpeakNext() {
     if (!_bgSpeakQueue.length) { _bgSpeaking = false; _bgStopKA(); return; }
@@ -10191,23 +10192,30 @@ function _metCard(label, icon, value, unit, color) {
   function _speakAlarm(alarm) {
     if (!window.speechSynthesis || Date.now() < _silenceUntil) return;
     window.speechSynthesis.cancel();
-    var utt = new SpeechSynthesisUtterance(_buildMsg(alarm));
-    utt.lang='en-US'; utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
-    var voice = _getVoice(); if (voice) utt.voice = voice;
+    var msg = _buildMsg(alarm);
     var ind = document.getElementById('ndrrmc-speaking-indicator');
     if (ind) ind.classList.add('visible');
-    utt.onend = utt.onerror = function() {
-      if (ind) ind.classList.remove('visible');
-      // Loop TTS while this alarm is still the current one and not acked
-      if (_currentKey === alarm.key && !_ackedKeys[alarm.key] && Date.now() >= _silenceUntil) {
-        _speechTimer = setTimeout(function(){ _speakAlarm(alarm); }, 2500);
-      }
-    };
-    if (window.speechSynthesis.getVoices().length === 0) {
-      window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.speak(utt); };
+    if (typeof window._bgSpeak === 'function') {
+      window._bgSpeak(msg);
     } else {
-      window.speechSynthesis.speak(utt);
+      var utt = new SpeechSynthesisUtterance(msg);
+      utt.lang='en-US'; utt.rate=0.88; utt.pitch=1.05; utt.volume=1.0;
+      var voice = _getVoice(); if (voice) utt.voice = voice;
+      utt.onend = function(){ if (ind) ind.classList.remove('visible'); };
+      utt.onerror = function(){ if (ind) ind.classList.remove('visible'); };
+      if (window.speechSynthesis.getVoices().length === 0) {
+        window.speechSynthesis.onvoiceschanged = function(){ window.speechSynthesis.speak(utt); };
+      } else {
+        window.speechSynthesis.speak(utt);
+      }
     }
+    if (_speechTimer) clearTimeout(_speechTimer);
+    _speechTimer = setTimeout(function() {
+      if (ind) ind.classList.remove('visible');
+      if (_currentKey === alarm.key && !_ackedKeys[alarm.key] && Date.now() >= _silenceUntil) {
+        _speakAlarm(alarm);
+      }
+    }, 10000);
   }
 
   function _stopSpeech() {
@@ -10323,10 +10331,14 @@ function _metCard(label, icon, value, unit, color) {
     if (ackBtn) ackBtn.style.display = 'none';
     document.getElementById('ndrrmc-alarm-list').style.display = 'none';
     if (window.speechSynthesis) {
-      var utt = new SpeechSynthesisUtterance('All alarms acknowledged. System is back to normal monitoring.');
-      utt.lang='en-US'; utt.rate=0.9; utt.volume=1.0;
-      var voice = _getVoice(); if (voice) utt.voice = voice;
-      window.speechSynthesis.speak(utt);
+      if (typeof window._bgSpeak === 'function') {
+        window._bgSpeak('All alarms acknowledged. System is back to normal monitoring.');
+      } else {
+        var utt = new SpeechSynthesisUtterance('All alarms acknowledged. System is back to normal monitoring.');
+        utt.lang='en-US'; utt.rate=0.9; utt.volume=1.0;
+        var voice = _getVoice(); if (voice) utt.voice = voice;
+        window.speechSynthesis.speak(utt);
+      }
     }
     setTimeout(function() {
       ov.classList.remove('active','all-clear');
