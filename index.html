@@ -10312,8 +10312,8 @@ function _metCard(label, icon, value, unit, color) {
     listEl.style.display = 'block';
     var allAcked = _alarmQueue.every(function(k){ return _ackedKeys[k] || !_alarmData[k]; });
     var html = '';
-    html += '<div class="nal-item nal-ackall-row">'
-          + '<input type="checkbox" class="nal-ck" id="ndrrmc-ack-all" '+(allAcked?'checked':'')+' onchange="window._ndrrmcAckAll()"> '
+    html += '<div class="nal-item nal-ackall-row" onclick="window._ndrrmcAckAll()" style="cursor:pointer;">'
+          + '<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid #ffd700;border-radius:3px;background:'+(allAcked?'#ffd700':'transparent')+';font-size:13px;font-weight:bold;line-height:1;color:'+(allAcked?'#000':'transparent')+';flex-shrink:0;">'+(allAcked?'✓':'')+'</span>'
           + '<span style="font-weight:800;">✅ ACKNOWLEDGE ALL FAULTS</span>'
           + '</div>';
     _alarmQueue.forEach(function(k, i) {
