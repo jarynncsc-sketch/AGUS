@@ -10501,15 +10501,24 @@ function _metCard(label, icon, value, unit, color) {
 
   /* ── CLEAR alarm (sensor returns to normal) ── */
   window.ndrrmcClearAlarm = function(deviceName, alarmType) {
-    var key = deviceName + ':' + alarmType;
-    // Remove from data — keep in queue for display (acked state) until all clear
-    delete _alarmData[key];
-    _alarmQueue = _alarmQueue.filter(function(k){ return k !== key; });
-    delete _ackedKeys[key];
+    // Clear ALL alarms for this device (not just the given type), because the
+    // proxy-based clear doesn't know what alarmType was assigned to the device.
+    var prefix = deviceName + ':';
+    var cleared = false;
+    for (var key in _alarmData) {
+      if (key.indexOf(prefix) === 0) {
+        delete _alarmData[key];
+        delete _ackedKeys[key];
+        cleared = true;
+      }
+    }
+    _alarmQueue = _alarmQueue.filter(function(k){ return _alarmData[k]; });
+    if (!cleared) return;
 
-    // If this was current, advance
-    if (_currentKey === key) {
+    // If current alarm was among the cleared, advance to next
+    if (!_alarmData[_currentKey]) {
       _stopSpeech();
+      if (_attentionTimer) { clearInterval(_attentionTimer); _attentionTimer = null; }
       _currentKey = null;
       var nextKey = null;
       for (var i = 0; i < _alarmQueue.length; i++) {
