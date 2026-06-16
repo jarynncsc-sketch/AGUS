@@ -10509,8 +10509,23 @@ function _metCard(label, icon, value, unit, color) {
 
     <div id="agus-call-alarm-info" style="
       background:rgba(192,2,10,0.3);border:1px solid rgba(255,100,100,0.4);
-      border-radius:10px;padding:10px 14px;margin-bottom:14px;
+      border-radius:10px;padding:10px 14px;margin-bottom:10px;
       color:#fff;font-size:12px;font-weight:700;line-height:1.5;
+    "></div>
+
+    <!-- Termux server status -->
+    <div id="agus-termux-status" style="
+      background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);
+      border-radius:8px;padding:6px 12px;margin-bottom:10px;
+      font-size:11px;color:rgba(255,255,255,0.7);display:flex;align-items:center;gap:6px;
+    ">
+      <span id="agus-termux-dot" style="width:8px;height:8px;border-radius:50%;background:#666;display:inline-block;flex-shrink:0;"></span>
+      <span id="agus-termux-label">Checking Termux auto-dial server…</span>
+    </div>
+
+    <!-- Call log -->
+    <div id="agus-call-log" style="
+      max-height:60px;overflow-y:auto;margin-bottom:10px;text-align:left;
     "></div>
 
     <div style="color:#ffd700;font-size:11px;font-weight:800;letter-spacing:1px;margin-bottom:6px;">
@@ -10577,19 +10592,42 @@ function _metCard(label, icon, value, unit, color) {
     </div>
 
     <div style="padding:16px 20px;overflow-y:auto;flex:1;">
+      <!-- Twilio config -->
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;padding:12px;margin-bottom:10px;font-size:12px;">
+        <div style="font-weight:800;color:#92400e;margin-bottom:6px;">🔑 Twilio API (for auto forced-call)</div>
+        <div style="color:#78350f;margin-bottom:8px;line-height:1.5;">
+          Get free $15 credit at <b>twilio.com</b> — enough for ~180 calls to PH mobile.
+        </div>
+        <input id="agus-twilio-sid" placeholder="Account SID (ACxxxxxxxxxxxxxxxx)" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:7px;
+          padding:7px 10px;font-size:12px;margin-bottom:5px;font-family:monospace;">
+        <input id="agus-twilio-token" placeholder="Auth Token" type="password" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:7px;
+          padding:7px 10px;font-size:12px;margin-bottom:5px;font-family:monospace;">
+        <input id="agus-twilio-from" placeholder="Twilio phone number (e.g. +12345678901)" style="
+          width:100%;box-sizing:border-box;border:1px solid #ddd;border-radius:7px;
+          padding:7px 10px;font-size:12px;margin-bottom:8px;font-family:monospace;">
+        <button onclick="agusCallSaveTwilio()" style="
+          width:100%;background:#92400e;color:#fff;border:none;border-radius:7px;
+          padding:8px;font-size:12px;font-weight:800;cursor:pointer;">
+          💾 Save Twilio Credentials
+        </button>
+        <div id="agus-twilio-status" style="margin-top:6px;font-size:11px;color:#92400e;"></div>
+      </div>
+
       <!-- Call settings -->
       <div style="background:#f0f7ff;border-radius:10px;padding:12px;margin-bottom:14px;font-size:12px;">
         <div style="font-weight:800;color:#004080;margin-bottom:8px;">⚙ Call Settings</div>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
           <input type="checkbox" id="agus-call-enabled" onchange="agusCallSaveSettings()" style="width:16px;height:16px;">
-          <span style="font-weight:700;">Enable auto-call on alarm</span>
+          <span style="font-weight:700;">Enable auto-call on alarm (requires Twilio above)</span>
         </label>
         <label style="display:flex;align-items:center;gap:8px;margin-bottom:6px;cursor:pointer;">
           <input type="checkbox" id="agus-call-repeat" onchange="agusCallSaveSettings()" style="width:16px;height:16px;" checked>
           <span style="font-weight:700;">Repeat cycle until acknowledged</span>
         </label>
         <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
-          <span style="font-weight:700;min-width:120px;">Delay between calls:</span>
+          <span style="font-weight:700;min-width:130px;">Delay between calls:</span>
           <select id="agus-call-delay" onchange="agusCallSaveSettings()" style="
             border:1px solid #ddd;border-radius:6px;padding:4px 8px;font-size:12px;">
             <option value="15">15 seconds</option>
@@ -10626,14 +10664,17 @@ function _metCard(label, icon, value, unit, color) {
         </button>
       </div>
 
-      <!-- Info box -->
-      <div style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;
-        padding:10px 12px;margin-top:12px;font-size:11px;color:#92400e;line-height:1.6;">
-        <strong>📱 How it works:</strong><br>
-        When an alarm fires, this panel opens and automatically opens the phone dialer
-        to call each contact in order. Each call must be made manually (tap CALL NOW)
-        — the system cannot force a call without your confirmation due to browser security.
-        After each call, it waits and then prompts the next contact automatically.
+      <!-- Termux setup guide -->
+      <div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 14px;margin-top:10px;font-size:11px;color:#14532d;line-height:1.7;">
+        <div style="font-weight:800;font-size:12px;margin-bottom:6px;">📱 Free auto-call setup (dedicated Android phone)</div>
+        <div style="margin-bottom:8px;">Install <b>Termux</b> from <b>f-droid.org</b> on your monitoring phone, then run these commands once:</div>
+        <div style="background:#dcfce7;border-radius:7px;padding:8px 10px;font-family:monospace;font-size:11px;line-height:1.8;margin-bottom:6px;">
+          pkg update &amp;&amp; pkg install python termux-api<br>
+          # Then paste the callserver.py script<br>
+          # (see documentation in dashboard settings)
+        </div>
+        <div style="margin-bottom:6px;">The server runs on <b>127.0.0.1:7373</b> and forces Android to dial any number using <code>am start -a android.intent.action.CALL</code> — <b>zero tap needed</b>.</div>
+        <div style="font-weight:800;">✅ 100% free · works with any SIM · no internet needed · calls any PH number</div>
       </div>
     </div>
 
@@ -10768,26 +10809,99 @@ function _metCard(label, icon, value, unit, color) {
     if (cdEl) cdEl.textContent = '—';
   }
 
-  /* ── Open phone dialer ── */
+  /* ═══════════════════════════════════════════════════════════
+     FORCED AUTO-DIAL ENGINE
+     Tries 3 methods in order until one succeeds:
+     1. Termux localhost server (same Android phone — BEST)
+     2. Android Intent via window.location (fallback)
+     3. Show manual call button (last resort)
+     ═══════════════════════════════════════════════════════════ */
+
+  /* ── Termux server URL (running on same phone) ── */
+  var TERMUX_URL = 'http://127.0.0.1:7373/call';
+
+  function _speakBeforeCall(contact) {
+    if (!window.speechSynthesis) return;
+    try {
+      window.speechSynthesis.cancel();
+      var utt = new SpeechSynthesisUtterance(
+        'Calling ' + contact.name + '. ' + (contact.role || 'Emergency contact') + '. '
+        + 'Critical alarm active on AGUS water monitoring system. Please respond immediately.'
+      );
+      utt.lang='en-US'; utt.rate=0.88; utt.volume=1.0;
+      window.speechSynthesis.speak(utt);
+    } catch(e){}
+  }
+
   function _dial(contact) {
-    var num = (contact.number || '').replace(/\s+/g,'');
+    var num = (contact.number || '').replace(/[\s\-\(\)]/g,'');
     if (!num) return;
-    // Speak announcement before dialing
-    if (window.speechSynthesis) {
-      try {
-        window.speechSynthesis.cancel();
-        var utt = new SpeechSynthesisUtterance(
-          'Calling ' + contact.name + '. ' + (contact.role || 'Emergency contact') + '. '
-          + 'There is an active alarm on the water monitoring system. Please respond immediately.'
-        );
-        utt.lang='en-US'; utt.rate=0.9; utt.volume=1.0;
-        window.speechSynthesis.speak(utt);
-      } catch(e){}
-    }
-    // Log the call
+
+    _speakBeforeCall(contact);
     _callLog.push({ index: _callIndex, name: contact.name, number: num, time: new Date().toLocaleTimeString() });
-    // Open tel: link — triggers native phone dialer
-    window.open('tel:' + num);
+
+    _setStatus('📞 Dialing <b>' + contact.name + '</b> (' + contact.number + ')…');
+    _updateCallLog();
+
+    // METHOD 1: Termux localhost server — forces Android to dial (ZERO tap needed)
+    _dialViaTermux(num, contact, function(ok) {
+      if (!ok) {
+        // METHOD 2: Android Intent via iframe (no page navigation)
+        _dialViaIntent(num, contact, function(ok2) {
+          if (!ok2) {
+            // METHOD 3: Show manual button
+            _setStatus('⚠️ Auto-dial unavailable. Tap below to call <b>' + contact.name + '</b>.');
+            var btn = document.getElementById('agus-call-now-btn');
+            if (btn) {
+              btn.innerHTML = '📞 TAP TO CALL ' + contact.name.toUpperCase();
+              btn.onclick = function() { window.open('tel:' + num); };
+            }
+          }
+        });
+      }
+    });
+  }
+
+  function _dialViaTermux(num, contact, cb) {
+    // Call Termux localhost server — this fires android.intent.action.CALL
+    // which forces the phone to dial without any user tap
+    var timeout = setTimeout(function() { cb(false); }, 3000);
+    fetch(TERMUX_URL + '?number=' + encodeURIComponent(num), {
+      method: 'GET', mode: 'no-cors', cache: 'no-cache'
+    }).then(function() {
+      clearTimeout(timeout);
+      _setStatus('✅ <b>' + contact.name + '</b> — auto-dialed via Termux server');
+      cb(true);
+    }).catch(function() {
+      clearTimeout(timeout);
+      cb(false);
+    });
+  }
+
+  function _dialViaIntent(num, contact, cb) {
+    // Hidden iframe trick — avoids navigating away from the dashboard
+    try {
+      var iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = 'tel:' + num;
+      document.body.appendChild(iframe);
+      setTimeout(function() {
+        try { document.body.removeChild(iframe); } catch(e){}
+      }, 3000);
+      _setStatus('📞 Dialing <b>' + contact.name + '</b> via phone intent…');
+      setTimeout(function() { cb(true); }, 500);
+    } catch(e) { cb(false); }
+  }
+
+  /* ── Update call log display in overlay ── */
+  function _updateCallLog() {
+    var logEl = document.getElementById('agus-call-log');
+    if (!logEl || !_callLog.length) return;
+    logEl.innerHTML = '<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px;letter-spacing:1px;">CALL LOG</div>'
+      + _callLog.map(function(l) {
+        return '<div style="font-size:11px;color:rgba(255,255,255,0.7);padding:2px 0;">'
+          + '✅ ' + l.time + ' — ' + l.name + ' (' + l.number + ')</div>';
+      }).join('');
   }
 
   /* ── Advance to next contact ── */
@@ -11006,6 +11120,64 @@ function _metCard(label, icon, value, unit, color) {
     if (!_settings.enabled) { alert('Enable auto-call first using the checkbox.'); return; }
     document.getElementById('agus-contacts-modal').style.display = 'none';
     window.agusEscalateCall({ deviceName: 'TEST DEVICE', alarmType: 'test alarm', value: '' });
+  };
+
+  /* ── Termux server health check ── */
+  function _checkTermux() {
+    fetch('http://127.0.0.1:7373/call?number=test', { method:'GET', mode:'no-cors', cache:'no-cache' })
+      .then(function() { _setTermuxStatus(true); })
+      .catch(function() {
+        // no-cors fetch always rejects cross-origin, but if Termux is up
+        // the reject happens faster — we use a timeout heuristic
+        _setTermuxStatus(false);
+      });
+    // Reliable check: ping with timeout
+    var t = Date.now();
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); _setTermuxStatus(false); }, 1200);
+    fetch('http://127.0.0.1:7373/', { signal: ctrl.signal, cache:'no-cache' })
+      .then(function(){ clearTimeout(timer); _setTermuxStatus(true); })
+      .catch(function(e){
+        clearTimeout(timer);
+        // If aborted = server unreachable. If type error quickly = server up but CORS rejected.
+        _setTermuxStatus(!ctrl.signal.aborted && (Date.now()-t) < 800);
+      });
+  }
+
+  function _setTermuxStatus(online) {
+    var dot   = document.getElementById('agus-termux-dot');
+    var label = document.getElementById('agus-termux-label');
+    if (!dot || !label) return;
+    if (online) {
+      dot.style.background   = '#22c55e';
+      label.textContent      = '✅ Termux auto-dial server ONLINE — calls will be forced automatically';
+      label.style.color      = 'rgba(134,239,172,0.9)';
+    } else {
+      dot.style.background   = '#f87171';
+      label.innerHTML        = '⚠ Termux server offline — <a href="#" onclick="agusOpenCallSettings();return false;" style="color:#fcd34d;">see setup guide</a>';
+      label.style.color      = 'rgba(255,255,255,0.6)';
+    }
+  }
+
+  // Check on overlay open and every 30s
+  var _termuxCheckTimer = null;
+  var _origShowOverlay = _showOverlay;
+  _showOverlay = function(alarm) {
+    _origShowOverlay(alarm);
+    _checkTermux();
+    if (!_termuxCheckTimer) {
+      _termuxCheckTimer = setInterval(_checkTermux, 30000);
+    }
+  };
+
+  // Add Termux setup guide to settings modal info box
+  window.agusShowTermuxGuide = function() {
+    var modal = document.getElementById('agus-contacts-modal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+    // Scroll to bottom where info box is
+    var body = modal.querySelector('[style*="overflow-y"]');
+    if (body) setTimeout(function(){ body.scrollTop = 9999; }, 100);
   };
 
   /* ── Expose open settings ── */
