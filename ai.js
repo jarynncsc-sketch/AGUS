@@ -1,28 +1,69 @@
 // ============================================================
 // Module 0: Termux Android Alert Integration
 // ============================================================
-var TERMUX_ALERT_NUMBER = ''; // Set to phone number like '+639123456789'
+// SIM card in the dedicated alert phone: 09060875427
+var TERMUX_ALERT_HOST = ''; // Set to phone IP for same-network, or leave empty to use Firebase cloud relay
 var TERMUX_ALERT_PORT = 8150;
 var _termuxAlerted = {}; // tracks already-alerted states per device
 var TERMUX_ALERT_DEBOUNCE_MS = 120000; // 2 min between alerts for same device
 
+// ── Operator contacts: map device name (or pattern) → phone number to call ──
+// The alert phone (09060875427) will call these numbers when anomalies occur.
+// Add all your operators here. Use full device name or a partial match.
+var OPERATOR_CONTACTS = {
+  // '<device name or partial>': '<phone number>',
+  // Examples:
+  // 'PS1':       '+639171234567',
+  // 'Abugon':    '+639177654321',
+  // 'Reservoir': '+639198765432',
+  // 'default':   '+639176543210',  // fallback if no device match
+};
+function _lookupOperatorNumber(deviceName) {
+  var dn = (deviceName || '').toLowerCase();
+  if (OPERATOR_CONTACTS[dn]) return OPERATOR_CONTACTS[dn];
+  var keys = Object.keys(OPERATOR_CONTACTS);
+  for (var i = 0; i < keys.length; i++) {
+    if (keys[i] === 'default') continue;
+    if (dn.includes(keys[i].toLowerCase())) return OPERATOR_CONTACTS[keys[i]];
+  }
+  return OPERATOR_CONTACTS['default'] || '';
+}
+
+function _dispatchFirebaseAlert(deviceName, reason, number) {
+  try {
+    if (typeof firebase === 'undefined' || !firebase.database) return;
+    var db = firebase.database();
+    var payload = { device: deviceName, reason: reason, number: number, ts: Date.now() };
+    db.ref('alertQueue').push(payload);
+    console.log('[FIREBASE] Alert dispatched:', deviceName, reason, '→', number);
+  } catch(e) {
+    console.warn('[FIREBASE] Alert write failed:', e.message);
+  }
+}
+
 function triggerTermuxAlert(deviceName, reason) {
-  if (!TERMUX_ALERT_NUMBER) return;
+  var number = _lookupOperatorNumber(deviceName);
+  if (!number) return;
   var key = deviceName + ':' + reason;
   var now = Date.now();
   if (_termuxAlerted[key] && now - _termuxAlerted[key] < TERMUX_ALERT_DEBOUNCE_MS) return;
   _termuxAlerted[key] = now;
-  var url = 'http://127.0.0.1:' + TERMUX_ALERT_PORT + '/alert?device=' + encodeURIComponent(deviceName) + '&reason=' + encodeURIComponent(reason);
-  var xhr = new XMLHttpRequest();
-  xhr.open('GET', url, true);
-  xhr.timeout = 5000;
-  xhr.onload = function() { if (xhr.status === 200) console.log('[TERMUX] Alerted:', deviceName, reason); };
-  xhr.onerror = function() { console.warn('[TERMUX] Alert server unreachable'); };
-  xhr.send();
+  // Always dispatch via Firebase cloud relay (phone polls this over mobile data)
+  _dispatchFirebaseAlert(deviceName, reason, number);
+  // Also try direct HTTP if same-network host is configured
+  if (TERMUX_ALERT_HOST) {
+    var url = 'http://' + TERMUX_ALERT_HOST + ':' + TERMUX_ALERT_PORT + '/alert?device=' + encodeURIComponent(deviceName) + '&reason=' + encodeURIComponent(reason) + '&number=' + encodeURIComponent(number);
+    var xhr = new XMLHttpRequest();
+    xhr.open('GET', url, true);
+    xhr.timeout = 5000;
+    xhr.onload = function() { if (xhr.status === 200) console.log('[TERMUX] Direct alert:', deviceName, reason, '→', number); };
+    xhr.onerror = function() { console.log('[TERMUX] Direct HTTP unavailable (phone may be off-network)'); };
+    xhr.send();
+  }
 }
 
 function scanDevicesForAlert(devices) {
-  if (!TERMUX_ALERT_NUMBER || !devices) return;
+  if (!devices) return;
   devices.forEach(function(d) {
     if (!d.device) return;
     var name = d.device;
