@@ -1079,7 +1079,7 @@
     .pressure-scale{position:absolute;top:0;right:0;width:60px;height:100%;background:rgba(0,0,0,0.2);backdrop-filter:blur(4px);border-left:2px solid rgba(255,255,255,0.3);display:flex;flex-direction:column;justify-content:space-between;padding:20px 0;z-index:5;font-family:'DM Sans',sans-serif;color:rgba(255,255,255,0.8);font-size:12px;font-weight:600;text-align:right;padding-right:10px;box-shadow:inset 0 0 20px rgba(0,0,0,0.2);background:repeating-linear-gradient(to bottom,rgba(255,255,255,0.1) 0%,rgba(255,255,255,0.1) 2px,transparent 2px,transparent 10%);}
     .scale-labels{position:absolute;top:0;left:0;width:100%;height:100%;display:flex;flex-direction:column;justify-content:space-between;padding:15px 0;pointer-events:none;}
     .scale-labels span{display:block;text-align:right;padding-right:15px;color:white;font-weight:600;text-shadow:0 0 5px black;font-size:11px;}
-    @keyframes blink{0%,50%,100%{opacity:1;}25%,75%{opacity:0.3;}}
+    @keyframes blink{0%{opacity:1;}40%{opacity:0.15;}60%{opacity:0.15;}100%{opacity:1;}}
     .blink{animation:blink 1s infinite;}
     .delay1{animation-delay:0s;}.delay2{animation-delay:0.2s;}.delay3{animation-delay:0.5s;}.delay4{animation-delay:0.8s;}.delay5{animation-delay:1.2s;}
     @keyframes pulse-ring{0%{r:2;opacity:0.8;}100%{r:12;opacity:0;}}
@@ -1233,7 +1233,7 @@
     .status-Online{background:#16a34a;box-shadow:0 0 0 3px rgba(22,163,74,0.18);}
     .status-Offline{background:#ea580c;box-shadow:0 0 0 3px rgba(234,88,12,0.18);}
     .status-Fault{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,0.18);}
-    .status-indicator.Fault-blink{animation:blink 1s infinite;box-shadow:0 0 0 4px rgba(220,38,38,0.25);}
+    .status-indicator.Fault-blink{animation:blink 1.2s cubic-bezier(0.45,0,0.55,1) infinite;box-shadow:0 0 0 4px rgba(220,38,38,0.25);}
     .toggle-switch{position:relative;display:inline-block;width:60px;height:30px;flex-shrink:0;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer;}
     .toggle-switch input{opacity:0;width:0;height:0;position:absolute;}
     .slider{position:absolute;cursor:pointer;inset:0;background:#d1d5db;border-radius:30px;transition:background 0.08s ease,box-shadow 0.08s ease;will-change:background,transform;user-select:none;}
@@ -1378,7 +1378,7 @@
       #graph-loading { font-size: 13px !important; }
       #graph-loading .spinner { width: 30px !important; height: 30px !important; }
     }
-    .blink-alarm{animation:blink 1s infinite;}
+    .blink-alarm{animation:blink 1.2s cubic-bezier(0.45,0,0.55,1) infinite;}
     /* ── Auto-shutoff badge on device list items ─── */
     .auto-shutoff-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#b91c1c,#dc2626);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(185,28,28,0.35);letter-spacing:0.2px;width:100%!important;}
     #pressure-settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:5000;justify-content:center;align-items:center;}
@@ -2929,18 +2929,20 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   }
 
   // ─── 3D tank lid (top rim effect) ──────────────────────────
-  var _lid = alarmActive && blinkOn
-    ? '<rect x="' + (_tX - 2) + '" y="' + (_tY - 2) + '" width="' + (_tW + 4) + '" height="8" rx="4" fill="' + alarmColor + '" opacity="0.5"/>'
+  // Use smooth sine-based opacity instead of binary blinkOn
+  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2; // 0..1 smooth
+  var _lid = alarmActive
+    ? '<rect x="' + (_tX - 2) + '" y="' + (_tY - 2) + '" width="' + (_tW + 4) + '" height="8" rx="4" fill="' + alarmColor + '" opacity="' + (0.2 + _bPulse * 0.45).toFixed(2) + '"/>'
     : '<rect x="' + (_tX - 2) + '" y="' + (_tY - 2) + '" width="' + (_tW + 4) + '" height="8" rx="4" fill="' + statusColor + '" opacity="0.25"/>';
 
   // ─── Outer glow ring (alarm) ───────────────────────────────
   var _glow = alarmActive
-    ? '<rect x="1" y="2" width="' + (_W - 2) + '" height="' + (_tY + _tH + 4) + '" rx="12" fill="none" stroke="' + alarmColor + '" stroke-width="' + (blinkOn ? 6 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>'
+    ? '<rect x="1" y="2" width="' + (_W - 2) + '" height="' + (_tY + _tH + 4) + '" rx="12" fill="none" stroke="' + alarmColor + '" stroke-width="' + (2 + _bPulse * 4).toFixed(1) + '" opacity="' + (0.15 + _bPulse * 0.5).toFixed(2) + '"/>'
     : '';
   // ─── Fault blink ring ──────────────────────────────────────
   var _faultBtn = f.get('button');
   var _faultGlow = _faultBtn
-    ? '<rect x="0" y="1" width="' + (_W) + '" height="' + (_tY + _tH + 5) + '" rx="14" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 6 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>'
+    ? '<rect x="0" y="1" width="' + (_W) + '" height="' + (_tY + _tH + 5) + '" rx="14" fill="none" stroke="#ef4444" stroke-width="' + (2 + _bPulse * 4).toFixed(1) + '" opacity="' + (0.12 + _bPulse * 0.52).toFixed(2) + '"/>'
     : '';
   // Isolation Forest anomaly badge
   var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
@@ -3030,7 +3032,8 @@ if (isPS) {
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
   
   var _W=178,_cY=28,_cH=130,_tH=_cY+_cH+8;
-  var _rOp=psAnomaly?(blinkOn?'0.95':'0'):'0';
+  var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
+  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
   var _dataOffset=8;
   var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
   var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
@@ -3057,7 +3060,7 @@ if (isPS) {
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
     // Outer anomaly glow ring
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="26" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4" opacity="'+_rOp+'"/>'
-    +(psAnomaly&&blinkOn?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="0.3"/>':'')
+    +(psAnomaly?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(0.08+_bPulse*0.22).toFixed(2)+'"/>':"")
     // Card background with status tint
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2.5"/>'
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="'+psC+'" opacity="0.04"/>'
@@ -3065,7 +3068,7 @@ if (isPS) {
     +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="24" rx="10" fill="'+psC+'" opacity="0.12"/>'
     // Status dot top-right
     +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
-    +(psAnomaly&&blinkOn?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="0.8"/>':'')
+    +(psAnomaly?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="'+(0.2+_bPulse*0.65).toFixed(2)+'"/>':"")
     +_ifBadge
     // Center gear icon
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
@@ -3107,6 +3110,7 @@ if (isPS) {
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
     if (type === 'pressure') {
+      var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
       var _pv = f.get('pressure'), _pn = parseFloat(_pv);
       var _ps = pressureSettingsCache[name]||{minPsi:20,normalPsi:50,maxPsi:80};
       var _pC='#1d4ed8', _pA=false;
@@ -3150,8 +3154,8 @@ if (isPS) {
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 9) + '" fill="none" stroke="' + _statusC + '" stroke-width="5" opacity="0.8"/>'
         + '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 13) + '" fill="none" stroke="' + _statusC + '" stroke-width="2" opacity="0.3"/>'
         // Outer glow ring (pressure threshold)
-        + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="0.5"/>' : '')
-        + (_faultBtn ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="#ef4444" stroke-width="' + (blinkOn ? 5 : 2) + '" opacity="' + (blinkOn ? 0.6 : 0.15) + '"/>' : '')
+        + (_pA ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="' + _pC + '" stroke-width="' + (2 + _bPulse*3).toFixed(1) + '" opacity="' + (0.2+_bPulse*0.4).toFixed(2) + '"/>' : '')
+        + (_faultBtn ? '<circle cx="' + _cx + '" cy="' + _cy + '" r="' + (_r + 6) + '" fill="none" stroke="#ef4444" stroke-width="' + (2+_bPulse*3).toFixed(1) + '" opacity="' + (0.15+_bPulse*0.5).toFixed(2) + '"/>' : '')
         + _ifBadge
         // Background arc (gray track)
         + _arcPath(_cx, _cy, _r, -175, 5, 1)
@@ -3174,18 +3178,18 @@ if (isPS) {
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
         // Center bullseye removed for clean look
         // Center value (blinks + follows anomaly color when out of range)
-        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="' + _pC + '" opacity="' + (_pA && blinkOn ? '0.2' : '1') + '">' + (_pv || '--') + '</text>'
+        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="' + _pC + '" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
         // Unit below
-        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="' + _pC + '" opacity="' + (_pA && blinkOn ? '0.2' : '0.8') + '">psi</text>'
+        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="' + _pC + '" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
-        + (_pA && blinkOn ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="0.7"/>' : '')
+        + (_pA ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="'+(0.2+_bPulse*0.6).toFixed(2)+'"/>' : '')
         // Device name
         + '<text x="' + (_W / 2) + '" y="' + (_totalH - 8) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#002b5c" stroke="white" stroke-width="3" paint-order="stroke">' + _nameD + '</text>'
         + '</svg>';
       return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
     }
-    if (status==='Fault'){fc='red';sc=blinkOn?'red':'transparent';sw=3;text=name;} else if(status==='Offline'){fc='orange';text=name;} else {fc='green';text=name;}
+    if (status==='Fault'){fc='red';sc='rgba(220,38,38,'+(0.3+_bPulse*0.7).toFixed(2)+')';sw=3;text=name;} else if(status==='Offline'){fc='orange';text=name;} else {fc='green';text=name;}
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
@@ -3206,7 +3210,23 @@ window.pipelineLayer = pipelineLayer;
 map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
 fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
-setInterval(function() { blinkOn = !blinkOn; clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 500);
+/* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
+(function() {
+  var _phase = 0;
+  var _lastT = 0;
+  function _tick(ts) {
+    var dt = ts - _lastT; _lastT = ts;
+    _phase += dt * 0.0022; // ~1.4s full cycle
+    if (_phase > Math.PI * 2) _phase -= Math.PI * 2;
+    // blinkOn: true when sine > 0 (upper half-cycle), false when < 0
+    // This keeps the same boolean API but transitions are smooth via CSS animation
+    blinkOn = Math.sin(_phase) > 0;
+    requestAnimationFrame(_tick);
+  }
+  requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
+})();
+/* Map feature refresh — throttled to 700ms to reduce paint pressure */
+setInterval(function() { clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 700);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
@@ -9814,38 +9834,49 @@ function _metCard(label, icon, value, unit, color) {
 }
 #ndrrmc-alarm-overlay.active { display: flex; }
 
-/* Flash animation */
+/* Flash animation — smooth luminance pulse, no hard cut */
 @keyframes ndrrmc-flash {
-  0%,49%  { background: #c0020a; }
-  50%,100%{ background: #1a0000; }
+  0%   { background: #c0020a; box-shadow: inset 0 0 0px rgba(255,60,60,0); }
+  35%  { background: #8b0000; box-shadow: inset 0 0 80px rgba(255,30,30,0.55); }
+  65%  { background: #6a0000; box-shadow: inset 0 0 120px rgba(255,0,0,0.7); }
+  100% { background: #c0020a; box-shadow: inset 0 0 0px rgba(255,60,60,0); }
 }
-#ndrrmc-alarm-overlay.flashing { animation: ndrrmc-flash 0.6s infinite; }
+#ndrrmc-alarm-overlay.flashing { animation: ndrrmc-flash 1.4s cubic-bezier(0.45,0,0.55,1) infinite; }
 
-/* Pulse ring */
+/* Pulse ring — smooth industrial radar sweep */
 @keyframes ndrrmc-pulse-ring {
-  0%   { transform: scale(0.8); opacity: 0.9; }
-  70%  { transform: scale(1.4); opacity: 0; }
-  100% { transform: scale(1.4); opacity: 0; }
+  0%   { transform: scale(0.85); opacity: 0.85; }
+  60%  { transform: scale(1.5);  opacity: 0.15; }
+  100% { transform: scale(1.7);  opacity: 0; }
 }
 .ndrrmc-pulse-ring {
   position: absolute;
   width: 140px; height: 140px;
-  border: 6px solid rgba(255,200,0,0.85);
+  border: 4px solid rgba(255,200,0,0.75);
   border-radius: 50%;
-  animation: ndrrmc-pulse-ring 1.2s ease-out infinite;
+  animation: ndrrmc-pulse-ring 1.8s cubic-bezier(0.2,0.6,0.4,1) infinite;
+  will-change: transform, opacity;
 }
 
-/* Shake icon */
+/* Shake icon — fluid bell swing */
 @keyframes ndrrmc-shake {
-  0%,100%{ transform: rotate(0deg); }
-  15%    { transform: rotate(-18deg); }
-  30%    { transform: rotate(18deg); }
-  45%    { transform: rotate(-12deg); }
-  60%    { transform: rotate(12deg); }
-  75%    { transform: rotate(-6deg); }
-  90%    { transform: rotate(6deg); }
+  0%,100%{ transform: rotate(0deg) scale(1); }
+  10%    { transform: rotate(-14deg) scale(1.05); }
+  20%    { transform: rotate(14deg) scale(1.05); }
+  30%    { transform: rotate(-10deg) scale(1.02); }
+  40%    { transform: rotate(10deg) scale(1.02); }
+  50%    { transform: rotate(-5deg) scale(1); }
+  60%    { transform: rotate(5deg) scale(1); }
+  70%    { transform: rotate(-2deg); }
+  80%    { transform: rotate(2deg); }
 }
-.ndrrmc-bell { font-size: 72px; display: inline-block; animation: ndrrmc-shake 1s ease-in-out infinite; filter: drop-shadow(0 0 20px #ffd700); }
+.ndrrmc-bell {
+  font-size: 72px;
+  display: inline-block;
+  animation: ndrrmc-shake 1.4s cubic-bezier(0.36,0.07,0.19,0.97) infinite;
+  filter: drop-shadow(0 0 18px #ffd700) drop-shadow(0 0 36px rgba(255,180,0,0.5));
+  will-change: transform;
+}
 
 .ndrrmc-header {
   color: #ffd700;
@@ -9925,18 +9956,23 @@ function _metCard(label, icon, value, unit, color) {
 }
 .ndrrmc-speaking.visible { opacity: 1; }
 @keyframes ndrrmc-wave {
-  0%,100%{ height: 6px; } 50%{ height: 22px; }
+  0%,100%{ height: 5px;  opacity: 0.6; }
+  25%    { height: 20px; opacity: 1; }
+  50%    { height: 10px; opacity: 0.8; }
+  75%    { height: 22px; opacity: 1; }
 }
 .ndrrmc-wave-bar {
   width: 5px;
   height: 14px;
-  background: #ffd700;
+  background: linear-gradient(to top, #ff9900, #ffd700);
   border-radius: 3px;
-  animation: ndrrmc-wave 0.7s ease-in-out infinite;
+  animation: ndrrmc-wave 0.85s cubic-bezier(0.45,0,0.55,1) infinite;
+  will-change: height;
 }
-.ndrrmc-wave-bar:nth-child(2){ animation-delay: 0.1s; }
-.ndrrmc-wave-bar:nth-child(3){ animation-delay: 0.2s; }
-.ndrrmc-wave-bar:nth-child(4){ animation-delay: 0.1s; }
+.ndrrmc-wave-bar:nth-child(1){ animation-delay: 0s;    animation-duration: 0.75s; }
+.ndrrmc-wave-bar:nth-child(2){ animation-delay: 0.15s; animation-duration: 0.9s; }
+.ndrrmc-wave-bar:nth-child(3){ animation-delay: 0.3s;  animation-duration: 0.65s; }
+.ndrrmc-wave-bar:nth-child(4){ animation-delay: 0.1s;  animation-duration: 0.8s; }
 
 /* Acknowledge button */
 #ndrrmc-ack-btn {
@@ -10001,16 +10037,27 @@ function _metCard(label, icon, value, unit, color) {
   padding: 9px 0;
   overflow: hidden;
   white-space: nowrap;
+  z-index: 4;
+}
+
+/* LED status blink */
+@keyframes ndrrmc-led-blink {
+  0%,100% { opacity: 1; box-shadow: 0 0 8px #ef4444, 0 0 14px #ef4444; }
+  50%     { opacity: 0.25; box-shadow: 0 0 3px #ef4444; }
 }
 @keyframes ndrrmc-ticker-scroll {
-  from { transform: translateX(100vw); }
-  to   { transform: translateX(-200%); }
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
 }
 .ndrrmc-ticker-inner {
   display: inline-block;
-  animation: ndrrmc-ticker-scroll 80s linear infinite;
+  /* Double the content so seamless loop works at -50% */
+  animation: ndrrmc-ticker-scroll 55s linear infinite;
+  will-change: transform;
   padding-left: 40px;
   letter-spacing: 1px;
+  /* Pause on tab backgrounded */
+  animation-play-state: running;
 }
 </style>
 
@@ -10019,29 +10066,46 @@ function _metCard(label, icon, value, unit, color) {
      ══════════════════════════════════════════════════════════ -->
 <div id="ndrrmc-alarm-overlay" role="alertdialog" aria-live="assertive">
 
+  <!-- Scanline texture overlay -->
+  <div style="position:absolute;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:1;"></div>
+
+  <!-- Radial vignette -->
+  <div style="position:absolute;inset:0;background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,0.5) 100%);pointer-events:none;z-index:1;"></div>
+
   <!-- Logo bar -->
-  <div class="ndrrmc-logo-strip">
-    🛡️ AGUS · CARCAR WATER DISTRICT &nbsp;|&nbsp; EMERGENCY ALERT SYSTEM
+  <div class="ndrrmc-logo-strip" style="z-index:2;">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(255,215,0,0.8)" stroke-width="2.5" style="flex-shrink:0;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    AGUS · CARCAR WATER DISTRICT &nbsp;|&nbsp; EMERGENCY ALERT SYSTEM
   </div>
 
   <!-- Pulse rings -->
-  <div class="ndrrmc-pulse-ring" style="animation-delay:0s;"></div>
-  <div class="ndrrmc-pulse-ring" style="animation-delay:0.4s;"></div>
+  <div class="ndrrmc-pulse-ring" style="animation-delay:0s;z-index:2;"></div>
+  <div class="ndrrmc-pulse-ring" style="animation-delay:0.6s;z-index:2;"></div>
+  <div class="ndrrmc-pulse-ring" style="animation-delay:1.2s;z-index:2;"></div>
 
   <!-- Bell -->
-  <div class="ndrrmc-bell">🔔</div>
+  <div class="ndrrmc-bell" style="z-index:3;">🔔</div>
 
-  <div class="ndrrmc-header">⚠ CRITICAL ALERT ⚠</div>
-  <div class="ndrrmc-subheader">AGUS Water Monitoring System</div>
-  <hr class="ndrrmc-divider">
+  <div class="ndrrmc-header" style="z-index:3;">⚠ CRITICAL ALERT ⚠</div>
+  <div class="ndrrmc-subheader" style="z-index:3;">AGUS Water Monitoring System</div>
+  <hr class="ndrrmc-divider" style="z-index:3;">
 
-  <!-- Current alarm being shown -->
-  <div class="ndrrmc-device-name" id="ndrrmc-device-name">—</div>
-  <div class="ndrrmc-alarm-type"  id="ndrrmc-alarm-type">—</div>
-  <div class="ndrrmc-alarm-value" id="ndrrmc-alarm-value"></div>
+  <!-- Glass info panel -->
+  <div style="position:relative;z-index:3;background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);border-radius:16px;padding:14px 24px 10px;margin:0 0 10px;width:90%;max-width:500px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);">
+    <!-- LED status strip -->
+    <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;">
+      <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;animation:ndrrmc-led-blink 0.9s ease-in-out infinite;flex-shrink:0;"></span>
+      <span style="font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:2px;font-weight:700;font-family:Arial,sans-serif;">ALARM ACTIVE</span>
+      <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;animation:ndrrmc-led-blink 0.9s ease-in-out 0.45s infinite;flex-shrink:0;"></span>
+    </div>
+    <!-- Current alarm being shown -->
+    <div class="ndrrmc-device-name" id="ndrrmc-device-name">—</div>
+    <div class="ndrrmc-alarm-type"  id="ndrrmc-alarm-type">—</div>
+    <div class="ndrrmc-alarm-value" id="ndrrmc-alarm-value"></div>
+  </div>
 
   <!-- Queue status badge -->
-  <div class="ndrrmc-repeat-badge" id="ndrrmc-queue-badge">
+  <div class="ndrrmc-repeat-badge" id="ndrrmc-queue-badge" style="z-index:3;">
     🔁 REPEATING UNTIL ACKNOWLEDGED
   </div>
 
@@ -10049,12 +10113,14 @@ function _metCard(label, icon, value, unit, color) {
   <div id="ndrrmc-alarm-list" style="
     width:90%; max-width:420px;
     max-height:90px; overflow-y:auto;
-    margin:6px auto 10px;
+    margin:4px auto 8px;
     display:none;
+    position:relative;
+    z-index:3;
   "></div>
 
   <!-- TTS speaking indicator -->
-  <div class="ndrrmc-speaking" id="ndrrmc-speaking-indicator">
+  <div class="ndrrmc-speaking" id="ndrrmc-speaking-indicator" style="z-index:3;">
     <div class="ndrrmc-wave-bar"></div>
     <div class="ndrrmc-wave-bar"></div>
     <div class="ndrrmc-wave-bar"></div>
@@ -10063,12 +10129,12 @@ function _metCard(label, icon, value, unit, color) {
   </div>
 
   <!-- Acknowledge current alarm → proceed to next -->
-  <button id="ndrrmc-ack-btn" onclick="window.ndrrmcAcknowledge()">
+  <button id="ndrrmc-ack-btn" onclick="window.ndrrmcAcknowledge()" style="position:relative;z-index:3;">
     ✅ ACKNOWLEDGE THIS ALARM
   </button>
 
   <!-- Silence TTS for 5 min, overlay stays -->
-  <button id="ndrrmc-silence-btn" onclick="window.ndrrmcSilence5()">
+  <button id="ndrrmc-silence-btn" onclick="window.ndrrmcSilence5()" style="position:relative;z-index:3;">
     🔇 SILENCE 5 MINUTES
   </button>
   <button onclick="window.agusOpenCallSettings()" style="
@@ -10076,15 +10142,13 @@ function _metCard(label, icon, value, unit, color) {
     border:1px solid rgba(255,215,0,0.3);border-radius:10px;
     font-family:Arial,sans-serif;font-size:13px;font-weight:700;
     padding:8px 20px;cursor:pointer;letter-spacing:1px;
-    text-transform:uppercase;margin-top:6px;">
+    text-transform:uppercase;margin-top:6px;position:relative;z-index:3;">
     📞 CALL CONTACTS SETTINGS
   </button>
 
-  <!-- Ticker -->
+  <!-- Ticker — content doubled for seamless CSS loop at translateX(-50%) -->
   <div class="ndrrmc-ticker">
-    <span class="ndrrmc-ticker-inner" id="ndrrmc-ticker-text">
-      ⚠ CRITICAL ALERT — TAP ACKNOWLEDGE TO PROCEED ⚠ &nbsp;&nbsp;&nbsp; AGUS WATER MONITORING SYSTEM &nbsp;&nbsp;&nbsp;
-    </span>
+    <span class="ndrrmc-ticker-inner" id="ndrrmc-ticker-text">⚠ CRITICAL ALERT — TAP ACKNOWLEDGE TO PROCEED ⚠ &nbsp;&nbsp;&nbsp;&nbsp; AGUS WATER MONITORING SYSTEM &nbsp;&nbsp;&nbsp;&nbsp; ⚠ CRITICAL ALERT — TAP ACKNOWLEDGE TO PROCEED ⚠ &nbsp;&nbsp;&nbsp;&nbsp; AGUS WATER MONITORING SYSTEM &nbsp;&nbsp;&nbsp;&nbsp;</span>
   </div>
 </div>
 
@@ -10139,14 +10203,14 @@ function _metCard(label, icon, value, unit, color) {
   margin-bottom: 8px !important;
   font-size: 14px !important;
 }
-/* All-clear success flash */
+/* All-clear success — smooth green fade-in pulse */
 @keyframes ndrrmc-allclear {
-  0%   { background: #065f46; }
-  50%  { background: #047857; }
-  100% { background: #065f46; }
+  0%   { background: #064e3b; box-shadow: inset 0 0 0px rgba(16,185,129,0); }
+  50%  { background: #065f46; box-shadow: inset 0 0 60px rgba(16,185,129,0.4); }
+  100% { background: #064e3b; box-shadow: inset 0 0 0px rgba(16,185,129,0); }
 }
 #ndrrmc-alarm-overlay.all-clear {
-  animation: ndrrmc-allclear 1s ease infinite !important;
+  animation: ndrrmc-allclear 2s cubic-bezier(0.4,0,0.6,1) infinite !important;
 }
 </style>
 
@@ -10371,13 +10435,14 @@ function _metCard(label, icon, value, unit, color) {
         : '🔁 REPEATING UNTIL ACKNOWLEDGED';
     }
 
-    // Ticker
+    // Ticker — content doubled so translateX(-50%) loops seamlessly
     var ticker = document.getElementById('ndrrmc-ticker-text');
     if (ticker) {
       var allLabels = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; })
         .map(function(k){ var a=_alarmData[k]; return a.deviceName.toUpperCase()+' — '+(TYPE_LABELS[a.alarmType]||a.alarmType.toUpperCase()); })
         .join('   ·   ');
-      ticker.textContent = '⚠ ACTIVE ALARMS: ' + allLabels + '   ·   TAP ACKNOWLEDGE TO PROCEED   ·   AGUS WATER MONITORING SYSTEM   ·   ';
+      var tickerText = '⚠ ACTIVE ALARMS: ' + allLabels + '   ·   TAP ACKNOWLEDGE TO PROCEED   ·   AGUS WATER MONITORING SYSTEM   ·   \u00a0\u00a0\u00a0\u00a0';
+      ticker.textContent = tickerText + tickerText;
     }
 
     _renderList();
