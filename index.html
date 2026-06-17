@@ -8294,20 +8294,38 @@ function exportDashboardPDF() {
 
   var _ttsUnlocked = false;
 
+  var _bgOscNode    = null;   // inaudible 1Hz oscillator — keeps Android audio focus
+  var _bgOscGain    = null;
+
   function _unlockAudio() {
     if (!_bgAudioLocked) return;
     try {
       _bgAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      // Create 1-second silent looping buffer — keeps audio thread alive in background
+
+      // 1. Silent looping buffer — primary keepalive
       var buf = _bgAudioCtx.createBuffer(1, _bgAudioCtx.sampleRate, _bgAudioCtx.sampleRate);
       var src = _bgAudioCtx.createBufferSource();
-      src.buffer    = buf;
-      src.loop      = true;
+      src.buffer = buf;
+      src.loop   = true;
       src.connect(_bgAudioCtx.destination);
       src.start(0);
       _bgSilentNode = src;
+
+      // 2. Inaudible 1Hz oscillator — secondary keepalive
+      //    Android needs CONTINUOUS audio output to keep focus.
+      //    Silent buffer alone can be optimized away; a real oscillator
+      //    at sub-hearing frequency (1Hz, gain 0.0001) cannot be.
+      _bgOscGain = _bgAudioCtx.createGain();
+      _bgOscGain.gain.value = 0.0001; // completely inaudible
+      _bgOscNode = _bgAudioCtx.createOscillator();
+      _bgOscNode.type = 'sine';
+      _bgOscNode.frequency.value = 1; // 1 Hz — far below hearing
+      _bgOscNode.connect(_bgOscGain);
+      _bgOscGain.connect(_bgAudioCtx.destination);
+      _bgOscNode.start(0);
+
       _bgAudioLocked = false;
-      console.log('[AGUS] Audio unlocked for background TTS');
+      console.log('[AGUS] Audio unlocked — silent buffer + 1Hz osc keepalive active');
     } catch(e) { console.warn('[AGUS] Audio unlock failed:', e); }
   }
 
@@ -8400,12 +8418,19 @@ function exportDashboardPDF() {
     _bgStopKA();
     _bgKaTimer = setInterval(function() {
       if (!window.speechSynthesis) { _bgStopKA(); return; }
+      // Resume AudioContext if suspended — critical for keeping TTS alive
+      if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+        _bgAudioCtx.resume().catch(function(){});
+      }
       if (!window.speechSynthesis.speaking) { _bgStopKA(); return; }
-      // Only pause+resume if browser is backgrounded — not needed when visible
-      if (!document.hidden) return;
-      window.speechSynthesis.pause();
-      window.speechSynthesis.resume();
-    }, 10000);
+      // pause+resume only when backgrounded — keeps Android TTS service awake
+      if (document.hidden) {
+        try {
+          window.speechSynthesis.pause();
+          window.speechSynthesis.resume();
+        } catch(e) {}
+      }
+    }, 5000);
 
     utt.onend = function() {
       _bgStopKA();
@@ -8427,14 +8452,24 @@ function exportDashboardPDF() {
     function _doSpeak() {
       var voice = _getVoice();
       if (voice) utt.voice = voice;
-      // Android Chrome PWA: cancel stale state, wait 150ms for it to settle
+      // Ensure audio context is alive before speaking
+      if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+        _bgAudioCtx.resume().catch(function(){});
+      }
       try { window.speechSynthesis.cancel(); } catch(e) {}
-      setTimeout(function() {
+      // When minimized: no setTimeout (throttled to ≥1s on Android Chrome).
+      // When visible: 150ms settle time so cancel propagates first.
+      function _trySpeak() {
         try { window.speechSynthesis.speak(utt); } catch(e) {
           _bgStopKA(); _bgSpeaking = false;
           if (_bgSpeakQueue.length) setTimeout(_bgSpeakNext, 500);
         }
-      }, 150);
+      }
+      if (document.hidden) {
+        _trySpeak();
+      } else {
+        setTimeout(_trySpeak, 150);
+      }
     }
 
     if (window.speechSynthesis.getVoices().length === 0) {
@@ -8454,26 +8489,35 @@ function exportDashboardPDF() {
   function _bgStartHealthCheck() {
     if (_bgHealthTimer) return;
     _bgHealthTimer = setInterval(function() {
-      // Resume AudioContext if Chrome suspended it
+      // 1. Keep AudioContext alive
       if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
         _bgAudioCtx.resume().catch(function(){});
       }
-      // Recreate silent loop if AudioContext was fully closed / null
+      // 2. Recreate if closed (Android can fully kill it)
       if (!_bgAudioCtx || _bgAudioCtx.state === 'closed') {
         _bgAudioLocked = true;
         _unlockAudio();
       }
-      // If queue stuck and nothing speaking, force-clear then restart
+      // 3. Detect stalled TTS: _bgSpeaking=true but synthesis not actually speaking
+      //    This happens on Android when TTS is silently killed in background.
+      if (_bgSpeaking && window.speechSynthesis && !window.speechSynthesis.speaking && !window.speechSynthesis.pending) {
+        // TTS died silently — reset state and retry from queue
+        console.warn('[AGUS] TTS stall detected — restarting');
+        _bgStopKA();
+        _bgCurrUtt = null;
+        _bgSpeaking = false;
+      }
+      // 4. Queue stuck (not speaking) — restart
       if (_bgSpeakQueue.length && !_bgSpeaking) {
-        // Cancel any dangling synthesis state before trying again
         try {
           if (window.speechSynthesis && (window.speechSynthesis.speaking || window.speechSynthesis.pending)) {
             window.speechSynthesis.cancel();
           }
         } catch(e) {}
-        setTimeout(_bgSpeakNext, 200);
+        var _restartDelay = document.hidden ? 0 : 200;
+        setTimeout(_bgSpeakNext, _restartDelay);
       }
-    }, 10000);
+    }, 8000);
   }
   _bgStartHealthCheck();
 
@@ -8484,9 +8528,7 @@ function exportDashboardPDF() {
       if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
         _bgAudioCtx.resume().catch(function(){});
       }
-      // Force-cancel any stuck synthesis state on Android, then restart queue
-      // Android Chrome PWA frequently leaves speechSynthesis in a broken state
-      // after the app is backgrounded — a cancel+delay clears it reliably
+      // Cancel any stuck synthesis on Android after background/foreground transition
       if (window.speechSynthesis) {
         try {
           if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
@@ -8494,10 +8536,24 @@ function exportDashboardPDF() {
           }
         } catch(e) {}
       }
-      // Resume queue after a short settle time
+      // If _bgSpeaking was true but TTS died while hidden — reset state
+      if (_bgSpeaking && window.speechSynthesis && !window.speechSynthesis.speaking) {
+        _bgStopKA();
+        _bgCurrUtt = null;
+        _bgSpeaking = false;
+      }
+      // If NDRRMC alarm is active and _isSpeaking was stuck — clear it
+      // The next attention cycle will re-speak when it runs
+      if (typeof _isSpeaking !== 'undefined' && _isSpeaking &&
+          window.speechSynthesis && !window.speechSynthesis.speaking) {
+        _isSpeaking = false;
+        var _ind = document.getElementById('ndrrmc-speaking-indicator');
+        if (_ind) _ind.classList.remove('visible');
+      }
+      // Resume queue
       setTimeout(function() {
         if (_bgSpeakQueue.length && !_bgSpeaking) _bgSpeakNext();
-      }, 350);
+      }, 300);
     }
   });
 
@@ -10432,8 +10488,10 @@ function _metCard(label, icon, value, unit, color) {
 
   /* ── TTS ── */
   function _buildMsg(alarm) {
-    var remaining = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; }).length;
-    var queueNote = remaining > 1 ? ' There are ' + remaining + ' active alarms remaining.' : '';
+    var unacked = _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+    var remaining = unacked.length;
+    var pos = unacked.indexOf(alarm.key) + 1;
+    var queueNote = remaining > 1 ? ' Alarm ' + pos + ' of ' + remaining + '.' : '';
     var _v = alarm.value ? ' Current value: ' + alarm.value + '.' : '';
     var _dev = alarm.deviceName;
     var map = {
@@ -10481,55 +10539,62 @@ function _metCard(label, icon, value, unit, color) {
     var msg = _buildMsg(alarm);
     var ind = document.getElementById('ndrrmc-speaking-indicator');
 
-    // Small breath before speaking (cancel happens inside _androidSpeak)
-    setTimeout(function() {
-      if (_isSpeaking || Date.now() < _silenceUntil) return;
-      _isSpeaking = true;
-      if (ind) ind.classList.add('visible');
+    // Resume AudioContext now — ensures audio focus is held before TTS speaks
+    if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+      _bgAudioCtx.resume().catch(function(){});
+    }
 
-      function _done() {
-        _isSpeaking = false;
-        if (ind) ind.classList.remove('visible');
-      }
+    if (_isSpeaking || Date.now() < _silenceUntil) return;
+    _isSpeaking = true;
+    if (ind) ind.classList.add('visible');
 
-      // Always speak directly with full done-callback — do NOT route through
-      // _bgSpeak queue because that loses the onend signal needed to clear
-      // _isSpeaking. _bgSpeak's cancel-before-speak pattern is reused here.
-      var utt = new SpeechSynthesisUtterance(msg);
-      utt.lang = 'en-US'; utt.rate = 0.86; utt.pitch = 1.05; utt.volume = 1.0;
+    function _done() {
+      _isSpeaking = false;
+      if (ind) ind.classList.remove('visible');
+    }
 
-      // Safety-net timeout: if onend/onerror never fire (Android Chrome PWA bug)
-      // clear _isSpeaking after estimated duration so the next cycle isn't blocked
-      var _words = msg.split(' ').length;
-      var _estMs = Math.max(10000, (_words / 2.0) * 1000) + 3000;
-      if (_speechTimer) clearTimeout(_speechTimer);
-      _speechTimer = setTimeout(function() {
-        if (_isSpeaking) { try { window.speechSynthesis.cancel(); } catch(e) {} _done(); }
-      }, _estMs);
+    var utt = new SpeechSynthesisUtterance(msg);
+    utt.lang = 'en-US'; utt.rate = 0.86; utt.pitch = 1.05; utt.volume = 1.0;
 
-      utt.onend   = function() { if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; } _done(); };
-      utt.onerror = function(e) {
-        if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
-        // 'interrupted'/'canceled' from _stopSpeech — that's expected, just clear state
-        _done();
-      };
+    // Safety-net: if onend never fires (Android silent-fail), unblock after estimate
+    var _words = msg.split(' ').length;
+    var _estMs = Math.max(12000, (_words / 1.8) * 1000) + 4000;
+    if (_speechTimer) clearTimeout(_speechTimer);
+    _speechTimer = setTimeout(function() {
+      if (_isSpeaking) { try { window.speechSynthesis.cancel(); } catch(e) {} _done(); }
+    }, _estMs);
 
-      function _androidSpeak() {
-        var voice = _getVoice(); if (voice) utt.voice = voice;
-        // Android Chrome PWA: cancel any stale synthesis state, then wait one
-        // event-loop tick before speaking — prevents silent-fail on resume
-        try { window.speechSynthesis.cancel(); } catch(e) {}
+    utt.onend = function() {
+      if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
+      _done();
+    };
+    utt.onerror = function() {
+      if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
+      _done();
+    };
+
+    function _doTTS() {
+      var voice = _getVoice(); if (voice) utt.voice = voice;
+      // Cancel any stale state first
+      try { window.speechSynthesis.cancel(); } catch(e) {}
+      // When HIDDEN (minimized): avoid setTimeout — Chrome throttles it to ≥1000ms.
+      //   Call speak() synchronously right after cancel. Android TTS service
+      //   is kept alive by the 1Hz AudioContext oscillator holding audio focus.
+      // When VISIBLE: use 150ms delay so cancel propagates cleanly.
+      if (document.hidden) {
+        try { window.speechSynthesis.speak(utt); } catch(ex) { _done(); }
+      } else {
         setTimeout(function() {
           try { window.speechSynthesis.speak(utt); } catch(ex) { _done(); }
         }, 150);
       }
+    }
 
-      if (window.speechSynthesis.getVoices().length === 0) {
-        window.speechSynthesis.onvoiceschanged = function() { _androidSpeak(); };
-      } else {
-        _androidSpeak();
-      }
-    }, 180);
+    if (window.speechSynthesis.getVoices().length === 0) {
+      window.speechSynthesis.onvoiceschanged = function() { _doTTS(); };
+    } else {
+      _doTTS();
+    }
   }
 
   function _stopSpeech() {
@@ -10627,40 +10692,98 @@ function _metCard(label, icon, value, unit, color) {
      One timer only. Cancels cleanly on acknowledge/clear.              */
   /* ── Wait for _isSpeaking to clear, then call cb ── */
   function _waitSpeechDone(alarmKey, cb) {
-    if (!_alarmData[alarmKey] || _ackedKeys[alarmKey] || _currentKey !== alarmKey) return;
+    // Guard: stop if this alarm was acked or deleted (cleared by sensor)
+    if (!_alarmData[alarmKey] || _ackedKeys[alarmKey]) return;
     if (!_isSpeaking) { cb(); return; }
-    setTimeout(function() { _waitSpeechDone(alarmKey, cb); }, 500);
+    // When minimized: Chrome throttles setTimeout to ≥1000ms. Use 1500ms
+    // so we don't accumulate drift from clamped 500ms → 1000ms calls.
+    var _pollMs = document.hidden ? 1500 : 500;
+    setTimeout(function() { _waitSpeechDone(alarmKey, cb); }, _pollMs);
   }
 
-  /* Sequence: SIREN → _SIREN_PAUSE_MS gap → TTS → (poll until TTS done)
-               → _CYCLE_MS silence gap → next cycle. Never overlap.     */
-  function _runAttentionCycle(alarmKey) {
-    if (!_alarmData[alarmKey] || _ackedKeys[alarmKey]) return;
-    if (_currentKey !== alarmKey) return;
+  /* ── Per-alarm sequence: SIREN → pause → TTS, then next alarm.
+     Pattern for N alarms:
+       [Siren → TTS alarm 1] → [Siren → TTS alarm 2] → … → [Siren → TTS alarm N]
+       → wait _CYCLE_MS → repeat from alarm 1.
+     The overlay always shows the alarm currently being announced.          */
+  function _getUnackedAlarms() {
+    return _alarmQueue.filter(function(k){ return !_ackedKeys[k] && _alarmData[k]; });
+  }
 
-    // Step 1 — siren (blocks via onDone)
+  /* Cycle through each unacked alarm with its own siren + TTS, then call onAllDone. */
+  function _sirenThenSpeakSequence(startIdx, onAllDone) {
+    var unacked = _getUnackedAlarms();
+    if (unacked.length === 0) { if (onAllDone) onAllDone(); return; }
+    var idx = startIdx || 0;
+    if (idx >= unacked.length) { if (onAllDone) onAllDone(); return; }
+
+    var key = unacked[idx];
+    // Skip if this alarm was acked or cleared since sequence started
+    if (!_alarmData[key] || _ackedKeys[key]) {
+      _sirenThenSpeakSequence(idx + 1, onAllDone);
+      return;
+    }
+
+    // Update overlay to show alarm currently being announced
+    _currentKey = key;
+    _renderOverlay(_alarmData[key]);
     _vibrate();
     _startFlash();
+
+    // SIREN first
     _playSiren(function() {
-      // Step 2 — short gap after siren ends
-      if (!_alarmData[alarmKey] || _ackedKeys[alarmKey] || _currentKey !== alarmKey) return;
-      setTimeout(function() {
-        if (!_alarmData[alarmKey] || _ackedKeys[alarmKey] || _currentKey !== alarmKey) return;
+      // Guard: alarm may have been acked while siren was playing
+      if (!_alarmData[key] || _ackedKeys[key]) {
+        _sirenThenSpeakSequence(idx + 1, onAllDone);
+        return;
+      }
 
-        // Step 3 — TTS
-        _speakAlarm(_alarmData[alarmKey]);
+      function _afterPause() {
+        if (!_alarmData[key] || _ackedKeys[key]) {
+          _sirenThenSpeakSequence(idx + 1, onAllDone);
+          return;
+        }
+        // TTS for this alarm
+        _speakAlarm(_alarmData[key]);
 
-        // Step 4 — poll until TTS finishes, THEN wait _CYCLE_MS, THEN repeat
-        _waitSpeechDone(alarmKey, function() {
-          if (!_alarmData[alarmKey] || _ackedKeys[alarmKey] || _currentKey !== alarmKey) return;
-          if (_attentionTimer) clearTimeout(_attentionTimer);
-          _attentionTimer = setTimeout(function() {
-            _sendFocusToSW();
-            _runAttentionCycle(alarmKey);
-          }, _CYCLE_MS);
+        // Wait for TTS to finish, then move to next alarm
+        _waitSpeechDone(key, function() {
+          var _interPause = document.hidden ? 0 : 600;
+          setTimeout(function() {
+            _sirenThenSpeakSequence(idx + 1, onAllDone);
+          }, _interPause);
         });
+      }
 
-      }, _SIREN_PAUSE_MS);
+      if (document.hidden) {
+        _afterPause();
+      } else {
+        setTimeout(_afterPause, _SIREN_PAUSE_MS);
+      }
+    });
+  }
+
+  function _runAttentionCycle(alarmKey) {
+    // The cycle runs as long as there are ANY unacked alarms
+    var unacked = _getUnackedAlarms();
+    if (unacked.length === 0) return;
+
+    // Cycle through every unacked alarm — each gets siren + TTS
+    _sirenThenSpeakSequence(0, function() {
+      // All alarms announced — reset overlay to first unacked alarm
+      var remaining = _getUnackedAlarms();
+      if (remaining.length === 0) return;
+      _currentKey = remaining[0];
+      _renderOverlay(_alarmData[remaining[0]]);
+
+      // Wait _CYCLE_MS then restart the full cycle
+      if (_attentionTimer) clearTimeout(_attentionTimer);
+      _attentionTimer = setTimeout(function() {
+        _sendFocusToSW();
+        if (_getUnackedAlarms().length > 0) {
+          _runAttentionCycle(_getUnackedAlarms()[0]);
+        }
+      }, _CYCLE_MS);
     });
   }
 
@@ -10670,7 +10793,7 @@ function _metCard(label, icon, value, unit, color) {
     if (ov) { ov.classList.remove('all-clear'); ov.classList.add('active'); }
     _renderOverlay(alarm);
 
-    // Cancel any running cycle from a previous alarm
+    // Cancel any running cycle from a previous alarm, then start fresh
     if (_attentionTimer) { clearTimeout(_attentionTimer); _attentionTimer = null; }
     _stopSpeech();
 
