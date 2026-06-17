@@ -1459,14 +1459,33 @@
     #rs-save-btn{flex:2;padding:11px;border:none;border-radius:10px;background:linear-gradient(135deg,#4ade80,#0b7c9c);color:white;font-size:13.5px;font-weight:800;cursor:pointer;transition:0.2s;box-shadow:0 4px 14px rgba(8,145,178,0.35);}
     #rs-save-btn:hover{background:linear-gradient(135deg,#0a7a9c,#0c8fb0);transform:translateY(-1px);}
     #rs-save-btn:disabled{background:#c0ccd8;box-shadow:none;cursor:not-allowed;transform:none;}
-    #toast-container{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:9999;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;}
-    .toast{padding:12px 22px;border-radius:12px;font-size:13.5px;font-weight:700;color:white;pointer-events:none;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,0.25);animation:toast-in 0.35s cubic-bezier(0.34,1.56,0.64,1) forwards;max-width:90vw;text-align:center;}
-    .toast.success{background:linear-gradient(135deg,#15803d,#22c55e);}
-    .toast.error{background:linear-gradient(135deg,#c0392b,#e74c3c);}
-    .toast.info{background:linear-gradient(135deg,#0055aa,#0088ff);}
-    .toast.fade-out{animation:toast-out 0.4s ease forwards;}
-    @keyframes toast-in{from{opacity:0;transform:translateY(20px) scale(0.9);}to{opacity:1;transform:translateY(0) scale(1);}}
-    @keyframes toast-out{from{opacity:1;transform:translateY(0);}to{opacity:0;transform:translateY(-10px);}}
+    #toast-container{position:fixed;bottom:28px;right:18px;left:auto;transform:none;z-index:2147480000;display:flex;flex-direction:column-reverse;gap:9px;align-items:flex-end;pointer-events:none;max-width:min(92vw,400px);}
+    .toast{
+      display:flex;align-items:flex-start;gap:11px;
+      padding:13px 16px 11px;border-radius:14px;
+      font-size:13.5px;font-weight:700;color:white;
+      pointer-events:none;white-space:normal;word-break:break-word;
+      box-shadow:0 6px 28px rgba(0,0,0,0.35),0 1px 0 rgba(255,255,255,0.08) inset;
+      animation:toast-in 0.32s cubic-bezier(0.34,1.45,0.64,1) forwards;
+      max-width:400px;width:100%;box-sizing:border-box;
+      position:relative;overflow:hidden;backdrop-filter:blur(4px);
+      border:1px solid rgba(255,255,255,0.12);
+    }
+    .toast::after{
+      content:'';position:absolute;bottom:0;left:0;height:3px;
+      background:rgba(255,255,255,0.4);border-radius:0 0 14px 14px;
+      animation:toast-progress 10s linear forwards;
+    }
+    .toast-icon{font-size:18px;flex-shrink:0;line-height:1.2;margin-top:1px;}
+    .toast-body{flex:1;line-height:1.45;}
+    .toast.success{background:linear-gradient(135deg,#065f46 0%,#047857 60%,#059669 100%);}
+    .toast.error  {background:linear-gradient(135deg,#7f1d1d 0%,#b91c1c 60%,#dc2626 100%);}
+    .toast.warning{background:linear-gradient(135deg,#78350f 0%,#b45309 60%,#d97706 100%);}
+    .toast.info   {background:linear-gradient(135deg,#1e3a5f 0%,#1d4ed8 60%,#3b82f6 100%);}
+    .toast.fade-out{animation:toast-out 0.38s cubic-bezier(0.4,0,1,1) forwards;}
+    @keyframes toast-in{from{opacity:0;transform:translateX(24px) scale(0.94);}to{opacity:1;transform:translateX(0) scale(1);}}
+    @keyframes toast-out{from{opacity:1;transform:translateX(0);}to{opacity:0;transform:translateX(28px);}}
+    @keyframes toast-progress{from{width:100%;}to{width:0%;}}
     .pressure-thresholds-badge{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;}
     .pth-item{display:flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:700;}
     .pth-item.low{background:#fff3e8;color:#c05a00;border:1px solid #f5c98a;}
@@ -2637,9 +2656,22 @@ function togglePw() { var i = document.getElementById('password'); i.type = i.ty
 function escapeForAttr(s) { return String(s || '').replace(/'/g, "\\'").replace(/"/g, '&quot;'); }
 function hexToRgba(hex, a) { var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16); return 'rgba('+r+','+g+','+b+','+a+')'; }
 function showNotification(msg, type) {
-  var c = document.getElementById('toast-container'), t = document.createElement('div');
-  t.className = 'toast ' + (type || 'info'); t.innerText = msg; c.appendChild(t);
-  setTimeout(function() { t.classList.add('fade-out'); setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 450); }, 10000);
+  var c = document.getElementById('toast-container'); if (!c) return;
+  var t = document.createElement('div');
+  var _type = type || 'info';
+  var _icons = { success:'✅', error:'🚨', warning:'⚠️', info:'ℹ️' };
+  t.className = 'toast ' + _type;
+  t.innerHTML = '<span class="toast-icon">' + (_icons[_type]||'ℹ️') + '</span>'
+              + '<span class="toast-body">' + msg.replace(/</g,'&lt;') + '</span>';
+  c.appendChild(t);
+  // Limit stack to 5
+  var toasts = c.querySelectorAll('.toast:not(.fade-out)');
+  if (toasts.length > 5) { toasts[0].classList.add('fade-out'); }
+  var _dur = _type === 'error' ? 14000 : 9000;
+  setTimeout(function() {
+    t.classList.add('fade-out');
+    setTimeout(function() { if (t.parentNode) t.parentNode.removeChild(t); }, 420);
+  }, _dur);
 }
 
 var displayPanel = document.getElementById('display-panel');
@@ -9831,8 +9863,20 @@ function _metCard(label, icon, value, unit, color) {
   padding: 24px;
   box-sizing: border-box;
   overflow: hidden;
+  will-change: transform, opacity, background;
+  /* Smooth content overflow on mobile */
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
-#ndrrmc-alarm-overlay.active { display: flex; }
+#ndrrmc-alarm-overlay.active { display: flex; animation: ndrrmc-enter 0.45s cubic-bezier(0.22,1,0.36,1) both; }
+@keyframes ndrrmc-enter {
+  0%   { opacity: 0; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes ndrrmc-exit {
+  0%   { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.96); }
+}
 
 /* Flash animation — smooth luminance pulse, no hard cut */
 @keyframes ndrrmc-flash {
@@ -9888,14 +9932,14 @@ function _metCard(label, icon, value, unit, color) {
   text-transform: uppercase;
 }
 .ndrrmc-subheader {
-  color: #fff;
-  font-size: clamp(22px, 6vw, 36px);
-  font-weight: 900;
-  letter-spacing: 3px;
+  color: rgba(255,255,255,0.82);
+  font-size: clamp(13px, 3.5vw, 20px);
+  font-weight: 700;
+  letter-spacing: 2.5px;
   text-transform: uppercase;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   opacity: 0.9;
-  text-shadow: 0 0 20px rgba(255,255,255,0.3), 0 2px 4px rgba(0,0,0,0.8);
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 .ndrrmc-divider {
   width: 80%;
@@ -9930,16 +9974,22 @@ function _metCard(label, icon, value, unit, color) {
 }
 
 /* Repeat counter badge */
+@keyframes ndrrmc-badge-glow {
+  0%,100% { box-shadow: 0 0 0px rgba(255,215,0,0); }
+  50%     { box-shadow: 0 0 14px rgba(255,215,0,0.45); }
+}
 .ndrrmc-repeat-badge {
-  background: rgba(255,215,0,0.2);
-  border: 1.5px solid #ffd700;
+  background: rgba(255,215,0,0.15);
+  border: 1.5px solid rgba(255,215,0,0.7);
   border-radius: 20px;
   color: #ffd700;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 800;
   padding: 6px 18px;
   letter-spacing: 1px;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  animation: ndrrmc-badge-glow 2s ease-in-out infinite;
+  position: relative; z-index: 3;
 }
 
 /* Speaking indicator */
@@ -9975,8 +10025,12 @@ function _metCard(label, icon, value, unit, color) {
 .ndrrmc-wave-bar:nth-child(4){ animation-delay: 0.1s;  animation-duration: 0.8s; }
 
 /* Acknowledge button */
+@keyframes ndrrmc-ack-pulse {
+  0%,100% { box-shadow: 0 0 30px rgba(255,215,0,0.7), 0 6px 20px rgba(0,0,0,0.5); }
+  50%     { box-shadow: 0 0 55px rgba(255,215,0,0.95), 0 8px 28px rgba(0,0,0,0.6), 0 0 0 6px rgba(255,215,0,0.2); }
+}
 #ndrrmc-ack-btn {
-  background: linear-gradient(135deg, #ffd700 0%, #ff9900 100%);
+  background: linear-gradient(135deg, #ffd700 0%, #ffb700 50%, #ff9900 100%);
   color: #1a0000;
   border: none;
   border-radius: 14px;
@@ -9988,11 +10042,15 @@ function _metCard(label, icon, value, unit, color) {
   cursor: pointer;
   box-shadow: 0 0 30px rgba(255,215,0,0.7), 0 6px 20px rgba(0,0,0,0.5);
   text-transform: uppercase;
-  transition: transform 0.1s, box-shadow 0.1s;
+  transition: transform 0.12s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.15s;
   -webkit-tap-highlight-color: transparent;
   margin-top: 8px;
+  animation: ndrrmc-ack-pulse 2.2s ease-in-out infinite;
+  will-change: transform, box-shadow;
+  position: relative; z-index: 3;
 }
-#ndrrmc-ack-btn:active { transform: scale(0.96); box-shadow: 0 0 15px rgba(255,215,0,0.5); }
+#ndrrmc-ack-btn:hover  { transform: scale(1.04) translateY(-2px); }
+#ndrrmc-ack-btn:active { transform: scale(0.95); box-shadow: 0 0 12px rgba(255,215,0,0.4); animation: none; }
 
 #ndrrmc-silence-btn {
   background: transparent;
@@ -10051,14 +10109,13 @@ function _metCard(label, icon, value, unit, color) {
 }
 .ndrrmc-ticker-inner {
   display: inline-block;
-  /* Double the content so seamless loop works at -50% */
-  animation: ndrrmc-ticker-scroll 55s linear infinite;
+  animation: ndrrmc-ticker-scroll 42s linear infinite;
   will-change: transform;
   padding-left: 40px;
-  letter-spacing: 1px;
-  /* Pause on tab backgrounded */
-  animation-play-state: running;
+  letter-spacing: 1.2px;
 }
+/* Pause ticker when tab is not visible — saves CPU */
+.page-hidden .ndrrmc-ticker-inner { animation-play-state: paused; }
 </style>
 
 <!-- ══════════════════════════════════════════════════════════
@@ -10267,20 +10324,31 @@ function _metCard(label, icon, value, unit, color) {
   function _playSiren() {
     var ctx = _getCtx(); if (!ctx) return;
     var t = ctx.currentTime;
-    var osc = ctx.createOscillator(), gain = ctx.createGain();
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(440, t);
-    osc.frequency.linearRampToValueAtTime(960, t+0.45);
-    osc.frequency.linearRampToValueAtTime(440, t+0.9);
-    osc.frequency.linearRampToValueAtTime(960, t+1.35);
-    osc.frequency.linearRampToValueAtTime(440, t+1.8);
-    osc.frequency.linearRampToValueAtTime(960, t+2.25);
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.6, t+0.05);
-    gain.gain.setValueAtTime(0.6, t+2.1);
-    gain.gain.linearRampToValueAtTime(0, t+2.3);
-    osc.start(t); osc.stop(t+2.4);
+    // Dual oscillator — fundamental + detuned octave for richer alarm
+    var osc1 = ctx.createOscillator(), osc2 = ctx.createOscillator();
+    var gain1 = ctx.createGain(), gain2 = ctx.createGain();
+    var master = ctx.createGain();
+    osc1.connect(gain1); osc2.connect(gain2);
+    gain1.connect(master); gain2.connect(master);
+    master.connect(ctx.destination);
+    osc1.type = 'sawtooth'; osc2.type = 'square';
+    // Sweep: low to high to low, 3 cycles in ~2.4s
+    [0, 0.8, 1.6].forEach(function(offset) {
+      osc1.frequency.setValueAtTime(380, t + offset);
+      osc1.frequency.linearRampToValueAtTime(880, t + offset + 0.38);
+      osc1.frequency.linearRampToValueAtTime(380, t + offset + 0.76);
+      osc2.frequency.setValueAtTime(395, t + offset);
+      osc2.frequency.linearRampToValueAtTime(895, t + offset + 0.38);
+      osc2.frequency.linearRampToValueAtTime(395, t + offset + 0.76);
+    });
+    gain1.gain.setValueAtTime(0.45, t);
+    gain2.gain.setValueAtTime(0.18, t);
+    master.gain.setValueAtTime(0, t);
+    master.gain.linearRampToValueAtTime(1, t + 0.04);
+    master.gain.setValueAtTime(1, t + 2.2);
+    master.gain.linearRampToValueAtTime(0, t + 2.45);
+    osc1.start(t); osc1.stop(t + 2.5);
+    osc2.start(t); osc2.stop(t + 2.5);
   }
   function _vibrate() { try { if (navigator.vibrate) navigator.vibrate([400,100,400,100,600,150,800,150,400]); } catch(e) {} }
 
@@ -10513,11 +10581,14 @@ function _metCard(label, icon, value, unit, color) {
       }
     }
     setTimeout(function() {
-      ov.classList.remove('active','all-clear');
-      // Reset ack button visibility for next time
-      var b2 = document.getElementById('ndrrmc-ack-btn');
-      if (b2) b2.style.display = '';
-    }, 4000);
+      ov.style.animation = 'ndrrmc-exit 0.5s cubic-bezier(0.4,0,1,1) forwards';
+      setTimeout(function() {
+        ov.classList.remove('active','all-clear');
+        ov.style.animation = '';
+        var b2 = document.getElementById('ndrrmc-ack-btn');
+        if (b2) b2.style.display = '';
+      }, 500);
+    }, 3500);
     if (typeof showNotification === 'function') {
       showNotification('✅ All alarms acknowledged. Monitoring resumed.', 'success');
     }
@@ -10665,6 +10736,11 @@ function _metCard(label, icon, value, unit, color) {
   }
 
 })();
+
+/* Pause ticker animation when tab goes background — battery/CPU saver */
+document.addEventListener('visibilitychange', function() {
+  document.body.classList.toggle('page-hidden', document.hidden);
+});
 </script>
 
 
