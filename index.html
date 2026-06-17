@@ -10403,13 +10403,14 @@ function _metCard(label, icon, value, unit, color) {
   var _repeatTimer     = null;
   var _attentionTimer  = null;   // attention cycle handle — ONE timer only
   var _audioCtx        = null;
+  var _ndKaTimerRef = null; // module-level ref so _stopSpeech can clear it
   var _isSpeaking      = false;  // true while TTS utterance is active
   var _sirenActive     = false;  // guards against overlapping siren calls
   var REPEAT_MS        = 2 * 60 * 1000;
   // Attention cycle timing — siren first, then TTS after siren finishes, never overlap
-  var _SIREN_DUR_MS    = 2600;   // matches dual-osc stop time + tiny buffer
-  var _SIREN_PAUSE_MS  = 700;    // silence gap between siren end and TTS start
-  var _CYCLE_MS        = 42000;  // full repeat cycle (siren+TTS+silence) — ~42 s
+  var _SIREN_DUR_MS    = 2700;   // matches dual-osc stop time (2.5s audio + 200ms buffer)
+  var _SIREN_PAUSE_MS  = 600;    // silence gap between siren end and TTS start (visible only)
+  var _CYCLE_MS        = 28000;  // wait between full cycles — reduced so repeat feels responsive
 
   var TYPE_LABELS = {
     'low':           '⬇ LOW WATER LEVEL',
@@ -10556,37 +10557,65 @@ function _metCard(label, icon, value, unit, color) {
     var utt = new SpeechSynthesisUtterance(msg);
     utt.lang = 'en-US'; utt.rate = 0.86; utt.pitch = 1.05; utt.volume = 1.0;
 
-    // Safety-net: if onend never fires (Android silent-fail), unblock after estimate
+    // Safety-net: if onend never fires (Android silent-fail), unblock after estimate.
+    // Use 1.4 words/sec at rate=0.86 — more accurate than 1.8 to avoid early timeout.
     var _words = msg.split(' ').length;
-    var _estMs = Math.max(12000, (_words / 1.8) * 1000) + 4000;
+    var _estMs = Math.max(14000, (_words / 1.4) * 1000) + 5000;
     if (_speechTimer) clearTimeout(_speechTimer);
     _speechTimer = setTimeout(function() {
-      if (_isSpeaking) { try { window.speechSynthesis.cancel(); } catch(e) {} _done(); }
+      if (_isSpeaking) {
+        try { window.speechSynthesis.cancel(); } catch(e) {}
+        _done();
+      }
     }, _estMs);
 
+    // Keep-alive: Android Chrome kills TTS after ~15s in background.
+    // pause()+resume() every 8s resets the internal watchdog — same pattern as _bgSpeakNext.
+    var _ndKaTimer = null;
+    function _ndStartKA() {
+      if (_ndKaTimer) return;
+      _ndKaTimer = setInterval(function() {
+        if (!window.speechSynthesis || !_isSpeaking) { _ndStopKA(); return; }
+        if (_bgAudioCtx && _bgAudioCtx.state === 'suspended') {
+          _bgAudioCtx.resume().catch(function(){});
+        }
+        if (document.hidden && window.speechSynthesis.speaking) {
+          try { window.speechSynthesis.pause(); window.speechSynthesis.resume(); } catch(e) {}
+        }
+      }, 8000);
+      _ndKaTimerRef = _ndKaTimer; // expose to _stopSpeech
+    }
+    function _ndStopKA() {
+      if (_ndKaTimer) { clearInterval(_ndKaTimer); _ndKaTimer = null; }
+      _ndKaTimerRef = null;
+    }
+
     utt.onend = function() {
+      _ndStopKA();
       if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
       _done();
     };
     utt.onerror = function() {
+      _ndStopKA();
       if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
       _done();
     };
 
     function _doTTS() {
       var voice = _getVoice(); if (voice) utt.voice = voice;
-      // Cancel any stale state first
-      try { window.speechSynthesis.cancel(); } catch(e) {}
-      // When HIDDEN (minimized): avoid setTimeout — Chrome throttles it to ≥1000ms.
-      //   Call speak() synchronously right after cancel. Android TTS service
-      //   is kept alive by the 1Hz AudioContext oscillator holding audio focus.
-      // When VISIBLE: use 150ms delay so cancel propagates cleanly.
+      // Do NOT call speechSynthesis.cancel() here — _isSpeaking is already true and
+      // cancel() on Android can fire onerror on a previous utterance, corrupting state.
+      // The siren already finished cleanly before _speakAlarm is called.
+      // When HIDDEN: call speak() synchronously — Chrome throttles setTimeout ≥1000ms.
+      // When VISIBLE: 180ms settle delay so the browser audio pipeline is ready.
+      function _trySpeak() {
+        _ndStartKA();
+        try { window.speechSynthesis.speak(utt); } catch(ex) { _ndStopKA(); _done(); }
+      }
       if (document.hidden) {
-        try { window.speechSynthesis.speak(utt); } catch(ex) { _done(); }
+        _trySpeak();
       } else {
-        setTimeout(function() {
-          try { window.speechSynthesis.speak(utt); } catch(ex) { _done(); }
-        }, 150);
+        setTimeout(_trySpeak, 180);
       }
     }
 
@@ -10599,6 +10628,7 @@ function _metCard(label, icon, value, unit, color) {
 
   function _stopSpeech() {
     if (_speechTimer) { clearTimeout(_speechTimer); _speechTimer = null; }
+    if (_ndKaTimerRef) { clearInterval(_ndKaTimerRef); _ndKaTimerRef = null; }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
     _isSpeaking = false;
     // NOTE: do NOT touch _sirenActive here — only _playSiren's own timeout clears it
@@ -10694,11 +10724,20 @@ function _metCard(label, icon, value, unit, color) {
   function _waitSpeechDone(alarmKey, cb) {
     // Guard: stop if this alarm was acked or deleted (cleared by sensor)
     if (!_alarmData[alarmKey] || _ackedKeys[alarmKey]) return;
+    // Give speak() time to register before we start polling (Android visible path uses
+    // a 180ms setTimeout before calling speak — poll only after 400ms startup grace).
+    var _startGrace = document.hidden ? 200 : 400;
+    setTimeout(function() {
+      _waitSpeechPoll(alarmKey, cb);
+    }, _startGrace);
+  }
+  function _waitSpeechPoll(alarmKey, cb) {
+    if (!_alarmData[alarmKey] || _ackedKeys[alarmKey]) return;
     if (!_isSpeaking) { cb(); return; }
     // When minimized: Chrome throttles setTimeout to ≥1000ms. Use 1500ms
     // so we don't accumulate drift from clamped 500ms → 1000ms calls.
     var _pollMs = document.hidden ? 1500 : 500;
-    setTimeout(function() { _waitSpeechDone(alarmKey, cb); }, _pollMs);
+    setTimeout(function() { _waitSpeechPoll(alarmKey, cb); }, _pollMs);
   }
 
   /* ── Per-alarm sequence: SIREN → pause → TTS, then next alarm.
@@ -10756,7 +10795,10 @@ function _metCard(label, icon, value, unit, color) {
       }
 
       if (document.hidden) {
-        _afterPause();
+        // When hidden: _sirenActive flag clears at _SIREN_DUR_MS after _playSiren was called.
+        // The onDone callback fires exactly at _SIREN_DUR_MS. Add a 150ms buffer so
+        // _sirenActive is guaranteed false before _speakAlarm's guard runs.
+        setTimeout(_afterPause, 150);
       } else {
         setTimeout(_afterPause, _SIREN_PAUSE_MS);
       }
