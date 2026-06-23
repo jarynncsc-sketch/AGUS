@@ -3636,6 +3636,8 @@ function initDashboard() {
         if (!needOff && !needOn) continue;
 
         if (needOn) {
+          // ── FIX 5: hard level safety — never send ON if level is still at or above shutoff
+          if (lv >= sOff || (sOff2 > 0 && lv >= sOff2)) continue;
           var aoKey = lnk.pump + ':' + lnk.reservoir;
           if (reservoirAutoShutoffState[aoKey]) continue;
         }
@@ -3663,10 +3665,13 @@ function initDashboard() {
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
           apiPost('togglePump', {
-            device:    device,
-            token:     userToken,
-            latitude:  coords.latitude  || '',
-            longitude: coords.longitude || ''
+            device:       device,
+            token:        userToken,
+            desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
+            relay:        state,          // ── GAS compatibility alias
+            triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
+            latitude:     coords.latitude  || '',
+            longitude:    coords.longitude || ''
           }).then(function(res) {
             if (res && res.success) {
               commandedRelayCache[device] = res.newState;
@@ -4021,8 +4026,27 @@ if (isResBooster) {
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
-        // ── Guard: if trying to turn ON while reservoir is full (live check) ──
         if (newStateInt === 1) {
+          // ── FIX 3a: Hard live-level block — check actual linked reservoir levels,
+          //    not just the autoShutoffState cache (which may have been cleared early).
+          var hardBlock = null;
+          pumpLinkConfigs.forEach(function(pl) {
+            if (pl.pump !== d.device || !pl.enabled) return;
+            var rd = devices.find(function(x){ return x.device === pl.reservoir; });
+            if (!rd) return;
+            var lv = parseFloat(rd.level);
+            if (!isNaN(lv) && lv >= pl.shutoffLevel && !hardBlock) {
+              hardBlock = { reservoir: pl.reservoir, level: lv, shutoffLevel: pl.shutoffLevel, resumeLevel: pl.resumeLevel };
+            }
+          });
+          if (hardBlock) {
+            cb.checked = false;
+            showNotification('⛔ Cannot turn ON ' + d.device + ': ' + hardBlock.reservoir +
+              ' is at ' + hardBlock.level.toFixed(0) + ' m³ (shutoff: ' + hardBlock.shutoffLevel +
+              ' m³). Wait for level to drop below resume (' + hardBlock.resumeLevel + ' m³).', 'warning');
+            return;
+          }
+          // ── Guard: autoShutoffState still set for a different reason (e.g. backup) ──
           var liveOff = null;
           Object.keys(reservoirAutoShutoffState).forEach(function(k) {
             if (reservoirAutoShutoffState[k].pump === d.device) liveOff = reservoirAutoShutoffState[k];
@@ -4032,27 +4056,31 @@ if (isResBooster) {
             showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
             return;
           }
-        }
-        // ── Guard: reservoir near-full warning ──
-        var linkedFull = null;
-        if (newStateInt === 1) {
-          Object.keys(reservoirThresholdsCache).forEach(function(rk) {
-            var rt = reservoirThresholdsCache[rk];
-            var rd = devices.find(function(x){ return x.device === rk; });
-            if (rd) { var rlv=parseFloat(rd.level); if (!isNaN(rlv)&&rlv>=rt.maxLevel*0.95&&!linkedFull) linkedFull={name:rk,level:rlv,max:rt.maxLevel}; }
+          // ── FIX 4: Near-full warning — only check reservoirs LINKED to this pump ──
+          var linkedFull = null;
+          pumpLinkConfigs.filter(function(pl){ return pl.pump === d.device && pl.enabled; }).forEach(function(pl) {
+            var rt = reservoirThresholdsCache[pl.reservoir];
+            var rd = devices.find(function(x){ return x.device === pl.reservoir; });
+            if (rt && rd) {
+              var rlv = parseFloat(rd.level);
+              if (!isNaN(rlv) && rlv >= rt.maxLevel * 0.95 && !linkedFull)
+                linkedFull = { name: pl.reservoir, level: rlv, max: rt.maxLevel };
+            }
           });
           if (linkedFull && !confirm('⚠ Warning: '+linkedFull.name+' is at '+linkedFull.level.toFixed(0)+' m³ ('+Math.round(linkedFull.level/linkedFull.max*100)+'% full — near max: '+linkedFull.max+' m³).\n\nTurning ON this pump may overflow the reservoir.\n\nProceed anyway?')) {
-            cb.checked = !cb.checked; return;
+            cb.checked = false; return;
           }
         }
-        if (newStateInt === 1) {
-          Object.keys(reservoirAutoShutoffState).forEach(function(k) {
-            if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
-          });
-          localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-        }
-        // ★ v3: direct command — no queue
-        dashboardTogglePump(d.device, newStateInt, function(confirmed) { cb.checked = confirmed === 1; });
+        // ── FIX 3b: Clear autoShutoffState only AFTER confirmed success, not before ──
+        dashboardTogglePump(d.device, newStateInt, function(confirmed) {
+          cb.checked = confirmed === 1;
+          if (confirmed === 1) {
+            Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+              if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
+            });
+            localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+          }
+        });
       });
       li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
       // ══════════════════════════════════════════════════════════════
@@ -4257,22 +4285,27 @@ function autoShutoffPumps(devices) {
                         (typeof pumpData.relay === 'string' && pumpData.relay.toUpperCase() === 'ON');
     var autoOffEntry  = reservoirAutoShutoffState[cfg.pump + ':' + cfg.reservoir];
 
-    var _cmdKey = cfg.pump + ':' + cfg.reservoir; // shared key for all guards below
+    // ── FIX 2: direction-scoped cooldown keys — OFF and ON never share a timestamp ──
+    var _stateKey  = cfg.pump + ':' + cfg.reservoir;          // autoShutoffState key (unchanged)
+    var _offCdKey  = cfg.pump + ':off:'     + cfg.reservoir;  // cooldown for OFF commands
+    var _onCdKey   = cfg.pump + ':on:'      + cfg.reservoir;  // cooldown for ON  commands
+    var _boffCdKey = cfg.pump + ':boff:'    + cfg.reservoir;  // cooldown for BACKUP-OFF
+    var _bonCdKey  = cfg.pump + ':bon:'     + cfg.reservoir;  // cooldown for BACKUP-ON
 
     // ── Backup shutoff (primary command may have failed) ─────────────────
     if (shutoff2 > 0 && lv >= shutoff2 && serverRelayOn) {
       var ts = new Date().toLocaleString();
       if (!autoOffEntry) {
-        reservoirAutoShutoffState[_cmdKey] = {
+        reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
           shutoffLevel: shutoff2, resumeLevel: resume, levelAtShutoff: lv, timestamp: ts
         };
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
       // ── Only send the OFF command once per shutoff event ─────────────────
-      var _lastB = _autoShutoffCommandSent[_cmdKey] || 0;
+      var _lastB = _autoShutoffCommandSent[_boffCdKey] || 0;
       if (!_lastB || Date.now() - _lastB > _AUTO_SHUTOFF_COOLDOWN) {
-        _autoShutoffCommandSent[_cmdKey] = Date.now();
+        _autoShutoffCommandSent[_boffCdKey] = Date.now();
         var bkey = cfg.pump + ':backup:' + cfg.reservoir;
         if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
           autoShutoffSuppressNotify[bkey] = Date.now();
@@ -4284,7 +4317,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, triggeredBy: 'AutoShutoff-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4296,17 +4329,17 @@ function autoShutoffPumps(devices) {
     } else if (lv >= shutoff && serverRelayOn) {
       var ts = new Date().toLocaleString();
       if (!autoOffEntry) {
-        reservoirAutoShutoffState[_cmdKey] = {
+        reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
           shutoffLevel: shutoff, resumeLevel: resume, levelAtShutoff: lv, timestamp: ts
         };
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
       }
       // ── Only send the OFF command once per shutoff event ─────────────────
-      var _lastOff = _autoShutoffCommandSent[_cmdKey] || 0;
+      var _lastOff = _autoShutoffCommandSent[_offCdKey] || 0;
       if (!_lastOff || Date.now() - _lastOff > _AUTO_SHUTOFF_COOLDOWN) {
-        _autoShutoffCommandSent[_cmdKey] = Date.now();
-        var suppressKey = cfg.pump + ':off:' + cfg.reservoir;
+        _autoShutoffCommandSent[_offCdKey] = Date.now();
+        var suppressKey = cfg.pump + ':off:notify:' + cfg.reservoir;
         if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
           autoShutoffSuppressNotify[suppressKey] = Date.now();
           showNotification('🛑 AUTO-SHUTOFF: ' + cfg.pump + ' turned OFF — ' + cfg.reservoir + ' reached ' + lv.toFixed(0) + ' m³ (limit: ' + shutoff + ' m³)', 'warning');
@@ -4318,7 +4351,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, triggeredBy: 'AutoShutoff' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4328,11 +4361,13 @@ function autoShutoffPumps(devices) {
 
     // ── Backup resume (primary resume may have failed) ───────────────────
     } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
+      // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
+      if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
       // ── Only send the ON command once per resume event ────────────────────
-      var _lastOn2 = _autoShutoffCommandSent[_cmdKey] || 0;
+      var _lastOn2 = _autoShutoffCommandSent[_bonCdKey] || 0;
       if (!_lastOn2 || Date.now() - _lastOn2 > _AUTO_SHUTOFF_COOLDOWN) {
-        _autoShutoffCommandSent[_cmdKey] = Date.now();
-        delete reservoirAutoShutoffState[_cmdKey];
+        _autoShutoffCommandSent[_bonCdKey] = Date.now();
+        delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
         var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
@@ -4342,7 +4377,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, triggeredBy: 'AutoResume-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4352,16 +4387,18 @@ function autoShutoffPumps(devices) {
 
     // ── Trigger AUTO-RESUME (turn pump back ON) ──────────────────────────
     } else if (lv <= resume && !serverRelayOn) {
+      // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
+      if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
       // ── Only send the ON command once per resume event ────────────────────
-      var _lastOn = _autoShutoffCommandSent[_cmdKey] || 0;
+      var _lastOn = _autoShutoffCommandSent[_onCdKey] || 0;
       if (!_lastOn || Date.now() - _lastOn > _AUTO_SHUTOFF_COOLDOWN) {
-        _autoShutoffCommandSent[_cmdKey] = Date.now();
-        delete reservoirAutoShutoffState[_cmdKey];
+        _autoShutoffCommandSent[_onCdKey] = Date.now();
+        delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
-        var resumeKey = cfg.pump + ':on:' + cfg.reservoir;
-        if (!autoShutoffSuppressNotify[resumeKey] || Date.now() - autoShutoffSuppressNotify[resumeKey] > 600000) {
-          autoShutoffSuppressNotify[resumeKey] = Date.now();
+        var resumeNotifyKey = cfg.pump + ':on:notify:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[resumeNotifyKey] || Date.now() - autoShutoffSuppressNotify[resumeNotifyKey] > 600000) {
+          autoShutoffSuppressNotify[resumeNotifyKey] = Date.now();
           showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
           _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
           if (window.speechSynthesis) {
@@ -4371,7 +4408,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, triggeredBy: 'AutoResume' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
