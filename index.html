@@ -5189,17 +5189,16 @@ function renderRangeChart() {
     var resKey = window._levelKey || window._pressKey;
     if (!resKey && data.length) {
       // Last-resort: find any column with numeric values in this data
-      var ks = [];
-      try { ks = Object.keys(data[0]||{}).filter(function(k){
+      var ks = Object.keys(data[0]).filter(function(k){
         return k !== window._timeKey && !/lat|lon|lng|relay|toggle|status|device|id|name|by|user/i.test(k);
-      }); } catch(e) {}
+      });
       for (var ki=0;ki<ks.length;ki++) {
         var sample = data.slice(0,10).map(function(r){return parseFloat(r[ks[ki]]);}).filter(function(v){return !isNaN(v);});
         if (sample.length >= 3) { resKey = ks[ki]; break; }
       }
     }
     var resLabel = resKey ? (resKey.length <= 20 ? resKey : 'Water Level') : 'Water Level';
-    var lv=[]; try{ lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
+    var lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;});
     var vl=lv.filter(function(v){return v!==null;});
     if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
@@ -5208,7 +5207,7 @@ function renderRangeChart() {
     return;
   }
   if (currentDeviceType !== 'pump') {
-    var pv=[]; try{ pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
+    var pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;});
     var vp=pv.filter(function(v){return v!==null;});
     if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
@@ -5217,14 +5216,14 @@ function renderRangeChart() {
     return;
   }
   var datasets=[],leftP=[],rightP=[];
-  var _dKeys=[]; try{ _dKeys=data.length?Object.keys(data[0]||{}):[]; }catch(e){}
+  var _dKeys=data.length?Object.keys(data[0]):[];
   PUMP_PARAMS.forEach(function(p){
     if (!activePumpParams.has(p.id)||p.isEvent) return;
     var ck=pumpParamKeys[p.id]; if(!ck) return;
-    var vals=[]; try{ vals=data.map(function(r){
+    var vals=data.map(function(r){
       if(p.computed) return computeEffVal(p.id, r, _dKeys);
       var v=parseFloat(r[ck]); return isNaN(v)?null:v;
-    }); }catch(e){}
+    });
     var fill=false, bg=hexToRgba(p.color,0.08);
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
     datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
