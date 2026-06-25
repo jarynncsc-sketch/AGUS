@@ -501,10 +501,16 @@ function _formatDeviceDetail(d) {
   return lines.join('\n');
 }
 
+/* ── Extract trend section from system prompt ── */
+function _extractTrend(system) {
+  var idx = system.indexOf('[Historical trends from last 7 days of GAS sheet data]');
+  if (idx === -1) return null;
+  var after = system.slice(idx);
+  var end = after.indexOf('\n\n', after.indexOf('\n')+1);
+  return end === -1 ? after : after.slice(0, end);
+}
+
 function aiCall(system, question, devices) {
-  if (AI_API_KEY) {
-    return aiFetch({ model: AI_MODEL, max_tokens: 1000, system: system, messages: [{ role: 'user', content: question }] });
-  }
   var q = (question||'').toLowerCase();
   var devs = devices || [];
   var pres  = devs.map(function(d){return parseFloat(d.pressure);}).filter(function(v){return !isNaN(v)&&v>0;});
@@ -692,9 +698,24 @@ function aiCall(system, question, devices) {
     var byType = {};
     devs.forEach(function(d){ var t = d.type||'Unknown'; byType[t] = (byType[t]||0) + 1; });
     response = Object.keys(byType).map(function(t){ return t + ': ' + byType[t]; }).join(', ');
+  // Trend / History — uses GAS sheet data
+  } else if (q.includes('trend')||q.includes('history')||q.includes('change')||q.includes('over time')||q.includes('pattern')||q.includes('progress')) {
+    var trendSection = _extractTrend(system);
+    if (trendSection) {
+      var devMatch = null;
+      var words = q.replace(/[^a-z0-9\s-]/g,'').split(/\s+/);
+      for (var ti=0;ti<words.length;ti++) {
+        if (words[ti].length<3) continue;
+        var foundLine = trendSection.split('\n').filter(function(l){ return l.toLowerCase().includes(words[ti]); });
+        if (foundLine.length) { devMatch = foundLine.join('\n'); break; }
+      }
+      response = devMatch ? devMatch : trendSection;
+    } else {
+      response = 'No historical trend data available from GAS sheets. Data may only exist for the current snapshot.';
+    }
   // Help
   } else if (q.includes('help')||q.includes('what can you')||q.includes('commands')) {
-    response = 'I know all your SCADA data. Ask about: pressure, flow, power, voltage, current, energy, water level, relay status, pumps, reservoirs, faults, alarms, GPS location, firmware, efficiency, thresholds, or any specific device by name.';
+    response = 'I know all your SCADA data. Ask about: pressure, flow, power, voltage, current, energy, water level, relay status, pumps, reservoirs, faults, alarms, GPS location, firmware, efficiency, thresholds, trends, or any specific device by name.';
   // Last-resort: show overview
   } else {
     response = 'System: ' + devs.length + ' devices (' + online + ' online, ' + faultN + ' fault, ' + offln + ' offline). '
@@ -903,6 +924,40 @@ function clearAICache() {
   localStorage.removeItem('agus_ai_cache');
 }
 
+/* ── Read historical sheet data and build a trend summary ── */
+function _buildSheetContext(results) {
+  if (!results || !results.length) return '';
+  var lines = [];
+  results.forEach(function(r) {
+    if (!r.rows || !r.rows.length) return;
+    var now = Date.now();
+    var keys = Object.keys(r.rows[0]);
+    var parseDate = (typeof parseSheetDate === 'function') ? parseSheetDate : function(v){ return new Date(v); };
+    var recent = r.rows.filter(function(row) {
+      var tk = keys.find(function(k){return /time|date|stamp/i.test(k);}) || keys[0];
+      var t = parseDate(row[tk]);
+      return t && !isNaN(t.getTime()) && (now - t.getTime()) / 3600000 < 168; // last 7 days
+    }).sort(function(a,b){ var ta=parseDate(a[keys.find(function(k){return /time|date|stamp/i.test(k);})||keys[0]]), tb=parseDate(b[keys.find(function(k){return /time|date|stamp/i.test(k);})||keys[0]]); return (ta?ta.getTime():0)-(tb?tb.getTime():0); });
+    if (recent.length < 2) return;
+    var lastRow = recent[recent.length-1];
+    var firstRow = recent[0];
+    var first = _parseRow(firstRow, keys), last = _parseRow(lastRow, keys);
+    var parts = [r.device + ' trend (7d):'];
+    if (!isNaN(first.pres) && !isNaN(last.pres))
+      parts.push('Pressure ' + first.pres.toFixed(1) + '→' + last.pres.toFixed(1) + ' psi');
+    if (!isNaN(first.flow) && !isNaN(last.flow))
+      parts.push('Flow ' + first.flow.toFixed(2) + '→' + last.flow.toFixed(2) + ' L/s');
+    if (!isNaN(first.lvl) && !isNaN(last.lvl))
+      parts.push('Level ' + first.lvl.toFixed(1) + '→' + last.lvl.toFixed(1) + ' m');
+    if (!isNaN(first.pow) && !isNaN(last.pow))
+      parts.push('Power ' + first.pow.toFixed(0) + '→' + last.pow.toFixed(0) + ' W');
+    if (!isNaN(first.volt) && !isNaN(last.volt))
+      parts.push('Voltage ' + first.volt.toFixed(0) + '→' + last.volt.toFixed(0) + ' V');
+    lines.push(parts.join(' | '));
+  });
+  return lines.length ? '\n\n[Historical trends from last 7 days of GAS sheet data]\n' + lines.join('\n') : '';
+}
+
 function sendAIMessage() {
   var input = document.getElementById('ai-chat-input');
   var question = (input ? input.value.trim() : '');
@@ -913,58 +968,57 @@ function sendAIMessage() {
   var typingEl = addAIChatMessage('', 'bot');
   if (typingEl) typingEl.classList.add('ai-msg-typing');
   document.getElementById('ai-chat-status').innerText = 'AI is thinking…';
-  apiGet('getDashboardData').then(function(devices) {
-    var sysPrompt = buildAISystemContext(devices);
-    if (!devices || !devices.length) {
-      if (typingEl) { typingEl.innerText = '⚠ Unable to load device data. Check network / API connection.'; typingEl.classList.remove('ai-msg-typing'); }
-      document.getElementById('ai-chat-status').innerText = 'Data error';
+
+  var _done = function(reply, err) {
+    if (err) {
+      if (typingEl) { typingEl.innerText = '⚠ ' + err; typingEl.classList.remove('ai-msg-typing'); }
+      document.getElementById('ai-chat-status').innerText = 'Error';
       return;
     }
-    if (AI_API_KEY) {
-      var fullReply = '';
-      aiFetchStream(
-        { model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory },
-        function(token) {
-          fullReply += token;
-          if (typingEl) { typingEl.innerText = fullReply; typingEl.classList.remove('ai-msg-typing'); }
-          document.getElementById('ai-chat-status').innerText = 'Streaming…';
-        },
-        function(fullText) {
-          if (!fullText) fullText = 'Sorry, I could not generate a response.';
-          aiChatHistory.push({ role: 'assistant', content: fullText });
-          if (typingEl) { typingEl.innerText = fullText; typingEl.classList.remove('ai-msg-typing'); }
-          document.getElementById('ai-chat-status').innerText = 'Ready';
-          aiSpeak(fullText);
-        },
-        function(err) {
-          aiFetch({ model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory }).then(function(data) {
-            var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
-            aiChatHistory.push({ role: 'assistant', content: reply });
-            if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
-            document.getElementById('ai-chat-status').innerText = 'Ready';
-            aiSpeak(reply);
-          }).catch(function(e) {
-            if (typingEl) { typingEl.innerText = '⚠ Error: ' + (e.message || e); typingEl.classList.remove('ai-msg-typing'); }
-            document.getElementById('ai-chat-status').innerText = 'Error — try again';
-          });
-        }
-      );
-    } else {
-      aiCall(sysPrompt, question, devices).then(function(data) {
+    aiChatHistory.push({ role: 'assistant', content: reply });
+    if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
+    document.getElementById('ai-chat-status').innerText = 'Ready';
+    aiSpeak(reply);
+  };
+
+  /* Use dashboard's _lastDevices if available, else fetch from GAS */
+  var devices = (window._lastDevices && window._lastDevices.length) ? window._lastDevices : null;
+  if (devices) {
+    _answerWithData(devices, question, _done);
+  } else {
+    apiGet('getDashboardData').then(function(d) {
+      if (!d || !d.length) { _done(null, 'Unable to load device data. Check network / API connection.'); return; }
+      _answerWithData(d, question, _done);
+    }).catch(function(err) {
+      _done(null, 'Network error: ' + (err.message || err));
+    });
+  }
+}
+
+function _answerWithData(devices, question, done) {
+  var sysPrompt = buildAISystemContext(devices);
+  /* Fetch GAS sheet data for historical context */
+  var devNames = devices.map(function(d){ return d.device; });
+  if (typeof _getSheets === 'function') {
+    _getSheets(devNames, function(results) {
+      var sheetCtx = _buildSheetContext(results);
+      /* Always use local engine — reads live dashboard data + GAS sheets */
+      aiCall(sysPrompt + sheetCtx, question, devices).then(function(data) {
         var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
-        aiChatHistory.push({ role: 'assistant', content: reply });
-        if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
-        document.getElementById('ai-chat-status').innerText = 'Ready';
-        aiSpeak(reply);
+        done(reply, null);
       }).catch(function(err) {
-        if (typingEl) { typingEl.innerText = '⚠ Error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
-        document.getElementById('ai-chat-status').innerText = 'Error — try again';
+        done(null, err.message || err);
       });
-    }
-  }).catch(function(err) {
-    if (typingEl) { typingEl.innerText = '⚠ Network error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
-    document.getElementById('ai-chat-status').innerText = 'Connection error';
-  });
+    });
+  } else {
+    /* _getSheets not available (not loaded from index.html) */
+    aiCall(sysPrompt, question, devices).then(function(data) {
+      var reply = (data.content && data.content[0] && data.content[0].text) ? data.content[0].text : 'Sorry, I could not generate a response.';
+      done(reply, null);
+    }).catch(function(err) {
+      done(null, err.message || err);
+    });
+  }
 }
 
 // ============================================================
