@@ -10309,6 +10309,11 @@ function _metCard(label, icon, value, unit, color) {
         prev: window._prev || {}
       });
     }
+    // Persist to GAS
+    if (typeof apiPost === 'function' && key !== '__global__') {
+      var tok = sessionToken || userToken || '';
+      apiPost('saveSensorThresholds', { deviceName: key, thresholds: JSON.stringify(t), token: tok });
+    }
     if (typeof showNotification === 'function') showNotification('✅ Thresholds saved for ' + (key === '__global__' ? 'all devices' : key), 'success');
   };
 
@@ -10318,6 +10323,11 @@ function _metCard(label, icon, value, unit, color) {
     var all = _load();
     delete all[key];
     _save(all);
+    // Reset on GAS too (send thresholds as empty object to trigger default restore)
+    if (typeof apiPost === 'function' && key !== '__global__') {
+      var tok = sessionToken || userToken || '';
+      apiPost('saveSensorThresholds', { deviceName: key, thresholds: '{}', token: tok });
+    }
     loadSensorThrDevice();
     if (typeof showNotification === 'function') showNotification('↺ Reset to defaults for ' + (key === '__global__' ? 'all devices' : key), 'info');
   };
