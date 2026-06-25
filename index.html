@@ -1250,6 +1250,9 @@
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
     #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
+    #health-diag-strip{position:absolute;top:62px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
+    #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
+    #health-diag-strip .hds-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
     #welcome-username{font-size:12px;font-weight:600;color:#002b5c;display:block;margin-bottom:1px;}
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
@@ -1948,6 +1951,12 @@
       <span id="time-display" class="time-layer"></span>
     </div>
   </div>
+</div>
+<div id="health-diag-strip" onclick="window.openAIHealthDiagnostic()" title="Click to open AI Health Diagnostic — device health assessment">
+  <span>🩺</span>
+  <span>Health Diagnostic</span>
+  <span class="hds-dot" id="hds-dot" style="background:#94a3b8;"></span>
+  <span id="hds-label" style="font-size:11px;color:#94a3b8;">loading…</span>
 </div>
     <div id="device-details"></div>
 <div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
@@ -8915,10 +8924,32 @@ function exportDashboardPDF() {
       Object.defineProperty(window, '_lastDevices', {
         configurable: true, writable: true, value: v
       });
-      if (Array.isArray(v)) _checkDevices(v);
+      if (Array.isArray(v)) { _checkDevices(v); _updateHealthStrip(v); }
     },
     get: function() { return undefined; }
   });
+
+  function _updateHealthStrip(devices) {
+    var dot = document.getElementById('hds-dot');
+    var lbl = document.getElementById('hds-label');
+    if (!dot || !lbl) return;
+    var online = 0, offline = 0, fault = 0;
+    devices.forEach(function(d){
+      var s = (d.status||'').toLowerCase();
+      if (s === 'online') online++;
+      else if (s === 'fault' || d.button) fault++;
+      else if (s === 'offline') offline++;
+    });
+    var total = devices.length;
+    var color, label;
+    if (fault > 0) { color = '#dc2626'; label = fault+' fault'+(fault>1?'s':'')+' · '+online+'/'+total+' online'; }
+    else if (offline > 0) { color = '#f97316'; label = offline+' offline · '+online+'/'+total+' online'; }
+    else { color = '#16a34a'; label = 'All '+total+' devices online'; }
+    dot.style.background = color;
+    dot.style.boxShadow = '0 0 6px '+color;
+    lbl.textContent = label;
+    lbl.style.color = color;
+  }
 
   /* ══════════════════════════════════════════════════════════
      SERVICE WORKER  — background poll (tab hidden / PWA)
@@ -9973,6 +10004,91 @@ window.openWaterLossTracker = function() {
     });
   };
   setTimeout(function(){if(document.getElementById('wlt-pump'))window._calcWaterLoss();},200);
+};
+
+// ════════════════════════════════════════════════════════════════════════════
+// 7. AI HEALTH DIAGNOSTIC
+// ════════════════════════════════════════════════════════════════════════════
+window.openAIHealthDiagnostic = function() {
+  _spinCss();
+  var ov = _overlay('health-diag-ov');
+  var pn = _panel('AI Health Diagnostic','AI-powered device health assessment — pump wear, anomaly detection & recommendations','🩺','#7c3aed');
+  ov.appendChild(pn);
+  document.body.appendChild(ov);
+  var body = pn.querySelector('.ana-body');
+  body.innerHTML = _loading('Analyzing device health…');
+
+  var devices = _allDevices();
+  if (!devices.length) { body.innerHTML='<p style="color:#94a3b8;">No device data available.</p>'; return; }
+
+  _getSheets(devices.map(function(d){return d.device;}), function(results) {
+    var now = new Date();
+    var healthData = results.map(function(r) {
+      if (!r.rows.length) return { device:r.device, health:null, msg:'No data', samples:0 };
+      var keys = Object.keys(r.rows[0]);
+      var points = [];
+      r.rows.forEach(function(row) { var p=_parseRow(row,keys); if (p.ts) points.push(p); });
+      var recent = points.filter(function(p){ return (now-p.ts)/3600000<720; });
+      if (!recent.length) return { device:r.device, health:null, msg:'No recent data', samples:points.length };
+
+      var newest = recent.reduce(function(a,b){ return a.ts>b.ts?a:b; });
+      var hrs = (now-newest.ts)/3600000;
+      var freshness = Math.max(0,100-hrs*2);
+
+      var effVals = [];
+      recent.forEach(function(p){
+        if (!isNaN(p.flow) && !isNaN(p.pow) && p.pow>50 && p.flow>0.01) {
+          var e=p.flow/(p.pow/1000); if (isFinite(e)&&e>0&&e<500) effVals.push(e);
+        }
+      });
+      var effPct = effVals.length ? Math.min(100,Math.max(0,effVals.reduce(function(a,b){return a+b;},0)/effVals.length/10*100)) : null;
+
+      var devScore = 100;
+      var presV = recent.filter(function(p){return !isNaN(p.pres);}).map(function(p){return p.pres;});
+      if (presV.length>5) {
+        var pa=presV.reduce(function(a,b){return a+b;},0)/presV.length, ps=Math.sqrt(presV.reduce(function(s,v){return s+(v-pa)*(v-pa);},0)/presV.length);
+        devScore -= (presV.filter(function(v){return Math.abs(v-pa)>3*ps;}).length/presV.length)*50;
+      }
+      var flowV = recent.filter(function(p){return !isNaN(p.flow);}).map(function(p){return p.flow;});
+      if (flowV.length>5) {
+        var fa=flowV.reduce(function(a,b){return a+b;},0)/flowV.length, fs=Math.sqrt(flowV.reduce(function(s,v){return s+(v-fa)*(v-fa);},0)/flowV.length);
+        devScore -= (flowV.filter(function(v){return Math.abs(v-fa)>3*fs;}).length/flowV.length)*50;
+      }
+      devScore = Math.max(0,Math.min(100,devScore));
+
+      var s = [];
+      if (freshness!==null) s.push(freshness);
+      if (effPct!==null) s.push(effPct*0.4);
+      if (devScore!==null) s.push(devScore*0.3);
+      var health = s.length ? Math.round(Math.min(100,Math.max(0,s.reduce(function(a,b){return a+b;},0)/s.length))) : null;
+
+      return { device:r.device, health:health, freshness:Math.round(freshness), eff:effPct!==null?Math.round(effPct):null, stability:Math.round(devScore), samples:recent.length };
+    });
+
+    var sum = { healthy:0, warning:0, critical:0, na:0 };
+    healthData.forEach(function(h){
+      if (h.health===null) { sum.na++; return; }
+      if (h.health>=70) sum.healthy++;
+      else if (h.health>=40) sum.warning++;
+      else sum.critical++;
+    });
+
+    var cardsHtml = healthData.map(function(h) {
+      var c, lbl, ico;
+      if (h.health===null) { c='#94a3b8'; lbl='No Data'; ico='⚪'; }
+      else if (h.health>=70) { c='#16a34a'; lbl='Healthy'; ico='🟢'; }
+      else if (h.health>=40) { c='#f97316'; lbl='Warning'; ico='🟡'; }
+      else { c='#dc2626'; lbl='Critical'; ico='🔴'; }
+      var barC = h.health>=70?'#16a34a':h.health>=40?'#f97316':'#dc2626';
+      var bars = h.health!==null ? '<div style="margin-top:10px;background:#f1f5f9;border-radius:8px;height:6px;overflow:hidden;"><div style="height:100%;width:'+h.health+'%;background:'+barC+';border-radius:8px;"></div></div>' : '';
+      return '<div class="ana-card" style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px 18px;border-left:4px solid '+c+';"><div style="display:flex;justify-content:space-between;align-items:center;"><div style="font-weight:800;font-size:14px;color:#0f172a;">'+h.device+'</div><div style="font-size:12px;font-weight:800;color:'+c+';">'+ico+' '+lbl+'</div></div><div style="font-size:26px;font-weight:900;color:'+c+';letter-spacing:-1px;margin-top:4px;">'+(h.health!==null?h.health+'%':'—')+'</div>'+bars+'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px;background:#f8fafc;border-radius:8px;padding:8px;"><div><div style="font-size:9px;color:#94a3b8;font-weight:700;">FRESHNESS</div><div style="font-size:12px;font-weight:700;color:'+(h.freshness>=70?'#16a34a':'#f97316')+';">'+h.freshness+'%</div></div><div><div style="font-size:9px;color:#94a3b8;font-weight:700;">EFFICIENCY</div><div style="font-size:12px;font-weight:700;color:'+(h.eff!==null&&h.eff>=70?'#16a34a':'#f97316')+';">'+(h.eff!==null?h.eff+'%':'—')+'</div></div><div><div style="font-size:9px;color:#94a3b8;font-weight:700;">STABILITY</div><div style="font-size:12px;font-weight:700;color:'+(h.stability>=70?'#16a34a':'#f97316')+';">'+h.stability+'%</div></div></div><div style="font-size:10px;color:#94a3b8;margin-top:6px;">'+h.samples+' data points</div></div>';
+    }).join('');
+
+    body.innerHTML =
+      '<div style="background:linear-gradient(135deg,#7c3aed,#6d28d9);border-radius:12px;padding:18px 22px;margin-bottom:18px;color:#fff;"><div style="font-size:16px;font-weight:900;letter-spacing:-0.3px;">🩺 Fleet Health Summary</div><div style="display:flex;gap:16px;margin-top:12px;flex-wrap:wrap;"><div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 16px;text-align:center;"><div style="font-size:24px;font-weight:900;">'+sum.healthy+'</div><div style="font-size:11px;opacity:0.8;">Healthy</div></div><div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 16px;text-align:center;"><div style="font-size:24px;font-weight:900;">'+sum.warning+'</div><div style="font-size:11px;opacity:0.8;">Warning</div></div><div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 16px;text-align:center;"><div style="font-size:24px;font-weight:900;">'+sum.critical+'</div><div style="font-size:11px;opacity:0.8;">Critical</div></div><div style="background:rgba(255,255,255,0.15);border-radius:10px;padding:10px 16px;text-align:center;"><div style="font-size:24px;font-weight:900;">'+sum.na+'</div><div style="font-size:11px;opacity:0.8;">No Data</div></div></div></div>'
+      +'<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">'+cardsHtml+'</div>'
+      +'<p style="font-size:11px;color:#94a3b8;margin-top:14px;">Health score combines data freshness (recency of last reading), wire efficiency (flow/power ratio vs benchmark), and signal stability (fewer statistical outliers = higher score). Scores recomputed on each panel open from raw device data.</p>';
+  });
 };
 
 function _metCard(label, icon, value, unit, color) {
