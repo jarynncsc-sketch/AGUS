@@ -3719,9 +3719,11 @@ function initDashboard() {
   }, 2000);
 
   /* Also re-sync SW cooldowns whenever a manual toggle happens */
-  var _origDTP = window.dashboardTogglePump;
+  /* BUG 2 FIX: _origDTP was captured at IIFE-run time (before dashboardTogglePump was declared),
+     so it was always null. Defer lookup to call-time via window._dashboardTogglePumpReal. */
   window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
-    var result = (_origDTP || function(){}).apply(this, arguments);
+    var _realDTP = window._dashboardTogglePumpReal || null;
+    var result = (_realDTP || function(){}).apply(this, arguments);
     /* Push updated manual cooldowns to SW */
     setTimeout(function() {
       if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
@@ -3801,8 +3803,8 @@ function updateDashboard() {
     Object.keys(_manualToggleCooldown).forEach(function(k) {
       if (now >= _manualToggleCooldown[k]) delete _manualToggleCooldown[k];
     });
-    Object.keys(_apeCooldowns || {}).forEach(function(k) {
-      if (_apeCooldowns[k] && now - _apeCooldowns[k] > 600000) delete _apeCooldowns[k];
+    Object.keys(window._apeCooldowns || {}).forEach(function(k) {
+      if (window._apeCooldowns[k] && now - window._apeCooldowns[k] > 600000) delete window._apeCooldowns[k];
     });
     Object.keys(_autoShutoffCommandSent).forEach(function(k) {
       if (now - _autoShutoffCommandSent[k] > 120000) delete _autoShutoffCommandSent[k];
@@ -3909,6 +3911,8 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     updateDashboard();
   });
 }
+// BUG 2 FIX: expose real function so the APE wrapper can call it by reference at call-time
+window._dashboardTogglePumpReal = dashboardTogglePump;
 
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list');
@@ -4267,6 +4271,13 @@ function autoShutoffPumps(devices) {
   pumpLinkConfigs.forEach(function(cfg) {
     if (!cfg.enabled) return;
     if (_manualToggleCooldown[cfg.pump] && Date.now() < _manualToggleCooldown[cfg.pump]) return;
+
+    // BUG 4 FIX: skip if APE engine already fired a command for this pump within 90s
+    // APE cooldown key is 'pump:reservoir', stored in window._apeCooldowns
+    var apeCkFwd = cfg.pump + ':' + cfg.reservoir;
+    var apeCkRev = cfg.reservoir + ':' + cfg.pump;
+    var apeTs = ((window._apeCooldowns || {})[apeCkFwd]) || ((window._apeCooldowns || {})[apeCkRev]) || 0;
+    if (Date.now() - apeTs < 90000) return; // APE fired within 90s — let it lead
     var resData  = devMap[cfg.reservoir];
     var pumpData = devMap[cfg.pump];
     if (!resData || !pumpData) return;
@@ -5115,7 +5126,7 @@ function pollGraphData(){
     if (!Array.isArray(rows) || !rows.length) return;
     var nc=rows.length, hadNew=nc>lastDataCount;
     allGraphData=rows; lastPollTime=new Date(); lastDataCount=nc; updateLiveCounter();
-    if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} renderRangeChart(); updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
+    if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} try{renderRangeChart();}catch(e){console.warn('[AGUS CHART]',e);showDebugBar('Chart render error: '+(e.message||e));} updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
   }).catch(function(e){console.warn('[AGUS LIVE] Poll failed:',e);});
 }
 function flashChartUpdate(){var w=document.getElementById('graph-chart-wrap');w.classList.remove('chart-flash-anim');void w.offsetWidth;w.classList.add('chart-flash-anim');setTimeout(function(){w.classList.remove('chart-flash-anim');},1000);}
@@ -5189,16 +5200,17 @@ function renderRangeChart() {
     var resKey = window._levelKey || window._pressKey;
     if (!resKey && data.length) {
       // Last-resort: find any column with numeric values in this data
-      var ks = Object.keys(data[0]).filter(function(k){
+      var ks = [];
+      try { ks = Object.keys(data[0]||{}).filter(function(k){
         return k !== window._timeKey && !/lat|lon|lng|relay|toggle|status|device|id|name|by|user/i.test(k);
-      });
+      }); } catch(e) {}
       for (var ki=0;ki<ks.length;ki++) {
-        var sample = data.slice(0,10).map(function(r){return parseFloat(r[ks[ki]]);}).filter(function(v){return !isNaN(v);});
+        var sample = []; try{ sample = data.slice(0,10).map(function(r){return parseFloat(r[ks[ki]]);}).filter(function(v){return !isNaN(v);}); }catch(e){}
         if (sample.length >= 3) { resKey = ks[ki]; break; }
       }
     }
     var resLabel = resKey ? (resKey.length <= 20 ? resKey : 'Water Level') : 'Water Level';
-    var lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;});
+    var lv=[]; try{ lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
     var vl=lv.filter(function(v){return v!==null;});
     if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
@@ -5207,7 +5219,7 @@ function renderRangeChart() {
     return;
   }
   if (currentDeviceType !== 'pump') {
-    var pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;});
+    var pv=[]; try{ pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
     var vp=pv.filter(function(v){return v!==null;});
     if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
@@ -5216,14 +5228,14 @@ function renderRangeChart() {
     return;
   }
   var datasets=[],leftP=[],rightP=[];
-  var _dKeys=data.length?Object.keys(data[0]):[];
+  var _dKeys=[]; try{ _dKeys=data.length?Object.keys(data[0]||{}):[]; }catch(e){}
   PUMP_PARAMS.forEach(function(p){
     if (!activePumpParams.has(p.id)||p.isEvent) return;
     var ck=pumpParamKeys[p.id]; if(!ck) return;
-    var vals=data.map(function(r){
+    var vals=[]; try{ vals=data.map(function(r){
       if(p.computed) return computeEffVal(p.id, r, _dKeys);
       var v=parseFloat(r[ck]); return isNaN(v)?null:v;
-    });
+    }); }catch(e){}
     var fill=false, bg=hexToRgba(p.color,0.08);
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
     datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
@@ -5312,7 +5324,7 @@ function shiftCalendar(dir){
 function onCalDayClick(date){
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
-  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();renderRangeChart();updateLastToggledBadge(getFilteredData());}
+  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
   renderCalendars();
 }
 
@@ -7561,11 +7573,10 @@ function loadForecast() {
 
     // Use the existing computeForecast if available
     window._timeKey = timeKey;
-    var hist = rows.slice(-120);
+    var hist = Array.isArray(rows) ? rows.slice(-120) : [];
     var forecastVals = typeof computeForecast === 'function' ? computeForecast(hist, valKey) : [];
 
-    var labels=hist.map(function(r){var t=parseSheetDate(r[timeKey]);return t?t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';});
-    var actuals=hist.map(function(r){return parseFloat(r[valKey])||null;});
+    var labels=[]; var actuals=[]; try{ labels=hist.map(function(r){var t=parseSheetDate(r[timeKey]);return t?t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';}); actuals=hist.map(function(r){return parseFloat(r[valKey])||null;}); }catch(e){}
     if(loading) loading.style.display='none';
     if(wrap) wrap.style.display='block';
     var canvas=document.getElementById('fc-canvas');
@@ -11291,7 +11302,7 @@ document.addEventListener('visibilitychange', function() {
           # Then paste the callserver.py script<br>
           # (see documentation in dashboard settings)
         </div>
-        <div style="margin-bottom:6px;">The server runs on <b>127.0.0.1:7373</b> and forces Android to dial any number using <code>am start -a android.intent.action.CALL</code> — <b>zero tap needed</b>.</div>
+        <div style="margin-bottom:6px;">The server runs on <b>127.0.0.1:8150</b> and forces Android to dial any number using <code>termux-telephony-call</code> — <b>zero tap needed</b>.</div>
         <div style="font-weight:800;">✅ 100% free · works with any SIM · no internet needed · calls any PH number</div>
       </div>
     </div>
@@ -11330,7 +11341,7 @@ document.addEventListener('visibilitychange', function() {
   var _contacts      = [];
   var _settings      = { enabled: false, repeat: true, delaySeconds: 30 };
   var _callIndex     = 0;
-  var _callTimer     = null;
+  // _callTimer removed (BUG 8 FIX: was declared but never assigned or read)
   var _countdownTimer = null;
   var _countdownSecs = 0;
   var _active        = false;
@@ -11435,8 +11446,10 @@ document.addEventListener('visibilitychange', function() {
      3. Show manual call button (last resort)
      ═══════════════════════════════════════════════════════════ */
 
-  /* ── Termux server URL (running on same phone) ── */
-  var TERMUX_URL = 'http://127.0.0.1:7373/call';
+  /* ── Termux server URL (running on same phone) ──
+     BUG 17 FIX: port changed from 7373 to 8150, endpoint from /call to /alert
+     to match termux-call-server.js which listens on port 8150 at /alert ── */
+  var TERMUX_URL = 'http://127.0.0.1:8150/alert';
 
   function _speakBeforeCall(contact) {
     if (!window.speechSynthesis) return;
@@ -11482,18 +11495,43 @@ document.addEventListener('visibilitychange', function() {
 
   function _dialViaTermux(num, contact, cb) {
     // Call Termux localhost server — this fires android.intent.action.CALL
-    // which forces the phone to dial without any user tap
-    var timeout = setTimeout(function() { cb(false); }, 3000);
-    fetch(TERMUX_URL + '?number=' + encodeURIComponent(num), {
-      method: 'GET', mode: 'no-cors', cache: 'no-cache'
-    }).then(function() {
-      clearTimeout(timeout);
-      _setStatus('✅ <b>' + contact.name + '</b> — auto-dialed via Termux server');
-      cb(true);
-    }).catch(function() {
-      clearTimeout(timeout);
+    // BUG 17 FIX: endpoint changed to /alert?device=...&reason=...&number=...
+    //             to match termux-call-server.js (port 8150, /alert route)
+    // BUG 7 FIX:  no-cors always resolves. Use AbortController timeout to
+    //             distinguish server-present (fast resolve) from server-absent.
+    var devName = (_currentAlarm && _currentAlarm.deviceName) || 'AGUS';
+    var reason  = (_currentAlarm && _currentAlarm.alarmType)  || 'Alarm';
+    var url = TERMUX_URL
+      + '?device=' + encodeURIComponent(devName)
+      + '&reason=' + encodeURIComponent(reason)
+      + '&number=' + encodeURIComponent(num);
+
+    var ctrl = new AbortController();
+    var timedOut = false;
+    var timer = setTimeout(function() {
+      timedOut = true;
+      ctrl.abort();
       cb(false);
-    });
+    }, 3000);
+
+    var t0 = Date.now();
+    fetch(url, { method: 'GET', mode: 'no-cors', cache: 'no-cache', signal: ctrl.signal })
+      .then(function() {
+        clearTimeout(timer);
+        if (timedOut) return;
+        // no-cors always resolves — treat as success only if server responded quickly
+        var elapsed = Date.now() - t0;
+        var reachable = elapsed < 2500;
+        if (reachable) {
+          _setStatus('✅ <b>' + contact.name + '</b> — auto-dialed via Termux server');
+          cb(true);
+        } else {
+          cb(false);
+        }
+      }).catch(function(e) {
+        clearTimeout(timer);
+        if (!timedOut) cb(false);
+      });
   }
 
   function _dialViaIntent(num, contact, cb) {
@@ -11586,19 +11624,19 @@ document.addEventListener('visibilitychange', function() {
     });
   };
 
-  /* ── PUBLIC: Call NOW (bypass countdown) ── */
+  /* ── PUBLIC: Call NOW (bypass countdown) — BUG 5 FIX ── */
   window.agusCallNow = function() {
     _stopCountdown();
     var c = _contacts[_callIndex];
     if (!c) return;
     _setStatus('📞 Opening dialer for <b>' + c.name + '</b>…');
     _dial(c);
-    setTimeout(function() {
-      if (_active) {
-        _setStatus('✅ Called <b>' + c.name + '</b>.');
-        setTimeout(_nextContact, 3000);
-      }
-    }, _settings.delaySeconds * 1000);
+    // BUG 5 FIX: previously this waited delaySeconds then called _nextContact,
+    // but _nextContact's own countdown ALSO called _nextContact after dialling,
+    // causing double-advance and skipping a contact every time "Call Now" was pressed.
+    // Fix: advance immediately after a short delay (no second wait).
+    _setStatus('✅ Called <b>' + c.name + '</b>. Moving to next contact…');
+    setTimeout(_nextContact, 3000);
   };
 
   /* ── PUBLIC: Skip current contact ── */
@@ -11731,6 +11769,54 @@ document.addEventListener('visibilitychange', function() {
     _save();
   };
 
+  /* ── BUG 1 FIX: agusCallSaveTwilio was missing entirely — button called undefined ── */
+  window.agusCallSaveTwilio = function() {
+    var sid   = (document.getElementById('agus-twilio-sid')   || {}).value || '';
+    var token = (document.getElementById('agus-twilio-token') || {}).value || '';
+    var from  = (document.getElementById('agus-twilio-from')  || {}).value || '';
+    var statusEl = document.getElementById('agus-twilio-status');
+    if (!sid.trim() || !token.trim() || !from.trim()) {
+      if (statusEl) statusEl.textContent = '⚠ Please fill in all three Twilio fields.';
+      return;
+    }
+    try {
+      localStorage.setItem('agus_twilio_sid',   sid.trim());
+      localStorage.setItem('agus_twilio_token', token.trim());
+      localStorage.setItem('agus_twilio_from',  from.trim());
+      if (statusEl) {
+        statusEl.textContent = '✅ Saved. Twilio credentials stored on this device.';
+        statusEl.style.color = '#15803d';
+      }
+    } catch(e) {
+      if (statusEl) statusEl.textContent = '❌ Save failed: ' + e.message;
+    }
+    // Restore field values from localStorage on next open
+    _loadTwilioFields();
+  };
+
+  function _loadTwilioFields() {
+    var sidEl   = document.getElementById('agus-twilio-sid');
+    var tokEl   = document.getElementById('agus-twilio-token');
+    var fromEl  = document.getElementById('agus-twilio-from');
+    var statusEl = document.getElementById('agus-twilio-status');
+    var sid   = localStorage.getItem('agus_twilio_sid')   || '';
+    var token = localStorage.getItem('agus_twilio_token') || '';
+    var from  = localStorage.getItem('agus_twilio_from')  || '';
+    if (sidEl && sid)   sidEl.value   = sid;
+    if (tokEl && token) tokEl.value   = token;
+    if (fromEl && from) fromEl.value  = from;
+    if (statusEl && sid) {
+      statusEl.textContent = '✅ Credentials loaded from storage.';
+      statusEl.style.color = '#15803d';
+    }
+  }
+  // Load saved Twilio fields when settings modal opens
+  var _origOpenCallSettings = window.agusOpenCallSettings;
+  window.agusOpenCallSettings = function() {
+    if (_origOpenCallSettings) _origOpenCallSettings();
+    setTimeout(_loadTwilioFields, 50);
+  };
+
   /* ── Test call system ── */
   window.agusCallTestAlarm = function() {
     _load();
@@ -11740,9 +11826,9 @@ document.addEventListener('visibilitychange', function() {
     window.agusEscalateCall({ deviceName: 'TEST DEVICE', alarmType: 'test alarm', value: '' });
   };
 
-  /* ── Termux server health check ── */
+  /* ── Termux server health check — BUG 17 FIX: ping port 8150 ── */
   function _checkTermux() {
-    fetch('http://127.0.0.1:7373/call?number=test', { method:'GET', mode:'no-cors', cache:'no-cache' })
+    fetch('http://127.0.0.1:8150/', { method:'GET', mode:'no-cors', cache:'no-cache' })
       .then(function() { _setTermuxStatus(true); })
       .catch(function() {
         // no-cors fetch always rejects cross-origin, but if Termux is up
@@ -11753,7 +11839,7 @@ document.addEventListener('visibilitychange', function() {
     var t = Date.now();
     var ctrl = new AbortController();
     var timer = setTimeout(function(){ ctrl.abort(); _setTermuxStatus(false); }, 1200);
-    fetch('http://127.0.0.1:7373/', { signal: ctrl.signal, cache:'no-cache' })
+    fetch('http://127.0.0.1:8150/', { signal: ctrl.signal, cache:'no-cache' })
       .then(function(){ clearTimeout(timer); _setTermuxStatus(true); })
       .catch(function(e){
         clearTimeout(timer);
@@ -11777,7 +11863,8 @@ document.addEventListener('visibilitychange', function() {
     }
   }
 
-  // Check on overlay open and every 30s
+  // BUG 6 FIX: _termuxCheckTimer was never cleared, leaking indefinitely after alarm ends.
+  // Clear it whenever the overlay is hidden (dismiss, stop, or ack).
   var _termuxCheckTimer = null;
   var _origShowOverlay = _showOverlay;
   _showOverlay = function(alarm) {
@@ -11785,6 +11872,14 @@ document.addEventListener('visibilitychange', function() {
     _checkTermux();
     if (!_termuxCheckTimer) {
       _termuxCheckTimer = setInterval(_checkTermux, 30000);
+    }
+  };
+  var _origHideOverlay = _hideOverlay;
+  _hideOverlay = function() {
+    _origHideOverlay();
+    if (_termuxCheckTimer) {
+      clearInterval(_termuxCheckTimer);
+      _termuxCheckTimer = null;
     }
   };
 

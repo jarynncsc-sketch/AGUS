@@ -5,16 +5,42 @@
 // ============================================================
 // Run: node termux-alert-poller.js
 // Requires: pkg install nodejs termux-api -y
+//
+// BUG 19 NOTE: This poller is the authoritative call dispatcher.
+// termux-call-server.js handles DIRECT calls from the dashboard (same LAN).
+// Do NOT run both for the same device — that will cause duplicate calls.
+// Recommended setup: use THIS poller for remote/mobile relay, use
+// termux-call-server.js only if dashboard is on the same LAN as the phone.
 // ============================================================
 
 var https = require('https');
+var fs    = require('fs');
+var path  = require('path');
 var { exec } = require('child_process');
 
-// ── Your Firebase database URL (must match index.html line 2412) ──
+// ── Your Firebase database URL (must match index.html) ──
 var FIREBASE_DATABASE_URL = 'https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app';
 
 var POLL_INTERVAL_MS = 10000; // check every 10 seconds
-var PROCESSED_KEYS = {}; // avoid re-processing
+
+// BUG 22 FIX: persist processed keys to disk so crashes/restarts don't re-process old alerts
+var PROCESSED_KEYS_FILE = path.join(__dirname, '.agus_processed_keys.json');
+var PROCESSED_KEYS = {};
+try {
+  PROCESSED_KEYS = JSON.parse(fs.readFileSync(PROCESSED_KEYS_FILE, 'utf8'));
+  // Prune keys older than 1 hour on startup
+  var cutoff = Date.now() - 3600000;
+  Object.keys(PROCESSED_KEYS).forEach(function(k) {
+    if (PROCESSED_KEYS[k] < cutoff) delete PROCESSED_KEYS[k];
+  });
+  console.log('Loaded', Object.keys(PROCESSED_KEYS).length, 'processed key(s) from disk');
+} catch(e) {
+  PROCESSED_KEYS = {};
+}
+
+function _saveProcessedKeys() {
+  try { fs.writeFileSync(PROCESSED_KEYS_FILE, JSON.stringify(PROCESSED_KEYS)); } catch(e) {}
+}
 
 function firebaseGet(path, callback) {
   var url = FIREBASE_DATABASE_URL + path + '.json';
@@ -28,8 +54,8 @@ function firebaseGet(path, callback) {
   }).on('error', function(err) { callback(err, null); });
 }
 
-function firebaseDelete(path, callback) {
-  var url = FIREBASE_DATABASE_URL + path + '.json';
+function firebaseDelete(fbPath, callback) {
+  var url = FIREBASE_DATABASE_URL + fbPath + '.json';
   var req = https.request(url, { method: 'DELETE' }, function(res) {
     if (callback) callback(null);
   });
@@ -54,9 +80,11 @@ function pollAlerts() {
   firebaseGet('/alertQueue', function(err, data) {
     if (err) { console.error('Poll error:', err.message); return; }
     if (!data) return;
+    var changed = false;
     Object.keys(data).forEach(function(key) {
-      if (PROCESSED_KEYS[key]) return;
-      PROCESSED_KEYS[key] = true;
+      if (PROCESSED_KEYS[key]) return; // BUG 22 FIX: persisted dedup
+      PROCESSED_KEYS[key] = Date.now();
+      changed = true;
       var alert = data[key];
       if (!alert || !alert.number) return;
       console.log('Alert:', alert.device, alert.reason, '→', alert.number);
@@ -67,10 +95,13 @@ function pollAlerts() {
         else console.log('Cleared alert:', key);
       });
     });
+    if (changed) _saveProcessedKeys();
   });
 }
 
 console.log('AGUS Alert Poller started — polling every ' + (POLL_INTERVAL_MS/1000) + 's');
 console.log('Firebase:', FIREBASE_DATABASE_URL);
+console.log('NOTE: Run EITHER this poller OR termux-call-server.js — not both (BUG 19)');
 pollAlerts();
 setInterval(pollAlerts, POLL_INTERVAL_MS);
+

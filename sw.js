@@ -129,10 +129,16 @@ async function bgPoll(){
   if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}
 }
 /* ═══════════════ Pump toggle helper ═══════════════ */
-async function swTogglePump(apiUrl,token,device){
+// BUG 13 FIX: sends desiredState explicitly so GAS togglePump doesn't blindly flip
+async function swTogglePump(apiUrl,token,device,desiredState){
   try{
-    var r=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},
-      body:JSON.stringify({action:"togglePump",token:token,device:device,latitude:"",longitude:""})});
+    // Build as GET-style query string (matches index.html apiPost behaviour and GAS doGet)
+    var qs = 'action=togglePump'
+      + '&token=' + encodeURIComponent(token)
+      + '&device=' + encodeURIComponent(device)
+      + '&latitude=&longitude='
+      + (desiredState !== undefined ? '&desiredState=' + encodeURIComponent(desiredState) + '&relay=' + encodeURIComponent(desiredState) : '');
+    var r=await fetch(apiUrl + '?' + qs);
     if(!r.ok)return null;return await r.json();
   }catch(e){console.warn("[SW] togglePump error:",e);return null;}
 }
@@ -141,14 +147,14 @@ async function pumpLinkControl(cfg,devs,db,ps){
   var links=cfg.pumpLinks||[];
   if(!links.length){
     try{
-      var lr=await fetch(cfg.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({action:"getPumpLinks",token:cfg.token})});
+      var lr=await fetch(cfg.apiUrl+'?action=getPumpLinks&token='+encodeURIComponent(cfg.token));
       if(lr.ok){var ld=await lr.json();if(Array.isArray(ld)){links=ld;}}
     }catch(e){console.warn("[SW] getPumpLinks error:",e);}
   }
   if(!links.length)return;
   var cool=(await dbGet(db,"pl_cool"))||{};
   var manCool=(await dbGet(db,"pl_man_cool"))||{};
+  var hist=(await dbGet(db,"pl_hist"))||{};
   var now=Date.now();var PL_COOL=300000;
   var devMap={};devs.forEach(function(d){devMap[d.device]=d;});
   for(var i=0;i<links.length;i++){
@@ -159,6 +165,9 @@ async function pumpLinkControl(cfg,devs,db,ps){
     var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];
     if(!resD||!pumD)continue;
     var lv=parseFloat(resD.level);if(isNaN(lv))continue;
+    /* Level history for resume dampening */
+    if(!hist[lnk.reservoir])hist[lnk.reservoir]=[];hist[lnk.reservoir].push(lv);
+    if(hist[lnk.reservoir].length>2)hist[lnk.reservoir].shift();
     var sOff=parseFloat(lnk.shutoffLevel),sRes=parseFloat(lnk.resumeLevel);
     var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;
     if(isNaN(sOff)||isNaN(sRes))continue;
@@ -167,8 +176,15 @@ async function pumpLinkControl(cfg,devs,db,ps){
     if(cool[ck]&&now-cool[ck]<PL_COOL)continue;
     var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));
     var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));
+    /* Dampening: require 2 consecutive readings below resume before ON */
+    if(needOn&&hist[lnk.reservoir]&&hist[lnk.reservoir].length>=2){
+      if(hist[lnk.reservoir][0]>sRes&&(sRes2===0||hist[lnk.reservoir][0]>sRes2))needOn=false;
+      if(hist[lnk.reservoir][1]>sRes&&(sRes2===0||hist[lnk.reservoir][1]>sRes2))needOn=false;
+    }
     if(!needOff&&!needOn)continue;
-    var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump);
+    // BUG 12/13 FIX: pass explicit desiredState so GAS doesn't blindly flip
+    var desiredState = needOff ? 0 : 1;
+    var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump,desiredState);
     if(tr&&tr.success){
       cool[ck]=now;
       var newOn=!!tr.newState;
@@ -178,7 +194,7 @@ async function pumpLinkControl(cfg,devs,db,ps){
         lnk.reservoir+" "+thresh+". Level: "+lvStr,"pl:"+ck,true));
     }
   }
-  await dbSet(db,"pl_cool",cool);
+  await dbSet(db,"pl_cool",cool);await dbSet(db,"pl_hist",hist);
 }
 /* ═══════════════ Lifecycle events ═══════════════ */
 self.addEventListener("install",function(){self.skipWaiting();});

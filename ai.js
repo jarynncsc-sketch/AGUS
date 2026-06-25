@@ -314,7 +314,7 @@ function resetMaintScore(deviceName) {
 // Module 3: AI Demand Forecasting (WMA + hourly seasonality)
 // ============================================================
 function computeForecast(rows, key) {
-  if (!rows || rows.length < 24) return [];
+  if (!Array.isArray(rows) || rows.length < 24) return [];
   var vals = rows.map(function(r){return parseFloat(r[key]);}).filter(function(v){return !isNaN(v)&&v!=null;});
   if (vals.length < 24) return [];
   var windowSize = Math.min(48, vals.length);
@@ -895,6 +895,9 @@ function sendAIMessage() {
 var pendingAlarms = [];
 var batchTimer = null;
 var lastCorrelatedDigest = '';
+// BUG 16 FIX: declare as proper vars (not implicit globals); guards prevent crash if patchOriginal hasn't run yet
+var originalSpeakAlarm = null;
+var originalSpeakPSAlarm = null;
 function correlateAndAnnounce(deviceName, alarmType, reading) {
   pendingAlarms.push({ device: deviceName, type: alarmType, reading: reading, time: Date.now() });
   if (batchTimer) clearTimeout(batchTimer);
@@ -903,6 +906,33 @@ function correlateAndAnnounce(deviceName, alarmType, reading) {
 function flushAndCorrelate() {
   var snapshot = pendingAlarms.slice();
   pendingAlarms = [];
+  if (snapshot.length === 1) {
+    var a = snapshot[0];
+    var isRes = a.device.toLowerCase().includes('reservoir');
+    // BUG 16 FIX: guard against null (patchOriginal hasn't run yet or NDRRMC overwrote)
+    if (isRes && typeof originalSpeakAlarm === 'function') originalSpeakAlarm(a.device, a.type, true);
+    else if (!isRes && typeof originalSpeakPSAlarm === 'function') originalSpeakPSAlarm(a.device, a.type);
+    else if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(a.device, a.type, { isReservoir: isRes });
+    return;
+  }
+  var bulletList = snapshot.map(function(a) { return '• ' + a.device + ': ' + a.type + (a.reading ? ' (' + a.reading + ')' : ''); }).join('\n');
+  aiFetch({ model: AI_MODEL, max_tokens: 200, messages: [{ role: 'user', content: 'You are an alarm correlator for a water utility SCADA system.\nThese alarms fired simultaneously:\n' + bulletList + '\n\nIn ONE short sentence (max 20 words), identify the most likely single root cause. Be direct.' }] }).then(function(data) {
+    var cause = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Multiple simultaneous alarms — check system.';
+    var digest = 'AI correlated ' + snapshot.length + ' alarms. ' + cause;
+    if (digest !== lastCorrelatedDigest) {
+      lastCorrelatedDigest = digest;
+      var u = new SpeechSynthesisUtterance(digest); u.lang = 'en-US'; u.rate = 0.85; u.volume = 1;
+      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
+    }
+    showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
+  }).catch(function() {
+    // BUG 16 FIX: guard fallback too
+    snapshot.forEach(function(a) {
+      if (typeof originalSpeakPSAlarm === 'function') originalSpeakPSAlarm(a.device, a.type);
+      else if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(a.device, a.type, { isReservoir: false });
+    });
+  });
+}
   if (snapshot.length === 1) {
     var a = snapshot[0];
     var isRes = a.device.toLowerCase().includes('reservoir');
@@ -1138,25 +1168,36 @@ function recalcCostTable() {
 // ============================================================
 // MONKEY PATCHES: override original functions with AI-enhanced versions
 // ============================================================
-(function patchOriginal() {
-  originalSpeakAlarm = window.speakAlarm;
-  originalSpeakPSAlarm = window.speakPSAlarm;
+// BUG 14 FIX: defer via setTimeout(0) so inline scripts that run after ai.js
+// (NDRRMC engine at line ~10508, auto-call engine at ~11314) have already set
+// window.speakAlarm. Without defer, ai.js captures the pre-NDRRMC version and
+// then NDRRMC overwrites it again, bypassing correlateAndAnnounce entirely.
+// BUG 15 FIX: updateDashboard wrapper no longer re-fetches getDashboardData —
+// instead uses window._lastDevices (populated by updateDashboard in index.html).
+// BUG 16 FIX: originalSpeakAlarm/PSAlarm are now declared as proper vars above.
+setTimeout(function patchOriginal() {
+  // Capture whatever speakAlarm/speakPSAlarm are NOW (after NDRRMC installed its hooks)
+  originalSpeakAlarm = window.speakAlarm || null;
+  originalSpeakPSAlarm = window.speakPSAlarm || null;
   window.speakAlarm = function(deviceName, alarmType, isReservoir) { correlateAndAnnounce(deviceName, alarmType, null); };
   window.speakPSAlarm = function(deviceName, alarmType) { correlateAndAnnounce(deviceName, alarmType, null); };
 
   var originalUpdateDashboard = window.updateDashboard;
   window.updateDashboard = function() {
-    originalUpdateDashboard();
-    apiGet('getDashboardData').then(function(devices) {
+    if (originalUpdateDashboard) originalUpdateDashboard.apply(this, arguments);
+    // BUG 15 FIX: use cached device data from the most recent updateDashboard run
+    // index.html must set window._lastDevices = devices after each getDashboardData call
+    var devices = window._lastDevices || [];
+    if (devices.length) {
       updateMaintenanceScore(devices);
       trainIFModel(devices);
       scanDevicesForAlert(devices);
-    }).catch(function(e) { console.warn('Maintenance score update failed', e); });
+    }
   };
 
   var originalShowDeviceDetails = window.showDeviceDetails;
   window.showDeviceDetails = function(device) {
-    originalShowDeviceDetails(device);
+    if (originalShowDeviceDetails) originalShowDeviceDetails(device);
     setTimeout(function() {
       var det = document.getElementById('device-details');
       if (!det) return;
@@ -1174,7 +1215,7 @@ function recalcCostTable() {
 
   var originalRenderRangeChart = window.renderRangeChart;
   window.renderRangeChart = function() {
-    originalRenderRangeChart();
+    if (originalRenderRangeChart) originalRenderRangeChart.apply(this, arguments);
     injectForecastDataset();
   };
 
@@ -1189,7 +1230,7 @@ function recalcCostTable() {
       return result;
     };
   }
-})();
+}, 0);
 
 // ============================================================
 // AI-Driven Analytics Report Generator
@@ -1228,7 +1269,7 @@ function generateAIReport() {
         if (t==='reservoir'||n.includes('reservoir')) devType = 'Reservoir';
         else if (t==='pressure'||n.includes('pressure')) devType = 'Pressure Device';
 
-        if (!rows.length) return '## ' + d.device + ' [' + devType + ']\n- No historical data available.\n- Current status: ' + (d.status||'Unknown');
+        if (!Array.isArray(rows) || !rows.length) return '## ' + d.device + ' [' + devType + ']\n- No historical data available.\n- Current status: ' + (d.status||'Unknown');
 
         var keys = Object.keys(rows[0]);
         function colAvg(pat) {
@@ -1867,14 +1908,18 @@ function runAIDiagnostics() {
 })();
 
 /* ── 5. Hook into dashboard update to refresh AI health card ── */
+// BUG 15 FIX: This second updateDashboard patch also uses _lastDevices cache
+// instead of firing another getDashboardData fetch on every poll cycle.
 (function patchDashboardForAIHealth() {
   var _origUpdate = window.updateDashboard;
   window.updateDashboard = function() {
     if (_origUpdate) _origUpdate.apply(this, arguments);
     _buildAIHealthCard();
-    apiGet('getDashboardData').then(function(devices) {
+    // Use already-cached devices populated by index.html's updateDashboard
+    var devices = window._lastDevices || [];
+    if (devices.length) {
       _updateAIHealthCard(devices);
-    }).catch(function(){});
+    }
   };
   var _origLogin = window.login;
   if (_origLogin) {
