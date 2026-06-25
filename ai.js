@@ -717,6 +717,81 @@ function toggleAIChat() {
   if (fab) fab.style.display = show ? 'none' : 'block';
 }
 
+/* ── Voice Input (Google Home style) ── */
+var _aiVoiceActive = false;
+var _aiRecognition = null;
+
+function toggleAIVoice() {
+  var btn = document.getElementById('ai-mic-btn');
+  if (_aiVoiceActive) { _stopAIVoice(); return; }
+  var SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) {
+    addAIChatMessage('⚠ Voice input not supported on this browser. Try Chrome on desktop or Android.', 'bot');
+    return;
+  }
+  try {
+    _aiRecognition = new SpeechRecognition();
+    _aiRecognition.lang = 'en-US';
+    _aiRecognition.interimResults = false;
+    _aiRecognition.maxAlternatives = 1;
+    _aiRecognition.continuous = false;
+
+    _aiRecognition.onresult = function(event) {
+      var transcript = event.results[0][0].transcript;
+      if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+      _aiVoiceActive = false;
+      var input = document.getElementById('ai-chat-input');
+      if (input) input.value = transcript;
+      sendAIMessage();
+    };
+
+    _aiRecognition.onerror = function(event) {
+      if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+      _aiVoiceActive = false;
+      if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        addAIChatMessage('⚠ Voice error: ' + event.error + '. Try typing instead.', 'bot');
+      }
+    };
+
+    _aiRecognition.onend = function() {
+      if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+      _aiVoiceActive = false;
+    };
+
+    _aiRecognition.start();
+    _aiVoiceActive = true;
+    if (btn) { btn.classList.add('listening'); btn.textContent = '🔴'; }
+  } catch(e) {
+    addAIChatMessage('⚠ Could not start voice input: ' + e.message, 'bot');
+    if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+    _aiVoiceActive = false;
+  }
+}
+
+function _stopAIVoice() {
+  if (_aiRecognition) { try { _aiRecognition.abort(); } catch(e) {} _aiRecognition = null; }
+  var btn = document.getElementById('ai-mic-btn');
+  if (btn) { btn.classList.remove('listening'); btn.textContent = '🎤'; }
+  _aiVoiceActive = false;
+}
+
+/* ── Text-To-Speech for AI responses ── */
+function aiSpeak(text) {
+  if (!text || !window.speechSynthesis) return;
+  try {
+    window.speechSynthesis.cancel();
+    var utter = new SpeechSynthesisUtterance(text);
+    utter.lang = 'en-US';
+    utter.rate = 1.0;
+    utter.pitch = 1.0;
+    // Pick a voice if available
+    var voices = window.speechSynthesis.getVoices();
+    var preferred = voices.filter(function(v){ return v.lang.startsWith('en'); });
+    if (preferred.length) utter.voice = preferred[0];
+    window.speechSynthesis.speak(utter);
+  } catch(e) { /* TTS not critical */ }
+}
+
 function aiCacheKey(body) {
   var s = JSON.stringify(body);
   var h = 0, i, chr;
@@ -859,6 +934,7 @@ function sendAIMessage() {
           aiChatHistory.push({ role: 'assistant', content: fullText });
           if (typingEl) { typingEl.innerText = fullText; typingEl.classList.remove('ai-msg-typing'); }
           document.getElementById('ai-chat-status').innerText = 'Ready';
+          aiSpeak(fullText);
         },
         function(err) {
           aiFetch({ model: AI_MODEL, max_tokens: 1000, system: sysPrompt, messages: aiChatHistory }).then(function(data) {
@@ -866,6 +942,7 @@ function sendAIMessage() {
             aiChatHistory.push({ role: 'assistant', content: reply });
             if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
             document.getElementById('ai-chat-status').innerText = 'Ready';
+            aiSpeak(reply);
           }).catch(function(e) {
             if (typingEl) { typingEl.innerText = '⚠ Error: ' + (e.message || e); typingEl.classList.remove('ai-msg-typing'); }
             document.getElementById('ai-chat-status').innerText = 'Error — try again';
@@ -878,6 +955,7 @@ function sendAIMessage() {
         aiChatHistory.push({ role: 'assistant', content: reply });
         if (typingEl) { typingEl.innerText = reply; typingEl.classList.remove('ai-msg-typing'); }
         document.getElementById('ai-chat-status').innerText = 'Ready';
+        aiSpeak(reply);
       }).catch(function(err) {
         if (typingEl) { typingEl.innerText = '⚠ Error: ' + (err.message || err); typingEl.classList.remove('ai-msg-typing'); }
         document.getElementById('ai-chat-status').innerText = 'Error — try again';
