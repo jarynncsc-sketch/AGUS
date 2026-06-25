@@ -2571,7 +2571,7 @@ var calMonth3 = new Date(today.getFullYear(), today.getMonth() - 1, 1);
 var calMonth4 = new Date(today.getFullYear(), today.getMonth(), 1);
 var rangeStart = null, rangeEnd = null, pickingStart = true;
 var graphPollInterval = null, liveCounterInterval = null;
-var graphPollRate = 15000, livePaused = false;
+var graphPollRate = 30000, livePaused = false;
 var lastPollTime = null, lastDataCount = 0, isQuickRange = true;
 var currentDeviceType = 'pressure';
 var PUMP_PARAMS = [
@@ -2804,6 +2804,7 @@ function login() {
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
+      initSensorThresholdsFromServer();
       initPumpLinksAndDisplay();
     })
     .catch(function(err) {
@@ -3595,13 +3596,14 @@ function initDashboard() {
     _apeRunning = true;
 
     try {
-      /* Fetch fresh data */
-      var [devices, links] = await Promise.all([
-        apiGet('getDashboardData').catch(function() { return []; }),
-        (pumpLinkConfigs && pumpLinkConfigs.length
-          ? Promise.resolve(pumpLinkConfigs)
-          : apiGet('getPumpLinks').catch(function() { return []; }))
-      ]);
+      /* Use cached dashboard data if fresh enough, otherwise fetch */
+      var _cachedDevices = window._lastDevices;
+      var devices = (Array.isArray(_cachedDevices) && _cachedDevices.length)
+        ? _cachedDevices
+        : await apiGet('getDashboardData').catch(function() { return []; });
+      var links = (pumpLinkConfigs && pumpLinkConfigs.length)
+        ? pumpLinkConfigs
+        : await apiGet('getPumpLinks').catch(function() { return []; });
 
       if (!Array.isArray(devices) || !Array.isArray(links) || !links.length) return;
 
@@ -5373,6 +5375,7 @@ function closeGraph(){
 document.getElementById('graph-modal').addEventListener('click',function(e){if(e.target===document.getElementById('graph-modal'))closeGraph();});
 
 function initPressureSettingsFromServer(){apiGet('getPressureSettings').then(function(all){if(!all)return;Object.keys(all).forEach(function(d){pressureSettingsCache[d]=all[d];});}).catch(function(e){console.warn('[AGUS] Pressure settings preload failed:',e);});}
+function initSensorThresholdsFromServer(){if(window._gasSensorThrLoaded)return;window._gasSensorThrLoaded=true;var local={};try{local=JSON.parse(localStorage.getItem('agus_sensor_thr')||'{}');}catch(e){}var hasPerDevice=Object.keys(local).some(function(k){return k!=='__global__';});if(hasPerDevice)return;apiGet('getSensorThresholds').then(function(all){if(!all)return;Object.keys(all).forEach(function(d){if(all[d]&&Object.keys(all[d]).length)local[d]=all[d];});localStorage.setItem('agus_sensor_thr',JSON.stringify(local));if(window._customThr!==undefined)window._customThr=local;}).catch(function(e){console.warn('[AGUS] Sensor thresholds preload failed:',e);window._gasSensorThrLoaded=false;});}
 function openPressureSettings(deviceName){
   pressureSettingsModalDev=deviceName;
   document.getElementById('ps-device-subtitle').innerText=deviceName;
@@ -8933,20 +8936,7 @@ function exportDashboardPDF() {
     return result;
   };
 
-  /* Also hook into the resolved data via apiGet — simpler: poll ourselves */
-  var _pollTimer = null;
-  function _startPagePoll() {
-    if (_pollTimer) clearInterval(_pollTimer);
-    _pollTimer = setInterval(function() {
-      if (!_on || Notification.permission !== 'granted') return;
-      if (typeof apiGet !== 'function') return;
-      apiGet('getDashboardData').then(function(devices) {
-        if (Array.isArray(devices)) _checkDevices(devices);
-      }).catch(function() {});
-    }, POLL_MS);
-  }
-
-  /* Also hook _lastDevices — fires each time updateDashboard gets data */
+  /* Hook _lastDevices — fires each time updateDashboard gets data */
   Object.defineProperty(window, '_lastDevices', {
     configurable: true,
     set: function(v) {
@@ -9233,8 +9223,8 @@ function exportDashboardPDF() {
   'var _swHb=null;' +
   'self.addEventListener("activate",function(eAct){' +
   '  eAct.waitUntil(self.clients.claim().then(function(){' +
-  '    if(_swHb)clearInterval(_swHb);' +
-  '    self._swHb=setInterval(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});},60000);' +
+    '  if(_swHb)clearInterval(_swHb);' +
+    '  self._swHb=setInterval(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});},120000);' +
   '  }));' +
   '});' +
   ')();';
@@ -9324,7 +9314,6 @@ function exportDashboardPDF() {
       _on = true;
       localStorage.setItem(PUSH_KEY, '1');
       _registerSW();
-      _startPagePoll();
       _renderBtn();
       _fire('✅ AGUS Notifications ON',
             'You will receive fault, offline, and water level alerts.',
@@ -9336,7 +9325,6 @@ function exportDashboardPDF() {
         _on = true;
         localStorage.setItem(PUSH_KEY, '1');
         _registerSW();
-        _startPagePoll();
         _renderBtn();
         _fire('✅ AGUS Notifications ON',
               'You will receive fault, offline, and water level alerts.',
@@ -9419,7 +9407,7 @@ function exportDashboardPDF() {
       if (sw) { try { sw.postMessage({ type: 'AGUS_PING' }); } catch(e) {} }
     }, 30000);
     if (_on && Notification.permission === 'granted') {
-      _startPagePoll();
+      /* notification checker already runs via _lastDevices hook */
     }
     _watchToken();
     /* Init AI config dot: shows green dot if a GitHub token is stored */
@@ -10309,10 +10297,21 @@ function _metCard(label, icon, value, unit, color) {
         prev: window._prev || {}
       });
     }
-    // Persist to GAS
+    // Persist to GAS (only if dirty, debounced)
     if (typeof apiPost === 'function' && key !== '__global__') {
       var tok = sessionToken || userToken || '';
-      apiPost('saveSensorThresholds', { deviceName: key, thresholds: JSON.stringify(t), token: tok });
+      var prevJson = window._gasThresholdSynced ? (window._gasThresholdSynced[key] || '') : '';
+      var curJson = JSON.stringify(t);
+      if (curJson !== prevJson) {
+        if (!window._gasThresholdSaveTimer) window._gasThresholdSaveTimer = {};
+        if (window._gasThresholdSaveTimer[key]) clearTimeout(window._gasThresholdSaveTimer[key]);
+        window._gasThresholdSaveTimer[key] = setTimeout(function(){
+          apiPost('saveSensorThresholds', { deviceName: key, thresholds: curJson, token: tok });
+          if (!window._gasThresholdSynced) window._gasThresholdSynced = {};
+          window._gasThresholdSynced[key] = curJson;
+          delete window._gasThresholdSaveTimer[key];
+        }, 2000);
+      }
     }
     if (typeof showNotification === 'function') showNotification('✅ Thresholds saved for ' + (key === '__global__' ? 'all devices' : key), 'success');
   };
@@ -10323,10 +10322,21 @@ function _metCard(label, icon, value, unit, color) {
     var all = _load();
     delete all[key];
     _save(all);
-    // Reset on GAS too (send thresholds as empty object to trigger default restore)
+    // Reset on GAS too (debounced, only if state changed)
     if (typeof apiPost === 'function' && key !== '__global__') {
       var tok = sessionToken || userToken || '';
-      apiPost('saveSensorThresholds', { deviceName: key, thresholds: '{}', token: tok });
+      var curJson = '{}';
+      var prevJson = window._gasThresholdSynced ? (window._gasThresholdSynced[key] || '') : '';
+      if (curJson !== prevJson) {
+        if (!window._gasThresholdSaveTimer) window._gasThresholdSaveTimer = {};
+        if (window._gasThresholdSaveTimer[key]) clearTimeout(window._gasThresholdSaveTimer[key]);
+        window._gasThresholdSaveTimer[key] = setTimeout(function(){
+          apiPost('saveSensorThresholds', { deviceName: key, thresholds: curJson, token: tok });
+          if (!window._gasThresholdSynced) window._gasThresholdSynced = {};
+          window._gasThresholdSynced[key] = curJson;
+          delete window._gasThresholdSaveTimer[key];
+        }, 2000);
+      }
     }
     loadSensorThrDevice();
     if (typeof showNotification === 'function') showNotification('↺ Reset to defaults for ' + (key === '__global__' ? 'all devices' : key), 'info');
