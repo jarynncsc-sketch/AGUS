@@ -8797,7 +8797,7 @@ function exportDashboardPDF() {
   }
 
   function _checkDevices(devices) {
-    if (!_on || Notification.permission !== 'granted') return;
+    var _canNotify = _on && Notification.permission === 'granted';
     devices.forEach(function(d) {
       var name = d.device || '';
       var st   = d.status  || '';
@@ -8806,93 +8806,90 @@ function exportDashboardPDF() {
 
       /* ── Device status ─────────────────────────────────────── */
       if ((st === 'Fault' || d.button) && prev.status !== 'Fault') {
-        _fire('⚠️ Device Fault — ' + name,
-              name + ' is reporting a FAULT. Immediate attention required.',
-              'fault:' + name, true);
+        if (_canNotify) _fire('⚠️ Device Fault — ' + name, name + ' is reporting a FAULT. Immediate attention required.', 'fault:' + name, true);
+        if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'fault', { value: st });
       }
       if (st === 'Offline' && prev.status === 'Online') {
-        _fire('📴 Device Offline — ' + name,
-              name + ' went offline. Check device connection.',
-              'offline:' + name, true);
+        if (_canNotify) _fire('📴 Device Offline — ' + name, name + ' went offline. Check device connection.', 'offline:' + name, true);
+        if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'offline', { value: '' });
       }
       if (st === 'Online' && (prev.status === 'Fault' || prev.status === 'Offline')) {
-        _fire('✅ Device Recovered — ' + name,
-              name + ' is back online.',
-              'online:' + name, false);
+        if (_canNotify) _fire('✅ Device Recovered — ' + name, name + ' is back online.', 'online:' + name, false);
+        if (typeof window.ndrrmcClearAlarm === 'function') window.ndrrmcClearAlarm(name);
       }
 
       /* ── Water Level (m³) ─────────────────────────────────── */
       var lv = parseFloat(d.level);
       if (!isNaN(lv)) {
-        if (lv >= t.maxLevel && (prev.lv == null || prev.lv < t.maxLevel))
-          _fire('🚰 Reservoir Full — ' + name,
-                name + ' reached ' + lv.toFixed(1) + ' m³ (max: ' + t.maxLevel + ' m³). Pump may shut off.',
-                'wl-high:' + name, true);
-        if (lv <= t.minLevel && (prev.lv == null || prev.lv > t.minLevel))
-          _fire('💧 Low Water Level — ' + name,
-                name + ' dropped to ' + lv.toFixed(1) + ' m³ (min: ' + t.minLevel + ' m³). Check supply.',
-                'wl-low:' + name, true);
+        if (lv >= t.maxLevel && (prev.lv == null || prev.lv < t.maxLevel)) {
+          if (_canNotify) _fire('🚰 Reservoir Full — ' + name, name + ' reached ' + lv.toFixed(1) + ' m³ (max: ' + t.maxLevel + ' m³). Pump may shut off.', 'wl-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'high', { value: String(lv) });
+        }
+        if (lv <= t.minLevel && (prev.lv == null || prev.lv > t.minLevel)) {
+          if (_canNotify) _fire('💧 Low Water Level — ' + name, name + ' dropped to ' + lv.toFixed(1) + ' m³ (min: ' + t.minLevel + ' m³). Check supply.', 'wl-low:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'low', { value: String(lv) });
+        }
       }
 
       /* ── Pressure (psi) ───────────────────────────────────── */
       var psi = parseFloat(d.pressure);
       if (!isNaN(psi)) {
-        if (psi > t.maxPsi && (prev.psi == null || prev.psi <= t.maxPsi))
-          _fire('🔴 High Pressure — ' + name,
-                name + ': ' + psi.toFixed(1) + ' psi exceeds max (' + t.maxPsi + ' psi). Check for blockage.',
-                'psi-high:' + name, true);
-        if (psi < t.minPsi && psi > 0 && (prev.psi == null || prev.psi >= t.minPsi))
-          _fire('🟠 Low Pressure — ' + name,
-                name + ': ' + psi.toFixed(1) + ' psi below min (' + t.minPsi + ' psi). Check pump operation.',
-                'psi-low:' + name, true);
+        if (psi > t.maxPsi && (prev.psi == null || prev.psi <= t.maxPsi)) {
+          if (_canNotify) _fire('🔴 High Pressure — ' + name, name + ': ' + psi.toFixed(1) + ' psi exceeds max (' + t.maxPsi + ' psi). Check for blockage.', 'psi-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'high pressure', { value: String(psi) });
+        }
+        if (psi < t.minPsi && psi > 0 && (prev.psi == null || prev.psi >= t.minPsi)) {
+          if (_canNotify) _fire('🟠 Low Pressure — ' + name, name + ': ' + psi.toFixed(1) + ' psi below min (' + t.minPsi + ' psi). Check pump operation.', 'psi-low:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'low pressure', { value: String(psi) });
+        }
       }
 
       /* ── Flow Rate / LPS ──────────────────────────────────── */
       var flow = parseFloat(d.flow);
       if (!isNaN(flow) && d.relay == 1) {
-        if (flow > t.maxFlow && (prev.flow == null || prev.flow <= t.maxFlow))
-          _fire('💦 High Flow Rate — ' + name,
-                name + ': ' + flow.toFixed(2) + ' L/s exceeds max (' + t.maxFlow + ' L/s). Possible pipe burst.',
-                'flow-high:' + name, true);
-        if (flow < t.minFlow && flow >= 0 && (prev.flow == null || prev.flow >= t.minFlow))
-          _fire('⚠️ Low Flow Rate — ' + name,
-                name + ': ' + flow.toFixed(2) + ' L/s below min (' + t.minFlow + ' L/s) while pump is ON. Check for blockage.',
-                'flow-low:' + name, true);
+        if (flow > t.maxFlow && (prev.flow == null || prev.flow <= t.maxFlow)) {
+          if (_canNotify) _fire('💦 High Flow Rate — ' + name, name + ': ' + flow.toFixed(2) + ' L/s exceeds max (' + t.maxFlow + ' L/s). Possible pipe burst.', 'flow-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'high flow', { value: String(flow) });
+        }
+        if (flow < t.minFlow && flow >= 0 && (prev.flow == null || prev.flow >= t.minFlow)) {
+          if (_canNotify) _fire('⚠️ Low Flow Rate — ' + name, name + ': ' + flow.toFixed(2) + ' L/s below min (' + t.minFlow + ' L/s) while pump is ON. Check for blockage.', 'flow-low:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'low flow', { value: String(flow) });
+        }
       }
 
       /* ── Voltage (V) ──────────────────────────────────────── */
       var volt = parseFloat(d.voltage);
       if (!isNaN(volt) && volt > 0) {
-        if (volt > t.maxVolt && (prev.volt == null || prev.volt <= t.maxVolt))
-          _fire('⚡ High Voltage — ' + name,
-                name + ': ' + volt.toFixed(1) + ' V exceeds max (' + t.maxVolt + ' V). Risk of equipment damage.',
-                'volt-high:' + name, true);
-        if (volt < t.minVolt && (prev.volt == null || prev.volt >= t.minVolt))
-          _fire('🔋 Low Voltage — ' + name,
-                name + ': ' + volt.toFixed(1) + ' V below min (' + t.minVolt + ' V). Possible power issue.',
-                'volt-low:' + name, true);
+        if (volt > t.maxVolt && (prev.volt == null || prev.volt <= t.maxVolt)) {
+          if (_canNotify) _fire('⚡ High Voltage — ' + name, name + ': ' + volt.toFixed(1) + ' V exceeds max (' + t.maxVolt + ' V). Risk of equipment damage.', 'volt-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'high voltage', { value: String(volt) });
+        }
+        if (volt < t.minVolt && (prev.volt == null || prev.volt >= t.minVolt)) {
+          if (_canNotify) _fire('🔋 Low Voltage — ' + name, name + ': ' + volt.toFixed(1) + ' V below min (' + t.minVolt + ' V). Possible power issue.', 'volt-low:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'low voltage', { value: String(volt) });
+        }
       }
 
       /* ── Current (A) ──────────────────────────────────────── */
       var amp = parseFloat(d.current);
       if (!isNaN(amp) && amp >= 0) {
-        if (amp > t.maxCurrent && (prev.amp == null || prev.amp <= t.maxCurrent))
-          _fire('⚡ Overcurrent — ' + name,
-                name + ': ' + amp.toFixed(2) + ' A exceeds max (' + t.maxCurrent + ' A). Possible motor overload.',
-                'amp-high:' + name, true);
-        if (amp < t.minCurrent && t.minCurrent > 0 && d.relay == 1 && (prev.amp == null || prev.amp >= t.minCurrent))
-          _fire('⚠️ Low Current — ' + name,
-                name + ': ' + amp.toFixed(2) + ' A below min (' + t.minCurrent + ' A) while running. Check motor.',
-                'amp-low:' + name, true);
+        if (amp > t.maxCurrent && (prev.amp == null || prev.amp <= t.maxCurrent)) {
+          if (_canNotify) _fire('⚡ Overcurrent — ' + name, name + ': ' + amp.toFixed(2) + ' A exceeds max (' + t.maxCurrent + ' A). Possible motor overload.', 'amp-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'overcurrent', { value: String(amp) });
+        }
+        if (amp < t.minCurrent && t.minCurrent > 0 && d.relay == 1 && (prev.amp == null || prev.amp >= t.minCurrent)) {
+          if (_canNotify) _fire('⚠️ Low Current — ' + name, name + ': ' + amp.toFixed(2) + ' A below min (' + t.minCurrent + ' A) while running. Check motor.', 'amp-low:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'low current', { value: String(amp) });
+        }
       }
 
       /* ── Power (W) ────────────────────────────────────────── */
       var pw = parseFloat(d.power);
       if (!isNaN(pw) && pw >= 0) {
-        if (pw > t.maxPower && (prev.pw == null || prev.pw <= t.maxPower))
-          _fire('🔌 High Power — ' + name,
-                name + ': ' + pw.toFixed(0) + ' W exceeds max (' + t.maxPower + ' W). Check for abnormal load.',
-                'pw-high:' + name, true);
+        if (pw > t.maxPower && (prev.pw == null || prev.pw <= t.maxPower)) {
+          if (_canNotify) _fire('🔌 High Power — ' + name, name + ': ' + pw.toFixed(0) + ' W exceeds max (' + t.maxPower + ' W). Check for abnormal load.', 'pw-high:' + name, true);
+          if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(name, 'high power', { value: String(pw) });
+        }
       }
 
       /* ── Save state snapshot ─────────────────────────────── */
