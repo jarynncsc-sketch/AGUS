@@ -4109,7 +4109,15 @@ if (isResBooster) {
         psAlarms.push({ key: 'fault', type: 'fault', value: '', label: 'Fault' });
       } else {
         var psThr2 = pressureSettingsCache[d.device] || {minPsi:20, maxPsi:80};
-        var _DEF_PS = { minVolt:210, maxVolt:240, minCurrent:0, maxCurrent:30, minFlow:0.5, maxFlow:50, minPower:0, maxPower:15000 };
+        var _psCustom = (window._customThr||{})[d.device] || (window._customThr||{})['__global__'] || {};
+        var _psMinV = _psCustom.minVolt != null ? +_psCustom.minVolt : 210;
+        var _psMaxV = _psCustom.maxVolt != null ? +_psCustom.maxVolt : 240;
+        var _psMinA = _psCustom.minCurrent != null ? +_psCustom.minCurrent : 0;
+        var _psMaxA = _psCustom.maxCurrent != null ? +_psCustom.maxCurrent : 30;
+        var _psMinFL = _psCustom.minFlow != null ? +_psCustom.minFlow : 0.5;
+        var _psMaxFL = _psCustom.maxFlow != null ? +_psCustom.maxFlow : 50;
+        var _psMinPW = _psCustom.minPower != null ? +_psCustom.minPower : 0;
+        var _psMaxPW = _psCustom.maxPower != null ? +_psCustom.maxPower : 15000;
 
         // Discharge pressure
         var _psP = parseFloat(d.pressure);
@@ -4123,36 +4131,33 @@ if (isResBooster) {
         // Voltage
         var _psV = parseFloat(d.voltage);
         if (!isNaN(_psV) && _psV > 0) {
-          var _minV = _DEF_PS.minVolt, _maxV = _DEF_PS.maxVolt;
-          if (_psV < _minV)
+          if (_psV < _psMinV)
             psAlarms.push({ key:'low-voltage', type:'low voltage', value: _psV.toFixed(1)+' V', label:'Low Voltage' });
-          else if (_psV > _maxV)
+          else if (_psV > _psMaxV)
             psAlarms.push({ key:'high-voltage', type:'high voltage', value: _psV.toFixed(1)+' V', label:'High Voltage' });
         }
 
         // Current / Overcurrent
         var _psA = parseFloat(d.current);
         if (!isNaN(_psA) && _psA >= 0) {
-          var _maxA = _DEF_PS.maxCurrent, _minA = _DEF_PS.minCurrent;
-          if (_psA > _maxA)
+          if (_psA > _psMaxA)
             psAlarms.push({ key:'overcurrent', type:'overcurrent', value: _psA.toFixed(2)+' A', label:'Overcurrent — Motor Overload' });
-          else if (_psA < _minA && _minA > 0 && parseInt(d.relay) === 1)
+          else if (_psA < _psMinA && _psMinA > 0 && parseInt(d.relay) === 1)
             psAlarms.push({ key:'low-current', type:'low current', value: _psA.toFixed(2)+' A', label:'Low Current While Running' });
         }
 
         // Flow rate
         var _psFL = parseFloat(d.flow);
         if (!isNaN(_psFL) && parseInt(d.relay) === 1) {
-          var _maxFL = _DEF_PS.maxFlow, _minFL = _DEF_PS.minFlow;
-          if (_psFL > _maxFL)
+          if (_psFL > _psMaxFL)
             psAlarms.push({ key:'high-flow', type:'high flow', value: _psFL.toFixed(2)+' L/s', label:'High Flow — Possible Pipe Burst' });
-          else if (_psFL < _minFL && _psFL >= 0)
+          else if (_psFL < _psMinFL && _psFL >= 0)
             psAlarms.push({ key:'low-flow', type:'low flow', value: _psFL.toFixed(2)+' L/s', label:'Low Flow While Pump ON' });
         }
 
         // Power
         var _psPW = parseFloat(d.power);
-        if (!isNaN(_psPW) && _psPW > _DEF_PS.maxPower)
+        if (!isNaN(_psPW) && _psPW > _psMaxPW)
           psAlarms.push({ key:'high-power', type:'high power', value: _psPW.toFixed(0)+' W', label:'High Power Draw' });
       }
 
@@ -4215,19 +4220,25 @@ if (isResBooster) {
       }
       // Voltage anomaly (applies to any device type)
       var _dV = parseFloat(d.voltage);
+      var _dCustom = (window._customThr||{})[d.device] || (window._customThr||{})['__global__'] || {};
+      var _dMinV = _dCustom.minVolt != null ? +_dCustom.minVolt : 210;
+      var _dMaxV = _dCustom.maxVolt != null ? +_dCustom.maxVolt : 240;
+      var _dMaxA = _dCustom.maxCurrent != null ? +_dCustom.maxCurrent : 30;
+      var _dMinFL = _dCustom.minFlow != null ? +_dCustom.minFlow : 0.5;
+      var _dMaxFL = _dCustom.maxFlow != null ? +_dCustom.maxFlow : 50;
       if (!isNaN(_dV) && _dV > 0) {
-        if (_dV < 210) devAlarms.push({ key:'low-voltage', type:'low voltage', value: _dV.toFixed(1)+' V', label:'Low Voltage' });
-        else if (_dV > 240) devAlarms.push({ key:'high-voltage', type:'high voltage', value: _dV.toFixed(1)+' V', label:'High Voltage' });
+        if (_dV < _dMinV) devAlarms.push({ key:'low-voltage', type:'low voltage', value: _dV.toFixed(1)+' V', label:'Low Voltage' });
+        else if (_dV > _dMaxV) devAlarms.push({ key:'high-voltage', type:'high voltage', value: _dV.toFixed(1)+' V', label:'High Voltage' });
       }
       // Overcurrent
       var _dA = parseFloat(d.current);
-      if (!isNaN(_dA) && _dA > 30)
+      if (!isNaN(_dA) && _dA > _dMaxA)
         devAlarms.push({ key:'overcurrent', type:'overcurrent', value: _dA.toFixed(2)+' A', label:'Overcurrent' });
       // High flow
       var _dFL = parseFloat(d.flow);
       if (!isNaN(_dFL) && parseInt(d.relay) === 1) {
-        if (_dFL > 50) devAlarms.push({ key:'high-flow', type:'high flow', value: _dFL.toFixed(2)+' L/s', label:'High Flow Rate — Pipe Burst?' });
-        else if (_dFL < 0.5 && _dFL >= 0) devAlarms.push({ key:'low-flow', type:'low flow', value: _dFL.toFixed(2)+' L/s', label:'Low Flow While Pump ON' });
+        if (_dFL > _dMaxFL) devAlarms.push({ key:'high-flow', type:'high flow', value: _dFL.toFixed(2)+' L/s', label:'High Flow Rate — Pipe Burst?' });
+        else if (_dFL < _dMinFL && _dFL >= 0) devAlarms.push({ key:'low-flow', type:'low flow', value: _dFL.toFixed(2)+' L/s', label:'Low Flow While Pump ON' });
       }
     }
 
@@ -8775,6 +8786,7 @@ function exportDashboardPDF() {
   /* Stored as: agus_sensor_thr = { "DeviceName": { minVolt:210, maxVolt:240, ... } } */
   var _customThr = {};
   try { _customThr = JSON.parse(localStorage.getItem('agus_sensor_thr') || '{}'); } catch(e){}
+  window._customThr = _customThr; // expose globally so legacy blocks + _save can read/update it
 
   function _thr(name) {
     var ps  = (window.pressureSettingsCache  || {})[name] || {};
@@ -10274,9 +10286,9 @@ function _metCard(label, icon, value, unit, color) {
       maxFlow:    parseFloat(document.getElementById('thr-fl-max').value)  || DEF.maxFlow,
       minVolt:    parseFloat(document.getElementById('thr-vt-min').value)  || DEF.minVolt,
       maxVolt:    parseFloat(document.getElementById('thr-vt-max').value)  || DEF.maxVolt,
-      minCurrent: parseFloat(document.getElementById('thr-am-min').value),
+      minCurrent: parseFloat(document.getElementById('thr-am-min').value) || 0,
       maxCurrent: parseFloat(document.getElementById('thr-am-max').value)  || DEF.maxCurrent,
-      minPower:   parseFloat(document.getElementById('thr-pw-min').value),
+      minPower:   parseFloat(document.getElementById('thr-pw-min').value) || 0,
       maxPower:   parseFloat(document.getElementById('thr-pw-max').value)  || DEF.maxPower
     };
     all[key] = t;
