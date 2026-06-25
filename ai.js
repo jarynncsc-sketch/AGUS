@@ -384,12 +384,7 @@ function injectForecastDataset() {
   myChart.update('none');
 }
 
-// ============================================================
-// AI API CONFIGURATION (configurable via settings UI)
-// ============================================================
-var AI_CACHE = {};
-
-// ── AI Chat utilities (called from Block 2 and 3) ──
+// ── AI Chat utilities ──
 var aiChatHistory = [];
 function addAIChatMessage(text, role) {
   var container = document.getElementById('ai-chat-messages');
@@ -510,7 +505,74 @@ function _extractTrend(system) {
   return end === -1 ? after : after.slice(0, end);
 }
 
+/* ── Build device context string for API prompts ── */
+function _buildDeviceContext(devs) {
+  if (!devs || !devs.length) return '';
+  var online = devs.filter(function(d){return (d.status||'').toLowerCase()==='online';}).length;
+  var fault = devs.filter(function(d){return (d.status||'').toLowerCase()==='fault'||d.button;}).length;
+  var offline = devs.filter(function(d){return (d.status||'').toLowerCase()==='offline';}).length;
+  var running = devs.filter(function(d){return d.relay==1||d.relay==='1'||d.relay===true;}).length;
+  var lines = ['\n\nCurrent SCADA device data (' + devs.length + ' total, ' + online + ' online, ' + fault + ' fault, ' + offline + ' offline, ' + running + ' running):'];
+  devs.forEach(function(d) {
+    var parts = [d.device, '(' + (d.type||'?') + ')', d.status||'?'];
+    if (d.pressure) parts.push(d.pressure + 'psi');
+    if (d.flow) parts.push(d.flow + 'L/s');
+    if (d.level) parts.push('L:' + d.level + 'm');
+    if (d.power) parts.push(d.power + 'W');
+    if (d.voltage) parts.push(d.voltage + 'V');
+    if (d.current) parts.push(d.current + 'A');
+    if (d.energy) parts.push(d.energy + 'kWh');
+    if (d.relay!=null) parts.push('relay:' + (d.relay==1?'ON':'OFF'));
+    if (d.button) parts.push('FAULT');
+    lines.push(parts.join(' | '));
+  });
+  return lines.join('\n');
+}
+
+/* ── GitHub Models API call (OpenAI-compatible) ── */
+function aiFetch(body) {
+  if (!AI_API_KEY) return Promise.reject(new Error('No GitHub token configured — set one in AI Settings'));
+  return fetch((AI_ENDPOINT||'https://models.inference.ai.azure.com') + '/chat/completions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + AI_API_KEY },
+    body: JSON.stringify(body)
+  }).then(function(r) {
+    if (!r.ok) return r.json().then(function(e) { throw new Error((e.error||{}).message||'HTTP '+r.status); });
+    return r.json();
+  });
+}
+
+/* ── AI Call: try GitHub Models API first, fall back to keyword engine ── */
 function aiCall(system, question, devices) {
+  // Fast path: specific device query
+  if (devices && devices.length) {
+    var q = (question||'').toLowerCase();
+    var specific = _answerSpecificDevice(q, devices);
+    if (specific) return Promise.resolve({ content: [{ text: specific }] });
+  }
+  // Try GitHub Models API
+  if (AI_API_KEY) {
+    return aiFetch({
+      model: AI_MODEL||'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: (system||'You are the AGUS water utility SCADA assistant.') + _buildDeviceContext(devices) },
+        { role: 'user', content: question||'Summarize the current system status' }
+      ],
+      max_tokens: 500, temperature: 0.3
+    }).then(function(data) {
+      var text = data.choices&&data.choices[0]&&data.choices[0].message ? data.choices[0].message.content : '';
+      if (text) return { content: [{ text: text }] };
+      throw new Error('Empty response');
+    }).catch(function(err) {
+      console.warn('GitHub Models fallback:', err.message);
+      return _keywordCall(system, question, devices);
+    });
+  }
+  return _keywordCall(system, question, devices);
+}
+
+/* ── Keyword engine fallback ── */
+function _keywordCall(system, question, devices) {
   var q = (question||'').toLowerCase();
   var devs = devices || [];
   var pres  = devs.map(function(d){return parseFloat(d.pressure);}).filter(function(v){return !isNaN(v)&&v>0;});
@@ -726,9 +788,6 @@ function aiCall(system, question, devices) {
   }
   return Promise.resolve({ content: [{ text: response }] });
 }
-function aiLocalFallback(body, context) {
-  return Promise.resolve({ content: [{ text: 'AI service unavailable. ' + (context ? context.slice(0,150) : 'Check AI config.') }] });
-}
 function toggleAIChat() {
   var panel = document.getElementById('ai-chat-panel');
   var fab = document.getElementById('ai-chat-fab');
@@ -813,116 +872,7 @@ function aiSpeak(text) {
   } catch(e) { /* TTS not critical */ }
 }
 
-function aiCacheKey(body) {
-  var s = JSON.stringify(body);
-  var h = 0, i, chr;
-  for (i = 0; i < s.length; i++) { chr = s.charCodeAt(i); h = ((h << 5) - h) + chr; h |= 0; }
-  return 'ac_' + h;
-}
-
-function aiFetch(bodyOverrides, retries) {
-  retries = retries || 2;
-  var body = bodyOverrides || {};
-  if (!body.model) body.model = AI_MODEL;
-  if (body.system) {
-    body.messages = [{ role: 'system', content: body.system }].concat(body.messages || []);
-    delete body.system;
-  }
-  var ck = aiCacheKey(body);
-  if (AI_CACHE[ck] && Date.now() - AI_CACHE[ck].ts < 120000) {
-    return Promise.resolve(JSON.parse(JSON.stringify(AI_CACHE[ck].data)));
-  }
-  var headers = { 'Content-Type': 'application/json' };
-  if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
-  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body) })
-    .then(function(r) {
-      if (!r.ok) throw new Error('API ' + r.status);
-      return r.json();
-    }).then(function(data) {
-      AI_CACHE[ck] = { data: data, ts: Date.now() };
-      return { content: [{ text: (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '' }] };
-    }).catch(function(err) {
-      if (retries > 0) return aiFetch(bodyOverrides, retries - 1);
-      return aiLocalFallback(JSON.stringify(body), body.messages ? body.messages.map(function(m){return m.content;}).join(' ') : '');
-    });
-}
-
-function aiFetchStream(bodyOverrides, onToken, onDone, onError) {
-  var body = bodyOverrides || {};
-  if (!body.model) body.model = AI_MODEL;
-  if (body.system) {
-    body.messages = [{ role: 'system', content: body.system }].concat(body.messages || []);
-    delete body.system;
-  }
-  body.stream = true;
-  var headers = { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' };
-  if (AI_API_KEY) headers['Authorization'] = 'Bearer ' + AI_API_KEY;
-
-  // Abort controller for stream cancellation
-  var ac = new AbortController();
-  window._aiAbort = ac;
-
-  var timeout = setTimeout(function() { ac.abort(); }, 60000);
-
-  return fetch(AI_ENDPOINT, { method: 'POST', headers: headers, body: JSON.stringify(body), signal: ac.signal })
-    .then(function(response) {
-      clearTimeout(timeout);
-      if (!response.ok) throw new Error('Stream HTTP ' + response.status);
-      var reader = response.body.getReader();
-      var decoder = new TextDecoder();
-      var fullText = '';
-      var buffer = '';
-
-      function readChunk() {
-        reader.read().then(function(result) {
-          if (result.done) {
-            if (onDone) onDone(fullText);
-            return;
-          }
-          buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
-          buffer = lines.pop();
-          lines.forEach(function(line) {
-            if (line.startsWith('data: ')) {
-              var data = line.slice(6).trim();
-              if (data === '[DONE]') {
-                if (onDone) onDone(fullText);
-                return;
-              }
-              try {
-                var parsed = JSON.parse(data);
-                var delta = parsed.choices && parsed.choices[0] && parsed.choices[0].delta && parsed.choices[0].delta.content;
-                if (delta) {
-                  fullText += delta;
-                  if (onToken) onToken(delta);
-                }
-              } catch(e) { /* skip malformed chunk */ }
-            }
-          });
-          readChunk();
-        }).catch(function(err) {
-          if (err.name === 'AbortError') {
-            if (onDone) onDone(fullText);
-          } else {
-            if (onError) onError(err);
-          }
-        });
-      }
-      readChunk();
-    }).catch(function(err) {
-      clearTimeout(timeout);
-      if (err.name === 'AbortError') {
-        if (onDone) onDone(fullText || '');
-      } else {
-        if (onError) onError(err);
-      }
-    });
-}
-
-function clearAICache() {
-  AI_CACHE = {};
-  localStorage.removeItem('agus_ai_cache');
-}
+/* GitHub Models AI (free via PAT) — falls back to local keyword engine if no token */
 
 /* ── Read historical sheet data and build a trend summary ── */
 function _buildSheetContext(results) {
@@ -1041,48 +991,18 @@ function flushAndCorrelate() {
   if (snapshot.length === 1) {
     var a = snapshot[0];
     var isRes = a.device.toLowerCase().includes('reservoir');
-    // BUG 16 FIX: guard against null (patchOriginal hasn't run yet or NDRRMC overwrote)
     if (isRes && typeof originalSpeakAlarm === 'function') originalSpeakAlarm(a.device, a.type, true);
     else if (!isRes && typeof originalSpeakPSAlarm === 'function') originalSpeakPSAlarm(a.device, a.type);
     else if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(a.device, a.type, { isReservoir: isRes });
     return;
   }
-  var bulletList = snapshot.map(function(a) { return '• ' + a.device + ': ' + a.type + (a.reading ? ' (' + a.reading + ')' : ''); }).join('\n');
-  aiFetch({ model: AI_MODEL, max_tokens: 200, messages: [{ role: 'user', content: 'You are an alarm correlator for a water utility SCADA system.\nThese alarms fired simultaneously:\n' + bulletList + '\n\nIn ONE short sentence (max 20 words), identify the most likely single root cause. Be direct.' }] }).then(function(data) {
-    var cause = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Multiple simultaneous alarms — check system.';
-    var digest = 'AI correlated ' + snapshot.length + ' alarms. ' + cause;
-    if (digest !== lastCorrelatedDigest) {
-      lastCorrelatedDigest = digest;
-      var u = new SpeechSynthesisUtterance(digest); u.lang = 'en-US'; u.rate = 0.85; u.volume = 1;
-      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-    }
-    showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
-  }).catch(function() {
-    // BUG 16 FIX: guard fallback too
-    snapshot.forEach(function(a) {
-      if (typeof originalSpeakPSAlarm === 'function') originalSpeakPSAlarm(a.device, a.type);
-      else if (typeof window.ndrrmcTriggerAlarm === 'function') window.ndrrmcTriggerAlarm(a.device, a.type, { isReservoir: false });
-    });
-  });
-}
-  if (snapshot.length === 1) {
-    var a = snapshot[0];
-    var isRes = a.device.toLowerCase().includes('reservoir');
-    if (isRes) originalSpeakAlarm(a.device, a.type, true);
-    else originalSpeakPSAlarm(a.device, a.type);
-    return;
+  var devNames = snapshot.map(function(a){ return a.device; }).join(', ');
+  var digest = '⚠ ' + snapshot.length + ' simultaneous alarms: ' + devNames + '. Check the alarm center.';
+  if (digest !== lastCorrelatedDigest) {
+    lastCorrelatedDigest = digest;
+    try { var u = new SpeechSynthesisUtterance(digest); u.lang = 'en-US'; u.rate = 0.85; u.volume = 1; window.speechSynthesis.cancel(); window.speechSynthesis.speak(u); } catch(e){}
   }
-  var bulletList = snapshot.map(function(a) { return '• ' + a.device + ': ' + a.type + (a.reading ? ' (' + a.reading + ')' : ''); }).join('\n');
-  aiFetch({ model: AI_MODEL, max_tokens: 200, messages: [{ role: 'user', content: 'You are an alarm correlator for a water utility SCADA system.\nThese alarms fired simultaneously:\n' + bulletList + '\n\nIn ONE short sentence (max 20 words), identify the most likely single root cause. Be direct.' }] }).then(function(data) {
-    var cause = (data.content && data.content[0]) ? data.content[0].text.trim() : 'Multiple simultaneous alarms — check system.';
-    var digest = 'AI correlated ' + snapshot.length + ' alarms. ' + cause;
-    if (digest !== lastCorrelatedDigest) {
-      lastCorrelatedDigest = digest;
-      var u = new SpeechSynthesisUtterance(digest); u.lang = 'en-US'; u.rate = 0.85; u.volume = 1;
-      window.speechSynthesis.cancel(); window.speechSynthesis.speak(u);
-    }
-    showNotification('⚡ AI Alarm Digest: ' + cause, 'error');
-  }).catch(function() { snapshot.forEach(function(a) { originalSpeakPSAlarm(a.device, a.type); }); });
+  showNotification(digest, 'error');
 }
 
 // ============================================================
@@ -1487,11 +1407,7 @@ function generateAIReport() {
         + '7. **Actionable Recommendations** — 3-5 specific, numbered actions for operations staff\n\n'
         + 'Use plain English. Format with clear section headers. Be specific — cite device names and values.';
 
-      return aiFetch({
-        model: AI_MODEL,
-        max_tokens: 1800,
-        messages: [{ role: 'user', content: prompt }]
-      });
+      return aiCall(prompt, 'Generate a comprehensive operational report from this data.', devices);
     })
     .then(function(data) {
       if (aiSpinner) aiSpinner.style.display = 'none';
@@ -1663,7 +1579,7 @@ function genMLAIInterpretation() {
   var insight = document.getElementById('ml-ai-insight');
   if (!insight) return;
   insight.style.display = 'block';
-  insight.innerHTML = '<div id="ml-ai-insight"><div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with DeepSeek AI…</span></div></div>';
+  insight.innerHTML = '<div id="ml-ai-insight"><div style="display:flex;align-items:center;gap:10px;"><div class="spinner" style="width:18px;height:18px;border-width:2px;flex-shrink:0;"></div><span style="color:#5575a0;font-size:13px;">Interpreting ML signals with AI…</span></div></div>';
 
   // Build a rich summary of ML findings for the AI
   var summary = _mlResults.map(function(a) {
@@ -1697,7 +1613,7 @@ function genMLAIInterpretation() {
     + '4. **Monitoring Recommendation** — which parameter to watch most closely and at what threshold\n\n'
     + 'Be specific, cite the ML values, and use plain language suitable for pump station operators.';
 
-  aiFetch({ model: AI_MODEL, max_tokens: 900, messages: [{ role: 'user', content: prompt }] }).then(function(data) {
+  aiCall(prompt, 'Provide maintenance interpretation for these ML results.', []).then(function(data) {
     var text = data.content && data.content[0] ? data.content[0].text : 'Unable to generate interpretation.';
     var html = text
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
@@ -2063,15 +1979,6 @@ function runAIDiagnostics() {
   }
 })();
 
-/* ── 6. On load — restore AI key status dot if key already stored ── */
-(function restoreAIKeyStatusOnLoad() {
-  var storedKey = localStorage.getItem('agus_ai_api_key') || '';
-  if (storedKey) {
-    var dot = document.getElementById('ai-key-status-dot');
-    if (dot) dot.style.display = 'block';
-    var lbl = document.getElementById('ai-config-lbl');
-    if (lbl) lbl.textContent = 'AI Active';
-  }
-})();
+/* ── GitHub Models AI — uses local keyword engine if no token configured ── */
 
 

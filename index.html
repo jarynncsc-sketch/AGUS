@@ -1436,14 +1436,11 @@
     #ais-body{padding:18px 20px;}
     .ais-field{margin-bottom:14px;}
     .ais-field label{display:block;font-size:12px;font-weight:700;color:#334155;margin-bottom:5px;}
-    .ais-field input[type="url"],.ais-field input[type="password"],.ais-field input[type="text"]{width:100%;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;}
     .ais-field input:focus{border-color:#3b82f6;box-shadow:0 0 0 3px rgba(59,130,246,0.1);}
     #ais-validation{color:#ef4444;font-size:12px;min-height:20px;margin-bottom:8px;}
     #ais-footer{display:flex;justify-content:flex-end;gap:10px;padding:14px 20px;border-top:1px solid #e5eef9;}
     #ais-cancel-btn{padding:8px 18px;border:1.5px solid #d0e4f7;border-radius:8px;background:#fff;color:#334155;font-size:12px;font-weight:700;cursor:pointer;}
     #ais-cancel-btn:hover{background:#f8fafc;}
-    #ais-save-btn{padding:8px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e3a5f,#3b82f6);color:#fff;font-size:12px;font-weight:700;cursor:pointer;}
-    #ais-save-btn:hover{background:linear-gradient(135deg,#15294d,#2563eb);}
     #rs-header{background:linear-gradient(135deg,#4ade80 0%,#0b7c9c 100%);padding:20px 24px 18px;display:flex;align-items:flex-start;justify-content:space-between;}
     #rs-header-left h3{margin:0 0 4px 0;font-size:1.15rem;font-weight:800;color:#ffffff;}
     #rs-device-subtitle{font-size:12px;color:rgba(255,255,255,0.75);font-family:'Consolas',monospace;font-weight:600;}
@@ -1904,7 +1901,7 @@
           <div class="top-card grp-ai" data-tab="analytics" onclick="openTabModal('analytics')" title="AI-Powered Analytics Report — trends, anomalies, recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/></svg><span>AI Report</span></div>
           <div class="top-card grp-ai" data-tab="energy-ai" onclick="openEnergyAdvisor()" title="AI Energy Optimizer — scheduling & efficiency recommendations"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Energy AI</span></div>
           <div class="top-card grp-ai" data-tab="cost-calc" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
-          <div class="top-card grp-ai" data-tab="ai-config" onclick="openAISettings()" title="Configure AI API key &amp; model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07M8.46 8.46a5 5 0 0 0 0 7.07"/></svg><span id="ai-config-lbl">AI Config</span><span id="ai-key-status-dot" style="display:none;position:absolute;top:4px;right:4px;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 2px rgba(34,197,94,0.3);"></span></div>
+          <div class="top-card grp-ai" data-tab="ai-settings" onclick="openAISettings()" title="Configure GitHub Models AI token & model"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>AI Config</span><span id="ai-config-dot" style="display:none;position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:#22c55e;"></span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -2270,38 +2267,39 @@
   </div>
 </div>
 
-<!-- ── AI Configuration Settings Modal ── -->
+<!-- ── AI Settings Modal (GitHub Models) ── -->
 <div id="ai-settings-modal">
   <div id="ai-settings-inner">
     <div id="ais-header">
-      <div><h3>🤖 AI Configuration</h3><div style="font-size:12px;color:#7a8fa6;margin-top:4px;">Configure DeepSeek AI API endpoint & key</div></div>
+      <div><h3>⚙ AI Settings — GitHub Models</h3><div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:4px;">Free AI via GitHub Personal Access Token</div></div>
       <button id="ais-close-btn" onclick="closeAISettings()">✕</button>
     </div>
     <div id="ais-body">
       <div class="ais-field">
-        <label>API Endpoint URL</label>
-        <input id="ais-endpoint" type="url" placeholder="https://api.deepseek.com/v1/chat/completions">
-      </div>
-      <div class="ais-field">
-        <label>API Key</label>
-        <input id="ais-api-key" type="password" placeholder="sk-...">
-        <button onclick="toggleAISKey()" style="background:none;border:none;color:#3b82f6;font-size:11px;cursor:pointer;padding:2px 0;">👁 Show/Hide</button>
-      </div>
-      <div class="ais-field">
-        <label>Model Name</label>
-        <input id="ais-model" type="text" placeholder="deepseek-chat">
-      </div>
-      <div class="ais-field">
-        <label>Status</label>
-        <div id="ais-status" style="font-size:12px;padding:8px 12px;background:#f0f8ff;border-radius:8px;color:#1e293b;">
-          <span id="ais-status-text">No API key configured — using local fallback</span>
+        <label>GitHub Personal Access Token</label>
+        <div style="display:flex;gap:6px;">
+          <input id="ais-api-key" type="password" placeholder="ghp_... or github_pat_..." style="flex:1;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;">
+          <button onclick="toggleAISKey()" style="background:#f1f5f9;border:1.5px solid #d0e4f7;border-radius:8px;cursor:pointer;padding:0 10px;font-size:13px;">👁</button>
         </div>
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">Get a free token at <a href="https://github.com/settings/tokens" target="_blank" rel="noopener">github.com/settings/tokens</a> (no scopes needed)</div>
       </div>
-      <div id="ais-validation"></div>
+      <div class="ais-field">
+        <label>Model</label>
+        <input id="ais-model" type="text" placeholder="gpt-4o-mini" style="width:100%;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;">
+        <div style="font-size:11px;color:#6b7280;margin-top:4px;">Free models: gpt-4o-mini, gpt-4o, Llama-3.1-8B, Phi-3.5-MoE</div>
+      </div>
+      <div class="ais-field">
+        <label>API Endpoint</label>
+        <input id="ais-endpoint" type="url" placeholder="https://models.inference.ai.azure.com" style="width:100%;padding:9px 12px;border:1.5px solid #d0e4f7;border-radius:8px;font-size:13px;outline:none;box-sizing:border-box;">
+      </div>
+      <div id="ais-validation" style="color:#ef4444;font-size:12px;min-height:20px;"></div>
+      <div style="background:#f0f8ff;border-radius:10px;padding:12px 14px;font-size:12px;color:#1e293b;line-height:1.5;">
+        <strong>🧠 How it works:</strong> Your dashboard data + GAS sheets are sent as context. The AI answers based on your real SCADA readings. If no token is set, the chatbot uses the built-in keyword engine instead.
+      </div>
     </div>
     <div id="ais-footer">
       <button id="ais-cancel-btn" onclick="closeAISettings()">Cancel</button>
-      <button id="ais-save-btn" onclick="saveAISettings()">💾 Save & Apply</button>
+      <button id="ais-save-btn" onclick="saveAISettings()" style="padding:8px 18px;border:none;border-radius:8px;background:linear-gradient(135deg,#1e3a5f,#3b82f6);color:#fff;font-size:12px;font-weight:700;cursor:pointer;">💾 Save</button>
     </div>
   </div>
 </div>
@@ -2324,9 +2322,11 @@ function toggleFilter(type){
   updateDashboard();
 }
 var API_URL = 'https://script.google.com/macros/s/AKfycbwaASrDinkCa1e3x37MtsTPJd5xmbj_FCpokwq6P9aZLogSJEj296FOZB02tilZAnv15g/exec';
-var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://api.deepseek.com/v1/chat/completions';
+
+// ── GitHub Models AI (free via GitHub Personal Access Token) ──
+var AI_ENDPOINT = localStorage.getItem('agus_ai_endpoint') || 'https://models.inference.ai.azure.com';
 var AI_API_KEY  = localStorage.getItem('agus_ai_api_key') || '';
-var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'deepseek-chat';
+var AI_MODEL    = localStorage.getItem('agus_ai_model') || 'gpt-4o-mini';
 
 // ============================================================
 // TAB MODALS – Analytics, Reports, Alarm History, Efficiency,
@@ -5432,13 +5432,11 @@ function saveReservoirRange(){
 }
 document.getElementById('reservoir-settings-modal').addEventListener('click',function(e){if(e.target===document.getElementById('reservoir-settings-modal'))closeReservoirSettings();});
 
-// ── AI Settings ──────────────────────────────────────────────────
+// ── AI Settings (GitHub Models) ──────────────────────────────────
 function openAISettings() {
-  document.getElementById('ais-endpoint').value = AI_ENDPOINT;
-  document.getElementById('ais-api-key').value = AI_API_KEY;
-  document.getElementById('ais-model').value = AI_MODEL;
-  var statusEl = document.getElementById('ais-status-text');
-  if (statusEl) statusEl.textContent = AI_API_KEY ? 'API key configured — using ' + AI_ENDPOINT : 'No API key configured — using local fallback';
+  var ep = document.getElementById('ais-endpoint'); if (ep) ep.value = AI_ENDPOINT;
+  var ak = document.getElementById('ais-api-key'); if (ak) ak.value = AI_API_KEY;
+  var md = document.getElementById('ais-model'); if (md) md.value = AI_MODEL;
   document.getElementById('ai-settings-modal').classList.add('visible');
 }
 function closeAISettings() {
@@ -5448,20 +5446,23 @@ function toggleAISKey() {
   var inp = document.getElementById('ais-api-key');
   if (inp) inp.type = inp.type === 'password' ? 'text' : 'password';
 }
-function saveAISettings(){var endpoint=document.getElementById('ais-endpoint').value.trim();var apiKey=document.getElementById('ais-api-key').value.trim();var model=document.getElementById('ais-model').value.trim();if(!endpoint){document.getElementById('ais-validation').textContent='Please enter an API endpoint URL.';return;}if(!model){document.getElementById('ais-validation').textContent='Please enter a model name.';return;}AI_ENDPOINT=endpoint;AI_API_KEY=apiKey;AI_MODEL=model;localStorage.setItem('agus_ai_endpoint',endpoint);localStorage.setItem('agus_ai_api_key',apiKey);localStorage.setItem('agus_ai_model',model);document.getElementById('ais-validation').textContent='';var dot=document.getElementById('ai-key-status-dot');if(dot){dot.style.display=apiKey?'block':'none';}var lbl=document.getElementById('ai-config-lbl');if(lbl)lbl.textContent=apiKey?'AI Active':'AI Config';var legacyDot=document.getElementById('ai-config-dot');if(legacyDot)legacyDot.style.background=apiKey?'#22c55e':'#f97316';showNotification(apiKey?'✅ AI key saved — DeepSeek integration active':'⚠ AI key cleared — using local fallback',apiKey?'success':'warning');closeAISettings();}
+function saveAISettings() {
+  var endpoint = document.getElementById('ais-endpoint').value.trim();
+  var apiKey = document.getElementById('ais-api-key').value.trim();
+  var model = document.getElementById('ais-model').value.trim();
+  if (!endpoint) { document.getElementById('ais-validation').textContent = 'Please enter an API endpoint URL.'; return; }
+  if (!model) { document.getElementById('ais-validation').textContent = 'Please enter a model name.'; return; }
+  AI_ENDPOINT = endpoint; AI_API_KEY = apiKey; AI_MODEL = model;
+  localStorage.setItem('agus_ai_endpoint', endpoint);
+  localStorage.setItem('agus_ai_api_key', apiKey);
+  localStorage.setItem('agus_ai_model', model);
+  document.getElementById('ais-validation').textContent = '';
+  var dot = document.getElementById('ai-config-dot');
+  if (dot) dot.style.display = apiKey ? 'block' : 'none';
+  showNotification(apiKey ? '✅ GitHub Models AI configured — ' + model : '⚠ AI token cleared — using keyword engine', apiKey ? 'success' : 'warning');
+  closeAISettings();
+}
 document.getElementById('ai-settings-modal').addEventListener('click',function(e){if(e.target===document.getElementById('ai-settings-modal'))closeAISettings();});
-// Add AI settings button to the control group
-(function addAISettingsBtn() {
-  var ctrlGroup = document.querySelector('.grp-ctrl-container') || document.querySelector('.top-card.grp-ctrl')?.parentNode;
-  if (!ctrlGroup) return;
-  var btn = document.createElement('div');
-  btn.className = 'top-card grp-ctrl';
-  btn.setAttribute('data-tab', 'ai-settings');
-  btn.onclick = openAISettings;
-  btn.title = 'Configure AI API endpoint & key';
-  btn.innerHTML = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span>AI Config</span><span id="ai-config-dot" style="position:absolute;top:3px;right:3px;width:8px;height:8px;border-radius:50%;background:'+((typeof AI_API_KEY!=='undefined'&&AI_API_KEY)?'#22c55e':'#f97316')+';"></span>';
-  ctrlGroup.appendChild(btn);
-})();
 
 (function(){
   var panel=document.getElementById('sheet-overlay'),lh=panel.querySelector('.resize-handle.left'),rh=panel.querySelector('.resize-handle.right'),header=panel.querySelector('.sheet-header');
@@ -6482,7 +6483,7 @@ function renderTabModalChart(rows) {
 </script>
 
 <!-- ========== AI CHAT ASSISTANT PANEL ========== -->
-<script>(function(){if(typeof window.toggleAIChat!=='function'){window.toggleAIChat=function(){var p=document.getElementById('ai-chat-panel');var f=document.getElementById('ai-chat-fab');if(!p)return;var s=window.getComputedStyle(p).display==='none';p.style.display=s?'flex':'none';if(f)f.style.display=s?'none':'block';if(s&&typeof window.sendAIMessage!=='function'){var m=document.getElementById('ai-chat-messages');if(m){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ AI module not loaded. Open this page from a web server (http://) not file://, or check that ai.js exists.';m.appendChild(d);}}};window.sendAIMessage=function(){var m=document.getElementById('ai-chat-messages');if(m&&typeof addAIChatMessage!=='function'){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ AI module not loaded — check that ai.js is accessible or open via http://';m.appendChild(d);var c=m.querySelector('.ai-msg-typing');if(c)c.remove();}};window.toggleAIVoice=function(){var m=document.getElementById('ai-chat-messages');if(m&&typeof addAIChatMessage!=='function'){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ Voice input requires the AI module. Open via http:// not file://';m.appendChild(d);}};}})();</script>
+<script>(function(){if(typeof window.toggleAIChat!=='function'){window.toggleAIChat=function(){var p=document.getElementById('ai-chat-panel');var f=document.getElementById('ai-chat-fab');if(!p)return;var s=window.getComputedStyle(p).display==='none';p.style.display=s?'flex':'none';if(f)f.style.display=s?'none':'block';if(s&&typeof window.sendAIMessage!=='function'){var m=document.getElementById('ai-chat-messages');if(m){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ AI module not loaded. Open this page via http:// or check that ai.js exists.';m.appendChild(d);}}};window.sendAIMessage=function(){var m=document.getElementById('ai-chat-messages');if(m&&typeof addAIChatMessage!=='function'){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ AI module not loaded — check that ai.js is accessible.';m.appendChild(d);var c=m.querySelector('.ai-msg-typing');if(c)c.remove();}};window.toggleAIVoice=function(){var m=document.getElementById('ai-chat-messages');if(m&&typeof addAIChatMessage!=='function'){var d=document.createElement('div');d.className='ai-msg ai-msg-bot';d.textContent='⚠ Voice input requires the AI module. Check ai.js is accessible.';m.appendChild(d);};};}})();</script>
 <div id="ai-chat-panel" style="display:none;position:fixed;bottom:24px;right:24px;width:380px;max-height:520px;background:#fff;border-radius:16px;box-shadow:0 12px 40px rgba(0,0,0,0.25);z-index:9000;flex-direction:column;overflow:hidden;">
   <div style="background:linear-gradient(135deg,#004080,#0066cc);padding:14px 18px;display:flex;align-items:center;justify-content:space-between;">
     <div><div style="color:white;font-weight:800;font-size:14px;">&#9889; AGUS AI Assistant</div><div style="color:rgba(255,255,255,0.7);font-size:11px;" id="ai-chat-status">Ready &mdash; ask about your system</div></div>
@@ -6728,14 +6729,20 @@ function resolveAlarm(id) {
 function genIncidentReport(id) {
   var a = alarmLog.find(function(x){return x.id===id;}); if (!a) return;
   var btn = event.target; btn.disabled=true; btn.textContent='⏳';
-  aiFetch({model:AI_MODEL,max_tokens:600,messages:[{role:'user',content:
-      'Draft a brief incident report for this water utility alarm:\nDevice: '+a.device+'\nAlarm: '+a.type+(a.reading?' ('+a.reading+')':'')+'\nTime: '+a.time+'\nStatus: '+a.status+(a.resolvedBy?'\nResolved by: '+a.resolvedBy+' at '+a.resolvedAt:'')+'\n\nInclude: Incident summary, likely cause, operational impact, corrective action taken or recommended. Max 150 words.'
-    }]}
-  ).then(function(data){
-    btn.disabled=false; btn.textContent='🤖 AI Report';
-    var t=data.content&&data.content[0]?data.content[0].text:'';
-    alert('📋 Incident Report:\n\n'+t);
-  }).catch(function(){btn.disabled=false;btn.textContent='🤖 AI Report';});
+  var report = 'Incident Report\n'
+    + '━━━━━━━━━━━━━━━\n'
+    + 'Device: ' + a.device + '\n'
+    + 'Alarm: ' + a.type + (a.reading ? ' (' + a.reading + ')' : '') + '\n'
+    + 'Time: ' + a.time + '\n'
+    + 'Status: ' + a.status + '\n'
+    + (a.resolvedBy ? 'Resolved by: ' + a.resolvedBy + ' at ' + a.resolvedAt + '\n' : '')
+    + '━━━━━━━━━━━━━━━\n'
+    + 'Summary: ' + a.type + ' alarm triggered on ' + a.device + '.'
+    + (a.reading ? ' Reading: ' + a.reading + '.' : '')
+    + '\nLikely cause: Check device connectivity and sensor readings via the dashboard.\n'
+    + 'Operational impact: May affect ' + (a.device.toLowerCase().includes('reservoir') ? 'water storage levels' : (a.device.toLowerCase().includes('pump') ? 'pumping capacity' : 'system pressure')) + '.\n'
+    + 'Corrective action: Verify device status on the live map. Check recent trend data. Escalate to technician if unresolved.';
+  setTimeout(function(){ btn.disabled=false; btn.textContent='🤖 AI Report'; alert('📋 ' + report); }, 200);
 }
 
 // Hook into existing alarm system to log entries
@@ -9399,6 +9406,12 @@ function exportDashboardPDF() {
       _startPagePoll();
     }
     _watchToken();
+    /* Init AI config dot: shows green dot if a GitHub token is stored */
+    var _aiDot = document.getElementById('ai-config-dot');
+    if (_aiDot) {
+      var _ak = localStorage.getItem('agus_ai_api_key') || AI_API_KEY || '';
+      _aiDot.style.display = _ak ? 'block' : 'none';
+    }
     /* Show a subtle prompt after 5 s if push was never set up */
     if (!localStorage.getItem(PUSH_KEY) && !localStorage.getItem('agus_push_asked')) {
       setTimeout(function() {
