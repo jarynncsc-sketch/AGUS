@@ -10097,11 +10097,9 @@ function _metCard(label, icon, value, unit, color) {
 #ndrrmc-alarm-overlay {
   display: none;
   position: fixed;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  margin: auto;
+  left: 50%;
+  top: 50%;
+  translate: -50% -50%;
   width: 60vw;
   height: 60vh;
   min-width: 320px;
@@ -10115,14 +10113,19 @@ function _metCard(label, icon, value, unit, color) {
   text-align: center;
   padding: 24px;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: hidden auto;
+  container-type: inline-size;
   will-change: transform, opacity, background;
   border-radius: 24px;
   border: 3px solid rgba(255,215,0,0.4);
   box-shadow: 0 0 80px rgba(192,2,10,0.6), 0 20px 60px rgba(0,0,0,0.5);
+  gap: 6px;
   /* Smooth content overflow on mobile */
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+}
+@media (max-width: 480px) {
+  #ndrrmc-alarm-overlay { padding: 14px; gap: 4px; border-radius: 16px; }
 }
 #ndrrmc-alarm-overlay.active { display: flex; animation: ndrrmc-enter 0.45s cubic-bezier(0.22,1,0.36,1) both; }
 @keyframes ndrrmc-enter {
@@ -10171,7 +10174,7 @@ function _metCard(label, icon, value, unit, color) {
   80%    { transform: rotate(2deg); }
 }
 .ndrrmc-bell {
-  font-size: 72px;
+  font-size: clamp(32px, 10cqw, 72px);
   display: inline-block;
   animation: ndrrmc-shake 1.4s cubic-bezier(0.36,0.07,0.19,0.97) infinite;
   filter: drop-shadow(0 0 18px #ffd700) drop-shadow(0 0 36px rgba(255,180,0,0.5));
@@ -10180,52 +10183,58 @@ function _metCard(label, icon, value, unit, color) {
 
 .ndrrmc-header {
   color: #ffd700;
-  font-size: clamp(22px, 6vw, 36px);
+  font-size: clamp(14px, 5cqw, 28px);
   font-weight: 900;
   letter-spacing: 3px;
   text-shadow: 0 0 20px #ffd700, 0 2px 4px rgba(0,0,0,0.8);
-  margin: 12px 0 4px;
+  margin: 4px 0 2px;
   text-transform: uppercase;
 }
 .ndrrmc-subheader {
   color: rgba(255,255,255,0.82);
-  font-size: clamp(13px, 3.5vw, 20px);
+  font-size: clamp(10px, 2.5cqw, 16px);
   font-weight: 700;
   letter-spacing: 2.5px;
   text-transform: uppercase;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
   opacity: 0.9;
   text-shadow: 0 2px 4px rgba(0,0,0,0.8);
 }
 .ndrrmc-divider {
-  width: 80%;
+  width: 70%;
   border: none;
   border-top: 2px solid rgba(255,215,0,0.5);
-  margin: 10px auto;
+  margin: 4px auto;
 }
 .ndrrmc-device-name {
   color: #fff;
-  font-size: clamp(28px, 8vw, 52px);
+  font-size: clamp(13px, 6cqw, 32px);
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 1px;
   text-shadow: 0 2px 8px rgba(0,0,0,0.6);
-  margin: 6px 0;
-  line-height: 1.1;
+  margin: 2px 0;
+  line-height: 1.15;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
 }
 .ndrrmc-alarm-type {
   color: #ffd700;
-  font-size: clamp(28px, 8vw, 52px);
+  font-size: clamp(13px, 6cqw, 32px);
   font-weight: 900;
   text-shadow: 0 0 24px #ffd700, 0 3px 6px rgba(0,0,0,0.8);
-  line-height: 1.1;
-  margin: 6px 0;
+  line-height: 1.15;
+  margin: 2px 0;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  max-width: 100%;
 }
 .ndrrmc-alarm-value {
   color: #fff;
-  font-size: clamp(16px, 4vw, 24px);
+  font-size: clamp(11px, 3cqw, 18px);
   font-weight: 700;
-  margin: 4px 0 16px;
+  margin: 2px 0 6px;
   opacity: 0.95;
 }
 
@@ -10239,11 +10248,11 @@ function _metCard(label, icon, value, unit, color) {
   border: 1.5px solid rgba(255,215,0,0.7);
   border-radius: 20px;
   color: #ffd700;
-  font-size: 13px;
+  font-size: clamp(10px, 2cqw, 13px);
   font-weight: 800;
-  padding: 6px 18px;
+  padding: 4px 12px;
   letter-spacing: 1px;
-  margin-bottom: 16px;
+  margin-bottom: 6px;
   animation: ndrrmc-badge-glow 2s ease-in-out infinite;
   position: relative; z-index: 3;
 }
@@ -10252,11 +10261,11 @@ function _metCard(label, icon, value, unit, color) {
 .ndrrmc-speaking {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   color: #fff;
-  font-size: 15px;
+  font-size: clamp(10px, 2.5cqw, 14px);
   font-weight: 700;
-  margin-bottom: 14px;
+  margin-bottom: 4px;
   opacity: 0;
   transition: opacity 0.3s;
 }
@@ -10291,10 +10300,10 @@ function _metCard(label, icon, value, unit, color) {
   border: none;
   border-radius: 14px;
   font-family: 'Arial Black', Arial, sans-serif;
-  font-size: clamp(16px, 5vw, 24px);
+  font-size: clamp(12px, 3cqw, 20px);
   font-weight: 900;
   letter-spacing: 1px;
-  padding: 18px 48px;
+  padding: 10px 24px;
   cursor: pointer;
   box-shadow: 0 0 30px rgba(255,215,0,0.7), 0 6px 20px rgba(0,0,0,0.5);
   text-transform: uppercase;
@@ -10314,13 +10323,13 @@ function _metCard(label, icon, value, unit, color) {
   border: 1.5px solid rgba(255,255,255,0.4);
   border-radius: 10px;
   font-family: Arial, sans-serif;
-  font-size: 14px;
+  font-size: clamp(10px, 2cqw, 14px);
   font-weight: 700;
-  padding: 10px 24px;
+  padding: 6px 16px;
   cursor: pointer;
   letter-spacing: 1px;
   text-transform: uppercase;
-  margin-top: 10px;
+  margin-top: 4px;
   -webkit-tap-highlight-color: transparent;
 }
 #ndrrmc-silence-btn:active { opacity: 0.7; }
@@ -10333,8 +10342,8 @@ function _metCard(label, icon, value, unit, color) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  font-size: 13px;
+  gap: 6px;
+  font-size: clamp(9px, 2cqw, 13px);
   color: rgba(255,255,255,0.65);
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -10346,9 +10355,9 @@ function _metCard(label, icon, value, unit, color) {
   bottom: 0; left: 0; right: 0;
   background: #ffd700;
   color: #1a0000;
-  font-size: 15px;
+  font-size: clamp(11px, 2.5cqw, 15px);
   font-weight: 900;
-  padding: 9px 0;
+  padding: 6px 0;
   overflow: hidden;
   white-space: nowrap;
   z-index: 4;
@@ -10367,7 +10376,7 @@ function _metCard(label, icon, value, unit, color) {
   display: inline-block;
   animation: ndrrmc-ticker-scroll 42s linear infinite;
   will-change: transform;
-  padding-left: 40px;
+  padding-left: 20px;
   letter-spacing: 1.2px;
 }
 /* Pause ticker when tab is not visible — saves CPU */
@@ -10404,7 +10413,7 @@ function _metCard(label, icon, value, unit, color) {
   <hr class="ndrrmc-divider" style="z-index:3;">
 
   <!-- Glass info panel -->
-  <div style="position:relative;z-index:3;background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);border-radius:16px;padding:14px 24px 10px;margin:0 0 10px;width:90%;max-width:500px;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);">
+  <div style="position:relative;z-index:3;background:rgba(0,0,0,0.3);border:1px solid rgba(255,215,0,0.2);border-radius:16px;padding:10px 16px 8px;margin:0 0 4px;width:96%;max-width:500px;flex:1 1 auto;min-height:0;box-shadow:inset 0 1px 0 rgba(255,255,255,0.06),0 8px 32px rgba(0,0,0,0.4);overflow:hidden auto;display:flex;flex-direction:column;align-items:center;justify-content:center;">
     <!-- LED status strip -->
     <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:10px;">
       <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;box-shadow:0 0 8px #ef4444;display:inline-block;animation:ndrrmc-led-blink 0.9s ease-in-out infinite;flex-shrink:0;"></span>
@@ -10424,9 +10433,9 @@ function _metCard(label, icon, value, unit, color) {
 
   <!-- All active alarms list -->
   <div id="ndrrmc-alarm-list" style="
-    width:90%; max-width:420px;
-    max-height:90px; overflow-y:auto;
-    margin:4px auto 8px;
+    width:96%; max-width:420px;
+    max-height:80px; overflow-y:auto;
+    margin:2px auto 4px;
     display:none;
     position:relative;
     z-index:3;
@@ -10453,9 +10462,9 @@ function _metCard(label, icon, value, unit, color) {
   <button onclick="window.agusOpenCallSettings()" style="
     background:transparent;color:rgba(255,215,0,0.7);
     border:1px solid rgba(255,215,0,0.3);border-radius:10px;
-    font-family:Arial,sans-serif;font-size:13px;font-weight:700;
-    padding:8px 20px;cursor:pointer;letter-spacing:1px;
-    text-transform:uppercase;margin-top:6px;position:relative;z-index:3;">
+    font-family:Arial,sans-serif;font-size:clamp(10px,2cqw,13px);font-weight:700;
+    padding:6px 14px;cursor:pointer;letter-spacing:1px;
+    text-transform:uppercase;margin-top:4px;position:relative;z-index:3;">
     📞 CALL CONTACTS SETTINGS
   </button>
 
@@ -10474,9 +10483,9 @@ function _metCard(label, icon, value, unit, color) {
   background: rgba(255,255,255,0.10);
   border: 1px solid rgba(255,215,0,0.25);
   border-radius: 8px;
-  padding: 7px 12px;
-  margin-bottom: 4px;
-  font-size: 13px;
+  padding: 5px 10px;
+  margin-bottom: 3px;
+  font-size: clamp(10px, 2cqw, 13px);
   color: #fff;
   font-family: Arial, sans-serif;
   text-align: left;
@@ -10513,8 +10522,8 @@ function _metCard(label, icon, value, unit, color) {
 #ndrrmc-alarm-list .nal-ackall-row {
   background: rgba(255,215,0,0.15) !important;
   border-color: #ffd700 !important;
-  margin-bottom: 8px !important;
-  font-size: 14px !important;
+  margin-bottom: 6px !important;
+  font-size: clamp(11px, 2.2cqw, 14px) !important;
 }
 /* All-clear success — smooth green fade-in pulse */
 @keyframes ndrrmc-allclear {
