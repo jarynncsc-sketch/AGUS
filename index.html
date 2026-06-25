@@ -8779,7 +8779,8 @@ function exportDashboardPDF() {
   function _thr(name) {
     var ps  = (window.pressureSettingsCache  || {})[name] || {};
     var res = (window.reservoirThresholdsCache || {})[name] || {};
-    var cus = _customThr[name] || {};
+    var thrData = window._customThr || _customThr;
+    var cus = thrData[name] || {};
     return {
       minPsi:     cus.minPsi     != null ? +cus.minPsi     : (ps.minPsi  != null ? +ps.minPsi  : _DEF.minPsi),
       maxPsi:     cus.maxPsi     != null ? +cus.maxPsi     : (ps.maxPsi  != null ? +ps.maxPsi  : _DEF.maxPsi),
