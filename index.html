@@ -1872,6 +1872,7 @@
         <div class="nav-group-label">Control</div>
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
+          <div class="top-card grp-ctrl" data-tab="device-schedules" onclick="openScheduleSettings()" style="position:relative;" title="Configure relay ON/OFF timers per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>Schedules</span><span id="device-schedules-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()" title="AI energy optimizer & consumption analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
           <div class="top-card grp-ctrl" data-tab="efficiency" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
           <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()" title="Non-revenue water & leak loss tracker"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
@@ -4042,8 +4043,12 @@ if (isResBooster) {
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
-        + '<span class="slider"></span></label></div>'
+        + '<span class="slider"></span></label>'
+        + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
+        + '</div>'
         + pendingBadge + autoOffBadge;
+      var schedBtn = li.querySelector('.sched-shortcut-btn');
+      if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -4778,6 +4783,302 @@ function _renderLinkCards() {
       + '</div>';
   }).join('');
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// DEVICE SCHEDULES — multiple ON/OFF relay timers per device, with an
+// Enabled toggle switch per schedule. Mirrors the Pump Links modal pattern.
+// ════════════════════════════════════════════════════════════════════════
+var scheduleConfigs = [];          // cached schedule list from server
+var _scheduleDashDevices = [];     // device list for the dropdown
+var SCHEDULE_DAYS = [['Sun','S'],['Mon','M'],['Tue','T'],['Wed','W'],['Thu','T'],['Fri','F'],['Sat','S']];
+var _editingScheduleId = null;
+
+function openScheduleSettings(presetDevice) {
+  var old = document.getElementById('schedule-overlay'); if (old) old.remove();
+  var ov = document.createElement('div');
+  ov.id = 'schedule-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.78);z-index:6200;display:flex;align-items:center;justify-content:center;padding:10px;box-sizing:border-box;';
+  ov.innerHTML = _buildScheduleHTML();
+  ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  _populateScheduleDeviceDropdown(presetDevice);
+  var cardsEl = document.getElementById('sched-cards');
+  if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:24px;color:#64748b;font-size:13px;">⏳ Loading schedules from server…</div>';
+  loadSchedulesFromGAS(presetDevice, function() { _renderScheduleCards(); });
+  _checkScheduleTrigger();
+}
+
+function _buildScheduleHTML() {
+  var dayBtns = SCHEDULE_DAYS.map(function(d, i) {
+    return '<label style="display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;">'
+      + '<input type="checkbox" class="sched-day-cb" value="' + d[0] + '" style="width:15px;height:15px;accent-color:#7c3aed;cursor:pointer;">'
+      + '<span style="font-size:9.5px;font-weight:700;color:#64748b;">' + d[1] + '</span>'
+      + '</label>';
+  }).join('');
+
+  return '<div id="sched-inner" style="background:#fff;border-radius:20px;width:680px;max-width:98vw;max-height:94vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.48);">'
+    + '<div style="background:linear-gradient(135deg,#3b0764 0%,#6d28d9 60%,#7c3aed 100%);padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border-radius:20px 20px 0 0;flex-shrink:0;">'
+    +   '<div style="display:flex;align-items:center;gap:12px;">'
+    +     '<div style="background:rgba(255,255,255,0.15);border-radius:10px;width:38px;height:38px;display:flex;align-items:center;justify-content:center;font-size:20px;">⏰</div>'
+    +     '<div>'
+    +       '<div style="color:#fff;font-weight:800;font-size:1.05rem;letter-spacing:-0.2px;">Device Relay Schedules</div>'
+    +       '<div style="color:rgba(255,255,255,0.7);font-size:11px;margin-top:1px;">Set timers to turn relays ON/OFF automatically</div>'
+    +     '</div>'
+    +   '</div>'
+    +   '<button onclick="document.getElementById(\'schedule-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center;flex-shrink:0;">✕</button>'
+    + '</div>'
+    + '<div style="padding:15px 18px 13px;background:linear-gradient(135deg,#faf5ff,#f5f3ff);border-bottom:1.5px solid #ddd6fe;flex-shrink:0;">'
+    +   '<div id="sched-form-title" style="font-size:10.5px;font-weight:800;color:#6d28d9;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:6px;"><span style="width:16px;height:16px;background:#6d28d9;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">＋</span> New Schedule</div>'
+    +   '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;">'
+    +     '<div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">⚙️ Device</label>'
+    +       '<select id="sched-device-select" style="width:100%;padding:8px 10px;border:1.5px solid #c4b5fd;border-radius:9px;font-size:12.5px;color:#4c1d95;background:#fff;outline:none;"><option value="">— Select Device —</option></select>'
+    +     '</div>'
+    +     '<div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">🕐 Time</label>'
+    +       '<input type="time" id="sched-time-input" style="width:100%;padding:7px 10px;border:1.5px solid #c4b5fd;border-radius:9px;font-size:12.5px;color:#4c1d95;background:#fff;outline:none;">'
+    +     '</div>'
+    +     '<div>'
+    +       '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:4px;">⚡ Action</label>'
+    +       '<select id="sched-action-select" style="width:100%;padding:8px 10px;border:1.5px solid #c4b5fd;border-radius:9px;font-size:12.5px;color:#4c1d95;background:#fff;outline:none;"><option value="1">Turn ON</option><option value="0">Turn OFF</option></select>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div style="margin-bottom:10px;">'
+    +     '<label style="font-size:10.5px;font-weight:700;color:#374151;display:block;margin-bottom:5px;">📅 Repeat on</label>'
+    +     '<div style="display:flex;gap:10px;" id="sched-day-row">' + dayBtns + '</div>'
+    +   '</div>'
+    +   '<div id="sched-add-validation" style="font-size:12px;color:#dc2626;min-height:15px;margin-bottom:7px;"></div>'
+    +   '<div style="display:flex;gap:8px;">'
+    +     '<button id="sched-save-btn" onclick="saveScheduleForm()" style="flex:1;padding:10px 22px;background:linear-gradient(135deg,#5b21b6,#7c3aed);color:white;border:none;border-radius:10px;font-size:13px;font-weight:800;cursor:pointer;letter-spacing:0.1px;display:flex;align-items:center;justify-content:center;gap:6px;touch-action:manipulation;">➕ Add Schedule</button>'
+    +     '<button id="sched-cancel-edit-btn" onclick="_cancelScheduleEdit()" style="display:none;padding:10px 16px;background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;">Cancel</button>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="flex:1;overflow-y:auto;padding:13px 18px;" id="sched-cards-area">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    +     '<div style="font-size:10.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;">📋 Configured Schedules</div>'
+    +     '<button onclick="loadSchedulesFromGAS(null,function(){_renderScheduleCards();})" style="padding:5px 12px;background:#faf5ff;color:#6d28d9;border:1.5px solid #ddd6fe;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:4px;touch-action:manipulation;">🔄 Refresh</button>'
+    +   '</div>'
+    +   '<div id="sched-cards"></div>'
+    + '</div>'
+    + '<div style="padding:10px 18px;border-top:1px solid #e5eef9;background:#f8fbff;display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap;">'
+    +   '<span id="sched-trigger-status" style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:700;color:#64748b;" title="GAS server-side time-driven trigger status — runs every minute even if no dashboard is open">⏱ <span id="sched-trigger-label">Checking…</span></span>'
+    +   '<button id="sched-trigger-btn" onclick="_toggleScheduleServerTrigger()" style="padding:5px 10px;background:#e5eef9;color:#475569;border:1.5px solid #cbd5e1;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;display:none;">⋯</button>'
+    +   '<button onclick="document.getElementById(\'schedule-overlay\').remove()" style="margin-left:auto;padding:8px 22px;background:linear-gradient(135deg,#3b0764,#6d28d9);color:white;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Close</button>'
+    + '</div>'
+    + '</div>';
+}
+
+function _populateScheduleDeviceDropdown(presetDevice) {
+  apiGet('getDashboardData').then(function(devices) {
+    _scheduleDashDevices = devices || [];
+    var sel = document.getElementById('sched-device-select');
+    if (!sel) return;
+    // Any device exposing a relay/commandedRelay is toggleable and schedulable
+    var toggleable = (devices || []).filter(function(d) {
+      return d.commandedRelay !== undefined || d.relay !== undefined;
+    });
+    toggleable.forEach(function(d) {
+      var o = document.createElement('option'); o.value = d.device; o.textContent = d.device;
+      sel.appendChild(o);
+    });
+    if (presetDevice) sel.value = presetDevice;
+  }).catch(function() {});
+}
+
+function loadSchedulesFromGAS(deviceFilter, cb) {
+  var params = {};
+  if (deviceFilter) params.device = deviceFilter;
+  apiGet('getSchedules', params).then(function(list) {
+    scheduleConfigs = Array.isArray(list) ? list : [];
+    if (cb) cb();
+  }).catch(function() {
+    showNotification('⚠ Failed to load schedules from server', 'warning');
+    if (cb) cb();
+  });
+}
+
+function saveScheduleForm() {
+  var device = document.getElementById('sched-device-select').value;
+  var time = document.getElementById('sched-time-input').value;
+  var action = document.getElementById('sched-action-select').value;
+  var days = Array.prototype.slice.call(document.querySelectorAll('.sched-day-cb:checked')).map(function(cb){ return cb.value; });
+  var validation = document.getElementById('sched-add-validation');
+
+  if (!device) { validation.textContent = 'Please select a device.'; return; }
+  if (!time) { validation.textContent = 'Please pick a time.'; return; }
+  if (!days.length) { validation.textContent = 'Select at least one day.'; return; }
+  validation.textContent = '';
+
+  var tok = sessionToken || userToken || '';
+  var btn = document.getElementById('sched-save-btn');
+  btn.disabled = true; btn.textContent = _editingScheduleId ? 'Saving…' : 'Adding…';
+
+  var req = _editingScheduleId
+    ? apiPost('updateSchedule', { token: tok, scheduleId: _editingScheduleId, time: time, days: days.join(','), scheduleAction: action })
+    : apiPost('addSchedule', { token: tok, device: device, time: time, days: days.join(','), scheduleAction: action });
+
+  req.then(function(res) {
+    btn.disabled = false;
+    if (!res || !res.success) {
+      validation.textContent = (res && res.error) ? res.error : 'Save failed.';
+      btn.textContent = _editingScheduleId ? '💾 Save Changes' : '➕ Add Schedule';
+      return;
+    }
+    showNotification(_editingScheduleId ? '✅ Schedule updated' : '✅ Schedule added', 'success');
+    _cancelScheduleEdit();
+    loadSchedulesFromGAS(null, function() { _renderScheduleCards(); _updateScheduleBadge(); });
+  }).catch(function() {
+    btn.disabled = false;
+    btn.textContent = _editingScheduleId ? '💾 Save Changes' : '➕ Add Schedule';
+    validation.textContent = 'Network error — please retry.';
+  });
+}
+
+function editSchedule(scheduleId) {
+  var cfg = scheduleConfigs.find(function(c) { return c.scheduleId === scheduleId; });
+  if (!cfg) return;
+  _editingScheduleId = scheduleId;
+  document.getElementById('sched-device-select').value = cfg.device;
+  document.getElementById('sched-device-select').disabled = true;
+  document.getElementById('sched-time-input').value = cfg.time;
+  document.getElementById('sched-action-select').value = String(cfg.action);
+  document.querySelectorAll('.sched-day-cb').forEach(function(cb) { cb.checked = cfg.days.indexOf(cb.value) !== -1; });
+  document.getElementById('sched-form-title').innerHTML = '<span style="width:16px;height:16px;background:#6d28d9;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">✏️</span> Editing Schedule — ' + cfg.device;
+  document.getElementById('sched-save-btn').textContent = '💾 Save Changes';
+  document.getElementById('sched-cancel-edit-btn').style.display = 'block';
+  document.getElementById('sched-inner').scrollTop = 0;
+}
+
+function _cancelScheduleEdit() {
+  _editingScheduleId = null;
+  var devSel = document.getElementById('sched-device-select');
+  if (devSel) devSel.disabled = false;
+  var timeInput = document.getElementById('sched-time-input'); if (timeInput) timeInput.value = '';
+  document.querySelectorAll('.sched-day-cb').forEach(function(cb) { cb.checked = false; });
+  var title = document.getElementById('sched-form-title');
+  if (title) title.innerHTML = '<span style="width:16px;height:16px;background:#6d28d9;border-radius:4px;display:inline-flex;align-items:center;justify-content:center;color:#fff;font-size:10px;">＋</span> New Schedule';
+  var saveBtn = document.getElementById('sched-save-btn'); if (saveBtn) saveBtn.textContent = '➕ Add Schedule';
+  var cancelBtn = document.getElementById('sched-cancel-edit-btn'); if (cancelBtn) cancelBtn.style.display = 'none';
+  var validation = document.getElementById('sched-add-validation'); if (validation) validation.textContent = '';
+}
+
+function toggleSchedule(scheduleId, enabled) {
+  var tok = sessionToken || userToken || '';
+  apiPost('updateSchedule', { token: tok, scheduleId: scheduleId, enabled: enabled ? 'true' : 'false' }).then(function(res) {
+    if (!res || !res.success) { showNotification('⚠ Toggle failed: ' + (res && res.error ? res.error : 'Unknown'), 'warning'); loadSchedulesFromGAS(null, function(){ _renderScheduleCards(); }); return; }
+    var cfg = scheduleConfigs.find(function(c) { return c.scheduleId === scheduleId; });
+    if (cfg) cfg.enabled = enabled;
+    _renderScheduleCards(); _updateScheduleBadge();
+  }).catch(function() { loadSchedulesFromGAS(null, function(){ _renderScheduleCards(); }); });
+}
+
+function deleteSchedule(scheduleId) {
+  if (!confirm('Delete this schedule?')) return;
+  var tok = sessionToken || userToken || '';
+  apiPost('deleteSchedule', { token: tok, scheduleId: scheduleId }).then(function(res) {
+    if (!res || !res.success) { showNotification('⚠ Delete failed: ' + (res && res.error ? res.error : 'Unknown'), 'warning'); return; }
+    showNotification('🗑 Schedule deleted', 'info');
+    loadSchedulesFromGAS(null, function() { _renderScheduleCards(); _updateScheduleBadge(); });
+  }).catch(function() { showNotification('⚠ Network error', 'warning'); });
+}
+
+function _renderScheduleCards() {
+  var area = document.getElementById('sched-cards'); if (!area) return;
+  if (!scheduleConfigs.length) {
+    area.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#94a3b8;font-size:13px;">No schedules configured yet.<br>Add one above to automate a device relay.</div>';
+    return;
+  }
+  // Group by device for readability
+  var byDevice = {};
+  scheduleConfigs.forEach(function(c) { (byDevice[c.device] = byDevice[c.device] || []).push(c); });
+
+  area.innerHTML = Object.keys(byDevice).sort().map(function(device) {
+    var rows = byDevice[device].sort(function(a,b){ return a.time.localeCompare(b.time); }).map(function(cfg) {
+      var actionBadge = cfg.action === 1
+        ? '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">▶️ ON</span>'
+        : '<span style="background:#fee2e2;color:#b91c1c;border-radius:6px;padding:2px 8px;font-size:10.5px;font-weight:800;">⏹️ OFF</span>';
+      var daysBadge = cfg.days.length === 7
+        ? '<span style="font-size:10.5px;color:#6d28d9;font-weight:700;">Daily</span>'
+        : '<span style="font-size:10.5px;color:#64748b;">' + cfg.days.join(', ') + '</span>';
+      var triggerInfo = cfg.triggerCount > 0
+        ? '<div style="font-size:10px;color:#94a3b8;margin-top:3px;">Fired ' + cfg.triggerCount + ' time' + (cfg.triggerCount!==1?'s':'') + (cfg.lastTriggered ? ' · Last: ' + cfg.lastTriggered : '') + '</div>'
+        : '';
+      return '<div style="background:' + (cfg.enabled ? '#f8fbff' : '#f8fafc') + ';border:1.5px solid ' + (cfg.enabled ? '#ddd6fe' : '#e2e8f0') + ';border-radius:13px;padding:11px 14px;margin-bottom:8px;opacity:' + (cfg.enabled ? '1' : '0.65') + ';">'
+        + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">'
+        +   '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'
+        +     '<span style="font-size:13px;font-weight:800;color:#4c1d95;">🕐 ' + cfg.time + '</span>'
+        +     actionBadge
+        +     daysBadge
+        +   '</div>'
+        +   '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+        +     '<label class="toggle-switch" title="Enable/disable this schedule" style="transform:scale(0.8);">'
+        +       '<input type="checkbox" ' + (cfg.enabled?'checked':'') + ' onchange="toggleSchedule(\'' + cfg.scheduleId + '\',this.checked)">'
+        +       '<span class="slider"></span>'
+        +     '</label>'
+        +     '<button onclick="editSchedule(\'' + cfg.scheduleId + '\')" style="padding:4px 10px;background:#eff6ff;color:#1d4ed8;border:1.5px solid #bfdbfe;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">✏️ Edit</button>'
+        +     '<button onclick="deleteSchedule(\'' + cfg.scheduleId + '\')" style="padding:4px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:11px;font-weight:700;cursor:pointer;">🗑</button>'
+        +   '</div>'
+        + '</div>'
+        + triggerInfo
+        + '</div>';
+    }).join('');
+    return '<div style="margin-bottom:14px;">'
+      + '<div style="font-size:12px;font-weight:800;color:#064e3b;margin-bottom:6px;">⚙️ ' + device + '</div>'
+      + rows
+      + '</div>';
+  }).join('');
+}
+
+function _updateScheduleBadge() {
+  var activeCount = scheduleConfigs.filter(function(c) { return c.enabled; }).length;
+  var badge = document.getElementById('device-schedules-badge');
+  if (badge) {
+    if (activeCount > 0) { badge.style.display = 'flex'; badge.textContent = activeCount; }
+    else badge.style.display = 'none';
+  }
+}
+
+function _checkScheduleTrigger() {
+  apiGet('checkScheduleTrigger').then(function(res) {
+    var label = document.getElementById('sched-trigger-label');
+    var btn = document.getElementById('sched-trigger-btn');
+    if (!label || !btn) return;
+    var installed = res && res.installed;
+    label.textContent = installed ? 'Server trigger active (runs every 1 min)' : 'Server trigger NOT installed';
+    label.style.color = installed ? '#15803d' : '#b91c1c';
+    btn.style.display = 'inline-block';
+    btn.textContent = installed ? '⏹ Remove' : '▶ Install';
+    btn.dataset.installing = installed ? 'false' : 'true';
+  }).catch(function() {
+    var label = document.getElementById('sched-trigger-label');
+    if (label) label.textContent = 'Status unknown';
+  });
+}
+
+window._toggleScheduleServerTrigger = function() {
+  var btn = document.getElementById('sched-trigger-btn');
+  var label = document.getElementById('sched-trigger-label');
+  if (!btn) return;
+  var installing = btn.dataset.installing === 'true';
+  btn.disabled = true; btn.textContent = installing ? 'Installing…' : 'Removing…';
+  var tok = sessionToken || userToken || '';
+  apiPost(installing ? 'installScheduleTrigger' : 'removeScheduleTrigger', { token: tok }).then(function(r) {
+    btn.disabled = false;
+    if (r && r.success) {
+      showNotification(r.message || (installing ? '✅ Trigger installed' : '✅ Trigger removed'), 'success');
+      _checkScheduleTrigger();
+    } else {
+      showNotification('⚠ ' + (r && r.error ? r.error : 'Action failed'), 'warning');
+      btn.textContent = installing ? '▶ Install' : '⏹ Remove';
+    }
+  }).catch(function() {
+    label.innerHTML = '⚠ <b>Authorization needed</b>';
+    btn.textContent = '🔗 Authorize';
+    btn.style.cssText = 'padding:5px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+    btn.disabled = false;
+    showNotification('⚠ Google authorization required. Click "🔗 Authorize" to approve in a new tab.', 'warning');
+  });
+};
 
 function _setManualOverride(id, val) {
   var tok = sessionToken || userToken || '';
@@ -8975,259 +9276,6 @@ function exportDashboardPDF() {
      Uses IndexedDB to persist config across SW restarts so
      periodicSync continues working even after browser restart.
      ══════════════════════════════════════════════════════════ */
-  var SW_SRC = '("use strict";' +
-  /* IndexedDB helpers */
-  'function dbOpen(){return new Promise(function(res,rej){' +
-  '  var r=indexedDB.open("agus_sw",1);' +
-  '  r.onupgradeneeded=function(e){e.target.result.createObjectStore("kv");};' +
-  '  r.onsuccess=function(e){res(e.target.result);};' +
-  '  r.onerror=function(e){rej(e);};' +
-  '});}' +
-  'function dbGet(db,k){return new Promise(function(res,rej){' +
-  '  var tx=db.transaction("kv","readonly"),r=tx.objectStore("kv").get(k);' +
-  '  r.onsuccess=function(){res(r.result);};r.onerror=rej;' +
-  '});}' +
-  'function dbSet(db,k,v){return new Promise(function(res,rej){' +
-  '  var tx=db.transaction("kv","readwrite"),r=tx.objectStore("kv").put(v,k);' +
-  '  r.onsuccess=res;r.onerror=rej;' +
-  '});}' +
-  /* Lifecycle */
-  'self.addEventListener("install",function(){self.skipWaiting();});' +
-  /* Message from page — save config to IDB */
-  'self.addEventListener("message",function(e){' +
-  '  var d=e.data;if(!d)return;' +
-  '  if(d.type==="AGUS_CFG"){' +
-  '    dbOpen().then(function(db){' +
-  '      return Promise.all([' +
-  '        dbSet(db,"cfg",d.cfg),' +
-  '        d.prev?dbSet(db,"prev",d.prev):Promise.resolve()' +
-  '      ]);' +
-      '    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
-  '  }' +
-  '  if(d.type==="AGUS_NOTIFY"){' +
-  '    self.registration.showNotification(d.title,d.opts||{});' +
-  '  }' +
-  '});' +
-  /* Notification click — open page and speak TTS */
-  'self.addEventListener("notificationclick",function(e){' +
-  '  var nd=e.notification.data||{};' +
-  '  e.notification.close();' +
-  '  e.waitUntil(self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '    var target=null;' +
-  '    for(var i=0;i<cs.length;i++){if(cs[i].url&&cs[i].focus){cs[i].focus();target=cs[i];break;}}' +
-  '    var p=target?Promise.resolve(target):(self.clients.openWindow?self.clients.openWindow("/"):Promise.resolve(null));' +
-  '    return p.then(function(c){if(c&&nd.tts)setTimeout(function(){c.postMessage({type:"AGUS_SPEAK",text:nd.tts});},800);});' +
-  '  }));' +
-  '});' +
-  /* SW message handler: keepalive ping + speak relay */
-  'self.addEventListener("message",function(e){' +
-  '  var d=e.data||{};' +
-  '  if(d.type==="AGUS_KEEPALIVE"||d.type==="AGUS_PING"){' +
-  '    if(e.source)try{e.source.postMessage({type:"AGUS_ALIVE"});}catch(x){}' +
-  '  }' +
-  '  if(d.type==="AGUS_SPEAK_RELAY"&&d.text){' +
-  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '      cs.forEach(function(c){try{c.postMessage({type:"AGUS_SPEAK",text:d.text});}catch(x){}});' +
-  '    });' +
-  '  }' +
-  '  if(d.type==="AGUS_FOCUS"){' +
-  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '      cs.forEach(function(c){if(c.url)c.focus().catch(function(){});});' +
-  '    });' +
-  '  }' +
-  '});' +
-  /* Periodic background sync — wakes SW on Android PWA */
-  'self.addEventListener("periodicsync",function(e){' +
-  '  if(e.tag==="agus-bg")e.waitUntil(bgPoll());' +
-  '});' +
-  /* Dedup */
-  'var _swErr=0;var _dd={};var COOL=30000;' +
-  'function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}' +
-  /* Notify helper */
-  'var _alarmMap={fault:"fault",off:"offline",' +
-  '  "wl-hi":"high","wl-lo":"low",' +
-  '  "psi-hi":"high pressure","psi-lo":"low pressure",' +
-  '  "fl-hi":"high flow","fl-lo":"low flow",' +
-  '  "vt-hi":"high voltage","vt-lo":"low voltage",' +
-  '  "am-hi":"overcurrent","am-lo":"low current",' +
-  '  "pw-hi":"high power"};' +
-  'function pop(title,body,tag,urgent){' +
-  '  var ttsMsg=title+". "+body;' +
-  '  if(urgent){' +
-  '    self.clients.matchAll({type:"window",includeUncontrolled:true}).then(function(cs){' +
-  '      var parts=(tag||"").split(":");' +
-  '      var devName=parts.slice(1).join(":")||"";' +
-  '      var alarmType=_alarmMap[parts[0]]||parts[0];' +
-'      cs.forEach(function(c){' +
-'        if(c.url){c.focus().catch(function(){})}' +
-'        if(devName&&parts[0]!=="pl"){' +
-'          c.postMessage({type:"AGUS_NDRRMC",deviceName:devName,alarmType:alarmType,value:body,isReservoir:!!(parts[0]==="wl-hi"||parts[0]==="wl-lo"),key:devName+":"+alarmType});' +
-'        }else{' +
-'          c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});' +
-'        }' +
-'      });' +
-  '    });' +
-  '  }' +
-  '  return self.registration.showNotification(title,{' +
-  '    body:body,tag:tag,requireInteraction:!!urgent,' +
-  '    vibrate:urgent?[400,150,800,150,400,100,400]:[200,100,200],' +
-  '    data:{tts:ttsMsg,tag:tag,urgent:!!urgent},' +
-  '    icon:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E",' +
-  '    badge:"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Ccircle cx=%2250%22 cy=%2250%22 r=%2245%22 fill=%22%23007bff%22/%3E%3Cpath d=%22M50 20C35 40 30 55 30 65a20 20 0 0 0 40 0c0-10-5-25-20-45z%22 fill=%22%23fff%22 opacity=%220.9%22/%3E%3C/svg%3E"' +
-  '  });' +
-  '}' +
-  /* Background poll */
-  'async function bgPoll(){' +
-  '  try{' +
-  '    if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}' +
-  '    var db=await dbOpen();' +
-  '    var cfg=await dbGet(db,"cfg");' +
-  '    if(!cfg||!cfg.apiUrl||!cfg.token)return;' +
-  '    var prev=(await dbGet(db,"prev"))||{};' +
-  '    var url=cfg.apiUrl+"?action=getDashboardData&token="+encodeURIComponent(cfg.token);' +
-  '    var res=await fetch(url);' +
-  '    if(!res.ok)return;' +
-  '    var devs=await res.json();' +
-  '    if(!Array.isArray(devs))return;' +
-  '    var ps=[];' +
-  '    var DEF={minPsi:20,maxPsi:80,minLevel:20,maxLevel:250,minVolt:210,maxVolt:240,minCurrent:0,maxCurrent:30,minFlow:0.5,maxFlow:50,minPower:0,maxPower:15000};' +
-  '    var thr={};try{thr=cfg.thr||{};}catch(e){}' +
-  '    devs.forEach(function(d){' +
-  '      var n=d.device||"",st=d.status||"",p=prev[n]||{},t=Object.assign({},DEF,thr[n]||{});' +
-  '      if((st==="Fault"||d.button)&&can("fault:"+n))' +
-  '        ps.push(pop("⚠️ FAULT — "+n,n+": Device FAULT detected. Immediate attention required.","fault:"+n,true));' +
-  '      if(st==="Offline"&&(p.status==="Online"||!p.status)&&can("off:"+n))' +
-  '        ps.push(pop("📴 OFFLINE — "+n,n+": Device went offline. Check connection immediately.","off:"+n,true));' +
-  '      if(st==="Online"&&(p.status==="Fault"||p.status==="Offline")&&can("ok:"+n))' +
-  '        ps.push(pop("✅ Recovered — "+n,n+": Device is back online.","ok:"+n,false));' +
-  '      var lv=parseFloat(d.level);' +
-  '      if(!isNaN(lv)){' +
-  '        if(lv>=t.maxLevel&&can("wl-hi:"+n))' +
-  '          ps.push(pop("🚰 HIGH WATER LEVEL — "+n,n+": "+lv.toFixed(1)+" m³ exceeds max "+t.maxLevel+" m³. Overflow risk!","wl-hi:"+n,true));' +
-  '        if(lv<=t.minLevel&&can("wl-lo:"+n))' +
-  '          ps.push(pop("💧 LOW WATER LEVEL — "+n,n+": "+lv.toFixed(1)+" m³ below min "+t.minLevel+" m³. Check supply immediately.","wl-lo:"+n,true));' +
-  '      }' +
-  '      var psi=parseFloat(d.pressure);' +
-  '      if(!isNaN(psi)){' +
-  '        if(psi>t.maxPsi&&can("psi-hi:"+n))' +
-  '          ps.push(pop("🔴 HIGH PRESSURE — "+n,n+": "+psi.toFixed(1)+" psi > "+t.maxPsi+" psi. Check pipeline for blockage.","psi-hi:"+n,true));' +
-  '        if(psi<t.minPsi&&psi>0&&can("psi-lo:"+n))' +
-  '          ps.push(pop("🟠 LOW PRESSURE — "+n,n+": "+psi.toFixed(1)+" psi < "+t.minPsi+" psi. Check pump operation.","psi-lo:"+n,true));' +
-  '      }' +
-  '      var fl=parseFloat(d.flow);' +
-  '      if(!isNaN(fl)&&d.relay==1){' +
-  '        if(fl>t.maxFlow&&can("fl-hi:"+n))' +
-  '          ps.push(pop("💦 HIGH FLOW RATE — "+n,n+": "+fl.toFixed(2)+" L/s > "+t.maxFlow+" L/s. Possible PIPE BURST!","fl-hi:"+n,true));' +
-  '        if(fl<t.minFlow&&fl>=0&&can("fl-lo:"+n))' +
-  '          ps.push(pop("⚠️ LOW FLOW RATE — "+n,n+": "+fl.toFixed(2)+" L/s < "+t.minFlow+" L/s while pump ON. Check for blockage.","fl-lo:"+n,true));' +
-  '      }' +
-  '      var vt=parseFloat(d.voltage);' +
-  '      if(!isNaN(vt)&&vt>0){' +
-  '        if(vt>t.maxVolt&&can("vt-hi:"+n))' +
-  '          ps.push(pop("⚡ HIGH VOLTAGE — "+n,n+": "+vt.toFixed(1)+" V > "+t.maxVolt+" V. Risk of equipment damage!","vt-hi:"+n,true));' +
-  '        if(vt<t.minVolt&&can("vt-lo:"+n))' +
-  '          ps.push(pop("🔋 LOW VOLTAGE — "+n,n+": "+vt.toFixed(1)+" V < "+t.minVolt+" V. Power supply issue detected.","vt-lo:"+n,true));' +
-  '      }' +
-  '      var am=parseFloat(d.current);' +
-  '      if(!isNaN(am)&&am>=0){' +
-  '        if(am>t.maxCurrent&&can("am-hi:"+n))' +
-  '          ps.push(pop("⚡ OVERCURRENT — "+n,n+": "+am.toFixed(2)+" A > "+t.maxCurrent+" A. Motor overload! Stop pump immediately.","am-hi:"+n,true));' +
-  '        if(am<t.minCurrent&&t.minCurrent>0&&d.relay==1&&can("am-lo:"+n))' +
-  '          ps.push(pop("⬇️ LOW CURRENT — "+n,n+": "+am.toFixed(2)+" A < "+t.minCurrent+" A while running. Possible dry run.","am-lo:"+n,true));' +
-  '      }' +
-  '      var pw=parseFloat(d.power);' +
-  '      if(!isNaN(pw)&&pw>t.maxPower&&can("pw-hi:"+n))' +
-  '        ps.push(pop("🔌 HIGH POWER DRAW — "+n,n+": "+pw.toFixed(0)+" W > "+t.maxPower+" W. Abnormal electrical load detected.","pw-hi:"+n,true));' +
-  '      prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};' +
-  '    });' +
-  '    await dbSet(db,"prev",prev);' +
-'    await pumpLinkControl(cfg,devs,db,ps);' +
-'    await Promise.all(ps);' +
-'    _swErr=0;' +
-'  }catch(err){console.error("[SW] bgPoll:",err);_swErr++}' +
-'  if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}' +
-'}' +
-  /* Pump-link toggle — calls GAS togglePump via POST */
-  'async function swTogglePump(apiUrl,token,device){' +
-  '  try{var r=await fetch(apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},' +
-  '    body:JSON.stringify({action:"togglePump",token:token,device:device,latitude:"",longitude:""})});' +
-  '  if(!r.ok)return null;return await r.json();}catch(e){console.warn("[SW] togglePump error:",e);return null;}' +
-  '}' +
-  /* Pump-link auto-control — runs even when dashboard tab is closed */
-  'async function pumpLinkControl(cfg,devs,db,ps){' +
-  '  var links=cfg.pumpLinks||[];' +
-  '  if(!links.length){try{' +
-  '    var lr=await fetch(cfg.apiUrl,{method:"POST",headers:{"Content-Type":"application/json"},' +
-  '      body:JSON.stringify({action:"getPumpLinks",token:cfg.token})});' +
-  '    if(lr.ok){var ld=await lr.json();if(Array.isArray(ld)){links=ld;}}' +
-  '  }catch(e){console.warn("[SW] getPumpLinks error:",e);}}' +
-  '  if(!links.length)return;' +
-  '  var cool=(await dbGet(db,"pl_cool"))||{};' +
-  '  var manCool=(await dbGet(db,"pl_man_cool"))||{};' +
-  '  var now=Date.now();var PL_COOL=300000;' +
-  '  var devMap={};devs.forEach(function(d){devMap[d.device]=d;});' +
-  '  for(var i=0;i<links.length;i++){' +
-  '    var lnk=links[i];' +
-  '    if(!lnk.enabled)continue;' +
-  '    if(lnk.manualOverride)continue;' +
-  '    if(manCool[lnk.pump]&&now<manCool[lnk.pump])continue;' +
-  '    var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];' +
-  '    if(!resD||!pumD)continue;' +
-  '    var lv=parseFloat(resD.level);if(isNaN(lv))continue;' +
-  '    var sOff=parseFloat(lnk.shutoffLevel),sRes=parseFloat(lnk.resumeLevel);' +
-  '    var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;' +
-  '    if(isNaN(sOff)||isNaN(sRes))continue;' +
-  '    var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";' +
-  '    var ck=lnk.pump;  // pump-only key prevents race when two reservoirs share one pump' +
-  '    if(cool[ck]&&now-cool[ck]<PL_COOL)continue;' +
-  '    var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));' +
-  '    var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));' +
-  '    if(!needOff&&!needOn)continue;' +
-  '    var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump);' +
-  '    if(tr&&tr.success){' +
-  '      cool[ck]=now;' +
-  '      var newOn=!!tr.newState;' +
-  '      var lvStr=lv.toFixed(1)+" m\u00B3";' +
-  '      var thresh=newOn?"resumed \u2264"+sRes+" m\u00B3":"shut off \u2265"+sOff+" m\u00B3";' +
-  '      ps.push(pop((newOn?"\u25B6\uFE0F Auto-ON: ":"\u23F9\uFE0F Auto-OFF: ")+lnk.pump,' +
-  '        lnk.reservoir+" "+thresh+". Level: "+lvStr,"pl:"+ck,true));' +
-  '    }' +
-  '  }' +
-  '  await dbSet(db,"pl_cool",cool);' +
-  '}' +
-  /* AGUS_PL message: page pushes pump links + manual cooldowns to SW */
-  'self.addEventListener("message",function(e2){' +
-  '  var d2=e2.data;if(!d2)return;' +
-'  if(d2.type==="AGUS_PL"){' +
-  '    dbOpen().then(function(db2){' +
-  '      return dbGet(db2,"cfg").then(function(existCfg){' +
-  '        var merged=Object.assign({},existCfg||{});' +
-  '        if(d2.links)merged.pumpLinks=d2.links;' +
-  '        if(d2.baseCfg){' +
-  '          if(d2.baseCfg.apiUrl)merged.apiUrl=d2.baseCfg.apiUrl;' +
-  '          if(d2.baseCfg.token)merged.token=d2.baseCfg.token;' +
-  '        }' +
-  '        return Promise.all([' +
-'          dbSet(db2,"cfg",merged),' +
-'          d2.manCool?dbSet(db2,"pl_man_cool",d2.manCool):Promise.resolve()' +
-'        ]);' +
-'      });' +
-'    }).then(function(){ bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);}); });' +
-'  }' +
-'});' +
-  /* Also run on push event (for future server-push) */
-  'self.addEventListener("push",function(e){' +
-  '  e.waitUntil(bgPoll());' +
-  '});' +
-  /* Internal SW heartbeat — polls every 60s even when page is backgrounded */
-  'var _swHb=null;' +
-  'self.addEventListener("activate",function(eAct){' +
-  '  eAct.waitUntil(self.clients.claim().then(function(){' +
-    '  if(_swHb)clearInterval(_swHb);' +
-    '  self._swHb=setInterval(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});},120000);' +
-  '  }));' +
-  '});' +
-  ')();';
 
   /* ── Register SW ─────────────────────────────────────────── */
   function _registerSW() {
@@ -9247,10 +9295,11 @@ function exportDashboardPDF() {
     }
     navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
       .then(regDone)
-      .catch(function() {
-        var blob = new Blob(['(' + SW_SRC], { type: 'application/javascript' });
-        var url  = URL.createObjectURL(blob);
-        navigator.serviceWorker.register(url).then(regDone).catch(function() {});
+      .catch(function(err) {
+        // No silent fallback to a stale embedded copy — surface the failure
+        // so background pump-link control / NDRRMC escalation not running
+        // is visible instead of quietly running an outdated SW.
+        console.error('[AGUS] sw.js registration failed — background auto-control and offline alerting are DISABLED:', err);
       });
   }
 
