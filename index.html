@@ -3767,7 +3767,15 @@ function _firebaseDeviceToArray() {
     var stale = (now / 1000 - ts) > 300; // 5 min stale threshold
     var relay = (fb.relay == 1 || fb.relay === true || fb.relay === '1' || fb.relay === 'ON') ? 1 : 0;
     var button = (fb.button == 1 || fb.button === true) ? 1 : 0;
-    var cmd = commandedRelayCache.hasOwnProperty(name) ? commandedRelayCache[name] : relay;
+    // ★ SYNC FIX: commandedRelay now also lives in Firebase (written instantly by GAS on
+    // every toggle/schedule/auto-shutoff), so OTHER connected dashboards see the same
+    // pending/confirmed state in real time — not just the tab that clicked the toggle.
+    // relay stays the ESP32-owned "actual confirmed" field; commandedRelay is the order.
+    var fbCmdRaw = fb.commandedRelay;
+    var fbCmd = (fbCmdRaw == 1 || fbCmdRaw === true || fbCmdRaw === '1') ? 1
+              : (fbCmdRaw == 0 || fbCmdRaw === false || fbCmdRaw === '0') ? 0
+              : null;
+    var cmd = commandedRelayCache.hasOwnProperty(name) ? commandedRelayCache[name] : (fbCmd !== null ? fbCmd : relay);
     var s = pressureSettingsCache[name] || {};
     var r = reservoirThresholdsCache[name] || {};
     arr.push({
