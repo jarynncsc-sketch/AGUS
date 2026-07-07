@@ -3912,7 +3912,14 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     if (res && res.success) {
       commandedRelayCache[deviceName] = res.newState;
       if (cb) cb(res.newState);
-      showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
+      // ★ FIX: firebaseDelivered comes back from GAS togglePump() now — if the Firebase
+      // write silently failed (bad RTDB rules, wrong region, etc.), say so distinctly
+      // instead of a blanket ✅, since the relay/other dashboards won't see the new state yet.
+      if (res.firebaseDelivered === false) {
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
+      } else {
+        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
+      }
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
       _manualToggleCooldown[deviceName] = Date.now() + 300000;
       pumpLinkConfigs.forEach(function(pl) {
