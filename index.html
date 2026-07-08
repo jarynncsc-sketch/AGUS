@@ -1384,6 +1384,7 @@
     .blink-alarm{animation:blink 1.2s cubic-bezier(0.45,0,0.55,1) infinite;}
     /* ── Auto-shutoff badge on device list items ─── */
     .auto-shutoff-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#b91c1c,#dc2626);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(185,28,28,0.35);letter-spacing:0.2px;width:100%!important;}
+.manual-override-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#6d28d9,#7c3aed);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(109,40,217,0.35);letter-spacing:0.2px;width:100%!important;}
     #pressure-settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:5000;justify-content:center;align-items:center;}
     #pressure-settings-modal.visible{display:flex;}
     #pressure-settings-inner{background:#ffffff;border-radius:18px;width:440px;max-width:95vw;box-shadow:0 32px 80px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);}
@@ -2569,6 +2570,25 @@ function _readCommandedCache(name) {
 }
 var _localTogglePending = {}; // { deviceName: timestamp } — hides "Sending…" badge 8s after local toggle
 var _manualToggleCooldown = {}; // { deviceName: expiry } — skip auto-shutoff for 5 min after manual toggle
+var _MANUAL_OVERRIDE_MS = 3600000; // 1 hour: manual toggle blocks APE + schedule via Firebase manualOverride flag
+function _setManualOverrideFB(deviceName, active) {
+  if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
+  try {
+    if (active) {
+      _fbDevicesRef.child(deviceName).update({
+        manualOverride: true,
+        manualOverrideExpiry: Date.now() + _MANUAL_OVERRIDE_MS
+      }).catch(function(e) { console.warn('[FB] manualOverride set failed:', e); });
+    } else {
+      _fbDevicesRef.child(deviceName).update({
+        manualOverride: null,
+        manualOverrideExpiry: null
+      }).catch(function(e) { console.warn('[FB] manualOverride clear failed:', e); });
+    }
+  } catch(e) {
+    console.warn('[FB] manualOverride error:', e);
+  }
+}
 function _markTogglePending(deviceName) { _localTogglePending[deviceName] = Date.now(); }
 function _isTogglePendingLocal(deviceName) {
   var ts = _localTogglePending[deviceName];
@@ -3644,6 +3664,12 @@ function initDashboard() {
         var pumD  = devMap[lnk.pump];
         if (!resD || !pumD) continue;
 
+        /* Skip if device is under manual override (leak/emergency override) */
+        if (pumD.manualOverride) {
+          var moExpiry = pumD.manualOverrideExpiry;
+          if (!moExpiry || now < moExpiry) continue;
+        }
+
         var lv     = parseFloat(resD.level);
         if (isNaN(lv)) continue;
 
@@ -3675,6 +3701,7 @@ function initDashboard() {
         var wantState = needOn ? 1 : 0;
 
         _setCommandedCache(lnk.pump, wantState);
+        _firebaseOptimisticToggle(lnk.pump, wantState);
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -3719,6 +3746,7 @@ function initDashboard() {
             } else {
               /* Revert optimistic state on failure */
               _setCommandedCache(device, state === 1 ? 0 : 1);
+              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1);
             }
           }).catch(function() {
             /* Network error — leave optimistic state, will re-check next cycle */
@@ -3809,6 +3837,8 @@ function _firebaseDeviceToArray() {
       latitude: fb.latitude || null,
       longitude: fb.longitude || null,
       lastToggledBy: fb.lastToggledBy || null,
+      manualOverride: fb.manualOverride === true || fb.manualOverride === 'true',
+      manualOverrideExpiry: fb.manualOverrideExpiry ? parseInt(fb.manualOverrideExpiry) : 0,
       timestamp: ts ? new Date(ts * 1000).toLocaleString() : null,
       minPsi: s.minPsi || 20,
       normalPsi: s.normalPsi || 50,
@@ -3943,6 +3973,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   apiPost('togglePump', {
     device:       deviceName,
     token:        userToken,
+    relay:        newStateInt,
     desiredState: newStateInt,
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
@@ -3972,6 +4003,9 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
           }
         }
       });
+      // ═══ Step 4b: Manual override — set when OFF (leak/emergency), clear when ON ═══
+      if (res.newState === 0) _setManualOverrideFB(deviceName, true);
+      else _setManualOverrideFB(deviceName, false);
       setTimeout(updateDashboard, 1500);
     } else {
       // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
@@ -4056,6 +4090,9 @@ if (isResBooster) {
     +     '</div>'
     +   '</div>'
     +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
+    + (d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry)
+      ? '<div class="manual-override-badge" style="margin-top:2px; text-align:right;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE</div>'
+      : '')
     + '</div>';
 
   (function(){
@@ -4107,6 +4144,11 @@ if (isResBooster) {
       var autoOffBadge = autoOff
         ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
         : '';
+      // ── Manual override badge (leak/emergency) ──
+      var moActive = d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry);
+      var moBadge = moActive
+        ? '<div class="manual-override-badge" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE</div>'
+        : '';
       // ★ v3: build switch — state from commandedRelay (server authority)
       var pendingBadge = relayPending
         ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
@@ -4118,7 +4160,7 @@ if (isResBooster) {
         + '<span class="slider"></span></label>'
         + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
         + '</div>'
-        + pendingBadge + autoOffBadge;
+        + pendingBadge + autoOffBadge + moBadge;
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
@@ -4386,6 +4428,12 @@ function autoShutoffPumps(devices) {
     var resData  = devMap[cfg.reservoir];
     var pumpData = devMap[cfg.pump];
     if (!resData || !pumpData) return;
+
+    /* Skip if device is under manual override (leak/emergency) */
+    if (pumpData.manualOverride) {
+      var moExpiry = pumpData.manualOverrideExpiry;
+      if (!moExpiry || Date.now() < moExpiry) return;
+    }
 
     var lv = parseFloat(resData.level);
     if (isNaN(lv)) return;
