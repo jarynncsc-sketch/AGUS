@@ -3895,6 +3895,21 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
 // ★ v3: processOfflineQueue kept as no-op for legacy references.
 function processOfflineQueue() { /* no-op in v3 */ }
 
+/* ── Best-effort fast-path: write directly to Firebase so other tabs see the toggle immediately ── */
+function _firebaseOptimisticToggle(deviceName, value) {
+  if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
+  try {
+    _fbDevicesRef.child(deviceName).update({
+      commandedRelay: value,
+      lastToggledBy: loggedInUser || 'dashboard'
+    }).catch(function(e) {
+      console.warn('[FB] Optimistic write failed:', e);
+    });
+  } catch(e) {
+    console.warn('[FB] Optimistic write error:', e);
+  }
+}
+
 /**
  * ★ v3 togglePump — dashboard is the command authority.
  * Optimistically updates UI, sends command to GAS (which stores in PropertiesService),
@@ -3909,6 +3924,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
   _setCommandedCache(deviceName, newStateInt);
+  _firebaseOptimisticToggle(deviceName, newStateInt);
   if (cb) cb(newStateInt);
 
   var coords = deviceCoordinatesCache[deviceName] || {};
@@ -3947,6 +3963,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     } else {
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
+      _firebaseOptimisticToggle(deviceName, revert);
       if (cb) cb(revert);
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
@@ -3954,6 +3971,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     delete _localTogglePending[_dKey];
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
+    _firebaseOptimisticToggle(deviceName, revert);
     if (cb) cb(revert);
     showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
