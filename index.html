@@ -3982,8 +3982,11 @@ if (isResBooster) {
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
   var resRelayPending = d.relayPending === true;
-  var resPendingBadge = resRelayPending
-    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+  // ★ FIX: spinner now sits directly beside the switch instead of on its own line
+  // below — it clears the instant GAS mirrors the ESP32's confirmed actual relay
+  // state into Firebase (see pushActualRelayToFirebase on the GAS side).
+  var resPendingSpinner = resRelayPending
+    ? '<span title="Waiting for GAS/Firebase to confirm actual relay state" style="width:12px;height:12px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;flex-shrink:0;"></span>'
     : '';
 
   // Water level on top, then device name + status + toggle in one row below
@@ -3999,9 +4002,9 @@ if (isResBooster) {
     +         '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
     +         '<span class="slider"></span>'
     +       '</label>'
+    +       resPendingSpinner
     +     '</div>'
     +   '</div>'
-    +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
     + '</div>';
 
   (function(){
@@ -4050,18 +4053,22 @@ if (isResBooster) {
       var autoOffBadge = autoOff
         ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
         : '';
-      // ★ v3: build switch — state from commandedRelay (server authority)
-      var pendingBadge = relayPending
-        ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+      // ★ FIX: spinner now sits directly beside the switch instead of on its own
+      // line below — clears the instant GAS mirrors the ESP32's confirmed actual
+      // relay state into Firebase (see pushActualRelayToFirebase on the GAS side).
+      var pendingSpinner = relayPending
+        ? '<span title="Waiting for GAS/Firebase to confirm actual relay state" style="width:12px;height:12px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;flex-shrink:0;margin:0 2px;"></span>'
         : '';
+      // ★ v3: build switch — state from commandedRelay (server authority)
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
         + '<span class="slider"></span></label>'
+        + pendingSpinner
         + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
         + '</div>'
-        + pendingBadge + autoOffBadge;
+        + autoOffBadge;
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
