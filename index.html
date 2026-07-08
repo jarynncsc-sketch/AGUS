@@ -2473,7 +2473,7 @@ try {
     _firebaseConnected = true;
     _firebaseDevicesCache = val;
 
-    // ── Detect ESP32-initiated relay changes (physical button) and sync ──
+    // ── Sync relay when it disagrees with commandedRelay (ESP32 physical toggle or initial load) ──
     var _now = Date.now();
     Object.keys(val).forEach(function(_fbName) {
       var _fb = val[_fbName];
@@ -2481,13 +2481,18 @@ try {
       var _relay = (_fb.relay == 1 || _fb.relay === true || _fb.relay === '1' || _fb.relay === 'ON') ? 1 : 0;
       var _prev = _lastKnownRelay[_fbName];
       _lastKnownRelay[_fbName] = _relay;
-      // Relay changed, no fresh dashboard cache, debounce active → ESP32 physical toggle
-      if (_prev !== undefined && _prev !== _relay && _readCommandedCache(_fbName) === undefined) {
+      var _fbCmdRaw = _fb.commandedRelay;
+      var _fbCmd = (_fbCmdRaw == 1 || _fbCmdRaw === true || _fbCmdRaw === '1') ? 1
+                : (_fbCmdRaw == 0 || _fbCmdRaw === false || _fbCmdRaw === '0') ? 0
+                : null;
+      // relay ≠ fbCmd, no fresh dashboard cache → ESP32 drifted; re-assert dashboard authority
+      if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined) {
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
           _esp32SyncCooldown[_fbName] = _now + 10000;
-          _setCommandedCache(_fbName, _relay);
-          _firebaseOptimisticToggle(_fbName, _relay, false); // sync, not a toggle — preserve lastToggledBy
+          _setCommandedCache(_fbName, _fbCmd);
+          _firebaseOptimisticToggle(_fbName, _fbCmd, false);
+          delete _relayPendingUntil[_fbName];
         }
       }
     });
@@ -2576,7 +2581,7 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
 var commandedRelayCacheTimestamps = {}; // { deviceName: timestamp } — ms epoch, set alongside cache value
-var _CACHE_TTL = 30000; // 30-second cache lifetime — stale optimistic state expires after this
+var _CACHE_TTL = 15000; // 15-second cache lifetime — stale optimistic state expires after this
 function _setCommandedCache(name, value) {
   commandedRelayCache[name] = value;
   commandedRelayCacheTimestamps[name] = Date.now();
@@ -2592,6 +2597,8 @@ var _localTogglePending = {}; // { deviceName: timestamp } — hides "Sending…
 var _manualToggleCooldown = {}; // { deviceName: expiry } — skip auto-shutoff for 5 min after manual toggle
 var _lastKnownRelay = {}; // { deviceName: 0|1 } — tracks actual relay state from Firebase to detect ESP32-initiated changes
 var _esp32SyncCooldown = {}; // { deviceName: timestamp } — 10s debounce per device to avoid rapid GAS calls
+var _relayPendingUntil = {}; // { deviceName: timestamp } — dashboard wrote relay to Firebase, show "Sending…" until this time
+var _RELAY_PENDING_TIMEOUT = 30000; // 30s for the "Sending…" badge after a dashboard toggle
 var _MANUAL_OVERRIDE_MS = 3600000; // 1 hour: manual toggle blocks APE + schedule via Firebase manualOverride flag
 function _setManualOverrideFB(deviceName, active) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
@@ -3839,8 +3846,8 @@ function _firebaseDeviceToArray() {
               : null;
     var cmd = _readCommandedCache(name);
     if (cmd === undefined) {
-      if (fbCmd !== null && relay === fbCmd) cmd = fbCmd;       // in sync — use commandedRelay
-      else if (fbCmd !== null) cmd = relay;                      // ESP32 changed relay physically — follow actual state
+      // Dashboard is the base reference — commandedRelay is authority, relay follows it
+      if (fbCmd !== null) cmd = fbCmd;                           // dashboard authority
       else cmd = relay;                                          // no commandedRelay field yet
     }
     var s = pressureSettingsCache[name] || {};
@@ -3858,7 +3865,7 @@ function _firebaseDeviceToArray() {
       energy: fb.energy != null ? fb.energy : null,
       relay: relay,
       commandedRelay: cmd,
-      relayPending: cmd !== relay,
+      relayPending: (_relayPendingUntil[name] && now < _relayPendingUntil[name]) || (fbCmd !== null && fbCmd !== relay),
       button: button,
       firmware: fb.firmware || null,
       latitude: fb.latitude || null,
@@ -3993,6 +4000,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
   _firebaseOptimisticToggle(deviceName, newStateInt);
+  _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   if (cb) cb(newStateInt);
 
   // ═══ Step 3: Authoritative GAS write ═══
