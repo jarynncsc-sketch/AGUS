@@ -3895,7 +3895,12 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
 // ★ v3: processOfflineQueue kept as no-op for legacy references.
 function processOfflineQueue() { /* no-op in v3 */ }
 
-/* ── Best-effort fast-path: write directly to Firebase so other tabs see the toggle immediately ── */
+/* ── Step 2: Best-effort direct Firebase write so other tabs see the toggle instantly ──
+ *         commandedRelay = the desired state (order)
+ *         lastToggledBy  = who sent it
+ *         GAS is the authority; this is a fast-path that gives other dashboards
+ *         immediate visibility without waiting for the GAS round-trip.
+ */
 function _firebaseOptimisticToggle(deviceName, value) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
   try {
@@ -3911,9 +3916,14 @@ function _firebaseOptimisticToggle(deviceName, value) {
 }
 
 /**
- * ★ v3 togglePump — dashboard is the command authority.
- * Optimistically updates UI, sends command to GAS (which stores in PropertiesService),
- * then schedules a refresh to sync relayPending status.
+ * Full toggle sequence (dashboard is the command authority):
+ *
+ *   Step 1 — Cache:     _setCommandedCache()          instant local UI feedback
+ *   Step 2 — Firebase:  _firebaseOptimisticToggle()   other tabs see order instantly
+ *   Step 3 — GAS:       apiPost('togglePump')         authoritative backend write
+ *   Step 4 — Confirm:   GAS responds → update cache   mark as sent (relayPending shown)
+ *   Step 5 — ESP32:     reads Firebase commandedRelay → sets physical relay → writes relay back
+ *   Step 6 — Synced:    relay = commandedRelay        relayPending cleared, UI shows confirmed
  */
 function dashboardTogglePump(deviceName, newStateInt, cb) {
   if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
@@ -3923,27 +3933,30 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
+  // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
   _firebaseOptimisticToggle(deviceName, newStateInt);
   if (cb) cb(newStateInt);
 
+  // ═══ Step 3: Authoritative GAS write ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
-  var params = {
+  apiPost('togglePump', {
     device:       deviceName,
     token:        userToken,
-    desiredState: newStateInt,   // ── FIX #3: send explicit state, not just a flip
+    desiredState: newStateInt,
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
-  };
-  apiPost('togglePump', params).then(function(res) {
+  }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
+      // ═══ Step 4: GAS confirmed — update cache to match authoritative state ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
-      // ★ FIX: firebaseDelivered comes back from GAS togglePump() now — if the Firebase
-      // write silently failed (bad RTDB rules, wrong region, etc.), say so distinctly
-      // instead of a blanket ✅, since the relay/other dashboards won't see the new state yet.
       if (res.firebaseDelivered === false) {
+        // GAS saved but its Firebase push failed — retry from client so other tabs still see it
+        if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+          try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+        }
         showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
       } else {
         showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
@@ -3961,6 +3974,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       });
       setTimeout(updateDashboard, 1500);
     } else {
+      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
       _firebaseOptimisticToggle(deviceName, revert);
@@ -3968,6 +3982,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
+    // ═══ Step 4: Network error — revert cache + Firebase ═══
     delete _localTogglePending[_dKey];
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
@@ -3976,8 +3991,11 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
   });
+  // ═══ Steps 5‑6 (ESP32): handled by Firebase listener + _firebaseDeviceToArray() ═══
+  //     relayPending = (commandedRelay !== relay) shown as "Sending…" badge
+  //     when ESP32 writes relay = commandedRelay back to Firebase, the listener fires,
+  //     _updateDashboardFromFirebase() sees they match, relayPending goes false.
 }
-// BUG 2 FIX: expose real function so the APE wrapper can call it by reference at call-time
 window._dashboardTogglePumpReal = dashboardTogglePump;
 
 function updateDeviceList(devices) {
