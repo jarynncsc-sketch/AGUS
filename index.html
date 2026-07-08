@@ -2485,13 +2485,13 @@ try {
       var _fbCmd = (_fbCmdRaw == 1 || _fbCmdRaw === true || _fbCmdRaw === '1') ? 1
                 : (_fbCmdRaw == 0 || _fbCmdRaw === false || _fbCmdRaw === '0') ? 0
                 : null;
-      // relay ≠ fbCmd, no fresh dashboard cache → ESP32 drifted; re-assert dashboard authority
+      // relay ≠ fbCmd, no fresh dashboard cache → ESP32 toggled physically (or stale data on load)
       if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined) {
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
           _esp32SyncCooldown[_fbName] = _now + 10000;
-          _setCommandedCache(_fbName, _fbCmd);
-          _firebaseOptimisticToggle(_fbName, _fbCmd, false);
+          _setCommandedCache(_fbName, _relay);
+          _firebaseOptimisticToggle(_fbName, _relay, false);
           delete _relayPendingUntil[_fbName];
         }
       }
@@ -3850,9 +3850,10 @@ function _firebaseDeviceToArray() {
               : null;
     var cmd = _readCommandedCache(name);
     if (cmd === undefined) {
-      // Dashboard is the base reference — commandedRelay is authority, relay follows it
-      if (fbCmd !== null) cmd = fbCmd;                           // dashboard authority
-      else cmd = relay;                                          // no commandedRelay field yet
+      // Show actual relay state; follow ESP32 when not in sync with commandedRelay
+      if (fbCmd !== null && relay === fbCmd) cmd = fbCmd;       // in sync
+      else if (fbCmd !== null) cmd = relay;                      // ESP32 changed — follow actual
+      else cmd = relay;                                          // no commandedRelay field
     }
     var s = pressureSettingsCache[name] || {};
     var r = reservoirThresholdsCache[name] || {};
