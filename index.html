@@ -3761,6 +3761,10 @@ function initDashboard() {
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
+              // Re-assert relay in Firebase — GAS may have overwritten it
+              if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState, relay: res.newState }); } catch(e) {}
+              }
               var onOff = res.newState ? 'ON' : 'OFF';
               var reason = res.newState
                 ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
@@ -4015,14 +4019,13 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
-      // ═══ Step 4: GAS confirmed — update cache to match authoritative state ═══
+      // ═══ Step 4: GAS confirmed — always re-assert relay in Firebase (GAS may have overwritten it) ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
+      if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+      }
       if (res.firebaseDelivered === false) {
-        // GAS saved but its Firebase push failed — retry from client so other tabs still see it
-        if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-          try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
-        }
         showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
       } else {
         showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
