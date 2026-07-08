@@ -4011,7 +4011,10 @@ function updateDeviceList(devices) {
       // ── Relay toggle for "Reservoir Booster" only ───────────────────────
      var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
 if (isResBooster) {
-  if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
+  if (d.commandedRelay !== undefined) {
+    var _ts = commandedRelayCacheTimestamps[d.device];
+    if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) commandedRelayCache[d.device] = d.commandedRelay;
+  }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
   var resRelayPending = d.relayPending === true;
@@ -4071,7 +4074,10 @@ if (isResBooster) {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
       //        relay = what Smart Device actually has (sheet)
       //        relayPending = they differ (waiting for Smart Device to confirm)
-      if (d.commandedRelay !== undefined) commandedRelayCache[d.device] = d.commandedRelay;
+      if (d.commandedRelay !== undefined) {
+        var _ts = commandedRelayCacheTimestamps[d.device];
+        if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) commandedRelayCache[d.device] = d.commandedRelay;
+      }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
       var switchIsOn = commanded === 1 || commanded === true;
       var relayPending = d.relayPending === true;
