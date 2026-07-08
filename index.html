@@ -3701,7 +3701,7 @@ function initDashboard() {
         var wantState = needOn ? 1 : 0;
 
         _setCommandedCache(lnk.pump, wantState);
-        _firebaseOptimisticToggle(lnk.pump, wantState);
+        _firebaseOptimisticToggle(lnk.pump, wantState, 'AutoEngine');
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -3744,9 +3744,9 @@ function initDashboard() {
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
             } else {
-              /* Revert optimistic state on failure */
+              /* Revert optimistic state on failure — skip lastToggledBy, the change didn't happen */
               _setCommandedCache(device, state === 1 ? 0 : 1);
-              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1);
+              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
             }
           }).catch(function() {
             /* Network error — leave optimistic state, will re-check next cycle */
@@ -3927,17 +3927,17 @@ function processOfflineQueue() { /* no-op in v3 */ }
 
 /* ── Step 2: Best-effort direct Firebase write so other tabs see the toggle instantly ──
  *         commandedRelay = the desired state (order)
- *         lastToggledBy  = who sent it
+ *         lastToggledBy  = who sent it (pass false to skip — used for reverts where
+ *                          the command didn't actually take effect)
  *         GAS is the authority; this is a fast-path that gives other dashboards
  *         immediate visibility without waiting for the GAS round-trip.
  */
-function _firebaseOptimisticToggle(deviceName, value) {
+function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
   try {
-    _fbDevicesRef.child(deviceName).update({
-      commandedRelay: value,
-      lastToggledBy: loggedInUser || 'dashboard'
-    }).catch(function(e) {
+    var _update = { commandedRelay: value, relay: value };
+    if (toggledBy !== false) _update.lastToggledBy = toggledBy || loggedInUser || 'dashboard';
+    _fbDevicesRef.child(deviceName).update(_update).catch(function(e) {
       console.warn('[FB] Optimistic write failed:', e);
     });
   } catch(e) {
@@ -3986,7 +3986,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       if (res.firebaseDelivered === false) {
         // GAS saved but its Firebase push failed — retry from client so other tabs still see it
         if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-          try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+          try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
         }
         showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
       } else {
@@ -4008,19 +4008,19 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       else _setManualOverrideFB(deviceName, false);
       setTimeout(updateDashboard, 1500);
     } else {
-      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
+      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state (skip lastToggledBy) ═══
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
-      _firebaseOptimisticToggle(deviceName, revert);
+      _firebaseOptimisticToggle(deviceName, revert, false);
       if (cb) cb(revert);
       showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    // ═══ Step 4: Network error — revert cache + Firebase ═══
+    // ═══ Step 4: Network error — revert cache + Firebase (skip lastToggledBy) ═══
     delete _localTogglePending[_dKey];
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
-    _firebaseOptimisticToggle(deviceName, revert);
+    _firebaseOptimisticToggle(deviceName, revert, false);
     if (cb) cb(revert);
     showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
