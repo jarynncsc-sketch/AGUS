@@ -60,7 +60,7 @@ function pop(title,body,tag,urgent){
 /* ═══════════════ Background poll ═══════════════ */
 async function bgPoll(){
   try{
-    if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}
+    if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — skipping poll");return;}
     var db=await dbOpen();
     var cfg=await dbGet(db,"cfg");
     if(!cfg||!cfg.apiUrl||!cfg.token)return;
@@ -126,18 +126,17 @@ async function bgPoll(){
     await Promise.all(ps);
     _swErr=0;
   }catch(err){console.error("[SW] bgPoll:",err);_swErr++}
-  if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — pausing 10min");return;}
+  if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — skipping poll");return;}
 }
 /* ═══════════════ Pump toggle helper ═══════════════ */
-// BUG 13 FIX: sends desiredState explicitly so GAS togglePump doesn't blindly flip
 async function swTogglePump(apiUrl,token,device,desiredState){
   try{
-    // Build as GET-style query string (matches index.html apiPost behaviour and GAS doGet)
     var qs = 'action=togglePump'
       + '&token=' + encodeURIComponent(token)
       + '&device=' + encodeURIComponent(device)
       + '&latitude=&longitude='
-      + (desiredState !== undefined ? '&desiredState=' + encodeURIComponent(desiredState) + '&relay=' + encodeURIComponent(desiredState) : '');
+      + (desiredState !== undefined ? '&desiredState=' + encodeURIComponent(desiredState) : '')
+      + '&triggeredBy=SW';
     var r=await fetch(apiUrl + '?' + qs);
     if(!r.ok)return null;return await r.json();
   }catch(e){console.warn("[SW] togglePump error:",e);return null;}
@@ -181,11 +180,20 @@ async function pumpLinkControl(cfg,devs,db,ps){
       if(hist[lnk.reservoir][0]>sRes&&(sRes2===0||hist[lnk.reservoir][0]>sRes2))needOn=false;
       if(hist[lnk.reservoir][1]>sRes&&(sRes2===0||hist[lnk.reservoir][1]>sRes2))needOn=false;
     }
+    /* Manual override gate — never auto-resume a pump the user manually shut off */
+    if(needOn&&pumD.manualOverrideActive)needOn=false;
     if(!needOff&&!needOn)continue;
-    // BUG 12/13 FIX: pass explicit desiredState so GAS doesn't blindly flip
     var desiredState = needOff ? 0 : 1;
     var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump,desiredState);
-    if(tr&&tr.success){
+    if(!tr){
+      cool[ck]=now;
+      continue;
+    }
+    if(tr.error&&tr.error.indexOf("session")!==-1){
+      console.warn("[SW] Token expired for",lnk.pump);
+      continue;
+    }
+    if(tr.success){
       cool[ck]=now;
       var newOn=!!tr.newState;
       var lvStr=lv.toFixed(1)+" m³";

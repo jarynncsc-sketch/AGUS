@@ -287,7 +287,7 @@
 
 
         /* ══════════════════════════════════════════════════════
-       15. Post-Login Security Activation (Watermark)
+        14. Post-Login Security Activation (Watermark)
            Call window._secActivatePostLogin(username) after login
        ══════════════════════════════════════════════════════ */
     window._secActivatePostLogin = function(username) {
@@ -1320,7 +1320,7 @@
     #graph-live-left{display:flex;align-items:center;gap:8px;}
     .live-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:live-pulse 1.8s ease-out infinite;flex-shrink:0;}
     .live-dot.paused{background:#aaa;box-shadow:none;animation:none;}
-    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0));}}
+    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
     #live-label{font-weight:bold;font-size:11px;color:#004080;}
     #live-updated{font-size:11px;color:#666;}
     #live-new-badge{display:none;background:#22c55e;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:10px;}
@@ -2734,6 +2734,8 @@ function loadPumpLinksFromGAS(cb) {
   }).catch(function(err) {
     console.error('loadPumpLinksFromGAS error:', err);
     _pumpLinksLoading = false;
+    var cardsEl = document.getElementById('pl-link-cards');
+    if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#b91c1c;font-size:13px;">⚠ Failed to load links from server.<br>Check your connection and try again.</div>';
     if (cb) cb();
   });
 }
@@ -5243,10 +5245,22 @@ function _checkScheduleTrigger() {
 window._toggleScheduleServerTrigger = function() {
   var btn = document.getElementById('sched-trigger-btn');
   var label = document.getElementById('sched-trigger-label');
-  if (!btn) return;
+  if (!label || !btn) return;
+  var tok = sessionToken || userToken || '';
+  if ((btn.textContent || '').trim() === '🔗 Authorize') {
+    var url = API_URL + '?action=installScheduleTrigger&token=' + encodeURIComponent(tok);
+    window.open(url, '_blank');
+    label.textContent = '⏳ Check after authorizing…';
+    btn.textContent = 'Retry';
+    btn.style.cssText = 'padding:5px 10px;background:#e5eef9;color:#475569;border:1.5px solid #cbd5e1;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
+    return;
+  }
+  if ((btn.textContent || '').trim() === 'Retry') {
+    _checkScheduleTrigger();
+    return;
+  }
   var installing = btn.dataset.installing === 'true';
   btn.disabled = true; btn.textContent = installing ? 'Installing…' : 'Removing…';
-  var tok = sessionToken || userToken || '';
   apiPost(installing ? 'installScheduleTrigger' : 'removeScheduleTrigger', { token: tok }).then(function(r) {
     btn.disabled = false;
     if (r && r.success) {
