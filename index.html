@@ -287,7 +287,7 @@
 
 
         /* ══════════════════════════════════════════════════════
-        14. Post-Login Security Activation (Watermark)
+       15. Post-Login Security Activation (Watermark)
            Call window._secActivatePostLogin(username) after login
        ══════════════════════════════════════════════════════ */
     window._secActivatePostLogin = function(username) {
@@ -365,8 +365,15 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
-  /* ── DARK MODE (replaced by proper dark theme in main CSS) ── */
+  /* ── DARK MODE ── */
+  body.dark-mode { filter: invert(1) hue-rotate(180deg); }
+  body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport { filter: invert(1) hue-rotate(180deg); }
+  body.dark-mode #bg-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
+  body.dark-mode .top-card { background:#1e293b!important; }
+  body.dark-mode .nav-group-label { color:#94a3b8!important; }
+  body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
@@ -1313,7 +1320,7 @@
     #graph-live-left{display:flex;align-items:center;gap:8px;}
     .live-dot{width:9px;height:9px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 0 rgba(34,197,94,0.7);animation:live-pulse 1.8s ease-out infinite;flex-shrink:0;}
     .live-dot.paused{background:#aaa;box-shadow:none;animation:none;}
-    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0);}}
+    @keyframes live-pulse{0%{box-shadow:0 0 0 0 rgba(34,197,94,0.7);}70%{box-shadow:0 0 0 8px rgba(34,197,94,0);}100%{box-shadow:0 0 0 0 rgba(34,197,94,0));}}
     #live-label{font-weight:bold;font-size:11px;color:#004080;}
     #live-updated{font-size:11px;color:#666;}
     #live-new-badge{display:none;background:#22c55e;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:10px;}
@@ -2039,123 +2046,6 @@
 .filter-pill.active.res{background:#0F6E56;border-color:#0F6E56;}
 .filter-pill.active.pump{background:#854F0B;border-color:#854F0B;}
 #device-filter-bar{display:flex;gap:5px;padding:8px 10px 8px;border-bottom:1px solid rgba(0,64,128,0.08);flex-wrap:wrap;background:#f8fbff;}
-
-/* ── DARK SCADA THEME ── */
-body.dark-mode {
-  background: #0f172a !important;
-  color: #cbd5e1 !important;
-}
-body.dark-mode #dashboard {
-  background: transparent !important;
-  color: #cbd5e1 !important;
-}
-body.dark-mode .device-list {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-}
-body.dark-mode .device-list h3 {
-  background: #0f172a !important;
-  color: #38bdf8 !important;
-  border-bottom-color: #334155 !important;
-}
-body.dark-mode .device-list li {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #cbd5e1 !important;
-}
-body.dark-mode .device-list li:hover {
-  background: #334155 !important;
-  border-color: #38bdf8 !important;
-}
-body.dark-mode .device-list li.selected {
-  background: rgba(56,189,248,0.12) !important;
-  border-color: #38bdf8 !important;
-}
-body.dark-mode .device-list li span {
-  color: #e2e8f0 !important;
-}
-body.dark-mode #top-menu-bar {
-  background: rgba(15,23,42,0.92) !important;
-  border-color: #334155 !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
-}
-body.dark-mode .top-card span {
-  color: #94a3b8 !important;
-}
-body.dark-mode .top-card:hover {
-  background: #1e293b !important;
-}
-body.dark-mode .top-card.active {
-  background: rgba(56,189,248,0.15) !important;
-  border-color: #38bdf8 !important;
-}
-body.dark-mode .top-card.active span {
-  color: #38bdf8 !important;
-}
-body.dark-mode .top-card svg { stroke: #38bdf8 !important; }
-body.dark-mode .top-card.grp-sys svg { stroke: #94a3b8 !important; }
-body.dark-mode .nav-group-label {
-  color: #64748b !important;
-}
-body.dark-mode .nav-group-sep {
-  background: #334155 !important;
-}
-body.dark-mode .filter-pill {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #94a3b8 !important;
-}
-body.dark-mode .filter-pill.active {
-  background: #38bdf8 !important;
-  border-color: #38bdf8 !important;
-  color: #0f172a !important;
-}
-body.dark-mode #device-filter-bar {
-  background: #0f172a !important;
-  border-bottom-color: #334155 !important;
-}
-body.dark-mode #map-container {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.3) !important;
-}
-body.dark-mode #welcome-user-topright {
-  color: #cbd5e1 !important;
-}
-body.dark-mode .pressure-value {
-  color: #38bdf8 !important;
-  background: rgba(56,189,248,0.1) !important;
-}
-body.dark-mode .waterlevel-value {
-  color: #22d3ee !important;
-  background: rgba(34,211,238,0.1) !important;
-}
-body.dark-mode .status-indicator {
-  border-color: #334155 !important;
-}
-body.dark-mode #health-diag-strip {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #cbd5e1 !important;
-}
-body.dark-mode #device-details {
-  background: #1e293b !important;
-  border-color: #334155 !important;
-  color: #e2e8f0 !important;
-}
-body.dark-mode #legend-card {
-  color: #94a3b8 !important;
-}
-body.dark-mode #legend-card label {
-  color: #94a3b8 !important;
-}
-body.dark-mode #legend-card input {
-  accent-color: #38bdf8 !important;
-}
-body.dark-mode #dark-mode-btn span { color: #f59e0b !important; }
-body.dark-mode #dark-mode-btn svg { stroke: #f59e0b !important; }
-
 </style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
@@ -2844,8 +2734,6 @@ function loadPumpLinksFromGAS(cb) {
   }).catch(function(err) {
     console.error('loadPumpLinksFromGAS error:', err);
     _pumpLinksLoading = false;
-    var cardsEl = document.getElementById('pl-link-cards');
-    if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:30px 20px;color:#b91c1c;font-size:13px;">⚠ Failed to load links from server.<br>Check your connection and try again.</div>';
     if (cb) cb();
   });
 }
@@ -3890,7 +3778,6 @@ function initDashboard() {
             desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
             relay:        state,          // ── GAS compatibility alias
             triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
-            username:     state ? 'AutoResume' : 'AutoShutoff',
             latitude:     coords.latitude  || '',
             longitude:    coords.longitude || ''
           }).then(function(res) {
@@ -4150,7 +4037,6 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     token:        userToken,
     relay:        newStateInt,
     desiredState: newStateInt,
-    username:     loggedInUser,
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
   }).then(function(res) {
@@ -4660,7 +4546,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup', username: 'AutoShutoff-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4694,7 +4580,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff', username: 'AutoShutoff' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4720,7 +4606,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup', username: 'AutoResume-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4751,7 +4637,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume', username: 'AutoResume' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -5357,22 +5243,10 @@ function _checkScheduleTrigger() {
 window._toggleScheduleServerTrigger = function() {
   var btn = document.getElementById('sched-trigger-btn');
   var label = document.getElementById('sched-trigger-label');
-  if (!label || !btn) return;
-  var tok = sessionToken || userToken || '';
-  if ((btn.textContent || '').trim() === '🔗 Authorize') {
-    var url = API_URL + '?action=installScheduleTrigger&token=' + encodeURIComponent(tok);
-    window.open(url, '_blank');
-    label.textContent = '⏳ Check after authorizing…';
-    btn.textContent = 'Retry';
-    btn.style.cssText = 'padding:5px 10px;background:#e5eef9;color:#475569;border:1.5px solid #cbd5e1;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
-    return;
-  }
-  if ((btn.textContent || '').trim() === 'Retry') {
-    _checkScheduleTrigger();
-    return;
-  }
+  if (!btn) return;
   var installing = btn.dataset.installing === 'true';
   btn.disabled = true; btn.textContent = installing ? 'Installing…' : 'Removing…';
+  var tok = sessionToken || userToken || '';
   apiPost(installing ? 'installScheduleTrigger' : 'removeScheduleTrigger', { token: tok }).then(function(r) {
     btn.disabled = false;
     if (r && r.success) {
@@ -7157,8 +7031,7 @@ function toggleDarkMode() {
   localStorage.setItem('agus_darkmode', darkModeOn ? '1' : '0');
 }
 (function() {
-  var stored = localStorage.getItem('agus_darkmode');
-  if (stored === '1' || stored === null) toggleDarkMode();
+  if (localStorage.getItem('agus_darkmode') === '1') toggleDarkMode();
 })();
 
 // ============================================================
