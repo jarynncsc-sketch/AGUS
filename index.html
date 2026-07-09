@@ -3783,9 +3783,12 @@ function initDashboard() {
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
-              // Re-assert relay in Firebase — GAS may have overwritten it
+              // ★ BUG FIX: was also writing relay: res.newState here — same premature-
+              // confirmation bug as dashboardTogglePump. This is the pump-link auto engine,
+              // so it hit every 5-min cooldown-eligible cycle, meaning relayPending for
+              // auto-shutoff/resume was masked most of the time. Only commandedRelay now.
               if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState, relay: res.newState }); } catch(e) {}
+                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState }); } catch(e) {}
               }
               var onOff = res.newState ? 'ON' : 'OFF';
               var reason = res.newState
@@ -3996,7 +3999,14 @@ function processOfflineQueue() { /* no-op in v3 */ }
 function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
   try {
-    var _update = { commandedRelay: value, relay: value };
+    // ★ BUG FIX: this used to also write relay: value here. "relay" is documented
+    // (both here and in the GAS backend) as the ESP32-owned CONFIRMED field — writing
+    // it from the client the instant someone clicks the toggle made relayPending clear
+    // immediately, before the ESP32 ever reported back. That meant a toggle that silently
+    // failed to reach/execute on the device looked identical to one that succeeded.
+    // Only commandedRelay (the order) is optimistic here now; relay is left for GAS to
+    // update once the ESP32 actually confirms via telemetry.
+    var _update = { commandedRelay: value };
     if (toggledBy !== false) _update.lastToggledBy = toggledBy || loggedInUser || 'dashboard';
     _fbDevicesRef.child(deviceName).update(_update).catch(function(e) {
       console.warn('[FB] Optimistic write failed:', e);
@@ -4046,7 +4056,9 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
       if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+        // ★ BUG FIX: same as _firebaseOptimisticToggle — only re-assert commandedRelay
+        // (the order), never relay (the ESP32-owned confirmation) here.
+        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
       }
       if (res.firebaseDelivered === false) {
         showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
