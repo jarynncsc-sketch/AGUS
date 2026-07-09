@@ -365,15 +365,296 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
-  /* ── DARK MODE ── */
-  body.dark-mode { filter: invert(1) hue-rotate(180deg); }
-  body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport { filter: invert(1) hue-rotate(180deg); }
-  body.dark-mode #bg-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
-  body.dark-mode .top-card { background:#1e293b!important; }
-  body.dark-mode .nav-group-label { color:#94a3b8!important; }
-  body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
+  /* ── SCADA INDUSTRIAL THEME ── */
+  :root {
+    --scada-bg: #0a0e17;
+    --scada-surface: #111827;
+    --scada-card: #1a2332;
+    --scada-card-hover: #1f2a3d;
+    --scada-border: #2d3748;
+    --scada-border-light: #374151;
+    --scada-primary: #00b4d8;
+    --scada-secondary: #0077b6;
+    --scada-accent: #48cae4;
+    --scada-running: #00e676;
+    --scada-stopped: #ff1744;
+    --scada-warning: #ffab00;
+    --scada-text: #e8eaed;
+    --scada-text-secondary: #9aa0a6;
+    --scada-text-dim: #6b7280;
+    --scada-glow: 0 0 20px rgba(0,180,216,0.15);
+    --scada-radius: 12px;
+    --scada-font: 'DM Sans','Segoe UI',sans-serif;
+  }
+  body.scada-theme, body.dark-mode {
+    background: var(--scada-bg) !important;
+    color: var(--scada-text) !important;
+    filter: none !important;
+  }
+  body.scada-theme #dashboard, body.dark-mode #dashboard {
+    filter: none !important;
+  }
+  body.scada-theme img, body.scada-theme canvas, body.scada-theme video, body.scada-theme .ol-viewport,
+  body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport {
+    filter: none !important;
+  }
+  body.scada-theme .device-list, body.dark-mode .device-list {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    box-shadow: var(--scada-glow) !important;
+  }
+  body.scada-theme .device-list h3, body.dark-mode .device-list h3 {
+    background: var(--scada-surface) !important;
+    color: var(--scada-primary) !important;
+    border-bottom-color: var(--scada-border) !important;
+  }
+  body.scada-theme .device-list li, body.dark-mode .device-list li {
+    background: var(--scada-surface) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme .device-list li:hover, body.dark-mode .device-list li:hover {
+    background: var(--scada-card-hover) !important;
+    border-color: var(--scada-primary) !important;
+  }
+  body.scada-theme .device-list li.selected, body.dark-mode .device-list li.selected {
+    background: rgba(0,180,216,0.12) !important;
+    border-color: var(--scada-primary) !important;
+    box-shadow: 0 0 0 2px rgba(0,180,216,0.3) !important;
+  }
+  body.scada-theme .device-list li span, body.dark-mode .device-list li span {
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #top-menu-bar, body.dark-mode #top-menu-bar {
+    background: rgba(17,24,39,0.95) !important;
+    border-color: var(--scada-border) !important;
+    box-shadow: var(--scada-glow) !important;
+  }
+  body.scada-theme .top-card span, body.dark-mode .top-card span {
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme .top-card:hover, body.dark-mode .top-card:hover {
+    background: var(--scada-card-hover) !important;
+  }
+  body.scada-theme .top-card.active, body.dark-mode .top-card.active {
+    background: rgba(0,180,216,0.15) !important;
+    border-color: var(--scada-primary) !important;
+  }
+  body.scada-theme .top-card.active span, body.dark-mode .top-card.active span {
+    color: var(--scada-primary) !important;
+  }
+  body.scada-theme .nav-group-label, body.dark-mode .nav-group-label {
+    color: var(--scada-text-dim) !important;
+  }
+  body.scada-theme .nav-group-sep, body.dark-mode .nav-group-sep {
+    background: var(--scada-border) !important;
+  }
+  body.scada-theme #welcome-user-topright, body.dark-mode #welcome-user-topright {
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #legend-card, body.dark-mode #legend-card {
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme #legend-card label, body.dark-mode #legend-card label {
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme .pressure-value, body.dark-mode .pressure-value {
+    color: var(--scada-primary) !important;
+    background: rgba(0,180,216,0.1) !important;
+  }
+  body.scada-theme .waterlevel-value, body.dark-mode .waterlevel-value {
+    color: var(--scada-accent) !important;
+    background: rgba(72,202,228,0.1) !important;
+  }
+  body.scada-theme #health-diag-strip, body.dark-mode #health-diag-strip {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #device-details, body.dark-mode #device-details {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme .status-indicator, body.dark-mode .status-indicator {
+    border-color: var(--scada-border) !important;
+  }
+  /* Toggle switch - SCADA style */
+  .scada-toggle {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .scada-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .scada-toggle .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: #374151;
+    border-radius: 24px;
+    transition: 0.25s;
+    border: 1px solid #4b5563;
+  }
+  .scada-toggle .slider::before {
+    content: '';
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 2px;
+    bottom: 2px;
+    background: #9ca3af;
+    border-radius: 50%;
+    transition: 0.25s;
+  }
+  .scada-toggle input:checked + .slider {
+    background: rgba(0,180,216,0.3);
+    border-color: var(--scada-primary);
+    box-shadow: 0 0 12px rgba(0,180,216,0.3);
+  }
+  .scada-toggle input:checked + .slider::before {
+    transform: translateX(20px);
+    background: var(--scada-primary);
+    box-shadow: 0 0 8px rgba(0,180,216,0.5);
+  }
+  /* SCADA header bar */
+  #scada-header {
+    display: flex; align-items: center; gap: 12px;
+    padding: 6px 14px; margin-bottom: 8px;
+  }
+  #scada-header .scada-logo {
+    font-family: 'Syne',sans-serif; font-size: 1.3rem; font-weight: 800;
+    color: var(--scada-primary); letter-spacing: 1px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  #scada-header .scada-logo svg { width: 28px; height: 28px; }
+  #scada-header .scada-sublabel {
+    font-size: 10px; color: var(--scada-text-dim);
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  /* Process flow diagram */
+  #scada-process-flow {
+    background: var(--scada-surface);
+    border: 1px solid var(--scada-border);
+    border-radius: var(--scada-radius);
+    padding: 16px;
+    margin-bottom: 12px;
+    box-shadow: var(--scada-glow);
+    overflow: hidden;
+  }
+  /* Status badge */
+  .scada-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .scada-badge.running { background: rgba(0,230,118,0.15); color: var(--scada-running); }
+  .scada-badge.stopped { background: rgba(255,23,68,0.15); color: var(--scada-stopped); }
+  .scada-badge.warning { background: rgba(255,171,0,0.15); color: var(--scada-warning); }
+  .scada-badge .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    animation: scada-pulse 2s infinite;
+  }
+  .scada-badge.running .dot { background: var(--scada-running); }
+  .scada-badge.stopped .dot { background: var(--scada-stopped); }
+  .scada-badge.warning .dot { background: var(--scada-warning); }
+  @keyframes scada-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 currentColor; }
+    50% { opacity: 0.5; box-shadow: 0 0 6px 2px currentColor; }
+  }
+  /* Glow line animation */
+  @keyframes scada-glow-sweep {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+  }
+  .scada-glow-line {
+    position: relative; overflow: hidden;
+  }
+  .scada-glow-line::after {
+    content: ''; position: absolute; top: 0; left: 0;
+    width: 60%; height: 100%;
+    background: linear-gradient(90deg,transparent,rgba(0,180,216,0.2),transparent);
+    animation: scada-glow-sweep 3s ease-in-out infinite;
+  }
+  /* Animated flow indicator */
+  .scada-flow {
+    display: flex; align-items: center; gap: 2px;
+  }
+  .scada-flow .dot {
+    width: 4px; height: 4px; border-radius: 50%;
+    background: var(--scada-primary);
+    animation: scada-flow-dot 1.2s ease-in-out infinite;
+  }
+  .scada-flow .dot:nth-child(2) { animation-delay: 0.2s; }
+  .scada-flow .dot:nth-child(3) { animation-delay: 0.4s; }
+  .scada-flow .dot:nth-child(4) { animation-delay: 0.6s; }
+  .scada-flow .dot:nth-child(5) { animation-delay: 0.8s; }
+  @keyframes scada-flow-dot {
+    0%, 100% { opacity: 0.2; transform: scale(0.8); }
+    50% { opacity: 1; transform: scale(1.2); }
+  }
   @keyframes spin { to { transform: rotate(360deg); } }
-  body.dark-mode #dark-mode-btn span { color:#facc15!important; }
+  body.scada-theme #dark-mode-btn span, body.dark-mode #dark-mode-btn span { color: var(--scada-warning) !important; }
+  body.scada-theme #dark-mode-btn svg, body.dark-mode #dark-mode-btn svg { stroke: var(--scada-warning) !important; }
+  body.scada-theme .filter-pill, body.dark-mode .filter-pill {
+    background: var(--scada-surface) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme .filter-pill.active, body.dark-mode .filter-pill.active {
+    background: var(--scada-primary) !important;
+    border-color: var(--scada-primary) !important;
+    color: #fff !important;
+  }
+  body.scada-theme #device-filter-bar, body.dark-mode #device-filter-bar {
+    background: var(--scada-surface) !important;
+    border-bottom-color: var(--scada-border) !important;
+  }
+  body.scada-theme #map-container, body.dark-mode #map-container {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    box-shadow: var(--scada-glow) !important;
+  }
+  body.scada-theme #legend-card, body.dark-mode #legend-card {
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme #legend-card label, body.dark-mode #legend-card label {
+    color: var(--scada-text-secondary) !important;
+  }
+  body.scada-theme .modal-content, body.dark-mode .modal-content {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #sheet-overlay, body.dark-mode #sheet-overlay {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+  }
+  body.scada-theme .sheet-header, body.dark-mode .sheet-header {
+    background: var(--scada-surface) !important;
+    border-bottom-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #health-diag-strip, body.dark-mode #health-diag-strip {
+    background: var(--scada-card) !important;
+    border-color: var(--scada-border) !important;
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #welcome-user-topright, body.dark-mode #welcome-user-topright {
+    color: var(--scada-text) !important;
+  }
+  body.scada-theme #ndrrmc-alarm-overlay, body.dark-mode #ndrrmc-alarm-overlay {
+    background: linear-gradient(135deg,rgba(10,14,23,0.97),rgba(26,35,50,0.95)) !important;
+    border-color: var(--scada-border) !important;
+  }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
@@ -1842,6 +2123,43 @@
 
 <!-- DASHBOARD -->
 <div id="dashboard">
+  <div id="scada-header">
+    <div class="scada-logo">
+      <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#00b4d8"/><path d="M32 10 C22 22 14 30 14 38 a18 18 0 0 0 36 0 c0-8-10-16-18-28z" fill="#fff"/><text x="32" y="52" font-family="Arial Black" font-weight="900" font-size="16" fill="white" text-anchor="middle">AG</text></svg>
+      AGUS
+      <span class="scada-sublabel">SCADA v8 · Carcar Water District</span>
+    </div>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:12px;">
+      <div class="scada-flow" id="scada-flow-indicator"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+      <span id="scada-system-status" class="scada-badge running"><span class="dot"></span>System Online</span>
+    </div>
+  </div>
+  <div id="scada-process-flow" style="display:none;">
+    <svg width="100%" height="60" viewBox="0 0 800 60" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <marker id="scada-arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#00b4d8"/></marker>
+        <linearGradient id="scada-water" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#00b4d8" stop-opacity="0.4"/><stop offset="100%" stop-color="#48cae4" stop-opacity="0.8"/></linearGradient>
+      </defs>
+      <rect x="20" y="10" width="80" height="40" rx="6" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+      <text x="60" y="35" text-anchor="middle" fill="#9aa0a6" font-size="9" font-family="DM Sans,sans-serif">SOURCE</text>
+      <line x1="100" y1="30" x2="180" y2="30" stroke="#00b4d8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#scada-arrow)"/>
+      <rect x="180" y="10" width="70" height="40" rx="20" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+      <circle cx="215" cy="30" r="8" fill="none" stroke="#00b4d8" stroke-width="1.5"/>
+      <path d="M209 26 L221 34 M209 34 L221 26" stroke="#00b4d8" stroke-width="1.2"/>
+      <text x="215" y="55" text-anchor="middle" fill="#9aa0a6" font-size="8" font-family="DM Sans,sans-serif">PUMP</text>
+      <line x1="250" y1="30" x2="330" y2="30" stroke="#00b4d8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#scada-arrow)"/>
+      <rect x="330" y="10" width="55" height="40" rx="4" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+      <text x="357" y="30" text-anchor="middle" fill="#9aa0a6" font-size="7" font-family="DM Sans,sans-serif">FLOW</text>
+      <text x="357" y="42" text-anchor="middle" fill="#9aa0a6" font-size="7" font-family="DM Sans,sans-serif">METER</text>
+      <line x1="385" y1="30" x2="465" y2="30" stroke="#00b4d8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#scada-arrow)"/>
+      <rect x="465" y="8" width="100" height="44" rx="6" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+      <rect x="470" y="12" width="90" height="36" rx="4" fill="url(#scada-water)" opacity="0.3"/>
+      <text x="515" y="35" text-anchor="middle" fill="#9aa0a6" font-size="9" font-family="DM Sans,sans-serif">RESERVOIR</text>
+      <line x1="565" y1="30" x2="645" y2="30" stroke="#00b4d8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#scada-arrow)"/>
+      <rect x="645" y="10" width="80" height="40" rx="6" fill="none" stroke="#2d3748" stroke-width="1.5"/>
+      <text x="685" y="35" text-anchor="middle" fill="#9aa0a6" font-size="9" font-family="DM Sans,sans-serif">END USER</text>
+    </svg>
+  </div>
   <div class="card device-list">
     <h3>Smart Devices</h3> <div id="device-filter-bar">   <button onclick="toggleFilter('pressure')" id="filter-pressure" class="filter-pill active pres">📊 Pressure</button>   <button onclick="toggleFilter('reservoir')" id="filter-reservoir" class="filter-pill active res">💧 Reservoir</button>   <button onclick="toggleFilter('pumping')" id="filter-pumping" class="filter-pill active pump">⚙️ Pumping Station</button> </div>
     <div class="device-list-scroll"><ul id="device-list"></ul></div>
@@ -3780,6 +4098,7 @@ function initDashboard() {
             desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
             relay:        state,          // ── GAS compatibility alias
             triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
+            username:     state ? 'AutoResume' : 'AutoShutoff',
             latitude:     coords.latitude  || '',
             longitude:    coords.longitude || ''
           }).then(function(res) {
@@ -4039,6 +4358,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     token:        userToken,
     relay:        newStateInt,
     desiredState: newStateInt,
+    username:     loggedInUser,
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
   }).then(function(res) {
@@ -4548,7 +4868,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup', username: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4582,7 +4902,7 @@ function autoShutoffPumps(devices) {
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff', username: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4608,7 +4928,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup', username: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -4639,7 +4959,7 @@ function autoShutoffPumps(devices) {
           _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         }
         (function(pumpName) {
-          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
+          apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume', username: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
           var el = document.querySelector('#device-list input[data-device="' + pumpName + '"]');
@@ -7037,6 +7357,7 @@ var darkModeOn = false;
 function toggleDarkMode() {
   darkModeOn = !darkModeOn;
   document.body.classList.toggle('dark-mode', darkModeOn);
+  document.body.classList.toggle('scada-theme', darkModeOn);
   var btn = document.getElementById('dark-mode-btn');
   if (btn) {
     var sp = btn.querySelector('span');
@@ -7045,7 +7366,10 @@ function toggleDarkMode() {
   localStorage.setItem('agus_darkmode', darkModeOn ? '1' : '0');
 }
 (function() {
-  if (localStorage.getItem('agus_darkmode') === '1') toggleDarkMode();
+  var stored = localStorage.getItem('agus_darkmode');
+  var darkByDefault = stored === null || stored === '1';
+  if (darkByDefault) { document.body.classList.add('dark-mode', 'scada-theme'); darkModeOn = true; }
+  else { document.body.classList.remove('dark-mode', 'scada-theme'); darkModeOn = false; }
 })();
 
 // ============================================================
