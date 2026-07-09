@@ -2618,6 +2618,28 @@ function _setManualOverrideFB(deviceName, active) {
     console.warn('[FB] manualOverride error:', e);
   }
 }
+/* ── Manual-override "un-stick" button ──────────────────────────────────
+ * Clears BOTH copies of the lock in one call:
+ *   1. GAS's PropertiesService lock (manualOverrideUntil_<device>) — this is the
+ *      one that actually blocks the schedule engine + server-side auto-resume now.
+ *   2. The legacy Firebase flag (manualOverride/manualOverrideExpiry) — this is
+ *      what the client-side APE loop still reads, so clearing it lets APE resume
+ *      immediately instead of waiting for the 1-hour window to lapse on its own.
+ */
+function clearManualOverride(deviceName) {
+  if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
+  apiPost('clearManualOverride', { device: deviceName, token: userToken }).then(function(res) {
+    if (res && res.success) {
+      _setManualOverrideFB(deviceName, false);
+      showNotification('✅ Manual override cleared for ' + deviceName, 'success');
+      setTimeout(updateDashboard, 500);
+    } else {
+      showNotification('❌ Failed to clear override: ' + (res && res.error ? res.error : 'Server error'), 'error');
+    }
+  }).catch(function() {
+    showNotification('⚠ Network error clearing override', 'error');
+  });
+}
 function _markTogglePending(deviceName) { _localTogglePending[deviceName] = Date.now(); }
 function _isTogglePendingLocal(deviceName) {
   var ts = _localTogglePending[deviceName];
@@ -4130,7 +4152,7 @@ if (isResBooster) {
     +   '</div>'
     +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
     + (d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry)
-      ? '<div class="manual-override-badge" style="margin-top:2px; text-align:right;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE</div>'
+      ? '<div class="manual-override-badge" style="margin-top:2px; display:flex; align-items:center; justify-content:flex-end; gap:6px;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
       : '')
     + '</div>';
 
@@ -4151,7 +4173,9 @@ if (isResBooster) {
     var newStateInt = resCb.checked ? 1 : 0;
     dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
   });
-  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
+  var resClearBtn = li.querySelector('.clear-override-btn');
+  if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
+  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
 }
     else {
         li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
@@ -4186,7 +4210,7 @@ if (isResBooster) {
       // ── Manual override badge (leak/emergency) ──
       var moActive = d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry);
       var moBadge = moActive
-        ? '<div class="manual-override-badge" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE</div>'
+        ? '<div class="manual-override-badge" style="display:flex; align-items:center; gap:6px;" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
         : '';
       // ★ v3: build switch — state from commandedRelay (server authority)
       var pendingBadge = relayPending
@@ -4202,6 +4226,8 @@ if (isResBooster) {
         + pendingBadge + autoOffBadge + moBadge;
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
+      var clearOverrideBtn = li.querySelector('.clear-override-btn');
+      if (clearOverrideBtn) clearOverrideBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -4261,7 +4287,7 @@ if (isResBooster) {
           }
         });
       });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input') selectDevice(d.device); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
       // ══════════════════════════════════════════════════════════════
       // COMPREHENSIVE ALARM DETECTION — Pumping Stations
       // Covers: offline, fault, low/high pressure, low/high voltage,
