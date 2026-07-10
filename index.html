@@ -2679,16 +2679,15 @@ var PUMP_PARAMS = [
   {id:'pumpeff', label:'Pump & Motor Efficiency', unit:'%', computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
   // ─── Control ───
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
-  {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true},
-  // ─── Water Level (own column — hybrid Reservoir + Pump devices) ───
-  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'waterlevel'}
+  {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
+  // ─── Water Level intentionally omitted from Pump Graph: it's already
+  // shown on its own in the Reservoir "Level Graph" for hybrid devices. ───
 ];
 var PARAM_GROUPS = [
   {id:'hydraulic',  label:'💧 Hydraulic'},
   {id:'electrical', label:'⚡ Electrical'},
   {id:'efficiency', label:'🔧 Efficiency'},
-  {id:'control',    label:'🎛️ Control'},
-  {id:'waterlevel', label:'🌊 Water Level'}
+  {id:'control',    label:'🎛️ Control'}
 ];
 var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
 var pressureSettingsCache = {}, pressureSettingsModalDev = '';
@@ -2952,6 +2951,113 @@ function speakAlarm(deviceName, alarmType, isReservoir) {
   var c2=0; function sn2(){if(c2<3){window.speechSynthesis.speak(u2);c2++;setTimeout(sn2,1300);}} sn2();
 }
 
+//Pumping Station SVG builder ── ENHANCED WITH GLOW & DATA HIERARCHY ──
+// (extracted so it can be reused both for standalone Pumping Station markers
+//  and for the paired icon shown beside the Reservoir icon on hybrid
+//  "Reservoir Booster / Pumping Station" devices)
+function buildPumpStationSVG(f, name, status) {
+  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
+  var psAnomaly = status !== 'Online' || f.get('button');
+  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
+  if (!psAnomaly) {
+    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
+    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
+      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
+    }
+  }
+  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy'),_relayRaw=f.get('relay');
+  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
+  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
+  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
+  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
+  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _relayOn = _relayRaw == 1 || _relayRaw === '1' || _relayRaw === true;
+
+  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _nameD = _rawName.length > 28 ? _rawName.slice(0,26) + '..' : _rawName;
+  var _nameFontSize = _rawName.length > 22 ? 9.5 : 11;
+
+  var _psiC='#1d4ed8';
+  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
+
+  var _W=178,_cY=28,_cH=130,_tH=_cY+_cH+8;
+  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
+  var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
+  var _dataOffset=8;
+  var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
+  var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
+  var _vLY=_cY+81+_dataOffset,_vVY=_cY+97+_dataOffset;
+  var _cLY=_cY+81+_dataOffset,_cVY=_cY+97+_dataOffset;
+  var _togY=_cY+118+_dataOffset;
+  var _l1Y=_cY+69+_dataOffset,_l2Y=_cY+105+_dataOffset;
+
+  // Isolation Forest anomaly badge
+  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
+  var _ifBadge = _ifScore !== null && _ifScore > 0.5
+    ? '<rect x="11" y="'+(_cY+5)+'" width="44" height="14" rx="7" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
+      + '<text x="33" y="'+(_cY+15)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
+    : '';
+
+  // Relay indicator with glow
+  var _relayDot = _relayOn
+    ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
+      + '<circle cx="14" cy="'+(_cY+130)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
+      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
+    : '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#94a3b8"/>'
+      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
+
+  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
+    // Outer anomaly glow ring
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="26" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4" opacity="'+_rOp+'"/>'
+    +(psAnomaly?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(0.08+_bPulse*0.22).toFixed(2)+'"/>':"")
+    // Card background with status tint
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2.5"/>'
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="'+psC+'" opacity="0.04"/>'
+    // Top header bar
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="24" rx="10" fill="'+psC+'" opacity="0.12"/>'
+    // Status dot top-right
+    +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
+    +(psAnomaly?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="'+(0.2+_bPulse*0.65).toFixed(2)+'"/>':"")
+    +_ifBadge
+    // Center gear icon
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
+    // Device name
+    +'<text x="'+(_W/2)+'" y="'+(_cY+30)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+
+    // Divider lines
+    +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+24)+'" x2="'+(_W/2)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +'<line x1="'+(_W/2)+'" y1="'+_l1Y+'" x2="'+(_W/2)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+
+    // PRESSURE (left column top)
+    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
+    +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+
+    // FLOW (right column top)
+    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+
+    // VOLTAGE (left column bottom)
+    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
+    +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
+
+    // CURRENT (right column bottom)
+    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+
+    // Relay + Toggle info at bottom
+    +_relayDot
+    +'<text x="52" y="'+(_togY+1)+'" font-family="Arial,sans-serif" font-size="8" fill="#475569">Last: '+_togStr+'</text>'
+
+    // Bottom pointer
+    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
+    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
+    +'</svg>';
+  return _svg;
+}
+
 var map = new ol.Map({ target:'map', layers:[new ol.layer.Tile({source:new ol.source.OSM()})], view: new ol.View({center:ol.proj.fromLonLat([123.6740,10.1129]),zoom:12}) });
 var deviceSource = new ol.source.Vector();
 var clusterSource = new ol.source.Cluster({distance:15, minDistance:5, source:deviceSource});
@@ -3132,6 +3238,34 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + _nd + '</text>'
     + '</svg>';
 
+  // ── Hybrid "Reservoir Booster / Pumping Station": show BOTH icons
+  //    side by side (Reservoir on the left, Pumping Station on the right)
+  //    instead of a single merged marker ──
+  if (isPS) {
+    var _psSvg = buildPumpStationSVG(f, name, status);
+    return [
+      new ol.style.Style({
+        image: new ol.style.Icon({
+          src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
+          scale: 1,
+          anchor: [1, 1],
+          anchorXUnits: 'fraction',
+          anchorYUnits: 'fraction',
+          displacement: [-4, 0]
+        })
+      }),
+      new ol.style.Style({
+        image: new ol.style.Icon({
+          src: 'data:image/svg+xml,' + encodeURIComponent(_psSvg),
+          scale: 1,
+          anchor: [0, 1],
+          anchorXUnits: 'fraction',
+          anchorYUnits: 'fraction',
+          displacement: [4, 0]
+        })
+      })
+    ];
+  }
   return [new ol.style.Style({
     image: new ol.style.Icon({
       src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
@@ -3144,105 +3278,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 }
 //Pumping Station map icon ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 if (isPS) {
-  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
-  var psAnomaly = status !== 'Online' || f.get('button');
-  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
-  if (!psAnomaly) {
-    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
-    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
-      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
-    }
-  }
-  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy'),_relayRaw=f.get('relay');
-  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
-  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
-  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
-  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
-  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _relayOn = _relayRaw == 1 || _relayRaw === '1' || _relayRaw === true;
-  
-  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _nameD = _rawName.length > 28 ? _rawName.slice(0,26) + '..' : _rawName;
-  var _nameFontSize = _rawName.length > 22 ? 9.5 : 11;
-  
-  var _psiC='#1d4ed8';
-  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
-  
-  var _W=178,_cY=28,_cH=130,_tH=_cY+_cH+8;
-  var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
-  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
-  var _dataOffset=8;
-  var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
-  var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
-  var _vLY=_cY+81+_dataOffset,_vVY=_cY+97+_dataOffset;
-  var _cLY=_cY+81+_dataOffset,_cVY=_cY+97+_dataOffset;
-  var _togY=_cY+118+_dataOffset;
-  var _l1Y=_cY+69+_dataOffset,_l2Y=_cY+105+_dataOffset;
-  
-  // Isolation Forest anomaly badge
-  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
-  var _ifBadge = _ifScore !== null && _ifScore > 0.5
-    ? '<rect x="11" y="'+(_cY+5)+'" width="44" height="14" rx="7" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
-      + '<text x="33" y="'+(_cY+15)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
-    : '';
-
-  // Relay indicator with glow
-  var _relayDot = _relayOn
-    ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
-      + '<circle cx="14" cy="'+(_cY+130)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
-    : '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#94a3b8"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
-
-  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
-    // Outer anomaly glow ring
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="26" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4" opacity="'+_rOp+'"/>'
-    +(psAnomaly?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(0.08+_bPulse*0.22).toFixed(2)+'"/>':"")
-    // Card background with status tint
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2.5"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="'+psC+'" opacity="0.04"/>'
-    // Top header bar
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="24" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    // Status dot top-right
-    +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
-    +(psAnomaly?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="'+(0.2+_bPulse*0.65).toFixed(2)+'"/>':"")
-    +_ifBadge
-    // Center gear icon
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
-    // Device name
-    +'<text x="'+(_W/2)+'" y="'+(_cY+30)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
-    
-    // Divider lines
-    +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+24)+'" x2="'+(_W/2)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+_l1Y+'" x2="'+(_W/2)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    
-    // PRESSURE (left column top)
-    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
-    +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-    
-    // FLOW (right column top)
-    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-    
-    // VOLTAGE (left column bottom)
-    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
-    +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-    
-    // CURRENT (right column bottom)
-    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-    
-    // Relay + Toggle info at bottom
-    +_relayDot
-    +'<text x="52" y="'+(_togY+1)+'" font-family="Arial,sans-serif" font-size="8" fill="#475569">Last: '+_togStr+'</text>'
-    
-    // Bottom pointer
-    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
-    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
-    +'</svg>';
+  var _svg = buildPumpStationSVG(f, name, status);
   return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
