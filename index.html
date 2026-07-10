@@ -4152,6 +4152,7 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     token:        userToken,
     relay:        newStateInt,
     desiredState: newStateInt,
+    username:     loggedInUser || '',
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
   }).then(function(res) {
