@@ -2557,6 +2557,14 @@ function apiPost(action, data) {
 }
 
 var userToken = null, loggedInUser = '', selectedDevice = null, _deviceDetailsDismissed = false;
+
+// ── Hybrid device detector: matches any device that is both a reservoir
+// (has a water level) AND a pumping station (has voltage/flow/pressure/current
+// + relay control) — e.g. "Reservoir Booster", "Reservoir Pumping Station", etc.
+function isReservoirPumpHybrid(deviceName) {
+  var n = (deviceName || '').trim().toLowerCase();
+  return n.includes('reservoir') && (n.includes('pump') || n.includes('booster'));
+}
 var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
 
 // Simple response cache for dashboard data to avoid redundant fetches
@@ -2663,7 +2671,6 @@ var PUMP_PARAMS = [
   {id:'pressure',   label:'Pressure',       unit:'psi', pattern:/pressure|psi/i,                                                   color:'#4ade80', yAxis:'yLeft',  group:'hydraulic'},
   {id:'flowrate',   label:'Flowrate',        unit:'L/s', pattern:/flowrate|flow/i,                                                  color:'#0ea5e9', yAxis:'yLeft',  group:'hydraulic'},
   {id:'discharge',  label:'Total Discharge', unit:'m³',  pattern:/discharge/i,                                                       color:'#8b5cf6', yAxis:'yRight', group:'hydraulic'},
-  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'hydraulic'},
   {id:'voltage',    label:'Voltage',         unit:'V',   pattern:/voltage/i,                                                        color:'#22c55e', yAxis:'yRight', group:'electrical'},
   {id:'current',    label:'Current',         unit:'A',   pattern:/current/i,                                                        color:'#f43f5e', yAxis:'yRight', group:'electrical'},
   {id:'power',      label:'Power',           unit:'W',   pattern:/power/i,                                                         color:'#f97316', yAxis:'yRight', group:'electrical'},
@@ -2672,13 +2679,16 @@ var PUMP_PARAMS = [
   {id:'pumpeff', label:'Pump & Motor Efficiency', unit:'%', computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
   // ─── Control ───
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
-  {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
+  {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true},
+  // ─── Water Level (own column — hybrid Reservoir + Pump devices) ───
+  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'waterlevel'}
 ];
 var PARAM_GROUPS = [
   {id:'hydraulic',  label:'💧 Hydraulic'},
   {id:'electrical', label:'⚡ Electrical'},
   {id:'efficiency', label:'🔧 Efficiency'},
-  {id:'control',    label:'🎛️ Control'}
+  {id:'control',    label:'🎛️ Control'},
+  {id:'waterlevel', label:'🌊 Water Level'}
 ];
 var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
 var pressureSettingsCache = {}, pressureSettingsModalDev = '';
@@ -3410,6 +3420,7 @@ function showDeviceDetails(device) {
     var dType = (d.type || '').toLowerCase().trim();
     var isRes  = dType === 'reservoir' || (d.device || '').toLowerCase().includes('reservoir');
     var isPres = dType === 'pressure'  || (d.device || '').toLowerCase().includes('pressure');
+    var isResBooster = isReservoirPumpHybrid(d.device);
  
     if (d.minPsi || d.normalPsi || d.maxPsi) {
       pressureSettingsCache[device] = {
@@ -3466,9 +3477,87 @@ if (!isNaN(llvl)) {
   }
 }
     det.style.pointerEvents = 'auto';
- 
+
+    // Live efficiency calculation (Flow × Pressure → Hydraulic Power ÷ Electrical Power)
+    // Shared by the Pumping Station branch and the Reservoir Booster (merged) branch.
+    var _eff = null;
+    var _fl = parseFloat(d.flow  || 0);
+    var _pr = parseFloat(d.pressure || 0);
+    var _pw = parseFloat(d.power || 0);
+    if (_fl > 0 && _pr > 0 && _pw > 0) {
+      var _hydPow = _fl * _pr * 0.00689476;   // kW
+      var _elPow  = _pw / 1000;                // kW
+      var _raw    = (_hydPow / _elPow) * 100;
+      if (_raw > 0 && _raw <= 100) _eff = _raw.toFixed(1);
+    }
+    // Fallback: use stored efficiency from sheet
+    if (_eff === null) {
+      var _stored = parseFloat(d.efficiency);
+      if (!isNaN(_stored) && _stored > 0 && _stored <= 100) _eff = _stored.toFixed(1);
+    }
+    var _effBadge = _eff !== null
+      ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
+      : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
+
+    // ── RESERVOIR BOOSTER (merged Reservoir + Pumping Station details) ──
+    if (isResBooster) {
+      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
+               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
+      det.innerHTML =
+        '<div style="display:flex;gap:12px;min-width:480px;">' +
+          '<div style="flex:1;min-width:200px;">' +
+            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
+            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:4px;">🏭 RESERVOIR</span> ' +
+            '<span style="display:inline-block;background:#004080;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">⚙️ PUMPING STATION</span><br>' +
+            'Status: ' + effSt + ' ' + fb + '<br>' +
+            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
+            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
+            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
+            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
+            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
+            'Current: '  + (d.current  || 0) + ' A<br>' +
+            'Power: '    + (d.power    || 0) + ' W<br>' +
+            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
+            'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
+              +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
+            +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
+            'Last toggle by: <b>' + (d.lastToggledBy || 'N/A') + '</b><br>' +
+            _effBadge + '<br>' +
+            '<div style="display:flex;gap:6px;margin-top:7px;">' +
+              '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="flex:1;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Level Graph</button>' +
+              '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="flex:1;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Pump Graph</button>' +
+            '</div>' +
+          '</div>' +
+          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
+            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚙️ Water Level Thresholds</div>' +
+            '<div class="pressure-thresholds-badge">' +
+              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
+              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
+              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
+            '</div>' +
+            (r.updatedBy ? '<div style="font-size:10px;color:#7a8fa6;margin:4px 0 6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
+            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')" style="width:100%;margin-bottom:10px;">⚙️ Edit Reservoir Thresholds</button>' +
+            (function(){
+              var _allThr = (typeof _thr === 'function') ? _thr(d.device) : {};
+              return '' +
+                '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚙️ Sensor Thresholds</div>' +
+                '<table style="width:100%;font-size:10.5px;border-collapse:collapse;">' +
+                  '<tr><td style="padding:2px 4px;color:#c2410c;">🔴 Pressure</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minPsi||'--') + ' – ' + (_allThr.maxPsi||'--') + ' psi</td></tr>' +
+                  '<tr><td style="padding:2px 4px;color:#15803d;">💦 Flow</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minFlow||'--') + ' – ' + (_allThr.maxFlow||'--') + ' L/s</td></tr>' +
+                  '<tr><td style="padding:2px 4px;color:#a16207;">⚡ Voltage</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minVolt||'--') + ' – ' + (_allThr.maxVolt||'--') + ' V</td></tr>' +
+                  '<tr><td style="padding:2px 4px;color:#7e22ce;">🔌 Current</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minCurrent||'--') + ' – ' + (_allThr.maxCurrent||'--') + ' A</td></tr>' +
+                  '<tr><td style="padding:2px 4px;color:#be123c;">⚡ Power</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minPower||'--') + ' – ' + (_allThr.maxPower||'--') + ' W</td></tr>' +
+                '</table>' +
+                '<div style="margin:6px 0;height:6px;border-radius:3px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
+                (s.updatedBy ? '<div style="font-size:10px;color:#7a8fa6;margin-bottom:4px;">Updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
+                '<button class="ps-gear-btn" onclick="openSensorThr()" style="width:100%;padding:5px 0;background:#004080;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">⚙️ Edit All Thresholds</button>';
+            })() +
+          '</div>' +
+        '</div>';
+
     // ── RESERVOIR ────────────────────────────────────────────────
-    if (isRes) {
+    } else if (isRes) {
       var wv = (d.level !== undefined && d.level !== null && d.level !== '')
                ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
       var wc = '';
@@ -3525,27 +3614,7 @@ if (!isNaN(llvl)) {
  
     // ── PUMPING STATION ──────────────────────────────────────────
     } else {
-      // Live efficiency calculation (Flow × Pressure → Hydraulic Power ÷ Electrical Power)
-      var _eff = null;
-      var _fl = parseFloat(d.flow  || 0);
-      var _pr = parseFloat(d.pressure || 0);
-      var _pw = parseFloat(d.power || 0);
-      if (_fl > 0 && _pr > 0 && _pw > 0) {
-        var _hydPow = _fl * _pr * 0.00689476;   // kW
-        var _elPow  = _pw / 1000;                // kW
-        var _raw    = (_hydPow / _elPow) * 100;
-        if (_raw > 0 && _raw <= 100) _eff = _raw.toFixed(1);
-      }
-      // Fallback: use stored efficiency from sheet
-      if (_eff === null) {
-        var _stored = parseFloat(d.efficiency);
-        if (!isNaN(_stored) && _stored > 0 && _stored <= 100) _eff = _stored.toFixed(1);
-      }
- 
-      var _effBadge = _eff !== null
-        ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
-        : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
- 
+      // _eff / _effBadge already computed above (shared with Reservoir Booster branch)
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
@@ -4133,8 +4202,8 @@ function updateDeviceList(devices) {
       var wv = (d.level!==undefined&&d.level!==null&&d.level!=='') ? Math.round(parseFloat(d.level))+' m³' : '-- m³';
       var wc='', bc='';
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
-      // ── Relay toggle for "Reservoir Booster" only ───────────────────────
-     var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
+      // ── Relay toggle for hybrid Reservoir+Pump devices only ───────────────
+     var isResBooster = isReservoirPumpHybrid(d.device);
 if (isResBooster) {
   if (d.commandedRelay !== undefined) {
     var _ts = commandedRelayCacheTimestamps[d.device];
@@ -5623,7 +5692,7 @@ function buildParamSelector() {
   var grid=document.getElementById('param-pill-grid'); grid.innerHTML='';
   PARAM_GROUPS.forEach(function(group){
     var pigs=PUMP_PARAMS.filter(function(p){return p.group===group.id&&pumpParamKeys[p.id];}); if(!pigs.length) return;
-    var col=document.createElement('div'); col.className='param-group'+(group.id==='control'?' single-col':'');
+    var col=document.createElement('div'); col.className='param-group'+((group.id==='control'||group.id==='waterlevel')?' single-col':'');
     var title=document.createElement('div'); title.className='param-group-title'; title.innerText=group.label; col.appendChild(title);
     var pg=document.createElement('div'); pg.className='param-pills-grid';
     pigs.forEach(function(p){
