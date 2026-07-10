@@ -180,8 +180,8 @@ async function pumpLinkControl(cfg,devs,db,ps){
       if(hist[lnk.reservoir][0]>sRes&&(sRes2===0||hist[lnk.reservoir][0]>sRes2))needOn=false;
       if(hist[lnk.reservoir][1]>sRes&&(sRes2===0||hist[lnk.reservoir][1]>sRes2))needOn=false;
     }
-    /* Manual override gate — never auto-resume a pump the user manually shut off */
-    if(needOn&&pumD.manualOverrideActive)needOn=false;
+    /* Manual override gate — block both auto-ON and auto-OFF when user has manual control */
+    if(pumD.manualOverrideActive){needOn=false;needOff=false;}
     if(!needOff&&!needOn)continue;
     var desiredState = needOff ? 0 : 1;
     var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump,desiredState);
