@@ -2487,6 +2487,7 @@ try {
                 : null;
       // relay ≠ fbCmd, no fresh dashboard cache → ESP32 toggled physically (or stale data on load)
       if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined && _lastKnownRelayInitialized) {
+        if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] PHYSICAL-SYNC candidate', _fbName, '_relay=', _relay, '_fbCmd=', _fbCmd, 'relayPendingUntil=', _relayPendingUntil[_fbName], 'manualCooldown=', _manualToggleCooldown[_fbName], 'now=', _now, new Date().toLocaleTimeString());
         // Skip physical-toggle sync while a dashboard command is still pending —
         // the ESP32 may just be lagging behind the GAS write, not toggling physically.
         if (_relayPendingUntil[_fbName] && _now < _relayPendingUntil[_fbName]) return;
@@ -2495,6 +2496,7 @@ try {
         if (_manualToggleCooldown[_fbName] && _now < _manualToggleCooldown[_fbName]) return;
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
+          if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] PHYSICAL-SYNC FIRED — forcing commandedRelay back to actual relay', _fbName, '→', _relay, new Date().toLocaleTimeString());
           _esp32SyncCooldown[_fbName] = _now + 10000;
           _setCommandedCache(_fbName, _relay);
           _firebaseOptimisticToggle(_fbName, _relay, false);
@@ -2598,6 +2600,7 @@ var commandedRelayCache = {}; // { deviceName: 0|1 }
 var commandedRelayCacheTimestamps = {}; // { deviceName: timestamp } — ms epoch, set alongside cache value
 var _CACHE_TTL = 180000; // 3-min cache lifetime — exceeds ESP32's ~2-min GAS_POLL_INTERVAL to avoid premature expiry
 function _setCommandedCache(name, value) {
+  if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] _setCommandedCache', name, '→', value, new Date().toLocaleTimeString());
   commandedRelayCache[name] = value;
   commandedRelayCacheTimestamps[name] = Date.now();
 }
@@ -4332,11 +4335,13 @@ if (isResBooster) {
   if (d.commandedRelay !== undefined) {
     var _ts = commandedRelayCacheTimestamps[d.device];
     if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
+      if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] RESERVOIR render OVERWRITE (cache stale/missing)', d.device, 'was', commandedRelayCache[d.device], '→ d.commandedRelay', d.commandedRelay, '_ts age(ms)=', _ts ? (Date.now()-_ts) : 'never', new Date().toLocaleTimeString());
       commandedRelayCache[d.device] = d.commandedRelay;
       commandedRelayCacheTimestamps[d.device] = Date.now();
     }
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+  if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] RESERVOIR render', d.device, 'resCommanded=', resCommanded, 'd.commandedRelay=', d.commandedRelay, 'd.relay=', d.relay, new Date().toLocaleTimeString());
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
   var resRelayPending = d.relayPending === true;
   var resPendingBadge = resRelayPending
@@ -4443,11 +4448,13 @@ if (isResBooster) {
       if (d.commandedRelay !== undefined) {
         var _ts = commandedRelayCacheTimestamps[d.device];
         if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
+          if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] PUMP render OVERWRITE (cache stale/missing)', d.device, 'was', commandedRelayCache[d.device], '→ d.commandedRelay', d.commandedRelay, '_ts age(ms)=', _ts ? (Date.now()-_ts) : 'never', new Date().toLocaleTimeString());
           commandedRelayCache[d.device] = d.commandedRelay;
           commandedRelayCacheTimestamps[d.device] = Date.now();
         }
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+      if (window._AGUS_DEBUG_TOGGLE) console.log('[TOGGLE-DEBUG] PUMP render', d.device, 'commanded=', commanded, 'd.commandedRelay=', d.commandedRelay, 'd.relay=', d.relay, 'cacheHas=', commandedRelayCache.hasOwnProperty(d.device), new Date().toLocaleTimeString());
       var switchIsOn = commanded === 1 || commanded === true;
       var relayPending = d.relayPending === true;
       // ── Check if auto-shut-off due to reservoir full ───────
