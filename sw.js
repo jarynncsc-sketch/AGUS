@@ -153,6 +153,7 @@ async function pumpLinkControl(cfg,devs,db,ps){
   if(!links.length)return;
   var cool=(await dbGet(db,"pl_cool"))||{};
   var manCool=(await dbGet(db,"pl_man_cool"))||{};
+  var cmdPend=(await dbGet(db,"pl_cmd_pend"))||{};
   var hist=(await dbGet(db,"pl_hist"))||{};
   var now=Date.now();var PL_COOL=300000;
   var devMap={};devs.forEach(function(d){devMap[d.device]=d;});
@@ -161,6 +162,7 @@ async function pumpLinkControl(cfg,devs,db,ps){
     if(!lnk.enabled)continue;
     if(lnk.manualOverride)continue;
     if(manCool[lnk.pump]&&now<manCool[lnk.pump])continue;
+    if(cmdPend[lnk.pump]&&now<cmdPend[lnk.pump])continue;
     var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];
     if(!resD||!pumD)continue;
     var lv=parseFloat(resD.level);if(isNaN(lv))continue;

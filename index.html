@@ -3834,6 +3834,8 @@ function initDashboard() {
 
         /* Respect manual toggle cooldown set by dashboardTogglePump */
         if (_manualToggleCooldown[lnk.pump] && now < _manualToggleCooldown[lnk.pump]) continue;
+        /* ★ FIX: also skip while a dashboard command is still pending (10-min window) */
+        if (_commandPendingUntil[lnk.pump] && now < _commandPendingUntil[lnk.pump]) continue;
 
         var resD  = devMap[lnk.reservoir];
         var pumD  = devMap[lnk.pump];
@@ -4239,6 +4241,12 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
         var _swMc = _swGet.result || {};
         _swMc[deviceName] = Date.now() + 300000;
         _swStore.put(_swMc, "pl_man_cool");
+      };
+      var _swGet2 = _swStore.get("pl_cmd_pend");
+      _swGet2.onsuccess = function() {
+        var _swCp = _swGet2.result || {};
+        _swCp[deviceName] = Date.now() + 600000;
+        _swStore.put(_swCp, "pl_cmd_pend");
       };
     };
   } catch(_swDbErr) {}
@@ -4813,6 +4821,8 @@ function autoShutoffPumps(devices) {
   pumpLinkConfigs.forEach(function(cfg) {
     if (!cfg.enabled) return;
     if (_manualToggleCooldown[cfg.pump] && Date.now() < _manualToggleCooldown[cfg.pump]) return;
+    // ★ FIX: also skip while a dashboard command is still pending (10-min window)
+    if (_commandPendingUntil[cfg.pump] && Date.now() < _commandPendingUntil[cfg.pump]) return;
 
     // BUG 4 FIX: skip if APE engine already fired a command for this pump within 90s
     // APE cooldown key is 'pump:reservoir', stored in window._apeCooldowns
