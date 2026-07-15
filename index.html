@@ -4398,33 +4398,8 @@ if (isResBooster) {
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
-  var resRelayPending = d.relayPending === true;
-  var resPendingBadge = resRelayPending
-    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
-    : '';
 
   // Water level on top, then device name + status + toggle in one row below
-  // ── Automation status badges for reservoir booster hybrid ──
-  var _rbLinks = pumpLinkConfigs.filter(function(pl){ return pl.pump === d.device; });
-  var _rbScheds = scheduleConfigs.filter(function(sc){ return sc.device === d.device; });
-  var _rbActiveScheds = _rbScheds.filter(function(sc){ return sc.enabled; });
-  var _rbActiveLinks = _rbLinks.filter(function(pl){ return pl.enabled; });
-  var _rbManualLinks = _rbLinks.filter(function(pl){ return pl.manualOverride; });
-  var _rbAutoBadge = '';
-  if (_rbManualLinks.length) {
-    _rbAutoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;justify-content:flex-end;">'
-      + '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="Pump-link manual override active — automation paused. Click to clear." '
-      + 'data-action="clear-pl-override" data-device="'+escapeForAttr(d.device)+'">🖐 PUMPLINK</span>'
-      + '</div>';
-  } else if (_rbActiveLinks.length) {
-    _rbAutoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;justify-content:flex-end;">'
-      + '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;">⚙️ AUTO · ' + _rbActiveLinks.length + '</span>'
-      + '</div>';
-  }
-  if (_rbActiveScheds.length) {
-    _rbAutoBadge += '<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;margin-top:2px;display:inline-block;" title="' + _rbActiveScheds.length + ' schedule(s) active. Click to manage." '
-      + 'data-action="open-sched" data-device="'+escapeForAttr(d.device)+'">⏰ ' + _rbActiveScheds.length + '</span>';
-  }
   li.innerHTML = ''
     + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+wv+'</span>'
@@ -4439,11 +4414,6 @@ if (isResBooster) {
     +       '</label>'
     +     '</div>'
     +   '</div>'
-    +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
-    +   _rbAutoBadge
-    + (d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry)
-      ? '<div class="manual-override-badge" style="margin-top:2px; display:flex; align-items:center; justify-content:flex-end; gap:6px;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
-      : '')
     + '</div>';
 
   (function(){
@@ -4493,24 +4463,6 @@ if (isResBooster) {
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
-  // ── Reservoir booster: automation badge click handlers ──
-  li.querySelectorAll('[data-action="clear-pl-override"]').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var dev = el.getAttribute('data-device');
-      pumpLinkConfigs.forEach(function(pl) {
-        if (pl.pump === dev && pl.manualOverride) _setManualOverride(pl.id, false);
-      });
-      showNotification('✅ PumpLink manual override cleared for ' + dev, 'success');
-      setTimeout(updateDashboard, 800);
-    });
-  });
-  li.querySelectorAll('[data-action="open-sched"]').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      openScheduleSettings(el.getAttribute('data-device'));
-    });
-  });
   li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
 }
     else {
@@ -4537,79 +4489,16 @@ if (isResBooster) {
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
       var switchIsOn = commanded === 1 || commanded === true;
-      var relayPending = d.relayPending === true;
-      // ── Check if auto-shut-off due to reservoir full ───────
-      var autoOff = null;
-      Object.keys(reservoirAutoShutoffState).forEach(function(k) {
-        if (reservoirAutoShutoffState[k].pump === d.device) autoOff = reservoirAutoShutoffState[k];
-      });
-      var autoOffBadge = autoOff
-        ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
-        : '';
-      // ── Manual override badge (leak/emergency) ──
-      var moActive = d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry);
-      var moBadge = moActive
-        ? '<div class="manual-override-badge" style="display:flex; align-items:center; gap:6px;" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
-        : '';
-      // ★ v3: build switch — state from commandedRelay (server authority)
-      var pendingBadge = relayPending
-        ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
-        : '';
-      // ── Automation status badges: pumpLink + schedules ──
-      var _myLinks = pumpLinkConfigs.filter(function(pl){ return pl.pump === d.device; });
-      var _myScheds = scheduleConfigs.filter(function(sc){ return sc.device === d.device; });
-      var _activeScheds = _myScheds.filter(function(sc){ return sc.enabled; });
-      var _activeLinks = _myLinks.filter(function(pl){ return pl.enabled; });
-      var _manualLinks = _myLinks.filter(function(pl){ return pl.manualOverride; });
-      var _autoBadge = '';
-      if (_manualLinks.length) {
-        _autoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">'
-          + '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="Pump-link manual override active — automation paused. Click to clear." '
-          + 'data-action="clear-pl-override" data-device="'+escapeForAttr(d.device)+'">🖐 PUMPLINK</span>'
-          + '</div>';
-      } else if (_activeLinks.length) {
-        _autoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">'
-          + '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;">⚙️ AUTO · ' + _activeLinks.length + '</span>'
-          + '</div>';
-      }
-      if (_activeScheds.length) {
-        _autoBadge += '<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="' + _activeScheds.length + ' schedule(s) active for this device. Click to manage." '
-          + 'data-action="open-sched" data-device="'+escapeForAttr(d.device)+'">⏰ ' + _activeScheds.length + '</span>';
-      }
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
-        + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
+        + '<label class="toggle-switch" title="Toggle pump ON/OFF">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
         + '<span class="slider"></span></label>'
         + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
-        + '</div>'
-        + _autoBadge
-        + pendingBadge + autoOffBadge + moBadge;
+        + '</div>';
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
-      // ── Automation badge click handlers ──
-      li.querySelectorAll('[data-action="clear-pl-override"]').forEach(function(el) {
-        el.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var dev = el.getAttribute('data-device');
-          var tok = sessionToken || userToken || '';
-          pumpLinkConfigs.forEach(function(pl) {
-            if (pl.pump === dev && pl.manualOverride) {
-              _setManualOverride(pl.id, false);
-            }
-          });
-          showNotification('✅ PumpLink manual override cleared for ' + dev + ' — automation will resume.', 'success');
-          setTimeout(updateDashboard, 800);
-        });
-      });
-      li.querySelectorAll('[data-action="open-sched"]').forEach(function(el) {
-        el.addEventListener('click', function(e) {
-          e.stopPropagation();
-          openScheduleSettings(el.getAttribute('data-device'));
-        });
-      });
-      var clearOverrideBtn = li.querySelector('.clear-override-btn');
-      if (clearOverrideBtn) clearOverrideBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -5462,6 +5351,33 @@ function loadSchedulesFromGAS(deviceFilter, cb) {
   if (deviceFilter) params.device = deviceFilter;
   apiGet('getSchedules', params).then(function(list) {
     scheduleConfigs = Array.isArray(list) ? list : [];
+    // Normalize time field: GAS may return a Date object or ISO string from Google Sheets
+    // (which stores times as dates with epoch Dec 30, 1899). Convert to "HH:MM" string.
+    scheduleConfigs.forEach(function(c) {
+      if (c.time == null) return;
+      if (typeof c.time === 'number') {
+        // Excel/Sheets serial time (fraction of a day, e.g. 0.333 = 08:00)
+        var frac = c.time;
+        if (frac >= 0 && frac < 1) {
+          var totalMin = Math.round(frac * 1440);
+          var hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
+          var mm = String(totalMin % 60).padStart(2, '0');
+          c.time = hh + ':' + mm;
+        }
+      } else if (c.time instanceof Date) {
+        var hh2 = String(c.time.getHours()).padStart(2, '0');
+        var mm2 = String(c.time.getMinutes()).padStart(2, '0');
+        c.time = hh2 + ':' + mm2;
+      } else if (typeof c.time === 'string' && c.time.length > 5) {
+        // ISO or long string like "1899-12-30T08:00:00" — extract HH:MM
+        var parsed = new Date(c.time);
+        if (!isNaN(parsed.getTime())) {
+          var hh3 = String(parsed.getHours()).padStart(2, '0');
+          var mm3 = String(parsed.getMinutes()).padStart(2, '0');
+          c.time = hh3 + ':' + mm3;
+        }
+      }
+    });
     if (cb) cb();
   }).catch(function() {
     showNotification('⚠ Failed to load schedules from server', 'warning');
