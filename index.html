@@ -2473,6 +2473,7 @@ try {
     _firebaseConnected = true;
     _firebaseDevicesCache = val;
 
+    // ── Sync relay when it disagrees with commandedRelay (ESP32 physical toggle or initial load) ──
     var _now = Date.now();
     Object.keys(val).forEach(function(_fbName) {
       var _fb = val[_fbName];
@@ -2484,20 +2485,13 @@ try {
       var _fbCmd = (_fbCmdRaw == 1 || _fbCmdRaw === true || _fbCmdRaw === '1') ? 1
                 : (_fbCmdRaw == 0 || _fbCmdRaw === false || _fbCmdRaw === '0') ? 0
                 : null;
-
-      // ★ NEW: If the cache has a value but it's stale (relay matches commandedRelay),
-      // update the cache immediately.
-      if (_fbCmd !== null && _relay === _fbCmd) {
-        var cached = _readCommandedCache(_fbName);
-        if (cached !== undefined && cached !== _relay) {
-          _setCommandedCache(_fbName, _relay);
-          delete _relayPendingUntil[_fbName];
-        }
-      }
-
-      // ── Sync relay when it disagrees with commandedRelay (ESP32 physical toggle or initial load) ──
+      // relay ≠ fbCmd, no fresh dashboard cache → ESP32 toggled physically (or stale data on load)
       if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined && _lastKnownRelayInitialized) {
+        // Skip physical-toggle sync while a dashboard command is still pending —
+        // the ESP32 may just be lagging behind the GAS write, not toggling physically.
         if (_relayPendingUntil[_fbName] && _now < _relayPendingUntil[_fbName]) return;
+        // Skip physical-toggle sync while manual toggle cooldown is active —
+        // disagreement between relay and commandedRelay is expected during ESP32 propagation.
         if (_manualToggleCooldown[_fbName] && _now < _manualToggleCooldown[_fbName]) return;
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
@@ -4259,7 +4253,6 @@ function hasAutomation(deviceName) {
 
 // ── The real toggle execution ──
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
-  var _dKey = 'dTP:' + deviceName;
   // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
   _firebaseOptimisticToggle(deviceName, newStateInt);
@@ -4351,12 +4344,12 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
-  // Show the modal.
+  // If automation is completely absent, we can skip confirmation (or show a lighter one)
+  // but we'll keep it for safety. Show the modal.
   _showToggleConfirmation(deviceName, newStateInt, cb);
 };
 
-// ── Legacy function kept for compatibility (calls the new one) ──
-var dashboardTogglePumpLegacy = function(deviceName, newStateInt, cb) {
+function dashboardTogglePump(deviceName, newStateInt, cb) {
   if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
   // ── Debounce: ignore rapid re-toggle within 600ms ──
   var _dKey = 'dTP:' + deviceName;
@@ -4461,8 +4454,6 @@ var dashboardTogglePumpLegacy = function(deviceName, newStateInt, cb) {
   //     when ESP32 writes relay = commandedRelay back to Firebase, the listener fires,
   //     _updateDashboardFromFirebase() sees they match, relayPending goes false.
 }
-
-// Override the legacy function with the new one that shows the modal
 window._dashboardTogglePumpReal = dashboardTogglePump;
 
 function updateDeviceList(devices) {
@@ -4505,33 +4496,8 @@ if (isResBooster) {
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
-  var resRelayPending = d.relayPending === true;
-  var resPendingBadge = resRelayPending
-    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
-    : '';
 
   // Water level on top, then device name + status + toggle in one row below
-  // ── Automation status badges for reservoir booster hybrid ──
-  var _rbLinks = pumpLinkConfigs.filter(function(pl){ return pl.pump === d.device; });
-  var _rbScheds = scheduleConfigs.filter(function(sc){ return sc.device === d.device; });
-  var _rbActiveScheds = _rbScheds.filter(function(sc){ return sc.enabled; });
-  var _rbActiveLinks = _rbLinks.filter(function(pl){ return pl.enabled; });
-  var _rbManualLinks = _rbLinks.filter(function(pl){ return pl.manualOverride; });
-  var _rbAutoBadge = '';
-  if (_rbManualLinks.length) {
-    _rbAutoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;justify-content:flex-end;">'
-      + '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="Pump-link manual override active — automation paused. Click to clear." '
-      + 'data-action="clear-pl-override" data-device="'+escapeForAttr(d.device)+'">🖐 PUMPLINK</span>'
-      + '</div>';
-  } else if (_rbActiveLinks.length) {
-    _rbAutoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;justify-content:flex-end;">'
-      + '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;">⚙️ AUTO · ' + _rbActiveLinks.length + '</span>'
-      + '</div>';
-  }
-  if (_rbActiveScheds.length) {
-    _rbAutoBadge += '<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;margin-top:2px;display:inline-block;" title="' + _rbActiveScheds.length + ' schedule(s) active. Click to manage." '
-      + 'data-action="open-sched" data-device="'+escapeForAttr(d.device)+'">⏰ ' + _rbActiveScheds.length + '</span>';
-  }
   li.innerHTML = ''
     + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
     +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+wv+'</span>'
@@ -4546,49 +4512,12 @@ if (isResBooster) {
     +       '</label>'
     +     '</div>'
     +   '</div>'
-    +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
-    +   _rbAutoBadge
-    + (d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry)
-      ? '<div class="manual-override-badge" style="margin-top:2px; display:flex; align-items:center; justify-content:flex-end; gap:6px;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
-      : '')
     + '</div>';
-
-  (function(){
-    var _aok = Object.keys(reservoirAutoShutoffState).filter(function(k){return reservoirAutoShutoffState[k].pump===d.device;});
-    if (_aok.length) {
-      var _ao = reservoirAutoShutoffState[_aok[0]];
-      var _ab = document.createElement('div');
-      _ab.className = 'auto-shutoff-badge';
-      _ab.title = 'Auto-shutoff: ' + (_ao.reservoir||'') + ' at ' + (_ao.shutoffLevel||'') + ' m³';
-      _ab.innerHTML = '🛑 AUTO-OFF · ' + (_ao.reservoir||'Reservoir');
-      li.appendChild(_ab);
-    }
-  })();
 
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
     var newStateInt = resCb.checked ? 1 : 0;
     dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
-  });
-  var resClearBtn = li.querySelector('.clear-override-btn');
-  if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
-  // ── Reservoir booster: automation badge click handlers ──
-  li.querySelectorAll('[data-action="clear-pl-override"]').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var dev = el.getAttribute('data-device');
-      pumpLinkConfigs.forEach(function(pl) {
-        if (pl.pump === dev && pl.manualOverride) _setManualOverride(pl.id, false);
-      });
-      showNotification('✅ PumpLink manual override cleared for ' + dev, 'success');
-      setTimeout(updateDashboard, 800);
-    });
-  });
-  li.querySelectorAll('[data-action="open-sched"]').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      openScheduleSettings(el.getAttribute('data-device'));
-    });
   });
   li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
 }
@@ -4622,73 +4551,15 @@ if (isResBooster) {
       Object.keys(reservoirAutoShutoffState).forEach(function(k) {
         if (reservoirAutoShutoffState[k].pump === d.device) autoOff = reservoirAutoShutoffState[k];
       });
-      var autoOffBadge = autoOff
-        ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
-        : '';
-      // ── Manual override badge (leak/emergency) ──
-      var moActive = d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry);
-      var moBadge = moActive
-        ? '<div class="manual-override-badge" style="display:flex; align-items:center; gap:6px;" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
-        : '';
-      // ★ v3: build switch — state from commandedRelay (server authority)
-      var pendingBadge = relayPending
-        ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
-        : '';
-      // ── Automation status badges: pumpLink + schedules ──
-      var _myLinks = pumpLinkConfigs.filter(function(pl){ return pl.pump === d.device; });
-      var _myScheds = scheduleConfigs.filter(function(sc){ return sc.device === d.device; });
-      var _activeScheds = _myScheds.filter(function(sc){ return sc.enabled; });
-      var _activeLinks = _myLinks.filter(function(pl){ return pl.enabled; });
-      var _manualLinks = _myLinks.filter(function(pl){ return pl.manualOverride; });
-      var _autoBadge = '';
-      if (_manualLinks.length) {
-        _autoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">'
-          + '<span style="background:#fefce8;color:#854d0e;border:1px solid #fde047;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="Pump-link manual override active — automation paused. Click to clear." '
-          + 'data-action="clear-pl-override" data-device="'+escapeForAttr(d.device)+'">🖐 PUMPLINK</span>'
-          + '</div>';
-      } else if (_activeLinks.length) {
-        _autoBadge += '<div style="display:flex;align-items:center;gap:4px;margin-top:2px;">'
-          + '<span style="background:#dcfce7;color:#15803d;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;">⚙️ AUTO · ' + _activeLinks.length + '</span>'
-          + '</div>';
-      }
-      if (_activeScheds.length) {
-        _autoBadge += '<span style="background:#ede9fe;color:#6d28d9;border-radius:6px;padding:1px 6px;font-size:9.5px;font-weight:800;cursor:pointer;" title="' + _activeScheds.length + ' schedule(s) active for this device. Click to manage." '
-          + 'data-action="open-sched" data-device="'+escapeForAttr(d.device)+'">⏰ ' + _activeScheds.length + '</span>';
-      }
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
         + '<span class="slider"></span></label>'
         + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
-        + '</div>'
-        + _autoBadge
-        + pendingBadge + autoOffBadge + moBadge;
+        + '</div>';
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
-      // ── Automation badge click handlers ──
-      li.querySelectorAll('[data-action="clear-pl-override"]').forEach(function(el) {
-        el.addEventListener('click', function(e) {
-          e.stopPropagation();
-          var dev = el.getAttribute('data-device');
-          var tok = sessionToken || userToken || '';
-          pumpLinkConfigs.forEach(function(pl) {
-            if (pl.pump === dev && pl.manualOverride) {
-              _setManualOverride(pl.id, false);
-            }
-          });
-          showNotification('✅ PumpLink manual override cleared for ' + dev + ' — automation will resume.', 'success');
-          setTimeout(updateDashboard, 800);
-        });
-      });
-      li.querySelectorAll('[data-action="open-sched"]').forEach(function(el) {
-        el.addEventListener('click', function(e) {
-          e.stopPropagation();
-          openScheduleSettings(el.getAttribute('data-device'));
-        });
-      });
-      var clearOverrideBtn = li.querySelector('.clear-override-btn');
-      if (clearOverrideBtn) clearOverrideBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
