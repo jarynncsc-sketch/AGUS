@@ -2473,7 +2473,6 @@ try {
     _firebaseConnected = true;
     _firebaseDevicesCache = val;
 
-    // ── Sync relay when it disagrees with commandedRelay (ESP32 physical toggle or initial load) ──
     var _now = Date.now();
     Object.keys(val).forEach(function(_fbName) {
       var _fb = val[_fbName];
@@ -2485,13 +2484,20 @@ try {
       var _fbCmd = (_fbCmdRaw == 1 || _fbCmdRaw === true || _fbCmdRaw === '1') ? 1
                 : (_fbCmdRaw == 0 || _fbCmdRaw === false || _fbCmdRaw === '0') ? 0
                 : null;
-      // relay ≠ fbCmd, no fresh dashboard cache → ESP32 toggled physically (or stale data on load)
+
+      // ★ NEW: If the cache has a value but it's stale (relay matches commandedRelay),
+      // update the cache immediately.
+      if (_fbCmd !== null && _relay === _fbCmd) {
+        var cached = _readCommandedCache(_fbName);
+        if (cached !== undefined && cached !== _relay) {
+          _setCommandedCache(_fbName, _relay);
+          delete _relayPendingUntil[_fbName];
+        }
+      }
+
+      // ── Sync relay when it disagrees with commandedRelay (ESP32 physical toggle or initial load) ──
       if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined && _lastKnownRelayInitialized) {
-        // Skip physical-toggle sync while a dashboard command is still pending —
-        // the ESP32 may just be lagging behind the GAS write, not toggling physically.
         if (_relayPendingUntil[_fbName] && _now < _relayPendingUntil[_fbName]) return;
-        // Skip physical-toggle sync while manual toggle cooldown is active —
-        // disagreement between relay and commandedRelay is expected during ESP32 propagation.
         if (_manualToggleCooldown[_fbName] && _now < _manualToggleCooldown[_fbName]) return;
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
@@ -4253,6 +4259,7 @@ function hasAutomation(deviceName) {
 
 // ── The real toggle execution ──
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
+  var _dKey = 'dTP:' + deviceName;
   // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
   _firebaseOptimisticToggle(deviceName, newStateInt);
@@ -4344,12 +4351,12 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
-  // If automation is completely absent, we can skip confirmation (or show a lighter one)
-  // but we'll keep it for safety. Show the modal.
+  // Show the modal.
   _showToggleConfirmation(deviceName, newStateInt, cb);
 };
 
-function dashboardTogglePump(deviceName, newStateInt, cb) {
+// ── Legacy function kept for compatibility (calls the new one) ──
+var dashboardTogglePumpLegacy = function(deviceName, newStateInt, cb) {
   if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
   // ── Debounce: ignore rapid re-toggle within 600ms ──
   var _dKey = 'dTP:' + deviceName;
@@ -4454,6 +4461,8 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   //     when ESP32 writes relay = commandedRelay back to Firebase, the listener fires,
   //     _updateDashboardFromFirebase() sees they match, relayPending goes false.
 }
+
+// Override the legacy function with the new one that shows the modal
 window._dashboardTogglePumpReal = dashboardTogglePump;
 
 function updateDeviceList(devices) {
