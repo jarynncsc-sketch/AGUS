@@ -2614,7 +2614,7 @@ var _lastKnownRelay = {}; // { deviceName: 0|1 } — tracks actual relay state f
 var _lastKnownRelayInitialized = false; // BUG FIX: skip first-load "physical toggle" sync so user commands aren't overwritten
 var _esp32SyncCooldown = {}; // { deviceName: timestamp } — 10s debounce per device to avoid rapid GAS calls
 var _relayPendingUntil = {}; // { deviceName: timestamp } — dashboard wrote relay to Firebase, show "Sending…" until this time
-var _RELAY_PENDING_TIMEOUT = 120000; // 2 min — must match ESP32's GAS_POLL_INTERVAL so "Sending…" persists until device confirms
+var _RELAY_PENDING_TIMEOUT = 20000; // 20 sec — must match ESP32's COMMAND_POLL_INTERVAL (15s) + margin so "Sending…" persists until device confirms
 var _MANUAL_OVERRIDE_MS = 3600000; // 1 hour: manual toggle blocks APE + schedule via Firebase manualOverride flag
 function _setManualOverrideFB(deviceName, active) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
@@ -3880,9 +3880,11 @@ function initDashboard() {
             timestamp: new Date().toLocaleString(), linkId: lnk.id
           };
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+          _disableSchedulesForPump(lnk.pump);
         } else if (needOn) {
           delete reservoirAutoShutoffState[ck];
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+          _enableSchedulesForPump(lnk.pump);
         }
 
         /* Fire command */
@@ -3911,9 +3913,6 @@ function initDashboard() {
                 ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
                 : link.reservoir + ' at ' + level.toFixed(1) + ' m³ (shutoff ≥ ' + link.shutoffLevel + ' m³)';
               _addAutoShutoffLog({ pump: device, action: 'AUTO-' + onOff, timestamp: new Date().toLocaleString(), triggeredby: 'AutoEngine', reservoir: link.reservoir, level: level.toFixed(1) });
-              if (typeof showNotification === 'function') {
-                showNotification((res.newState ? '▶️' : '⏹️') + ' Auto-' + onOff + ': ' + device + ' — ' + reason, res.newState ? 'success' : 'info');
-              }
               /* Re-sync the badge */
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
@@ -4024,6 +4023,25 @@ function _updateDashboardFromFirebase() {
   var devices = _firebaseDeviceToArray();
   if (!devices.length) return;
   window._lastDevices = devices;
+  // ── Detect automated relay changes (schedule / pumpLink) and show pop-ups ──
+  devices.forEach(function(d) {
+    var who = d.lastToggledBy;
+    if (!who || who === 'dashboard' || who === loggedInUser) return;
+    var prev = _lastSeenToggledBy[d.device];
+    if (prev === who) return; // not a new trigger
+    _lastSeenToggledBy[d.device] = who;
+    var relayState = d.commandedRelay != null ? d.commandedRelay : d.relay;
+    var onOff = (relayState == 1 || relayState === true) ? 'ON' : 'OFF';
+    var icon = (relayState == 1 || relayState === true) ? '▶️' : '⏹️';
+    var whoLabel = who;
+    if (/schedule/i.test(who)) whoLabel = 'Schedule Timer';
+    else if (/AutoShutoff-Backup/i.test(who)) whoLabel = 'PumpLink Backup Shutoff';
+    else if (/AutoShutoff/i.test(who)) whoLabel = 'PumpLink Auto-Shutoff';
+    else if (/AutoResume-Backup/i.test(who)) whoLabel = 'PumpLink Backup Resume';
+    else if (/AutoResume/i.test(who)) whoLabel = 'PumpLink Auto-Resume';
+    else if (/AutoEngine/i.test(who)) whoLabel = 'PumpLink Auto-Engine';
+    showNotification(icon + ' ' + d.device + ' turned ' + onOff + ' by ' + whoLabel, (relayState == 1 || relayState === true) ? 'success' : 'info');
+  });
   updateDeviceList(devices); updateMap(devices);
   autoShutoffPumps(devices);
   if (selectedDevice) showDeviceDetails(selectedDevice);
@@ -4189,9 +4207,48 @@ function _engageAutomationForManualToggle(deviceName, newStateInt) {
   }
 }
 
+/* ════════════════════════════════════════════════════════════════════════
+ *  SCHEDULE GATE — when auto-shutoff/resume fires, disable/enable
+ *  the schedule for that device so the GAS server-side timer trigger
+ *  does not override the auto-shutoff by turning the pump back ON.
+ * ════════════════════════════════════════════════════════════════════════ */
+function _disableSchedulesForPump(pumpName) {
+  var tok = sessionToken || userToken || '';
+  if (!tok || !scheduleConfigs.length) return;
+  scheduleConfigs.forEach(function(sc) {
+    if (sc.device !== pumpName || !sc.enabled) return;
+    _autoDisabledSchedules[pumpName] = _autoDisabledSchedules[pumpName] || [];
+    _autoDisabledSchedules[pumpName].push(sc.scheduleId);
+    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
+      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
+      + '&enabled=false';
+    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
+      if (resp && resp.success) sc.enabled = false;
+    }).catch(function() {});
+  });
+}
+function _enableSchedulesForPump(pumpName) {
+  var tok = sessionToken || userToken || '';
+  if (!tok || !_autoDisabledSchedules[pumpName] || !_autoDisabledSchedules[pumpName].length) return;
+  var toReenable = _autoDisabledSchedules[pumpName];
+  delete _autoDisabledSchedules[pumpName];
+  scheduleConfigs.forEach(function(sc) {
+    if (sc.device !== pumpName) return;
+    if (toReenable.indexOf(sc.scheduleId) === -1) return;
+    if (sc.enabled) return;
+    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
+      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
+      + '&enabled=true';
+    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
+      if (resp && resp.success) sc.enabled = true;
+    }).catch(function() {});
+  });
+}
+
 // ── Pending toggle state ──
 var _pendingToggle = null;
 var _autoDisabledSchedules = {}; // { deviceName: [scheduleId, ...] } — tracks schedules disabled by manual OFF
+var _lastSeenToggledBy = {};    // { deviceName: lastToggledBy value } — detects schedule/pumpLink auto-triggered changes
 
 // ── Show confirmation modal ──
 function _showToggleConfirmation(deviceName, newStateInt, cb) {
@@ -4808,16 +4865,12 @@ function autoShutoffPumps(devices) {
       var _lastB = _autoShutoffCommandSent[_boffCdKey] || 0;
       if (!_lastB || Date.now() - _lastB > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_boffCdKey] = Date.now();
-        var bkey = cfg.pump + ':backup:' + cfg.reservoir;
-        if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
-          autoShutoffSuppressNotify[bkey] = Date.now();
-          showNotification('🚨 BACKUP SHUTOFF: ' + cfg.pump + ' still ON at ' + lv.toFixed(0) + ' m³ — primary shutoff at ' + shutoff + ' m³ may have failed!', 'error');
-          if (window.speechSynthesis) {
-            var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
-            bu.rate = 0.95; window.speechSynthesis.speak(bu);
-          }
+        if (window.speechSynthesis) {
+          var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
+          bu.rate = 0.95; window.speechSynthesis.speak(bu);
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
+        _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
@@ -4841,17 +4894,13 @@ function autoShutoffPumps(devices) {
       var _lastOff = _autoShutoffCommandSent[_offCdKey] || 0;
       if (!_lastOff || Date.now() - _lastOff > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_offCdKey] = Date.now();
-        var suppressKey = cfg.pump + ':off:notify:' + cfg.reservoir;
-        if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
-          autoShutoffSuppressNotify[suppressKey] = Date.now();
-          showNotification('🛑 AUTO-SHUTOFF: ' + cfg.pump + ' turned OFF — ' + cfg.reservoir + ' reached ' + lv.toFixed(0) + ' m³ (limit: ' + shutoff + ' m³)', 'warning');
-          _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
-          if (window.speechSynthesis) {
-            var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
-            u.rate = 0.95; window.speechSynthesis.speak(u);
-          }
+        _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
+        if (window.speechSynthesis) {
+          var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
+          u.rate = 0.95; window.speechSynthesis.speak(u);
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
+        _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
@@ -4872,12 +4921,8 @@ function autoShutoffPumps(devices) {
         delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
-        var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
-        if (!autoShutoffSuppressNotify[rkey2] || Date.now() - autoShutoffSuppressNotify[rkey2] > 600000) {
-          autoShutoffSuppressNotify[rkey2] = Date.now();
-          showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
-          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
-        }
+        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
+        _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
@@ -4898,17 +4943,13 @@ function autoShutoffPumps(devices) {
         delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
-        var resumeNotifyKey = cfg.pump + ':on:notify:' + cfg.reservoir;
-        if (!autoShutoffSuppressNotify[resumeNotifyKey] || Date.now() - autoShutoffSuppressNotify[resumeNotifyKey] > 600000) {
-          autoShutoffSuppressNotify[resumeNotifyKey] = Date.now();
-          showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
-          _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
-          if (window.speechSynthesis) {
-            var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
-            _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
-          }
-          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
+        _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
+        if (window.speechSynthesis) {
+          var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
+          _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
         }
+        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
+        _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
