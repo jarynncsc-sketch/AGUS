@@ -1,6 +1,8 @@
 /* AGUS Service Worker — pump-link auto-control + push notifications
    Supports background operation even when dashboard tabs are closed.
-   Config is received via postMessage and persisted in IndexedDB. */
+   Config is received via postMessage and persisted in IndexedDB.
+   FIXED: Conflict resolution — Manual > Schedule > Pump-Link priority.
+   NEW IndexedDB keys: pl_sch_cool, pl_cmd_pend (now written), pl_hist (4 samples), pl_state_src */
 'use strict';
 /* ═══════════════ IndexedDB helpers ═══════════════ */
 function dbOpen(){return new Promise(function(res,rej){
@@ -73,8 +75,14 @@ async function bgPoll(){
     var ps=[];
     var DEF={minPsi:20,maxPsi:80,minLevel:20,maxLevel:250,minVolt:210,maxVolt:240,minCurrent:0,maxCurrent:30,minFlow:0.5,maxFlow:50,minPower:0,maxPower:15000};
     var thr={};try{thr=cfg.thr||{};}catch(e){}
+    /* ★ NEW: Extract schedule cooldowns from dashboard data into IndexedDB */
+    var schCool=(await dbGet(db,"pl_sch_cool"))||{};
     devs.forEach(function(d){
       var n=d.device||"",st=d.status||"",p=prev[n]||{},t=Object.assign({},DEF,thr[n]||{});
+      /* ★ Store schedule cooldown if backend provided it */
+      if(d.scheduleCooldownUntil&&d.scheduleCooldownUntil>Date.now()){
+        schCool[n]=d.scheduleCooldownUntil;
+      }
       if((st==="Fault"||d.button)&&p.status!=="Fault"&&can("fault:"+n))
         ps.push(pop("⚠️ Fault — "+n,n+" FAULT detected. Immediate attention required.","fault:"+n,true));
       if(st==="Offline"&&p.status==="Online"&&can("off:"+n))
@@ -122,11 +130,33 @@ async function bgPoll(){
       prev[n]={status:st,relay:d.relay,lv:isNaN(lv)?p.lv:lv,psi:isNaN(psi)?p.psi:psi,fl:isNaN(fl)?p.fl:fl,vt:isNaN(vt)?p.vt:vt,am:isNaN(am)?p.am:am,pw:isNaN(pw)?p.pw:pw};
     });
     await dbSet(db,"prev",prev);
+    await dbSet(db,"pl_sch_cool",schCool);
     await pumpLinkControl(cfg,devs,db,ps);
     await Promise.all(ps);
     _swErr=0;
   }catch(err){console.error("[SW] bgPoll:",err);_swErr++}
   if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — skipping poll");return;}
+}
+/* ═══════════════ Error-type → cooldown mapping ═══════════════ */
+var _ERR_COOL={
+  'session':0,          /* token expired — don't lock, just skip */
+  'manual_override':600000, /* 10 min — user just toggled manually */
+  'auto_shutoff':0,     /* auto-shutoff active — don't lock, let next poll retry */
+  'device_busy':30000,  /* 30s — device busy, retry soon */
+  'network':60000,      /* 1 min — network error */
+  'unknown':300000      /* 5 min — fallback */
+};
+function _cooldownForError(errType,errorMsg){
+  /* Prefer explicit errorType from backend, fall back to string matching */
+  if(errType&&_ERR_COOL.hasOwnProperty(errType))return _ERR_COOL[errType];
+  if(!errorMsg)return 300000;
+  var m=errorMsg.toLowerCase();
+  if(m.indexOf('session')!==-1)return _ERR_COOL.session;
+  if(m.indexOf('manual override')!==-1)return _ERR_COOL.manual_override;
+  if(m.indexOf('auto')!==-1&&m.indexOf('shutoff')!==-1)return _ERR_COOL.auto_shutoff;
+  if(m.indexOf('busy')!==-1)return _ERR_COOL.device_busy;
+  if(m.indexOf('network')!==-1)return _ERR_COOL.network;
+  return _ERR_COOL.unknown;
 }
 /* ═══════════════ Pump toggle helper ═══════════════ */
 async function swTogglePump(apiUrl,token,device,desiredState){
@@ -151,48 +181,73 @@ async function pumpLinkControl(cfg,devs,db,ps){
     }catch(e){console.warn("[SW] getPumpLinks error:",e);}
   }
   if(!links.length)return;
+  /* ★ FIX: If server-side trigger installed, defer entirely — don't fight it */
+  if(cfg.gasTriggerInstalled){return;}
   var cool=(await dbGet(db,"pl_cool"))||{};
   var manCool=(await dbGet(db,"pl_man_cool"))||{};
+  var schCool=(await dbGet(db,"pl_sch_cool"))||{};
   var cmdPend=(await dbGet(db,"pl_cmd_pend"))||{};
   var hist=(await dbGet(db,"pl_hist"))||{};
+  var stateSrc=(await dbGet(db,"pl_state_src"))||{};
   var now=Date.now();var PL_COOL=300000;
   var devMap={};devs.forEach(function(d){devMap[d.device]=d;});
   for(var i=0;i<links.length;i++){
     var lnk=links[i];
     if(!lnk.enabled)continue;
     if(lnk.manualOverride)continue;
+    /* ★ FIX: Check manual cooldown (set by frontend _executeDashboardToggle) */
     if(manCool[lnk.pump]&&now<manCool[lnk.pump])continue;
+    /* ★ FIX: Check in-flight command lock (set by frontend or by this SW before sending) */
     if(cmdPend[lnk.pump]&&now<cmdPend[lnk.pump])continue;
+    /* ★ NEW: Check schedule cooldown (set by backend runScheduledToggles via getDashboardData) */
+    if(schCool[lnk.pump]&&now<schCool[lnk.pump])continue;
     var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];
     if(!resD||!pumD)continue;
     var lv=parseFloat(resD.level);if(isNaN(lv))continue;
-    /* Level history for resume dampening */
-    if(!hist[lnk.reservoir])hist[lnk.reservoir]=[];hist[lnk.reservoir].push(lv);
-    if(hist[lnk.reservoir].length>2)hist[lnk.reservoir].shift();
+    /* Level history for resume dampening — expanded to 4 samples */
+    if(!hist[lnk.reservoir])hist[lnk.reservoir]=[];
+    hist[lnk.reservoir].push(lv);
+    while(hist[lnk.reservoir].length>4)hist[lnk.reservoir].shift();
     var sOff=parseFloat(lnk.shutoffLevel),sRes=parseFloat(lnk.resumeLevel);
     var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;
     if(isNaN(sOff)||isNaN(sRes))continue;
     var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";
-    var ck=lnk.pump;  // pump-only key prevents race when two reservoirs share one pump
+    var ck=lnk.pump;
     if(cool[ck]&&now-cool[ck]<PL_COOL)continue;
     var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));
     var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));
-    /* Dampening: require 2 consecutive readings below resume before ON */
+    /* ★ FIX: Dampening — require 2 most-recent consecutive readings below resume before ON */
     if(needOn&&hist[lnk.reservoir]&&hist[lnk.reservoir].length>=2){
-      if(hist[lnk.reservoir][0]>sRes&&(sRes2===0||hist[lnk.reservoir][0]>sRes2))needOn=false;
-      if(hist[lnk.reservoir][1]>sRes&&(sRes2===0||hist[lnk.reservoir][1]>sRes2))needOn=false;
+      var hLen=hist[lnk.reservoir].length;
+      var last1=hist[lnk.reservoir][hLen-1];
+      var last2=hist[lnk.reservoir][hLen-2];
+      if(last1>sRes&&(sRes2===0||last1>sRes2))needOn=false;
+      if(last2>sRes&&(sRes2===0||last2>sRes2))needOn=false;
     }
     /* Manual override gate — block both auto-ON and auto-OFF when user has manual control */
     if(pumD.manualOverrideActive){needOn=false;needOff=false;}
     if(!needOff&&!needOn)continue;
     var desiredState = needOff ? 0 : 1;
+    /* ★ FIX: Set in-flight lock BEFORE sending the command */
+    cmdPend[lnk.pump]=now+30000;
     var tr=await swTogglePump(cfg.apiUrl,cfg.token,lnk.pump,desiredState);
+    /* ★ FIX: Clear in-flight lock after response */
+    delete cmdPend[lnk.pump];
     if(!tr){
-      cool[ck]=now;
+      /* ★ FIX: Error-driven cooldown — different durations for different failures */
+      cool[ck]=now+300000;
       continue;
     }
-    if(tr.error&&tr.error.indexOf("session")!==-1){
-      console.warn("[SW] Token expired for",lnk.pump);
+    if(tr.error){
+      /* ★ FIX: Use errorType field from backend when available, fall back to string matching */
+      var errType = tr.errorType || null;
+      if(errType==='session'||tr.error.indexOf("session")!==-1){
+        console.warn("[SW] Token expired for",lnk.pump);
+        /* Don't set cooldown — token issue, not device issue */
+        continue;
+      }
+      /* Use error-driven cooldown based on errorType or string matching */
+      cool[ck]=now+_cooldownForError(errType,tr.error);
       continue;
     }
     if(tr.success){
@@ -200,11 +255,15 @@ async function pumpLinkControl(cfg,devs,db,ps){
       var newOn=!!tr.newState;
       var lvStr=lv.toFixed(1)+" m³";
       var thresh=newOn?"resumed ≤"+sRes+" m³":"shut off ≥"+sOff+" m³";
+      stateSrc[ck]="pump-link";
       ps.push(pop((newOn?"▶️ Auto-ON: ":"⏹️ Auto-OFF: ")+lnk.pump,
         lnk.reservoir+" "+thresh+". Level: "+lvStr,"pl:"+ck,true));
     }
   }
-  await dbSet(db,"pl_cool",cool);await dbSet(db,"pl_hist",hist);
+  await dbSet(db,"pl_cool",cool);
+  await dbSet(db,"pl_hist",hist);
+  await dbSet(db,"pl_cmd_pend",cmdPend);
+  await dbSet(db,"pl_state_src",stateSrc);
 }
 /* ═══════════════ Lifecycle events ═══════════════ */
 self.addEventListener("install",function(){self.skipWaiting();});
@@ -236,12 +295,36 @@ self.addEventListener("message",function(e){
           if(d.baseCfg.apiUrl)merged.apiUrl=d.baseCfg.apiUrl;
           if(d.baseCfg.token)merged.token=d.baseCfg.token;
         }
+        /* ★ NEW: Accept gasTriggerInstalled flag from frontend */
+        if(typeof d.gasTriggerInstalled==='boolean')merged.gasTriggerInstalled=d.gasTriggerInstalled;
+        /* ★ NEW: Accept schedule cooldowns from frontend */
+        if(d.schCool){
+          return Promise.all([
+            dbSet(db2,"cfg",merged),
+            d.manCool?dbSet(db2,"pl_man_cool",d.manCool):Promise.resolve(),
+            dbSet(db2,"pl_sch_cool",d.schCool)
+          ]);
+        }
         return Promise.all([
           dbSet(db2,"cfg",merged),
           d.manCool?dbSet(db2,"pl_man_cool",d.manCool):Promise.resolve()
         ]);
       });
     }).then(function(){bgPoll().catch(function(e){console.warn("[SW] bgPoll error:",e);});});
+  }
+  /* ★ NEW: Frontend sets/clears in-flight command lock for dashboard toggles */
+  if(d.type==="AGUS_PL_CMD_LOCK"){
+    dbOpen().then(function(db3){
+      return dbGet(db3,"pl_cmd_pend").then(function(cp){
+        cp=cp||{};
+        if(d.lock){
+          cp[d.device]=Date.now()+30000;
+        }else{
+          delete cp[d.device];
+        }
+        return dbSet(db3,"pl_cmd_pend",cp);
+      });
+    });
   }
   if(d.type==="AGUS_KEEPALIVE"||d.type==="AGUS_PING"){
     if(e.source)try{e.source.postMessage({type:"AGUS_ALIVE"});}catch(x){}

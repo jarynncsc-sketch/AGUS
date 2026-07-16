@@ -4324,20 +4324,25 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   _manualToggleCooldown[deviceName] = Date.now() + 300000;
   // ★ FIX: cooldown is set here (optimistic phase) so the APE engine
   //       & auto-shutoff respect it BEFORE GAS even returns.
-  try {
-    var _swDbReq = indexedDB.open("agus_sw", 1);
-    _swDbReq.onsuccess = function(_swDbEv) {
-      var _swDb = _swDbEv.target.result;
-      var _swTx = _swDb.transaction("kv", "readwrite");
-      var _swStore = _swTx.objectStore("kv");
-      var _swGet = _swStore.get("pl_man_cool");
-      _swGet.onsuccess = function() {
-        var _swMc = _swGet.result || {};
-        _swMc[deviceName] = Date.now() + 300000;
-        _swStore.put(_swMc, "pl_man_cool");
+    try {
+      var _swDbReq = indexedDB.open("agus_sw", 1);
+      _swDbReq.onsuccess = function(_swDbEv) {
+        var _swDb = _swDbEv.target.result;
+        var _swTx = _swDb.transaction("kv", "readwrite");
+        var _swStore = _swTx.objectStore("kv");
+        var _swGet = _swStore.get("pl_man_cool");
+        _swGet.onsuccess = function() {
+          var _swMc = _swGet.result || {};
+          _swMc[deviceName] = Date.now() + 300000;
+          _swStore.put(_swMc, "pl_man_cool");
+        };
       };
-    };
-  } catch(_swDbErr) {}
+    } catch(_swDbErr) {}
+    /* ★ NEW: Set in-flight command lock so SW pump-link auto doesn't fight this toggle */
+    try {
+      var _sw = (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (_sw) _sw.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: true });
+    } catch(_cmdLockErr) {}
   if (cb) cb(newStateInt);
 
   // ═══ Step 3: Authoritative GAS write ═══
@@ -4353,6 +4358,11 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
+      /* ★ NEW: Clear in-flight command lock */
+      try {
+        var _sw2 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+        if (_sw2) _sw2.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+      } catch(_e2) {}
       // ═══ Step 4: GAS confirmed ─ always re-assert relay in Firebase ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
@@ -4382,6 +4392,11 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       setTimeout(updateDashboard, 1500);
     } else {
       // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
+      /* ★ NEW: Clear in-flight command lock */
+      try {
+        var _sw3 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+        if (_sw3) _sw3.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+      } catch(_e3) {}
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
       _firebaseOptimisticToggle(deviceName, revert, false);
@@ -4391,6 +4406,11 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   }).catch(function(e) {
     // ═══ Step 4: Network error — revert cache + Firebase ═══
     delete _localTogglePending[_dKey];
+    /* ★ NEW: Clear in-flight command lock */
+    try {
+      var _sw4 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (_sw4) _sw4.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+    } catch(_e4) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
     _firebaseOptimisticToggle(deviceName, revert, false);
@@ -9870,10 +9890,22 @@ function exportDashboardPDF() {
       var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
                || (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (!sw) return;
+      /* ★ NEW: Build schedule cooldown map from cached dashboard data */
+      var _schCool = {};
+      try {
+        var _devs = (typeof window._lastDevices !== 'undefined' && Array.isArray(window._lastDevices)) ? window._lastDevices : [];
+        _devs.forEach(function(d) {
+          if (d.scheduleCooldownUntil && d.scheduleCooldownUntil > Date.now()) {
+            _schCool[d.device] = d.scheduleCooldownUntil;
+          }
+        });
+      } catch(_e) {}
       sw.postMessage({
         type:    'AGUS_PL',
         links:   (typeof pumpLinkConfigs !== 'undefined' ? pumpLinkConfigs : []),
         manCool: (typeof _manualToggleCooldown !== 'undefined' ? _manualToggleCooldown : {}),
+        schCool: _schCool,
+        gasTriggerInstalled: (typeof _gasTriggerInstalled !== 'undefined' ? _gasTriggerInstalled : false),
         baseCfg: {
           apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
           token:  (typeof userToken !== 'undefined' ? userToken : '')
