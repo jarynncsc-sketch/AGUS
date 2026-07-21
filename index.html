@@ -4428,6 +4428,7 @@ function hasAutomation(deviceName) {
 }
 
 // ── The real toggle execution ──
+// Flow: Dashboard → EMQX (instant) → ESP32. Then GAS (async) for logging.
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
   var _dKey = 'dTP:' + deviceName;
   // ═══ Step 1: Optimistic cache update ═══
@@ -4454,7 +4455,16 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
     } catch(_cmdLockErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 2: Authoritative GAS write (sole command path) ═══
+  // ═══ Step 2: INSTANT EMQX MQTT — direct publish to broker ═══
+  var _mqttSent = false;
+  try { _mqttSent = mqttPublishRelay(deviceName, newStateInt); } catch(_e) {}
+  if (_mqttSent) {
+    console.log('[EMQX] Instant relay toggle sent:', deviceName, newStateInt ? 'ON' : 'OFF');
+  } else {
+    console.warn('[EMQX] MQTT not connected — falling back to GAS-only');
+  }
+
+  // ═══ Step 3: GAS write (async, non-blocking — for logging/audit) ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
