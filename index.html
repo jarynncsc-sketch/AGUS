@@ -2528,8 +2528,8 @@ try {
 // ════════════════════════════════════════════════════════════════════
 var MQTT_BROKER = 'k196aaef.ala.asia-southeast1.emqxsl.com';
 var MQTT_WS_PORT = 8084;
-var MQTT_USER = 'la19f1ae';
-var MQTT_PASS = 'SA0Ulz9j040qd*!N';
+var MQTT_USER = 'Dashboard';
+var MQTT_PASS = 'agUS@mqtt2024';
 var _mqttClient = null;
 var _mqttConnected = false;
 var _mqttDeviceTopics = {}; // { deviceName: { cmdTopic, telemTopic } }
@@ -2544,8 +2544,38 @@ function initMQTT() {
     console.warn('[MQTT] mqtt.js not loaded');
     return;
   }
+  _fetchMqttCredsThenConnect();
+}
+
+function _fetchMqttCredsThenConnect() {
+  var fallbackUser = MQTT_USER, fallbackPass = MQTT_PASS, fallbackBroker = MQTT_BROKER, fallbackPort = MQTT_WS_PORT;
+  var gasUrl = typeof API_URL !== 'undefined' ? API_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : (typeof gasWebAppUrl !== 'undefined' ? gasWebAppUrl : null));
+  if (gasUrl) {
+    fetch(gasUrl + '?action=getMqttCreds')
+      .then(function(r) { return r.json(); })
+      .then(function(creds) {
+        if (creds && creds.mqttUser) {
+          MQTT_USER = creds.mqttUser;
+          MQTT_PASS = creds.mqttPass;
+          if (creds.mqttBroker) MQTT_BROKER = creds.mqttBroker;
+          if (creds.mqttWsPort) MQTT_WS_PORT = creds.mqttWsPort;
+          console.log('[MQTT] Credentials fetched from GAS');
+        }
+        _doMqttConnect();
+      })
+      .catch(function(e) {
+        console.warn('[MQTT] Could not fetch creds from GAS, using defaults:', e);
+        _doMqttConnect();
+      });
+  } else {
+    _doMqttConnect();
+  }
+}
+
+function _doMqttConnect() {
   var clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
   var url = 'wss://' + MQTT_BROKER + ':' + MQTT_WS_PORT + '/mqtt';
+  console.log('[MQTT] Connecting to', url, 'as', MQTT_USER);
   try {
     _mqttClient = mqtt.connect(url, {
       username: MQTT_USER,
@@ -2558,7 +2588,7 @@ function initMQTT() {
     });
     _mqttClient.on('connect', function() {
       _mqttConnected = true;
-      console.log('[MQTT] Connected to EMQX WSS');
+      console.log('[MQTT] Connected to EMQX WSS as', MQTT_USER);
       _updateMQTTStatus();
     });
     _mqttClient.on('error', function(err) {
