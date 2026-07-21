@@ -3991,8 +3991,6 @@ function initDashboard() {
         var wantState = needOn ? 1 : 0;
 
         _setCommandedCache(lnk.pump, wantState);
-        _firebaseOptimisticToggle(lnk.pump, wantState, 'AutoEngine');
-        try { mqttPublishRelay(lnk.pump, wantState); } catch(_e) {}
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -4025,13 +4023,6 @@ function initDashboard() {
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
-              // ★ BUG FIX: was also writing relay: res.newState here — same premature-
-              // confirmation bug as dashboardTogglePump. This is the pump-link auto engine,
-              // so it hit every 5-min cooldown-eligible cycle, meaning relayPending for
-              // auto-shutoff/resume was masked most of the time. Only commandedRelay now.
-              if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState }); } catch(e) {}
-              }
               var onOff = res.newState ? 'ON' : 'OFF';
               var reason = res.newState
                 ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
@@ -4041,9 +4032,7 @@ function initDashboard() {
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
             } else {
-              /* Revert optimistic state on failure — skip lastToggledBy, the change didn't happen */
               _setCommandedCache(device, state === 1 ? 0 : 1);
-              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
             }
           }).catch(function() {
             /* Network error — leave optimistic state, will re-check next cycle */
@@ -4441,15 +4430,10 @@ function hasAutomation(deviceName) {
 // ── The real toggle execution ──
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
   var _dKey = 'dTP:' + deviceName;
-  // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
+  // ═══ Step 1: Optimistic cache update ═══
   _setCommandedCache(deviceName, newStateInt);
-  _firebaseOptimisticToggle(deviceName, newStateInt);
-  // ═══ Step 1b: MQTT WebSocket — instant relay (<500ms) ═══
-  try { mqttPublishRelay(deviceName, newStateInt); } catch(_mqttErr) { console.warn('[MQTT] Publish error:', _mqttErr); }
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   _manualToggleCooldown[deviceName] = Date.now() + 300000;
-  // ★ FIX: cooldown is set here (optimistic phase) so the APE engine
-  //       & auto-shutoff respect it BEFORE GAS even returns.
     try {
       var _swDbReq = indexedDB.open("agus_sw", 1);
       _swDbReq.onsuccess = function(_swDbEv) {
@@ -4464,14 +4448,13 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
         };
       };
     } catch(_swDbErr) {}
-    /* ★ NEW: Set in-flight command lock so SW pump-link auto doesn't fight this toggle */
     try {
       var _sw = (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (_sw) _sw.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: true });
     } catch(_cmdLockErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 3: Authoritative GAS write ═══
+  // ═══ Step 2: Authoritative GAS write (sole command path) ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
@@ -4484,22 +4467,13 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
-      /* ★ NEW: Clear in-flight command lock */
       try {
         var _sw2 = (navigator.serviceWorker && navigator.serviceWorker.controller);
         if (_sw2) _sw2.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
       } catch(_e2) {}
-      // ═══ Step 4: GAS confirmed ─ always re-assert relay in Firebase ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
-      if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
-      }
-      if (res.firebaseDelivered === false) {
-        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
-      } else {
-        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
-      }
+      showNotification(deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
       pumpLinkConfigs.forEach(function(pl) {
         if (pl.pump === deviceName) {
@@ -4510,38 +4484,30 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
           }
         }
       });
-      // ═══ Step 4b: Manual override ─ set when OFF (leak/emergency), clear when ON ═══
       if (res.newState === 0) _setManualOverrideFB(deviceName, true);
       else _setManualOverrideFB(deviceName, false);
-      // ═══ Step 4c: Auto-engage pumpLink manualOverride + disable schedules ═══
       _engageAutomationForManualToggle(deviceName, res.newState);
       setTimeout(updateDashboard, 1500);
     } else {
-      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
-      /* ★ NEW: Clear in-flight command lock */
       try {
         var _sw3 = (navigator.serviceWorker && navigator.serviceWorker.controller);
         if (_sw3) _sw3.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
       } catch(_e3) {}
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
-      _firebaseOptimisticToggle(deviceName, revert, false);
       if (cb) cb(revert);
-      showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
+      showNotification('Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    // ═══ Step 4: Network error — revert cache + Firebase ═══
     delete _localTogglePending[_dKey];
-    /* ★ NEW: Clear in-flight command lock */
     try {
       var _sw4 = (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (_sw4) _sw4.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
     } catch(_e4) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
-    _firebaseOptimisticToggle(deviceName, revert, false);
     if (cb) cb(revert);
-    showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
+    showNotification('Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
   });
 }
