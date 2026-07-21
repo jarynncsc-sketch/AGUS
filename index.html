@@ -379,6 +379,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -2520,6 +2521,98 @@ try {
   console.warn('[FB] Init error:', e);
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  MQTT WebSocket — instant relay commands via EMQX
+//  Dashboard publishes directly to the device's MQTT topic.
+//  ESP32 receives and flips relay in <500ms (vs 15s Firebase poll).
+// ════════════════════════════════════════════════════════════════════
+var MQTT_BROKER = 'k196aaef.ala.asia-southeast1.emqxsl.com';
+var MQTT_WS_PORT = 8084;
+var MQTT_USER = 'la19f1ae';
+var MQTT_PASS = 'SA0Ulz9j040qd*!N';
+var _mqttClient = null;
+var _mqttConnected = false;
+var _mqttDeviceTopics = {}; // { deviceName: { cmdTopic, telemTopic } }
+
+function _mqttSlug(name) {
+  if (!name) return '';
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean).join('-');
+}
+
+function initMQTT() {
+  if (typeof mqtt === 'undefined') {
+    console.warn('[MQTT] mqtt.js not loaded');
+    return;
+  }
+  var clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
+  var url = 'wss://' + MQTT_BROKER + ':' + MQTT_WS_PORT + '/mqtt';
+  try {
+    _mqttClient = mqtt.connect(url, {
+      username: MQTT_USER,
+      password: MQTT_PASS,
+      clientId: clientId,
+      protocolVersion: 5,
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 5000
+    });
+    _mqttClient.on('connect', function() {
+      _mqttConnected = true;
+      console.log('[MQTT] Connected to EMQX WSS');
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('error', function(err) {
+      _mqttConnected = false;
+      console.warn('[MQTT] Error:', err.message);
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('close', function() {
+      _mqttConnected = false;
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('reconnect', function() {
+      console.log('[MQTT] Reconnecting...');
+    });
+  } catch(e) {
+    console.warn('[MQTT] Init failed:', e);
+  }
+}
+
+function _updateMQTTStatus() {
+  var el = document.getElementById('conn-indicator');
+  if (!el) return;
+  if (_mqttConnected && _firebaseConnected) {
+    el.style.color = '#22c55e';
+    el.title = 'MQTT + Firebase connected';
+  } else if (_firebaseConnected) {
+    el.style.color = '#f97316';
+    el.title = 'Firebase only — MQTT disconnected';
+  } else {
+    el.title = (_mqttConnected ? 'MQTT only' : 'Disconnected');
+  }
+}
+
+function mqttPublishRelay(deviceName, state) {
+  if (!_mqttClient || !_mqttConnected) {
+    console.warn('[MQTT] Not connected — cannot publish relay');
+    return false;
+  }
+  var slug = _mqttSlug(deviceName);
+  var topic = 'pumps/' + slug + '/relay';
+  var payload = state ? 'ON' : 'OFF';
+  try {
+    _mqttClient.publish(topic, payload, { qos: 1, retain: false });
+    console.log('[MQTT] Published', payload, '→', topic);
+    return true;
+  } catch(e) {
+    console.warn('[MQTT] Publish failed:', e);
+    return false;
+  }
+}
+
+// Initialize MQTT on page load
+setTimeout(initMQTT, 1000);
+
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
 function _fetchWithTimeout(url, timeoutMs) {
@@ -3869,6 +3962,7 @@ function initDashboard() {
 
         _setCommandedCache(lnk.pump, wantState);
         _firebaseOptimisticToggle(lnk.pump, wantState, 'AutoEngine');
+        try { mqttPublishRelay(lnk.pump, wantState); } catch(_e) {}
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -4320,6 +4414,8 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
   _firebaseOptimisticToggle(deviceName, newStateInt);
+  // ═══ Step 1b: MQTT WebSocket — instant relay (<500ms) ═══
+  try { mqttPublishRelay(deviceName, newStateInt); } catch(_mqttErr) { console.warn('[MQTT] Publish error:', _mqttErr); }
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   _manualToggleCooldown[deviceName] = Date.now() + 300000;
   // ★ FIX: cooldown is set here (optimistic phase) so the APE engine
