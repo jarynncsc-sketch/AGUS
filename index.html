@@ -379,7 +379,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
-  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -2487,13 +2486,7 @@ try {
                 : (_fbCmdRaw == 0 || _fbCmdRaw === false || _fbCmdRaw === '0') ? 0
                 : null;
       // relay ≠ fbCmd, no fresh dashboard cache → ESP32 toggled physically (or stale data on load)
-      if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined && _lastKnownRelayInitialized) {
-        // Skip physical-toggle sync while a dashboard command is still pending —
-        // the ESP32 may just be lagging behind the GAS write, not toggling physically.
-        if (_relayPendingUntil[_fbName] && _now < _relayPendingUntil[_fbName]) return;
-        // Skip physical-toggle sync while manual toggle cooldown is active —
-        // disagreement between relay and commandedRelay is expected during ESP32 propagation.
-        if (_manualToggleCooldown[_fbName] && _now < _manualToggleCooldown[_fbName]) return;
+      if (_fbCmd !== null && _relay !== _fbCmd && _readCommandedCache(_fbName) === undefined) {
         var _cool = _esp32SyncCooldown[_fbName] || 0;
         if (_now > _cool) {
           _esp32SyncCooldown[_fbName] = _now + 10000;
@@ -2506,7 +2499,6 @@ try {
 
     if (!_firebaseInitialDataLoaded) {
       _firebaseInitialDataLoaded = true;
-      _lastKnownRelayInitialized = true;
     }
     _updateConnStatus();
     _updateDashboardFromFirebase();
@@ -2520,138 +2512,6 @@ try {
   _updateConnStatus();
   console.warn('[FB] Init error:', e);
 }
-
-// ════════════════════════════════════════════════════════════════════
-//  MQTT WebSocket — instant relay commands via EMQX
-//  Dashboard publishes directly to the device's MQTT topic.
-//  ESP32 receives and flips relay in <500ms (vs 15s Firebase poll).
-// ════════════════════════════════════════════════════════════════════
-var MQTT_BROKER = 'k196aaef.ala.asia-southeast1.emqxsl.com';
-var MQTT_WS_PORT = 8084;
-// ★ SECURITY FIX: MQTT_USER/MQTT_PASS used to be hardcoded here — anyone opening
-// dev tools or view-source on the dashboard got a live pump-control MQTT credential,
-// no login required. Credentials now come ONLY from the authenticated
-// ?action=getMqttCreds call below (which itself now requires a valid session token —
-// see the matching GAS fix). If that call fails or the user isn't logged in yet,
-// MQTT simply doesn't connect; the dashboard still works via the existing
-// GAS + Firebase fallback path (see the `_mqttSent` checks throughout).
-var MQTT_USER = null;
-var MQTT_PASS = null;
-var _mqttClient = null;
-var _mqttConnected = false;
-var _mqttDeviceTopics = {}; // { deviceName: { cmdTopic, telemTopic } }
-
-function _mqttSlug(name) {
-  if (!name) return '';
-  return name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean).join('-');
-}
-
-function initMQTT() {
-  if (typeof mqtt === 'undefined') {
-    console.warn('[MQTT] mqtt.js not loaded');
-    return;
-  }
-  if (!sessionToken) {
-    console.log('[MQTT] Waiting for login before requesting MQTT credentials');
-    return; // called again from the post-login handler once sessionToken is set
-  }
-  _fetchMqttCredsThenConnect();
-}
-
-function _fetchMqttCredsThenConnect() {
-  var gasUrl = typeof API_URL !== 'undefined' ? API_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : (typeof gasWebAppUrl !== 'undefined' ? gasWebAppUrl : null));
-  if (gasUrl && sessionToken) {
-    fetch(gasUrl + '?action=getMqttCreds&token=' + encodeURIComponent(sessionToken))
-      .then(function(r) { return r.json(); })
-      .then(function(creds) {
-        if (creds && creds.mqttUser) {
-          MQTT_USER = creds.mqttUser;
-          MQTT_PASS = creds.mqttPass;
-          if (creds.mqttBroker) MQTT_BROKER = creds.mqttBroker;
-          if (creds.mqttWsPort) MQTT_WS_PORT = creds.mqttWsPort;
-          console.log('[MQTT] Credentials fetched from GAS');
-          _doMqttConnect();
-        } else {
-          console.warn('[MQTT] Creds request unauthorized or empty — MQTT will stay disconnected, GAS/Firebase path still active');
-        }
-      })
-      .catch(function(e) {
-        console.warn('[MQTT] Could not fetch creds from GAS — MQTT will stay disconnected, GAS/Firebase path still active:', e);
-      });
-  }
-}
-
-function _doMqttConnect() {
-  if (!MQTT_USER || !MQTT_PASS) { console.warn('[MQTT] No credentials available — skipping connect'); return; }
-  var clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
-  var url = 'wss://' + MQTT_BROKER + ':' + MQTT_WS_PORT + '/mqtt';
-  console.log('[MQTT] Connecting to', url, 'as', MQTT_USER);
-  try {
-    _mqttClient = mqtt.connect(url, {
-      username: MQTT_USER,
-      password: MQTT_PASS,
-      clientId: clientId,
-      protocolVersion: 5,
-      clean: true,
-      connectTimeout: 10000,
-      reconnectPeriod: 5000
-    });
-    _mqttClient.on('connect', function() {
-      _mqttConnected = true;
-      console.log('[MQTT] Connected to EMQX WSS as', MQTT_USER);
-      _updateMQTTStatus();
-    });
-    _mqttClient.on('error', function(err) {
-      _mqttConnected = false;
-      console.warn('[MQTT] Error:', err.message);
-      _updateMQTTStatus();
-    });
-    _mqttClient.on('close', function() {
-      _mqttConnected = false;
-      _updateMQTTStatus();
-    });
-    _mqttClient.on('reconnect', function() {
-      console.log('[MQTT] Reconnecting...');
-    });
-  } catch(e) {
-    console.warn('[MQTT] Init failed:', e);
-  }
-}
-
-function _updateMQTTStatus() {
-  var el = document.getElementById('conn-indicator');
-  if (!el) return;
-  if (_mqttConnected && _firebaseConnected) {
-    el.style.color = '#22c55e';
-    el.title = 'MQTT + Firebase connected';
-  } else if (_firebaseConnected) {
-    el.style.color = '#f97316';
-    el.title = 'Firebase only — MQTT disconnected';
-  } else {
-    el.title = (_mqttConnected ? 'MQTT only' : 'Disconnected');
-  }
-}
-
-function mqttPublishRelay(deviceName, state) {
-  if (!_mqttClient || !_mqttConnected) {
-    console.warn('[MQTT] Not connected — cannot publish relay');
-    return false;
-  }
-  var slug = _mqttSlug(deviceName);
-  var topic = 'pumps/' + slug + '/relay';
-  var payload = state ? 'ON' : 'OFF';
-  try {
-    _mqttClient.publish(topic, payload, { qos: 1, retain: false });
-    console.log('[MQTT] Published', payload, '→', topic);
-    return true;
-  } catch(e) {
-    console.warn('[MQTT] Publish failed:', e);
-    return false;
-  }
-}
-
-// MQTT initializes from the post-login handler (see login()) once sessionToken exists —
-// not here on page load, since there's no session yet for getMqttCreds to authenticate.
 
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
@@ -2697,14 +2557,6 @@ function apiPost(action, data) {
 }
 
 var userToken = null, loggedInUser = '', selectedDevice = null, _deviceDetailsDismissed = false;
-
-// ── Hybrid device detector: matches any device that is both a reservoir
-// (has a water level) AND a pumping station (has voltage/flow/pressure/current
-// + relay control) — e.g. "Reservoir Booster", "Reservoir Pumping Station", etc.
-function isReservoirPumpHybrid(deviceName) {
-  var n = (deviceName || '').trim().toLowerCase();
-  return n.includes('reservoir') && (n.includes('pump') || n.includes('booster'));
-}
 var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
 
 // Simple response cache for dashboard data to avoid redundant fetches
@@ -2729,7 +2581,7 @@ var deviceMarkers = {}, myChart = null, blinkOn = true;
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
 var commandedRelayCacheTimestamps = {}; // { deviceName: timestamp } — ms epoch, set alongside cache value
-var _CACHE_TTL = 180000; // 3-min cache lifetime — exceeds ESP32's ~2-min GAS_POLL_INTERVAL to avoid premature expiry
+var _CACHE_TTL = 15000; // 15-second cache lifetime — stale optimistic state expires after this
 function _setCommandedCache(name, value) {
   commandedRelayCache[name] = value;
   commandedRelayCacheTimestamps[name] = Date.now();
@@ -2744,10 +2596,9 @@ function _readCommandedCache(name) {
 var _localTogglePending = {}; // { deviceName: timestamp } — hides "Sending…" badge 8s after local toggle
 var _manualToggleCooldown = {}; // { deviceName: expiry } — skip auto-shutoff for 5 min after manual toggle
 var _lastKnownRelay = {}; // { deviceName: 0|1 } — tracks actual relay state from Firebase to detect ESP32-initiated changes
-var _lastKnownRelayInitialized = false; // BUG FIX: skip first-load "physical toggle" sync so user commands aren't overwritten
 var _esp32SyncCooldown = {}; // { deviceName: timestamp } — 10s debounce per device to avoid rapid GAS calls
 var _relayPendingUntil = {}; // { deviceName: timestamp } — dashboard wrote relay to Firebase, show "Sending…" until this time
-var _RELAY_PENDING_TIMEOUT = 20000; // 20 sec — must match ESP32's COMMAND_POLL_INTERVAL (15s) + margin so "Sending…" persists until device confirms
+var _RELAY_PENDING_TIMEOUT = 30000; // 30s for the "Sending…" badge after a dashboard toggle
 var _MANUAL_OVERRIDE_MS = 3600000; // 1 hour: manual toggle blocks APE + schedule via Firebase manualOverride flag
 function _setManualOverrideFB(deviceName, active) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
@@ -2812,6 +2663,7 @@ var PUMP_PARAMS = [
   {id:'pressure',   label:'Pressure',       unit:'psi', pattern:/pressure|psi/i,                                                   color:'#4ade80', yAxis:'yLeft',  group:'hydraulic'},
   {id:'flowrate',   label:'Flowrate',        unit:'L/s', pattern:/flowrate|flow/i,                                                  color:'#0ea5e9', yAxis:'yLeft',  group:'hydraulic'},
   {id:'discharge',  label:'Total Discharge', unit:'m³',  pattern:/discharge/i,                                                       color:'#8b5cf6', yAxis:'yRight', group:'hydraulic'},
+  {id:'level',      label:'Water Level',     unit:'m³',  pattern:/cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, color:'#06b6d4', yAxis:'yLeft',  group:'hydraulic'},
   {id:'voltage',    label:'Voltage',         unit:'V',   pattern:/voltage/i,                                                        color:'#22c55e', yAxis:'yRight', group:'electrical'},
   {id:'current',    label:'Current',         unit:'A',   pattern:/current/i,                                                        color:'#f43f5e', yAxis:'yRight', group:'electrical'},
   {id:'power',      label:'Power',           unit:'W',   pattern:/power/i,                                                         color:'#f97316', yAxis:'yRight', group:'electrical'},
@@ -2821,8 +2673,6 @@ var PUMP_PARAMS = [
   // ─── Control ───
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
   {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
-  // ─── Water Level intentionally omitted from Pump Graph: it's already
-  // shown on its own in the Reservoir "Level Graph" for hybrid devices. ───
 ];
 var PARAM_GROUPS = [
   {id:'hydraulic',  label:'💧 Hydraulic'},
@@ -3032,7 +2882,6 @@ function login() {
     .then(function(token) {
       if (!token) { spinEl.style.display = 'none'; errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
       userToken = token; sessionToken = token; loggedInUser = user;
-      initMQTT(); // now that sessionToken exists, getMqttCreds can authenticate
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
@@ -3091,113 +2940,6 @@ function speakAlarm(deviceName, alarmType, isReservoir) {
     if (sel2) u2.voice = sel2;
   }
   var c2=0; function sn2(){if(c2<3){window.speechSynthesis.speak(u2);c2++;setTimeout(sn2,1300);}} sn2();
-}
-
-//Pumping Station SVG builder ── ENHANCED WITH GLOW & DATA HIERARCHY ──
-// (extracted so it can be reused both for standalone Pumping Station markers
-//  and for the paired icon shown beside the Reservoir icon on hybrid
-//  "Reservoir Booster / Pumping Station" devices)
-function buildPumpStationSVG(f, name, status) {
-  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
-  var psAnomaly = status !== 'Online' || f.get('button');
-  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
-  if (!psAnomaly) {
-    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
-    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
-      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
-    }
-  }
-  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy'),_relayRaw=f.get('relay');
-  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
-  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
-  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
-  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
-  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _relayOn = _relayRaw == 1 || _relayRaw === '1' || _relayRaw === true;
-
-  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _nameD = _rawName.length > 28 ? _rawName.slice(0,26) + '..' : _rawName;
-  var _nameFontSize = _rawName.length > 22 ? 9.5 : 11;
-
-  var _psiC='#1d4ed8';
-  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
-
-  var _W=178,_cY=28,_cH=130,_tH=_cY+_cH+8;
-  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
-  var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
-  var _dataOffset=8;
-  var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
-  var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
-  var _vLY=_cY+81+_dataOffset,_vVY=_cY+97+_dataOffset;
-  var _cLY=_cY+81+_dataOffset,_cVY=_cY+97+_dataOffset;
-  var _togY=_cY+118+_dataOffset;
-  var _l1Y=_cY+69+_dataOffset,_l2Y=_cY+105+_dataOffset;
-
-  // Isolation Forest anomaly badge
-  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
-  var _ifBadge = _ifScore !== null && _ifScore > 0.5
-    ? '<rect x="11" y="'+(_cY+5)+'" width="44" height="14" rx="7" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
-      + '<text x="33" y="'+(_cY+15)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
-    : '';
-
-  // Relay indicator with glow
-  var _relayDot = _relayOn
-    ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
-      + '<circle cx="14" cy="'+(_cY+130)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
-    : '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#94a3b8"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
-
-  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
-    // Outer anomaly glow ring
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="26" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4" opacity="'+_rOp+'"/>'
-    +(psAnomaly?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(0.08+_bPulse*0.22).toFixed(2)+'"/>':"")
-    // Card background with status tint
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2.5"/>'
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="'+psC+'" opacity="0.04"/>'
-    // Top header bar
-    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="24" rx="10" fill="'+psC+'" opacity="0.12"/>'
-    // Status dot top-right
-    +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
-    +(psAnomaly?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="'+(0.2+_bPulse*0.65).toFixed(2)+'"/>':"")
-    +_ifBadge
-    // Center gear icon
-    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
-    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
-    // Device name
-    +'<text x="'+(_W/2)+'" y="'+(_cY+30)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
-
-    // Divider lines
-    +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+24)+'" x2="'+(_W/2)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-    +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+_l1Y+'" x2="'+(_W/2)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-
-    // PRESSURE (left column top)
-    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
-    +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-
-    // FLOW (right column top)
-    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-
-    // VOLTAGE (left column bottom)
-    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
-    +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-
-    // CURRENT (right column bottom)
-    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
-
-    // Relay + Toggle info at bottom
-    +_relayDot
-    +'<text x="52" y="'+(_togY+1)+'" font-family="Arial,sans-serif" font-size="8" fill="#475569">Last: '+_togStr+'</text>'
-
-    // Bottom pointer
-    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
-    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
-    +'</svg>';
-  return _svg;
 }
 
 var map = new ol.Map({ target:'map', layers:[new ol.layer.Tile({source:new ol.source.OSM()})], view: new ol.View({center:ol.proj.fromLonLat([123.6740,10.1129]),zoom:12}) });
@@ -3380,34 +3122,6 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + _nd + '</text>'
     + '</svg>';
 
-  // ── Hybrid "Reservoir Booster / Pumping Station": show BOTH icons
-  //    side by side (Reservoir on the left, Pumping Station on the right)
-  //    instead of a single merged marker ──
-  if (isPS) {
-    var _psSvg = buildPumpStationSVG(f, name, status);
-    return [
-      new ol.style.Style({
-        image: new ol.style.Icon({
-          src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
-          scale: 1,
-          anchor: [1, 1],
-          anchorXUnits: 'fraction',
-          anchorYUnits: 'fraction',
-          displacement: [-4, 0]
-        })
-      }),
-      new ol.style.Style({
-        image: new ol.style.Icon({
-          src: 'data:image/svg+xml,' + encodeURIComponent(_psSvg),
-          scale: 1,
-          anchor: [0, 1],
-          anchorXUnits: 'fraction',
-          anchorYUnits: 'fraction',
-          displacement: [4, 0]
-        })
-      })
-    ];
-  }
   return [new ol.style.Style({
     image: new ol.style.Icon({
       src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
@@ -3420,7 +3134,105 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 }
 //Pumping Station map icon ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 if (isPS) {
-  var _svg = buildPumpStationSVG(f, name, status);
+  var psC = status==='Online'?'#22c55e':status==='Offline'?'#f97316':'#ef4444';
+  var psAnomaly = status !== 'Online' || f.get('button');
+  var psAnomalyColor = (status==='Fault'||f.get('button'))?'#ef4444':'#f97316';
+  if (!psAnomaly) {
+    var pPres=f.get('pressure'), pPS=pressureSettingsCache[name]||{minPsi:20,maxPsi:80}, pPN=parseFloat(pPres);
+    if (!isNaN(pPN)&&(pPN<pPS.minPsi||pPN>pPS.maxPsi)) {
+      psAnomaly=true; psAnomalyColor=pPN<pPS.minPsi?'#f97316':'#ef4444'; psC=psAnomalyColor;
+    }
+  }
+  var _psiRaw=f.get('pressure'),_lpsRaw=f.get('flow'),_voltRaw=f.get('voltage'),_ampRaw=f.get('current'),_togRaw=f.get('lastToggledBy'),_relayRaw=f.get('relay');
+  var _psiStr=(_psiRaw!=null)?parseFloat(_psiRaw).toFixed(1)+' psi':'-- psi';
+  var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
+  var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
+  var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
+  var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _relayOn = _relayRaw == 1 || _relayRaw === '1' || _relayRaw === true;
+  
+  var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  var _nameD = _rawName.length > 28 ? _rawName.slice(0,26) + '..' : _rawName;
+  var _nameFontSize = _rawName.length > 22 ? 9.5 : 11;
+  
+  var _psiC='#1d4ed8';
+  if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
+  
+  var _W=178,_cY=28,_cH=130,_tH=_cY+_cH+8;
+  var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
+  var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
+  var _dataOffset=8;
+  var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
+  var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
+  var _vLY=_cY+81+_dataOffset,_vVY=_cY+97+_dataOffset;
+  var _cLY=_cY+81+_dataOffset,_cVY=_cY+97+_dataOffset;
+  var _togY=_cY+118+_dataOffset;
+  var _l1Y=_cY+69+_dataOffset,_l2Y=_cY+105+_dataOffset;
+  
+  // Isolation Forest anomaly badge
+  var _ifScore = typeof getIFScore === 'function' ? getIFScore({device:name,pressure:f.get('pressure'),flow:f.get('flow'),power:f.get('power'),voltage:f.get('voltage'),level:f.get('level'),relay:f.get('relay')}) : null;
+  var _ifBadge = _ifScore !== null && _ifScore > 0.5
+    ? '<rect x="11" y="'+(_cY+5)+'" width="44" height="14" rx="7" fill="' + (_ifScore>0.65?'#7c3aed':'#a78bfa') + '" opacity="0.9"/>'
+      + '<text x="33" y="'+(_cY+15)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" fill="white" font-weight="800">\uD83C\uDF32' + (_ifScore*100).toFixed(0) + '%</text>'
+    : '';
+
+  // Relay indicator with glow
+  var _relayDot = _relayOn
+    ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
+      + '<circle cx="14" cy="'+(_cY+130)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
+      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
+    : '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#94a3b8"/>'
+      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
+
+  var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
+    // Outer anomaly glow ring
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="26" fill="none" stroke="'+psAnomalyColor+'" stroke-width="4" opacity="'+_rOp+'"/>'
+    +(psAnomaly?'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="30" fill="none" stroke="'+psAnomalyColor+'" stroke-width="2" opacity="'+(0.08+_bPulse*0.22).toFixed(2)+'"/>':"")
+    // Card background with status tint
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="white" stroke="'+psC+'" stroke-width="2.5"/>'
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="'+_cH+'" rx="10" fill="'+psC+'" opacity="0.04"/>'
+    // Top header bar
+    +'<rect x="1" y="'+_cY+'" width="'+(_W-2)+'" height="24" rx="10" fill="'+psC+'" opacity="0.12"/>'
+    // Status dot top-right
+    +'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="5" fill="'+psC+'"/>'
+    +(psAnomaly?'<circle cx="'+(_W-14)+'" cy="'+(_cY+12)+'" r="9" fill="none" stroke="'+psAnomalyColor+'" stroke-width="1.5" opacity="'+(0.2+_bPulse*0.65).toFixed(2)+'"/>':"")
+    +_ifBadge
+    // Center gear icon
+    +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
+    +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
+    // Device name
+    +'<text x="'+(_W/2)+'" y="'+(_cY+30)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="'+_nameFontSize+'" font-weight="900" fill="'+psC+'">'+_nameD+'</text>'
+    
+    // Divider lines
+    +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+24)+'" x2="'+(_W/2)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +'<line x1="'+(_W/2)+'" y1="'+_l1Y+'" x2="'+(_W/2)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
+    
+    // PRESSURE (left column top)
+    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
+    +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
+    
+    // FLOW (right column top)
+    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
+    
+    // VOLTAGE (left column bottom)
+    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
+    +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
+    
+    // CURRENT (right column bottom)
+    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+    
+    // Relay + Toggle info at bottom
+    +_relayDot
+    +'<text x="52" y="'+(_togY+1)+'" font-family="Arial,sans-serif" font-size="8" fill="#475569">Last: '+_togStr+'</text>'
+    
+    // Bottom pointer
+    +'<polygon points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2+7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+'" fill="white"/>'
+    +'<polyline points="'+(_W/2-7)+','+(_cY+_cH)+' '+(_W/2)+','+(_cY+_cH+8)+' '+(_W/2+7)+','+(_cY+_cH)+'" fill="none" stroke="'+psC+'" stroke-width="2"/>'
+    +'</svg>';
   return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
@@ -3598,7 +3410,6 @@ function showDeviceDetails(device) {
     var dType = (d.type || '').toLowerCase().trim();
     var isRes  = dType === 'reservoir' || (d.device || '').toLowerCase().includes('reservoir');
     var isPres = dType === 'pressure'  || (d.device || '').toLowerCase().includes('pressure');
-    var isResBooster = isReservoirPumpHybrid(d.device);
  
     if (d.minPsi || d.normalPsi || d.maxPsi) {
       pressureSettingsCache[device] = {
@@ -3655,87 +3466,9 @@ if (!isNaN(llvl)) {
   }
 }
     det.style.pointerEvents = 'auto';
-
-    // Live efficiency calculation (Flow × Pressure → Hydraulic Power ÷ Electrical Power)
-    // Shared by the Pumping Station branch and the Reservoir Booster (merged) branch.
-    var _eff = null;
-    var _fl = parseFloat(d.flow  || 0);
-    var _pr = parseFloat(d.pressure || 0);
-    var _pw = parseFloat(d.power || 0);
-    if (_fl > 0 && _pr > 0 && _pw > 0) {
-      var _hydPow = _fl * _pr * 0.00689476;   // kW
-      var _elPow  = _pw / 1000;                // kW
-      var _raw    = (_hydPow / _elPow) * 100;
-      if (_raw > 0 && _raw <= 100) _eff = _raw.toFixed(1);
-    }
-    // Fallback: use stored efficiency from sheet
-    if (_eff === null) {
-      var _stored = parseFloat(d.efficiency);
-      if (!isNaN(_stored) && _stored > 0 && _stored <= 100) _eff = _stored.toFixed(1);
-    }
-    var _effBadge = _eff !== null
-      ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
-      : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
-
-    // ── RESERVOIR BOOSTER (merged Reservoir + Pumping Station details) ──
-    if (isResBooster) {
-      var wv = (d.level !== undefined && d.level !== null && d.level !== '')
-               ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
-      det.innerHTML =
-        '<div style="display:flex;gap:12px;min-width:480px;">' +
-          '<div style="flex:1;min-width:200px;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:4px;">🏭 RESERVOIR</span> ' +
-            '<span style="display:inline-block;background:#004080;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">⚙️ PUMPING STATION</span><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
-            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
-            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
-            'Current: '  + (d.current  || 0) + ' A<br>' +
-            'Power: '    + (d.power    || 0) + ' W<br>' +
-            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
-            'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
-              +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
-            +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + (d.lastToggledBy || 'N/A') + '</b><br>' +
-            _effBadge + '<br>' +
-            '<div style="display:flex;gap:6px;margin-top:7px;">' +
-              '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="flex:1;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Level Graph</button>' +
-              '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="flex:1;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Pump Graph</button>' +
-            '</div>' +
-          '</div>' +
-          '<div style="flex:1;min-width:195px;border-left:2px solid #e5eef9;padding-left:14px;">' +
-            '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚙️ Water Level Thresholds</div>' +
-            '<div class="pressure-thresholds-badge">' +
-              '<span class="pth-item low">🟠 Low: &lt; ' + r.minLevel + ' m³</span>' +
-              '<span class="pth-item normal">🟢 Normal: ' + r.minLevel + '–' + r.maxLevel + ' m³</span>' +
-              '<span class="pth-item high">🔴 Overflow: &gt; ' + r.maxLevel + ' m³</span>' +
-            '</div>' +
-            (r.updatedBy ? '<div style="font-size:10px;color:#7a8fa6;margin:4px 0 6px;">Last updated by <b>' + r.updatedBy + '</b>' + (r.updatedAt ? ' on ' + r.updatedAt : '') + '</div>' : '') +
-            '<button class="rs-gear-btn" onclick="openReservoirSettings(\'' + escapeForAttr(d.device) + '\')" style="width:100%;margin-bottom:10px;">⚙️ Edit Reservoir Thresholds</button>' +
-            (function(){
-              var _allThr = (typeof _thr === 'function') ? _thr(d.device) : {};
-              return '' +
-                '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;">⚙️ Sensor Thresholds</div>' +
-                '<table style="width:100%;font-size:10.5px;border-collapse:collapse;">' +
-                  '<tr><td style="padding:2px 4px;color:#c2410c;">🔴 Pressure</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minPsi||'--') + ' – ' + (_allThr.maxPsi||'--') + ' psi</td></tr>' +
-                  '<tr><td style="padding:2px 4px;color:#15803d;">💦 Flow</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minFlow||'--') + ' – ' + (_allThr.maxFlow||'--') + ' L/s</td></tr>' +
-                  '<tr><td style="padding:2px 4px;color:#a16207;">⚡ Voltage</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minVolt||'--') + ' – ' + (_allThr.maxVolt||'--') + ' V</td></tr>' +
-                  '<tr><td style="padding:2px 4px;color:#7e22ce;">🔌 Current</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minCurrent||'--') + ' – ' + (_allThr.maxCurrent||'--') + ' A</td></tr>' +
-                  '<tr><td style="padding:2px 4px;color:#be123c;">⚡ Power</td><td style="padding:2px 4px;font-weight:600;text-align:right;">' + (_allThr.minPower||'--') + ' – ' + (_allThr.maxPower||'--') + ' W</td></tr>' +
-                '</table>' +
-                '<div style="margin:6px 0;height:6px;border-radius:3px;background:#e8f0fb;overflow:hidden;position:relative;">' + buildMiniRangeBar(s.minPsi, s.normalPsi, s.maxPsi, lpsi) + '</div>' +
-                (s.updatedBy ? '<div style="font-size:10px;color:#7a8fa6;margin-bottom:4px;">Updated by <b>' + s.updatedBy + '</b>' + (s.updatedAt ? ' on ' + s.updatedAt : '') + '</div>' : '') +
-                '<button class="ps-gear-btn" onclick="openSensorThr()" style="width:100%;padding:5px 0;background:#004080;color:#fff;border:none;border-radius:5px;cursor:pointer;font-size:11px;font-weight:600;">⚙️ Edit All Thresholds</button>';
-            })() +
-          '</div>' +
-        '</div>';
-
+ 
     // ── RESERVOIR ────────────────────────────────────────────────
-    } else if (isRes) {
+    if (isRes) {
       var wv = (d.level !== undefined && d.level !== null && d.level !== '')
                ? Math.round(parseFloat(d.level)) + ' m³' : '-- m³';
       var wc = '';
@@ -3792,7 +3525,27 @@ if (!isNaN(llvl)) {
  
     // ── PUMPING STATION ──────────────────────────────────────────
     } else {
-      // _eff / _effBadge already computed above (shared with Reservoir Booster branch)
+      // Live efficiency calculation (Flow × Pressure → Hydraulic Power ÷ Electrical Power)
+      var _eff = null;
+      var _fl = parseFloat(d.flow  || 0);
+      var _pr = parseFloat(d.pressure || 0);
+      var _pw = parseFloat(d.power || 0);
+      if (_fl > 0 && _pr > 0 && _pw > 0) {
+        var _hydPow = _fl * _pr * 0.00689476;   // kW
+        var _elPow  = _pw / 1000;                // kW
+        var _raw    = (_hydPow / _elPow) * 100;
+        if (_raw > 0 && _raw <= 100) _eff = _raw.toFixed(1);
+      }
+      // Fallback: use stored efficiency from sheet
+      if (_eff === null) {
+        var _stored = parseFloat(d.efficiency);
+        if (!isNaN(_stored) && _stored > 0 && _stored <= 100) _eff = _stored.toFixed(1);
+      }
+ 
+      var _effBadge = _eff !== null
+        ? '<span style="display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,0.10);border:1.5px solid #f59e0b;border-radius:8px;padding:4px 10px;font-size:12px;font-weight:700;color:#92400e;margin-top:6px;">🔧 Pump &amp; Motor Efficiency: <b style="color:#b45309;font-size:14px;">' + _eff + '%</b></span>'
+        : '<span style="display:inline-flex;align-items:center;gap:6px;background:#f9fafb;border:1px dashed #d1d5db;border-radius:8px;padding:4px 10px;font-size:11px;color:#9ca3af;margin-top:6px;">🔧 Efficiency: Insufficient sensor data</span>';
+ 
       det.innerHTML =
         '<div style="display:flex;gap:12px;min-width:460px;">' +
           '<div style="flex:1;min-width:180px;">' +
@@ -3886,7 +3639,6 @@ var _dashboardTimer = null;
 function initDashboard() {
   updateDashboard();
   loadPumpLinksFromGAS(function(){});
-  loadSchedulesFromGAS(null, function(){}); // preload schedules so _engageAutomationForManualToggle has data
   _updateConnStatus();
   if (_dashboardTimer) clearInterval(_dashboardTimer);
   _dashboardTimer = setInterval(function() {
@@ -3926,8 +3678,6 @@ function initDashboard() {
     if (_apeRunning) return;
     if (typeof userToken === 'undefined' || !userToken) return;
     if (typeof apiGet !== 'function' || typeof apiPost !== 'function') return;
-    // ── GAS-authoritative guard: when server trigger is installed, defer to it ──
-    if (typeof _gasTriggerInstalled !== 'undefined' && _gasTriggerInstalled) return;
     _apeRunning = true;
 
     try {
@@ -4002,6 +3752,7 @@ function initDashboard() {
         var wantState = needOn ? 1 : 0;
 
         _setCommandedCache(lnk.pump, wantState);
+        _firebaseOptimisticToggle(lnk.pump, wantState, 'AutoEngine');
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -4013,49 +3764,47 @@ function initDashboard() {
             timestamp: new Date().toLocaleString(), linkId: lnk.id
           };
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-          _disableSchedulesForPump(lnk.pump);
         } else if (needOn) {
           delete reservoirAutoShutoffState[ck];
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-          _enableSchedulesForPump(lnk.pump);
         }
 
         /* Fire command */
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
-
-          /* INSTANT: publish directly to EMQX broker (~100ms) */
-          var _mqttSent = false;
-          try { _mqttSent = mqttPublishRelay(device, state); } catch(_e) {}
-          if (_mqttSent) {
-            console.log('[APE] EMQX instant relay:', device, state ? 'ON' : 'OFF');
-          } else {
-            console.warn('[APE] MQTT not connected — falling back to GAS-only');
-          }
-
-          /* Async GAS write — for logging/audit (non-blocking) */
           apiPost('togglePump', {
             device:       device,
             token:        userToken,
-            desiredState: state,
-            relay:        state,
+            desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
+            relay:        state,          // ── GAS compatibility alias
             triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
             latitude:     coords.latitude  || '',
             longitude:    coords.longitude || ''
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
+              // Re-assert relay in Firebase — GAS may have overwritten it
+              if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState, relay: res.newState }); } catch(e) {}
+              }
               var onOff = res.newState ? 'ON' : 'OFF';
+              var reason = res.newState
+                ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
+                : link.reservoir + ' at ' + level.toFixed(1) + ' m³ (shutoff ≥ ' + link.shutoffLevel + ' m³)';
               _addAutoShutoffLog({ pump: device, action: 'AUTO-' + onOff, timestamp: new Date().toLocaleString(), triggeredby: 'AutoEngine', reservoir: link.reservoir, level: level.toFixed(1) });
+              if (typeof showNotification === 'function') {
+                showNotification((res.newState ? '▶️' : '⏹️') + ' Auto-' + onOff + ': ' + device + ' — ' + reason, res.newState ? 'success' : 'info');
+              }
+              /* Re-sync the badge */
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
-            } else if (!_mqttSent) {
+            } else {
+              /* Revert optimistic state on failure — skip lastToggledBy, the change didn't happen */
               _setCommandedCache(device, state === 1 ? 0 : 1);
+              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
             }
           }).catch(function() {
-            if (!_mqttSent) {
-              /* Only revert if EMQX didn't fire — otherwise ESP32 already has the command */
-            }
+            /* Network error — leave optimistic state, will re-check next cycle */
           });
         })(lnk.pump, wantState, ck, lv, lnk);
       }
@@ -4081,6 +3830,19 @@ function initDashboard() {
       _startAPE();
     }
   }, 2000);
+
+  /* Also re-sync SW cooldowns whenever a manual toggle happens */
+  /* BUG 2 FIX: _origDTP was captured at IIFE-run time (before dashboardTogglePump was declared),
+     so it was always null. Defer lookup to call-time via window._dashboardTogglePumpReal. */
+  window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
+    var _realDTP = window._dashboardTogglePumpReal || null;
+    var result = (_realDTP || function(){}).apply(this, arguments);
+    /* Push updated manual cooldowns to SW */
+    setTimeout(function() {
+      if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
+    }, 500);
+    return result;
+  };
 
   window._apeStatus = function() {
     return { running: _apeRunning, cooldowns: window._apeCooldowns, interval: APE_INTERVAL };
@@ -4110,12 +3872,10 @@ function _firebaseDeviceToArray() {
               : null;
     var cmd = _readCommandedCache(name);
     if (cmd === undefined) {
-      // Always follow commandedRelay (the order from GAS/dashboard) — not the
-      // ESP32's actual relay. The relayPending flag already signals disagreement.
-      // Previously this fell back to `relay` after cache TTL, causing the slider
-      // to revert to OFF a few seconds after a manual ON toggle.
-      if (fbCmd !== null) cmd = fbCmd;
-      else cmd = relay;
+      // Show actual relay state; follow ESP32 when not in sync with commandedRelay
+      if (fbCmd !== null && relay === fbCmd) cmd = fbCmd;       // in sync
+      else if (fbCmd !== null) cmd = relay;                      // ESP32 changed — follow actual
+      else cmd = relay;                                          // no commandedRelay field
     }
     var s = pressureSettingsCache[name] || {};
     var r = reservoirThresholdsCache[name] || {};
@@ -4156,25 +3916,6 @@ function _updateDashboardFromFirebase() {
   var devices = _firebaseDeviceToArray();
   if (!devices.length) return;
   window._lastDevices = devices;
-  // ── Detect automated relay changes (schedule / pumpLink) and show pop-ups ──
-  devices.forEach(function(d) {
-    var who = d.lastToggledBy;
-    if (!who || who === 'dashboard' || who === loggedInUser) return;
-    var prev = _lastSeenToggledBy[d.device];
-    if (prev === who) return; // not a new trigger
-    _lastSeenToggledBy[d.device] = who;
-    var relayState = d.commandedRelay != null ? d.commandedRelay : d.relay;
-    var onOff = (relayState == 1 || relayState === true) ? 'ON' : 'OFF';
-    var icon = (relayState == 1 || relayState === true) ? '▶️' : '⏹️';
-    var whoLabel = who;
-    if (/schedule/i.test(who)) whoLabel = 'Schedule Timer';
-    else if (/AutoShutoff-Backup/i.test(who)) whoLabel = 'PumpLink Backup Shutoff';
-    else if (/AutoShutoff/i.test(who)) whoLabel = 'PumpLink Auto-Shutoff';
-    else if (/AutoResume-Backup/i.test(who)) whoLabel = 'PumpLink Backup Resume';
-    else if (/AutoResume/i.test(who)) whoLabel = 'PumpLink Auto-Resume';
-    else if (/AutoEngine/i.test(who)) whoLabel = 'PumpLink Auto-Engine';
-    showNotification(icon + ' ' + d.device + ' turned ' + onOff + ' by ' + whoLabel, (relayState == 1 || relayState === true) ? 'success' : 'info');
-  });
   updateDeviceList(devices); updateMap(devices);
   autoShutoffPumps(devices);
   if (selectedDevice) showDeviceDetails(selectedDevice);
@@ -4255,7 +3996,7 @@ function processOfflineQueue() { /* no-op in v3 */ }
 function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
   try {
-    var _update = { commandedRelay: value };
+    var _update = { commandedRelay: value, relay: value };
     if (toggledBy !== false) _update.lastToggledBy = toggledBy || loggedInUser || 'dashboard';
     _fbDevicesRef.child(deviceName).update(_update).catch(function(e) {
       console.warn('[FB] Optimistic write failed:', e);
@@ -4275,236 +4016,45 @@ function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
  *   Step 5 — ESP32:     reads Firebase commandedRelay → sets physical relay → writes relay back
  *   Step 6 — Synced:    relay = commandedRelay        relayPending cleared, UI shows confirmed
  */
-
-/* ════════════════════════════════════════════════════════════════════════
- *  AUTOMATION YIELD — when operator manually toggles a pump via slider,
- *  all automation (pumpLink + schedules) must immediately yield.
- *  OFF → set manualOverride on pumpLinks, disable schedules (emergency)
- *  ON  → clear manualOverride so automation can resume
- * ════════════════════════════════════════════════════════════════════════ */
-function _engageAutomationForManualToggle(deviceName, newStateInt) {
-  var tok = sessionToken || userToken || '';
-  if (!tok) return;
-
-  // ── 1. PumpLink manualOverride: ON=clear (allow auto), OFF=set (emergency block) ──
-  pumpLinkConfigs.forEach(function(pl) {
-    if (pl.pump !== deviceName) return;
-    var wantMO = newStateInt === 0; // OFF → manualOverride=true (block auto), ON → manualOverride=false
-    if (pl.manualOverride === wantMO) return; // already correct — skip API call
-    var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok)
-      + '&linkId=' + encodeURIComponent(pl.id)
-      + '&manualOverride=' + (wantMO ? 'true' : 'false');
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
-      if (resp && resp.success) {
-        pl.manualOverride = wantMO;
-        if (wantMO) {
-          // Clear auto-shutoff state for this pump:reservoir pair
-          var key = pl.pump + ':' + pl.reservoir;
-          if (reservoirAutoShutoffState[key]) {
-            delete reservoirAutoShutoffState[key];
-            localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-          }
-        }
-      }
-    }).catch(function() {});
-  });
-
-  // ── 2. Schedules: OFF → disable all schedules for this device (emergency) ──
-  //        ON  → re-enable schedules that were auto-disabled by the matching OFF ──
-  if (newStateInt === 0 && scheduleConfigs.length) {
-    _autoDisabledSchedules[deviceName] = [];
-    scheduleConfigs.forEach(function(sc) {
-      if (sc.device !== deviceName || !sc.enabled) return;
-      _autoDisabledSchedules[deviceName].push(sc.scheduleId);
-      var url2 = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-        + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-        + '&enabled=false';
-      fetch(url2).then(function(r) { return r.json(); }).then(function(resp) {
-        if (resp && resp.success) sc.enabled = false;
-      }).catch(function() {});
-    });
-  } else if (newStateInt === 1 && _autoDisabledSchedules[deviceName] && _autoDisabledSchedules[deviceName].length) {
-    var toReenable = _autoDisabledSchedules[deviceName];
-    delete _autoDisabledSchedules[deviceName];
-    scheduleConfigs.forEach(function(sc) {
-      if (sc.device !== deviceName) return;
-      if (toReenable.indexOf(sc.scheduleId) === -1) return;
-      if (sc.enabled) return; // already on
-      var url3 = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-        + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-        + '&enabled=true';
-      fetch(url3).then(function(r) { return r.json(); }).then(function(resp) {
-        if (resp && resp.success) sc.enabled = true;
-      }).catch(function() {});
-    });
-  }
-}
-
-/* ════════════════════════════════════════════════════════════════════════
- *  SCHEDULE GATE — when auto-shutoff/resume fires, disable/enable
- *  the schedule for that device so the GAS server-side timer trigger
- *  does not override the auto-shutoff by turning the pump back ON.
- * ════════════════════════════════════════════════════════════════════════ */
-function _disableSchedulesForPump(pumpName) {
-  var tok = sessionToken || userToken || '';
-  if (!tok || !scheduleConfigs.length) return;
-  scheduleConfigs.forEach(function(sc) {
-    if (sc.device !== pumpName || !sc.enabled) return;
-    _autoDisabledSchedules[pumpName] = _autoDisabledSchedules[pumpName] || [];
-    _autoDisabledSchedules[pumpName].push(sc.scheduleId);
-    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-      + '&enabled=false';
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
-      if (resp && resp.success) sc.enabled = false;
-    }).catch(function() {});
-  });
-}
-function _enableSchedulesForPump(pumpName) {
-  var tok = sessionToken || userToken || '';
-  if (!tok || !_autoDisabledSchedules[pumpName] || !_autoDisabledSchedules[pumpName].length) return;
-  var toReenable = _autoDisabledSchedules[pumpName];
-  delete _autoDisabledSchedules[pumpName];
-  scheduleConfigs.forEach(function(sc) {
-    if (sc.device !== pumpName) return;
-    if (toReenable.indexOf(sc.scheduleId) === -1) return;
-    if (sc.enabled) return;
-    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-      + '&enabled=true';
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
-      if (resp && resp.success) sc.enabled = true;
-    }).catch(function() {});
-  });
-}
-
-// ── Pending toggle state ──
-var _pendingToggle = null;
-var _autoDisabledSchedules = {}; // { deviceName: [scheduleId, ...] } — tracks schedules disabled by manual OFF
-var _lastSeenToggledBy = {};    // { deviceName: lastToggledBy value } — detects schedule/pumpLink auto-triggered changes
-
-// ── Show confirmation modal ──
-function _showToggleConfirmation(deviceName, newStateInt, cb) {
-  var modal = document.getElementById('manual-toggle-modal');
-  var msg = document.getElementById('mt-modal-msg');
-  var devLabel = document.getElementById('mt-device-name');
-  var actionLabel = document.getElementById('mt-action-label');
-  var continueBtn = document.getElementById('mt-continue-btn');
-  var cancelBtn = document.getElementById('mt-cancel-btn');
-
-  devLabel.textContent = deviceName;
-  actionLabel.textContent = newStateInt === 1 ? 'ON' : 'OFF';
-  msg.innerHTML = 'You are about to manually turn <b>' + deviceName + '</b> <b>' + (newStateInt === 1 ? 'ON' : 'OFF') + '</b>.' +
-    ' This will temporarily override automatic control for <b>' + (hasAutomation(deviceName) ? '5 minutes' : 'until you toggle it back') + '</b>.';
-
-  _pendingToggle = { deviceName: deviceName, newStateInt: newStateInt, cb: cb };
-
-  modal.style.display = 'flex';
-
-  // Remove old listeners to avoid duplicates
-  var newContinue = continueBtn.cloneNode(true);
-  continueBtn.parentNode.replaceChild(newContinue, continueBtn);
-  var newCancel = cancelBtn.cloneNode(true);
-  cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
-
-  newContinue.addEventListener('click', function() {
-    modal.style.display = 'none';
-    if (_pendingToggle) {
-      _executeDashboardToggle(_pendingToggle.deviceName, _pendingToggle.newStateInt, _pendingToggle.cb);
-      _pendingToggle = null;
-    }
-  });
-
-  newCancel.addEventListener('click', function() {
-    modal.style.display = 'none';
-    if (_pendingToggle && _pendingToggle.cb) {
-      // Revert the checkbox state (it was optimistically checked/unchecked)
-      var cb = _pendingToggle.cb;
-      cb(newStateInt === 1 ? 0 : 1); // revert to original
-      _pendingToggle = null;
-    }
-  });
-
-  // Close modal on backdrop click
-  modal.addEventListener('click', function(e) {
-    if (e.target === modal) {
-      modal.style.display = 'none';
-      if (_pendingToggle && _pendingToggle.cb) {
-        _pendingToggle.cb(newStateInt === 1 ? 0 : 1);
-        _pendingToggle = null;
-      }
-    }
-  });
-}
-
-// ── Helper: does this device have any active automation? ──
-function hasAutomation(deviceName) {
-  // Check pump links
-  var linkActive = pumpLinkConfigs.some(function(pl) { return pl.pump === deviceName && pl.enabled; });
-  if (linkActive) return true;
-  // Check schedules
-  var schedActive = scheduleConfigs.some(function(sc) { return sc.device === deviceName && sc.enabled; });
-  return schedActive;
-}
-
-// ── The real toggle execution ──
-// Flow: Dashboard → EMQX (instant) → ESP32. Then GAS (async) for logging.
-function _executeDashboardToggle(deviceName, newStateInt, cb) {
+function dashboardTogglePump(deviceName, newStateInt, cb) {
+  if (!userToken) { showNotification('⚠ Not logged in', 'warning'); return; }
+  // ── Debounce: ignore rapid re-toggle within 600ms ──
   var _dKey = 'dTP:' + deviceName;
-  // ═══ Step 1: Optimistic cache update ═══
+  if (_localTogglePending[_dKey]) return;
+  _localTogglePending[_dKey] = Date.now();
+  setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
+
+  // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
   _setCommandedCache(deviceName, newStateInt);
+  _firebaseOptimisticToggle(deviceName, newStateInt);
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
-  _manualToggleCooldown[deviceName] = Date.now() + 300000;
-    try {
-      var _swDbReq = indexedDB.open("agus_sw", 1);
-      _swDbReq.onsuccess = function(_swDbEv) {
-        var _swDb = _swDbEv.target.result;
-        var _swTx = _swDb.transaction("kv", "readwrite");
-        var _swStore = _swTx.objectStore("kv");
-        var _swGet = _swStore.get("pl_man_cool");
-        _swGet.onsuccess = function() {
-          var _swMc = _swGet.result || {};
-          _swMc[deviceName] = Date.now() + 300000;
-          _swStore.put(_swMc, "pl_man_cool");
-        };
-      };
-    } catch(_swDbErr) {}
-    try {
-      var _sw = (navigator.serviceWorker && navigator.serviceWorker.controller);
-      if (_sw) _sw.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: true });
-    } catch(_cmdLockErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 2: INSTANT EMQX MQTT — direct publish to broker ═══
-  var _mqttSent = false;
-  try { _mqttSent = mqttPublishRelay(deviceName, newStateInt); } catch(_e) {}
-  if (_mqttSent) {
-    console.log('[EMQX] Instant relay toggle sent:', deviceName, newStateInt ? 'ON' : 'OFF');
-  } else {
-    console.warn('[EMQX] MQTT not connected — falling back to GAS-only');
-  }
-
-  // ═══ Step 3: GAS write (async, non-blocking — for logging/audit) ═══
+  // ═══ Step 3: Authoritative GAS write ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
     token:        userToken,
     relay:        newStateInt,
     desiredState: newStateInt,
-    username:     loggedInUser || '',
     latitude:     coords.latitude  || '',
     longitude:    coords.longitude || ''
   }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
-      try {
-        var _sw2 = (navigator.serviceWorker && navigator.serviceWorker.controller);
-        if (_sw2) _sw2.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
-      } catch(_e2) {}
+      // ═══ Step 4: GAS confirmed — always re-assert relay in Firebase (GAS may have overwritten it) ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
-      showNotification(deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
+      if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+      }
+      if (res.firebaseDelivered === false) {
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
+      } else {
+        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
+      }
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
+      _manualToggleCooldown[deviceName] = Date.now() + 300000;
       pumpLinkConfigs.forEach(function(pl) {
         if (pl.pump === deviceName) {
           var key = pl.pump + ':' + pl.reservoir;
@@ -4514,48 +4064,34 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
           }
         }
       });
+      // ═══ Step 4b: Manual override — set when OFF (leak/emergency), clear when ON ═══
       if (res.newState === 0) _setManualOverrideFB(deviceName, true);
       else _setManualOverrideFB(deviceName, false);
-      _engageAutomationForManualToggle(deviceName, res.newState);
       setTimeout(updateDashboard, 1500);
     } else {
-      try {
-        var _sw3 = (navigator.serviceWorker && navigator.serviceWorker.controller);
-        if (_sw3) _sw3.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
-      } catch(_e3) {}
+      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state (skip lastToggledBy) ═══
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
+      _firebaseOptimisticToggle(deviceName, revert, false);
       if (cb) cb(revert);
-      showNotification('Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
+      showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
+    // ═══ Step 4: Network error — revert cache + Firebase (skip lastToggledBy) ═══
     delete _localTogglePending[_dKey];
-    try {
-      var _sw4 = (navigator.serviceWorker && navigator.serviceWorker.controller);
-      if (_sw4) _sw4.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
-    } catch(_e4) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
+    _firebaseOptimisticToggle(deviceName, revert, false);
     if (cb) cb(revert);
-    showNotification('Network error — command could not be confirmed. State reverted.', 'error');
+    showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
   });
+  // ═══ Steps 5‑6 (ESP32): handled by Firebase listener + _firebaseDeviceToArray() ═══
+  //     relayPending = (commandedRelay !== relay) shown as "Sending…" badge
+  //     when ESP32 writes relay = commandedRelay back to Firebase, the listener fires,
+  //     _updateDashboardFromFirebase() sees they match, relayPending goes false.
 }
-
-// ── New dashboardTogglePump: shows confirmation first ──
-window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
-  // Debounce: ignore rapid re-toggle within 600ms
-  var _dKey = 'dTP:' + deviceName;
-  if (_localTogglePending[_dKey]) return;
-  _localTogglePending[_dKey] = Date.now();
-  setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
-
-  _showToggleConfirmation(deviceName, newStateInt, cb);
-  // Re-sync SW cooldowns after manual toggle
-  setTimeout(function() {
-    if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
-  }, 500);
-};
+window._dashboardTogglePumpReal = dashboardTogglePump;
 
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list');
@@ -4585,18 +4121,19 @@ function updateDeviceList(devices) {
       var wv = (d.level!==undefined&&d.level!==null&&d.level!=='') ? Math.round(parseFloat(d.level))+' m³' : '-- m³';
       var wc='', bc='';
       if (d.level!==undefined&&d.level!==null&&d.level!=='') { var lv=parseFloat(d.level); if(lv<r.minLevel){wc='low';bc='blink-alarm';alarm='low';}else if(lv>r.maxLevel){wc='high';bc='blink-alarm';alarm='high';}else wc='normal'; }
-      // ── Relay toggle for hybrid Reservoir+Pump devices only ───────────────
-     var isResBooster = isReservoirPumpHybrid(d.device);
+      // ── Relay toggle for "Reservoir Booster" only ───────────────────────
+     var isResBooster = (d.device || '').trim().toLowerCase().includes('reservoir booster');
 if (isResBooster) {
   if (d.commandedRelay !== undefined) {
     var _ts = commandedRelayCacheTimestamps[d.device];
-    if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
-      commandedRelayCache[d.device] = d.commandedRelay;
-      commandedRelayCacheTimestamps[d.device] = Date.now();
-    }
+    if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) commandedRelayCache[d.device] = d.commandedRelay;
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
+  var resRelayPending = d.relayPending === true;
+  var resPendingBadge = resRelayPending
+    ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+    : '';
 
   // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = ''
@@ -4613,6 +4150,10 @@ if (isResBooster) {
     +       '</label>'
     +     '</div>'
     +   '</div>'
+    +   (resPendingBadge ? '<div style="margin-top:2px; text-align:right;">'+resPendingBadge+'</div>' : '')
+    + (d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry)
+      ? '<div class="manual-override-badge" style="margin-top:2px; display:flex; align-items:center; justify-content:flex-end; gap:6px;" title="Manually overridden — automation blocked until '+new Date(d.manualOverrideExpiry).toLocaleTimeString()+'">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
+      : '')
     + '</div>';
 
   (function(){
@@ -4630,34 +4171,6 @@ if (isResBooster) {
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
     var newStateInt = resCb.checked ? 1 : 0;
-    if (newStateInt === 1) {
-      var hardBlock = null;
-      pumpLinkConfigs.forEach(function(pl) {
-        if (pl.pump !== d.device || !pl.enabled) return;
-        var rd = devices.find(function(x){ return x.device === pl.reservoir; });
-        if (!rd) return;
-        var lv = parseFloat(rd.level);
-        if (!isNaN(lv) && lv >= pl.shutoffLevel && !hardBlock) {
-          hardBlock = { reservoir: pl.reservoir, level: lv, shutoffLevel: pl.shutoffLevel, resumeLevel: pl.resumeLevel };
-        }
-      });
-      if (hardBlock) {
-        resCb.checked = false;
-        showNotification('⛔ Cannot turn ON ' + d.device + ': ' + hardBlock.reservoir +
-          ' is at ' + hardBlock.level.toFixed(0) + ' m³ (shutoff: ' + hardBlock.shutoffLevel +
-          ' m³). Wait for level to drop below resume (' + hardBlock.resumeLevel + ' m³).', 'warning');
-        return;
-      }
-      var liveOff = null;
-      Object.keys(reservoirAutoShutoffState).forEach(function(k) {
-        if (reservoirAutoShutoffState[k].pump === d.device) liveOff = reservoirAutoShutoffState[k];
-      });
-      if (liveOff) {
-        resCb.checked = false;
-        showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
-        return;
-      }
-    }
     dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
@@ -4681,23 +4194,40 @@ if (isResBooster) {
       //        relayPending = they differ (waiting for Smart Device to confirm)
       if (d.commandedRelay !== undefined) {
         var _ts = commandedRelayCacheTimestamps[d.device];
-        if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
-          commandedRelayCache[d.device] = d.commandedRelay;
-          commandedRelayCacheTimestamps[d.device] = Date.now();
-        }
+        if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) commandedRelayCache[d.device] = d.commandedRelay;
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
       var switchIsOn = commanded === 1 || commanded === true;
+      var relayPending = d.relayPending === true;
+      // ── Check if auto-shut-off due to reservoir full ───────
+      var autoOff = null;
+      Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+        if (reservoirAutoShutoffState[k].pump === d.device) autoOff = reservoirAutoShutoffState[k];
+      });
+      var autoOffBadge = autoOff
+        ? '<div class="auto-shutoff-badge" title="Auto-shutoff: ' + (autoOff.reservoir||'') + ' hit shutoff level ' + (autoOff.shutoffLevel||'') + ' m³ at ' + (autoOff.timestamp||'') + '">🛑 AUTO-OFF · '+(autoOff.reservoir||'Reservoir')+'</div>'
+        : '';
+      // ── Manual override badge (leak/emergency) ──
+      var moActive = d.manualOverride && (!d.manualOverrideExpiry || Date.now() < d.manualOverrideExpiry);
+      var moBadge = moActive
+        ? '<div class="manual-override-badge" style="display:flex; align-items:center; gap:6px;" title="Manually overridden — automation (APE/schedule) blocked until ' + new Date(d.manualOverrideExpiry).toLocaleTimeString() + '">🔒 MANUAL OVERRIDE<button class="clear-override-btn" data-device="'+escapeForAttr(d.device)+'" title="Clear override now — resume automation immediately" style="background:none;border:none;font-size:10px;color:#b45309;text-decoration:underline;cursor:pointer;padding:0;">clear</button></div>'
+        : '';
+      // ★ v3: build switch — state from commandedRelay (server authority)
+      var pendingBadge = relayPending
+        ? '<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:#d97706;font-weight:700;margin-top:2px;width:100%;"><span style="width:8px;height:8px;border-radius:50%;border:2px solid #d97706;border-top-color:transparent;display:inline-block;animation:spin 0.8s linear infinite;"></span>Sending…</div>'
+        : '';
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
-        + '<label class="toggle-switch" title="Toggle pump ON/OFF">'
+        + '<label class="toggle-switch" title="'+(autoOff?'Auto-shutoff active — reservoir is full':'Toggle pump ON/OFF')+'">'
         + '<input type="checkbox"'+(switchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
         + '<span class="slider"></span></label>'
         + '<button class="sched-shortcut-btn" data-device="'+escapeForAttr(d.device)+'" title="Set ON/OFF schedule for this device" style="background:none;border:none;font-size:13px;cursor:pointer;padding:0 2px;line-height:1;flex-shrink:0;">⏰</button>'
-        + '</div>';
+        + '</div>'
+        + pendingBadge + autoOffBadge + moBadge;
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
+      var clearOverrideBtn = li.querySelector('.clear-override-btn');
+      if (clearOverrideBtn) clearOverrideBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -4946,8 +4476,6 @@ if (isResBooster) {
 
 function autoShutoffPumps(devices) {
   if (!devices || !devices.length || !pumpLinkConfigs.length) return;
-  // ── GAS-authoritative guard: when server trigger is installed, defer to it ──
-  if (_gasTriggerInstalled) return;
 
   var devMap = {};
   devices.forEach(function(d) { devMap[d.device] = d; });
@@ -5007,14 +4535,17 @@ function autoShutoffPumps(devices) {
       var _lastB = _autoShutoffCommandSent[_boffCdKey] || 0;
       if (!_lastB || Date.now() - _lastB > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_boffCdKey] = Date.now();
-        if (window.speechSynthesis) {
-          var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
-          bu.rate = 0.95; window.speechSynthesis.speak(bu);
+        var bkey = cfg.pump + ':backup:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[bkey] || Date.now() - autoShutoffSuppressNotify[bkey] > 600000) {
+          autoShutoffSuppressNotify[bkey] = Date.now();
+          showNotification('🚨 BACKUP SHUTOFF: ' + cfg.pump + ' still ON at ' + lv.toFixed(0) + ' m³ — primary shutoff at ' + shutoff + ' m³ may have failed!', 'error');
+          if (window.speechSynthesis) {
+            var bu = new SpeechSynthesisUtterance('Emergency backup shutoff. ' + cfg.pump + ' still on. Water at ' + lv.toFixed(0) + ' meters.');
+            bu.rate = 0.95; window.speechSynthesis.speak(bu);
+          }
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
-        _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5037,15 +4568,18 @@ function autoShutoffPumps(devices) {
       var _lastOff = _autoShutoffCommandSent[_offCdKey] || 0;
       if (!_lastOff || Date.now() - _lastOff > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_offCdKey] = Date.now();
-        _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
-        if (window.speechSynthesis) {
-          var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
-          u.rate = 0.95; window.speechSynthesis.speak(u);
+        var suppressKey = cfg.pump + ':off:notify:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[suppressKey] || Date.now() - autoShutoffSuppressNotify[suppressKey] > 600000) {
+          autoShutoffSuppressNotify[suppressKey] = Date.now();
+          showNotification('🛑 AUTO-SHUTOFF: ' + cfg.pump + ' turned OFF — ' + cfg.reservoir + ' reached ' + lv.toFixed(0) + ' m³ (limit: ' + shutoff + ' m³)', 'warning');
+          _showReservoirFullBanner(cfg.reservoir, cfg.pump, lv, shutoff, resume);
+          if (window.speechSynthesis) {
+            var u = new SpeechSynthesisUtterance('Auto shutoff. ' + cfg.pump + ' turned off. ' + cfg.reservoir + ' is at limit.');
+            u.rate = 0.95; window.speechSynthesis.speak(u);
+          }
         }
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
-        _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5065,10 +4599,13 @@ function autoShutoffPumps(devices) {
         delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
-        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
-        _enableSchedulesForPump(cfg.pump);
+        var rkey2 = cfg.pump + ':resume2:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[rkey2] || Date.now() - autoShutoffSuppressNotify[rkey2] > 600000) {
+          autoShutoffSuppressNotify[rkey2] = Date.now();
+          showNotification('🔄 BACKUP RESUME: ' + cfg.pump + ' still OFF at ' + lv.toFixed(0) + ' m³ — primary resume at ' + resume + ' m³ may have failed!', 'warning');
+          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
+        }
         (function(pumpName) {
-          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5088,15 +4625,18 @@ function autoShutoffPumps(devices) {
         delete reservoirAutoShutoffState[_stateKey];
         localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
-        _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
-        if (window.speechSynthesis) {
-          var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
-          _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
+        var resumeNotifyKey = cfg.pump + ':on:notify:' + cfg.reservoir;
+        if (!autoShutoffSuppressNotify[resumeNotifyKey] || Date.now() - autoShutoffSuppressNotify[resumeNotifyKey] > 600000) {
+          autoShutoffSuppressNotify[resumeNotifyKey] = Date.now();
+          showNotification('✅ AUTO-RESUME: ' + cfg.pump + ' turned back ON — ' + cfg.reservoir + ' dropped to ' + lv.toFixed(0) + ' m³ (resume level: ' + resume + ' m³)', 'success');
+          _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
+          if (window.speechSynthesis) {
+            var _ru = new SpeechSynthesisUtterance('Auto resume. ' + cfg.pump + ' turned back on. ' + cfg.reservoir + ' is below resume level.');
+            _ru.rate = 0.95; window.speechSynthesis.speak(_ru);
+          }
+          _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         }
-        _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
-        _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5181,7 +4721,6 @@ function _updatePumpLinksBadge() {
 
 // ── Pump Link Settings Modal ────────────────────────────────────────────────
 var _plDashDevices = [];   // last known device list for dropdown population
-var _gasTriggerInstalled = false; // tracks whether server-side GAS trigger is active
 
 function openPumpLinkSettings() {
   var old = document.getElementById('pump-link-overlay'); if (old) old.remove();
@@ -5207,13 +4746,11 @@ function _checkPumpLinkTrigger() {
   apiGet('checkPumpLinkTrigger', { token: tok }).then(function(r) {
     if (!r || !r.success) { label.textContent = '⚠ Error'; btn.style.display = 'none'; return; }
     if (r.installed) {
-      _gasTriggerInstalled = true;
       label.innerHTML = '🟢 Server trigger: <b>Active</b> (15 min)';
       btn.textContent = '⏹ Remove';
       btn.style.cssText = 'padding:5px 10px;background:#fef2f2;color:#b91c1c;border:1.5px solid #fca5a5;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
       btn.style.display = '';
     } else {
-      _gasTriggerInstalled = false;
       label.innerHTML = '⚪ Server trigger: <b>Off</b>';
       btn.textContent = '▶ Install';
       btn.style.cssText = 'padding:5px 10px;background:#ecfdf5;color:#047857;border:1.5px solid #a7f3d0;border-radius:7px;font-size:10.5px;font-weight:700;cursor:pointer;touch-action:manipulation;';
@@ -5379,7 +4916,7 @@ function _renderLinkCards() {
     var pctFull   = (!isNaN(curLevel) && cfg.shutoffLevel) ? Math.min(100, Math.round(curLevel / cfg.shutoffLevel * 100)) : null;
     var levelBar  = pctFull !== null
       ? '<div style="margin:8px 0 4px;"><div style="display:flex;justify-content:space-between;font-size:10px;color:#64748b;margin-bottom:3px;"><span>Current: ' + curLevel.toFixed(0) + ' m³</span><span>' + pctFull + '% of shutoff</span></div>'
-        + '<div style="height:7px;background:#e5eef9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + pctFull + '%;background:' + (pctFull >= 100 ? '#dc2626' : pctFull >= 85 ? '#f97316' : '#22c55e') + ';border-radius:4px;transition:width .4s;"></div></div>'
+        + '<div style="height:7px;background:#e5eef9;border-radius:4px;overflow:hidden;"><div style="height:100%;width:' + pctFull + '%;background:' + (pctFull >= 100 ? '#dc2626' : pctFull >= 85 ? '#f97316' : '#22c55e') + ';border-radius:4px;transition:width .4s;"></div></div></div>'
       : '';
     var pumpDataForCard = _plDashDevices ? _plDashDevices.find(function(d) { return d.device === cfg.pump; }) : null;
     var pumpRelayOn = pumpDataForCard
@@ -5538,33 +5075,6 @@ function loadSchedulesFromGAS(deviceFilter, cb) {
   if (deviceFilter) params.device = deviceFilter;
   apiGet('getSchedules', params).then(function(list) {
     scheduleConfigs = Array.isArray(list) ? list : [];
-    // Normalize time field: GAS may return a Date object or ISO string from Google Sheets
-    // (which stores times as dates with epoch Dec 30, 1899). Convert to "HH:MM" string.
-    scheduleConfigs.forEach(function(c) {
-      if (c.time == null) return;
-      if (typeof c.time === 'number') {
-        // Excel/Sheets serial time (fraction of a day, e.g. 0.333 = 08:00)
-        var frac = c.time;
-        if (frac >= 0 && frac < 1) {
-          var totalMin = Math.round(frac * 1440);
-          var hh = String(Math.floor(totalMin / 60)).padStart(2, '0');
-          var mm = String(totalMin % 60).padStart(2, '0');
-          c.time = hh + ':' + mm;
-        }
-      } else if (c.time instanceof Date) {
-        var hh2 = String(c.time.getHours()).padStart(2, '0');
-        var mm2 = String(c.time.getMinutes()).padStart(2, '0');
-        c.time = hh2 + ':' + mm2;
-      } else if (typeof c.time === 'string' && c.time.length > 5) {
-        // ISO or long string like "1899-12-30T08:00:00" — extract HH:MM
-        var parsed = new Date(c.time);
-        if (!isNaN(parsed.getTime())) {
-          var hh3 = String(parsed.getHours()).padStart(2, '0');
-          var mm3 = String(parsed.getMinutes()).padStart(2, '0');
-          c.time = hh3 + ':' + mm3;
-        }
-      }
-    });
     if (cb) cb();
   }).catch(function() {
     showNotification('⚠ Failed to load schedules from server', 'warning');
@@ -6101,7 +5611,7 @@ function buildParamSelector() {
   var grid=document.getElementById('param-pill-grid'); grid.innerHTML='';
   PARAM_GROUPS.forEach(function(group){
     var pigs=PUMP_PARAMS.filter(function(p){return p.group===group.id&&pumpParamKeys[p.id];}); if(!pigs.length) return;
-    var col=document.createElement('div'); col.className='param-group'+((group.id==='control'||group.id==='waterlevel')?' single-col':'');
+    var col=document.createElement('div'); col.className='param-group'+(group.id==='control'?' single-col':'');
     var title=document.createElement('div'); title.className='param-group-title'; title.innerText=group.label; col.appendChild(title);
     var pg=document.createElement('div'); pg.className='param-pills-grid';
     pigs.forEach(function(p){
@@ -10016,22 +9526,10 @@ function exportDashboardPDF() {
       var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
                || (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (!sw) return;
-      /* ★ NEW: Build schedule cooldown map from cached dashboard data */
-      var _schCool = {};
-      try {
-        var _devs = (typeof window._lastDevices !== 'undefined' && Array.isArray(window._lastDevices)) ? window._lastDevices : [];
-        _devs.forEach(function(d) {
-          if (d.scheduleCooldownUntil && d.scheduleCooldownUntil > Date.now()) {
-            _schCool[d.device] = d.scheduleCooldownUntil;
-          }
-        });
-      } catch(_e) {}
       sw.postMessage({
         type:    'AGUS_PL',
         links:   (typeof pumpLinkConfigs !== 'undefined' ? pumpLinkConfigs : []),
         manCool: (typeof _manualToggleCooldown !== 'undefined' ? _manualToggleCooldown : {}),
-        schCool: _schCool,
-        gasTriggerInstalled: (typeof _gasTriggerInstalled !== 'undefined' ? _gasTriggerInstalled : false),
         baseCfg: {
           apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
           token:  (typeof userToken !== 'undefined' ? userToken : '')
@@ -11087,6 +10585,8 @@ function _metCard(label, icon, value, unit, color) {
 
 </script>
 
+
+
 <!-- ═══════════════════════════════════════════════════════════════
      NDRRMC-STYLE CRITICAL ALARM SYSTEM v2
      Multi-alarm QUEUE · Each alarm acknowledged one by one
@@ -12092,9 +11592,9 @@ function _metCard(label, icon, value, unit, color) {
     if (typeof showNotification === 'function') showNotification('🔇 Voice silenced 5 min. Visual alarm still active.', 'warning');
   };
 
-  /* ══════════════════════════════════════════════════════════
+  /* ══════════════════════════════════════
      HOOKS — replace existing alarm funcs
-     ══════════════════════════════════════════════════════════ */
+     ══════════════════════════════════════ */
   window.speakAlarm = function(deviceName, alarmType, isReservoir) {
     window.ndrrmcTriggerAlarm(deviceName, alarmType, { isReservoir: isReservoir, key: deviceName });
   };
@@ -12919,24 +12419,6 @@ document.addEventListener('visibilitychange', function() {
 
 })();
 </script>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     MANUAL TOGGLE CONFIRMATION MODAL
-     ═══════════════════════════════════════════════════════════════ -->
-<div id="manual-toggle-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:2147485000;align-items:center;justify-content:center;">
-  <div style="background:#fff;border-radius:16px;max-width:380px;width:92%;padding:24px 20px 20px;box-shadow:0 20px 60px rgba(0,0,0,0.4);text-align:center;">
-    <div style="font-size:32px;margin-bottom:8px;">⚠️</div>
-    <div style="font-weight:800;font-size:17px;color:#004080;margin-bottom:6px;">Manual Override Confirmation</div>
-    <div id="mt-modal-msg" style="font-size:13px;color:#475569;line-height:1.6;margin-bottom:18px;">
-      You are about to manually turn <b id="mt-device-name">Device</b> <b id="mt-action-label">ON</b>.
-      This will temporarily override automatic control.
-    </div>
-    <div style="display:flex;gap:10px;">
-      <button id="mt-continue-btn" style="flex:1;background:#004080;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">✅ Manual Override</button>
-      <button id="mt-cancel-btn" style="flex:1;background:#f1f5f9;color:#475569;border:1.5px solid #cbd5e1;border-radius:10px;padding:12px;font-size:14px;font-weight:800;cursor:pointer;">⏹ Keep Automatic</button>
-    </div>
-  </div>
-</div>
 
 </body>
 </html>
