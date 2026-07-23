@@ -2528,8 +2528,15 @@ try {
 // ════════════════════════════════════════════════════════════════════
 var MQTT_BROKER = 'k196aaef.ala.asia-southeast1.emqxsl.com';
 var MQTT_WS_PORT = 8084;
-var MQTT_USER = 'Dashboard';
-var MQTT_PASS = 'agUS@mqtt2024';
+// ★ SECURITY FIX: MQTT_USER/MQTT_PASS used to be hardcoded here — anyone opening
+// dev tools or view-source on the dashboard got a live pump-control MQTT credential,
+// no login required. Credentials now come ONLY from the authenticated
+// ?action=getMqttCreds call below (which itself now requires a valid session token —
+// see the matching GAS fix). If that call fails or the user isn't logged in yet,
+// MQTT simply doesn't connect; the dashboard still works via the existing
+// GAS + Firebase fallback path (see the `_mqttSent` checks throughout).
+var MQTT_USER = null;
+var MQTT_PASS = null;
 var _mqttClient = null;
 var _mqttConnected = false;
 var _mqttDeviceTopics = {}; // { deviceName: { cmdTopic, telemTopic } }
@@ -2544,14 +2551,17 @@ function initMQTT() {
     console.warn('[MQTT] mqtt.js not loaded');
     return;
   }
+  if (!sessionToken) {
+    console.log('[MQTT] Waiting for login before requesting MQTT credentials');
+    return; // called again from the post-login handler once sessionToken is set
+  }
   _fetchMqttCredsThenConnect();
 }
 
 function _fetchMqttCredsThenConnect() {
-  var fallbackUser = MQTT_USER, fallbackPass = MQTT_PASS, fallbackBroker = MQTT_BROKER, fallbackPort = MQTT_WS_PORT;
   var gasUrl = typeof API_URL !== 'undefined' ? API_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : (typeof gasWebAppUrl !== 'undefined' ? gasWebAppUrl : null));
-  if (gasUrl) {
-    fetch(gasUrl + '?action=getMqttCreds')
+  if (gasUrl && sessionToken) {
+    fetch(gasUrl + '?action=getMqttCreds&token=' + encodeURIComponent(sessionToken))
       .then(function(r) { return r.json(); })
       .then(function(creds) {
         if (creds && creds.mqttUser) {
@@ -2560,19 +2570,19 @@ function _fetchMqttCredsThenConnect() {
           if (creds.mqttBroker) MQTT_BROKER = creds.mqttBroker;
           if (creds.mqttWsPort) MQTT_WS_PORT = creds.mqttWsPort;
           console.log('[MQTT] Credentials fetched from GAS');
+          _doMqttConnect();
+        } else {
+          console.warn('[MQTT] Creds request unauthorized or empty — MQTT will stay disconnected, GAS/Firebase path still active');
         }
-        _doMqttConnect();
       })
       .catch(function(e) {
-        console.warn('[MQTT] Could not fetch creds from GAS, using defaults:', e);
-        _doMqttConnect();
+        console.warn('[MQTT] Could not fetch creds from GAS — MQTT will stay disconnected, GAS/Firebase path still active:', e);
       });
-  } else {
-    _doMqttConnect();
   }
 }
 
 function _doMqttConnect() {
+  if (!MQTT_USER || !MQTT_PASS) { console.warn('[MQTT] No credentials available — skipping connect'); return; }
   var clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
   var url = 'wss://' + MQTT_BROKER + ':' + MQTT_WS_PORT + '/mqtt';
   console.log('[MQTT] Connecting to', url, 'as', MQTT_USER);
@@ -2640,8 +2650,8 @@ function mqttPublishRelay(deviceName, state) {
   }
 }
 
-// Initialize MQTT on page load
-setTimeout(initMQTT, 1000);
+// MQTT initializes from the post-login handler (see login()) once sessionToken exists —
+// not here on page load, since there's no session yet for getMqttCreds to authenticate.
 
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
@@ -3022,6 +3032,7 @@ function login() {
     .then(function(token) {
       if (!token) { spinEl.style.display = 'none'; errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
       userToken = token; sessionToken = token; loggedInUser = user;
+      initMQTT(); // now that sessionToken exists, getMqttCreds can authenticate
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
@@ -4012,11 +4023,22 @@ function initDashboard() {
         /* Fire command */
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
+
+          /* INSTANT: publish directly to EMQX broker (~100ms) */
+          var _mqttSent = false;
+          try { _mqttSent = mqttPublishRelay(device, state); } catch(_e) {}
+          if (_mqttSent) {
+            console.log('[APE] EMQX instant relay:', device, state ? 'ON' : 'OFF');
+          } else {
+            console.warn('[APE] MQTT not connected — falling back to GAS-only');
+          }
+
+          /* Async GAS write — for logging/audit (non-blocking) */
           apiPost('togglePump', {
             device:       device,
             token:        userToken,
-            desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
-            relay:        state,          // ── GAS compatibility alias
+            desiredState: state,
+            relay:        state,
             triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
             latitude:     coords.latitude  || '',
             longitude:    coords.longitude || ''
@@ -4024,18 +4046,16 @@ function initDashboard() {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
               var onOff = res.newState ? 'ON' : 'OFF';
-              var reason = res.newState
-                ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
-                : link.reservoir + ' at ' + level.toFixed(1) + ' m³ (shutoff ≥ ' + link.shutoffLevel + ' m³)';
               _addAutoShutoffLog({ pump: device, action: 'AUTO-' + onOff, timestamp: new Date().toLocaleString(), triggeredby: 'AutoEngine', reservoir: link.reservoir, level: level.toFixed(1) });
-              /* Re-sync the badge */
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
-            } else {
+            } else if (!_mqttSent) {
               _setCommandedCache(device, state === 1 ? 0 : 1);
             }
           }).catch(function() {
-            /* Network error — leave optimistic state, will re-check next cycle */
+            if (!_mqttSent) {
+              /* Only revert if EMQX didn't fire — otherwise ESP32 already has the command */
+            }
           });
         })(lnk.pump, wantState, ck, lv, lnk);
       }
@@ -4994,6 +5014,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5024,6 +5045,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5046,6 +5068,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5073,6 +5096,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
