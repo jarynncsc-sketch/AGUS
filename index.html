@@ -7342,7 +7342,7 @@ function openKPIDashboard() {
     });
     html += '</tbody></table></div>';
 
-    html += '<div style="margin-top:18px;"><button onclick="genKPIInsight('+JSON.stringify({uptime,totalFlow,totalPower,totalEnergy,faults:fault.length,offline:offline.length,pumpsOn,avgPres,avgLevel}).replace(/"/g,"\'")+')" style="padding:7px 18px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 Generate AI KPI Insight</button><div id="kpi-ai-output" style="margin-top:10px;font-size:13px;color:#1e293b;line-height:1.6;"></div></div>';
+    html += '<div style="margin-top:18px;"><button onclick="genKPIInsight(JSON.parse(this.dataset.kpi))" data-kpi=\''+JSON.stringify({uptime,totalFlow,totalPower,totalEnergy,faults:fault.length,offline:offline.length,pumpsOn,avgPres,avgLevel}).replace(/'/g,"&#39;")+'\' style="padding:7px 18px;background:linear-gradient(135deg,#004080,#0077cc);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">🤖 Generate AI KPI Insight</button><div id="kpi-ai-output" style="margin-top:10px;font-size:13px;color:#1e293b;line-height:1.6;"></div></div>';
 
     document.getElementById('kpi-body').innerHTML = html;
   }).catch(function(e){ document.getElementById('kpi-body').innerHTML='<span style="color:#e05555;">Error: '+e.message+'</span>'; });
@@ -7353,7 +7353,7 @@ function openKPIDashboard() {
 // MODULE: ALARM MANAGEMENT CENTER
 // ============================================================
 var alarmLog = JSON.parse(localStorage.getItem('agus_alarm_log')||'[]');
-var alarmBadgeCount = 0;
+var alarmBadgeCount = alarmLog.filter(function(a){return a.status==='Active';}).length;
 
 function addAlarmLogEntry(device, type, reading) {
   var entry = { id: Date.now(), device: device, type: type, reading: reading||'', time: new Date().toLocaleString(), status: 'Active', note: '', resolvedBy: '', resolvedAt: '' };
@@ -7425,9 +7425,9 @@ function resolveAlarm(id) {
   a.status = 'Resolved'; a.note = note||''; a.resolvedBy = loggedInUser||'Operator'; a.resolvedAt = new Date().toLocaleString();
   localStorage.setItem('agus_alarm_log',JSON.stringify(alarmLog)); renderAlarmList('all');
 }
-function genIncidentReport(id) {
+function genIncidentReport(id, evt) {
   var a = alarmLog.find(function(x){return x.id===id;}); if (!a) return;
-  var btn = event.target; btn.disabled=true; btn.textContent='⏳';
+  var btn = evt ? evt.target : document.querySelector('[onclick*="genIncidentReport(\''+id+'\'"]'); if(btn){btn.disabled=true;btn.textContent='⏳';}
   var report = 'Incident Report\n'
     + '━━━━━━━━━━━━━━━\n'
     + 'Device: ' + a.device + '\n'
@@ -7609,10 +7609,7 @@ function addMaintTask() {
   localStorage.setItem('agus_maint_tasks',JSON.stringify(maintTasks));
   document.getElementById('mc-device').value='';document.getElementById('mc-task').value='';document.getElementById('mc-date').value='';
   renderMaintTasks(); showNotification('Task scheduled.','success');
-  document.getElementById('maint-cal-grid').innerHTML = (function buildCalHTML2(){
-    var now2=new Date(),y=now2.getFullYear(),m=now2.getMonth(),firstDay=new Date(y,m,1).getDay(),daysInMonth=new Date(y,m+1,0).getDate();
-    return '<p style="color:#7a8fa6;font-size:12px;">Calendar updated — reopen to refresh view.</p>';
-  })();
+  if(typeof calNav==='function') calNav(0);
 }
 
 function renderMaintTasks() {
@@ -8285,6 +8282,18 @@ function loadForecast() {
     var forecastVals = computeForecast(hist, valKey);
 
     var labels=[]; var actuals=[]; try{ labels=hist.map(function(r){var t=parseSheetDate(r[timeKey]);return t?t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'';}); actuals=hist.map(function(r){return parseFloat(r[valKey])||null;}); }catch(e){}
+    var forecastLabels=[];
+    if(hist.length>0){
+      var lastTime=parseSheetDate(hist[hist.length-1][timeKey]);
+      if(lastTime){
+        for(var fi=1;fi<=forecastVals.length;fi++){
+          var ft=new Date(lastTime.getTime()+fi*30*60000);
+          forecastLabels.push(ft.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}));
+        }
+        labels=labels.concat(forecastLabels);
+        for(var ai=0;ai<forecastVals.length;ai++) actuals.push(null);
+      }
+    }
     if(loading) loading.style.display='none';
     if(wrap) wrap.style.display='block';
     var canvas=document.getElementById('fc-canvas');
@@ -8335,7 +8344,7 @@ window.forceRefreshPumpLinks = function() {
   });
 };
 
-if (typeof _refreshPumpLinksUI !== 'undefined') {
+if (typeof window._refreshPumpLinksUI === 'undefined') {
   window._refreshPumpLinksUI = function() {
     var cardsEl = document.getElementById('pl-link-cards');
     if (cardsEl) cardsEl.innerHTML = '<div style="text-align:center;padding:20px;color:#64748b;font-size:12px;">⏳ Refreshing from Google Sheet…</div>';
@@ -9291,9 +9300,9 @@ function exportDashboardPDF() {
         _bgCurrUtt = null;
         _bgSpeaking = false;
       }
-      if (typeof _isSpeaking !== 'undefined' && _isSpeaking &&
+      if (typeof window._isSpeaking !== 'undefined' && window._isSpeaking &&
           window.speechSynthesis && !window.speechSynthesis.speaking) {
-        _isSpeaking = false;
+        window._isSpeaking = false;
         var _ind = document.getElementById('ndrrmc-speaking-indicator');
         if (_ind) _ind.classList.remove('visible');
       }
@@ -9368,8 +9377,11 @@ function exportDashboardPDF() {
   }
   window._thr = _thr;
 
+  var _firstCheckDone = false;
+
   function _checkDevices(devices) {
-    var _canNotify = _on && Notification.permission === 'granted';
+    var _canNotify = _on && Notification.permission === 'granted' && _firstCheckDone;
+    _firstCheckDone = true;
     devices.forEach(function(d) {
       var name = d.device || '';
       var st   = d.status  || '';
@@ -9939,7 +9951,10 @@ function _renderSummary(body, stats, period) {
     return '<div style="overflow-x:auto;border-radius:12px;border:1px solid #e2e8f0;"><table style="width:100%;border-collapse:collapse;"><thead><tr>'+heads+'</tr></thead><tbody>'+rows+'</tbody></table></div>';
   }
 
+  var _currentSummaryPeriod = period;
+
   window._summTab = function(p) {
+    _currentSummaryPeriod = p;
     tabs.forEach(function(t) {
       var btn = document.getElementById('stab-'+t.k);
       if (btn) { btn.style.background = t.k===p?'#0057b8':'#f1f5f9'; btn.style.color = t.k===p?'#fff':'#475569'; }
@@ -9956,7 +9971,7 @@ function _renderSummary(body, stats, period) {
     +'<p style="font-size:11px;color:#94a3b8;margin-top:10px;">Based on sheet data. Totals computed from 15-min interval rows.</p>';
 
   window._exportSummaryCSV = function() {
-    var p = period;
+    var p = _currentSummaryPeriod;
     var headers = colHtml.map(function(c){return c.h;}).join(',');
     var rows = stats.map(function(s){ return colHtml.map(function(c,i){ return i===0?s.device:(s[p]?c.f(s,p):''); }).join(','); }).join('\n');
     var blob = new Blob([headers+'\n'+rows], {type:'text/csv'});
@@ -10022,6 +10037,7 @@ window.openHeatmap = function() {
       var CELL=36;
       var html='<div style="font-size:11px;font-weight:700;color:#64748b;margin-bottom:8px;">'+devName+' — average '+unit+' by hour × day ('+vals.length+' data points)</div>';
       html+='<div style="display:inline-block;"><table style="border-collapse:collapse;">';
+      html+='<tr>';
       for(var h=0;h<24;h++) html+='<td style="width:'+CELL+'px;text-align:center;font-size:9px;color:#64748b;padding-bottom:4px;">'+(h<10?'0':'')+h+'</td>';
       html+='</tr>';
       for(var d=0;d<7;d++) {
@@ -11038,7 +11054,7 @@ function _metCard(label, icon, value, unit, color) {
   var _repeatTimer     = null;
   var _attentionTimer  = null;
   var _audioCtx        = null;
-  var _isSpeaking      = false;
+  window._isSpeaking   = false;
   var _sirenActive     = false;
   var _SIREN_DUR_MS    = 2700;
   var _SIREN_PAUSE_MS  = 600;
@@ -11143,7 +11159,7 @@ function _metCard(label, icon, value, unit, color) {
 
   function _speakAlarm(alarm) {
     if (Date.now() < _silenceUntil) return;
-    if (_isSpeaking) return;
+    if (window._isSpeaking) return;
     if (_sirenActive) return;
 
     if (!window._agusAudio) {
@@ -11153,11 +11169,11 @@ function _metCard(label, icon, value, unit, color) {
 
     var msg = _buildMsg(alarm);
     var ind = document.getElementById('ndrrmc-speaking-indicator');
-    _isSpeaking = true;
+    window._isSpeaking = true;
     if (ind) ind.classList.add('visible');
 
     _currentSpeakHandle = window._agusAudio.speak(msg, function _onDone() {
-      _isSpeaking = false;
+      window._isSpeaking = false;
       _currentSpeakHandle = null;
       if (ind) ind.classList.remove('visible');
     });
@@ -11169,7 +11185,7 @@ function _metCard(label, icon, value, unit, color) {
       _currentSpeakHandle = null;
     }
     try { if (window.speechSynthesis) window.speechSynthesis.cancel(); } catch(e) {}
-    _isSpeaking = false;
+    window._isSpeaking = false;
     var ind = document.getElementById('ndrrmc-speaking-indicator');
     if (ind) ind.classList.remove('visible');
   }
@@ -11956,12 +11972,7 @@ document.addEventListener('visibilitychange', function() {
       if (!_active) return;
       _setStatus('📞 Opening dialer for <b>' + c.name + '</b>…');
       _dial(c);
-      setTimeout(function() {
-        if (_active) {
-          _setStatus('✅ Called <b>' + c.name + '</b>. Moving to next contact…');
-          setTimeout(_nextContact, 3000);
-        }
-      }, _settings.delaySeconds * 1000);
+      setTimeout(_nextContact, _settings.delaySeconds * 1000);
     });
   }
 
@@ -12170,20 +12181,11 @@ document.addEventListener('visibilitychange', function() {
   };
 
   function _checkTermux() {
-    fetch('http://127.0.0.1:8150/', { method:'GET', mode:'no-cors', cache:'no-cache' })
-      .then(function() { _setTermuxStatus(true); })
-      .catch(function() {
-        _setTermuxStatus(false);
-      });
-    var t = Date.now();
     var ctrl = new AbortController();
-    var timer = setTimeout(function(){ ctrl.abort(); _setTermuxStatus(false); }, 1200);
+    var timer = setTimeout(function(){ ctrl.abort(); _setTermuxStatus(false); }, 1500);
     fetch('http://127.0.0.1:8150/', { signal: ctrl.signal, cache:'no-cache' })
       .then(function(){ clearTimeout(timer); _setTermuxStatus(true); })
-      .catch(function(e){
-        clearTimeout(timer);
-        _setTermuxStatus(!ctrl.signal.aborted && (Date.now()-t) < 800);
-      });
+      .catch(function(){ clearTimeout(timer); _setTermuxStatus(false); });
   }
 
   function _setTermuxStatus(online) {

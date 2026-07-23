@@ -23,6 +23,7 @@ function dbSet(db,k,v){return new Promise(function(res,rej){
 var _dd={};var COOL=30000;
 function can(k){var n=Date.now();if(_dd[k]&&n-_dd[k]<COOL)return false;_dd[k]=n;return true;}
 var _swErr=0;
+var _bgPollBusy=false;
 /* ── Tag-prefix to NDRRMC alarm type map ── */
 var _alarmMap = {
   'fault':'fault','off':'offline',
@@ -49,7 +50,7 @@ function pop(title,body,tag,urgent){
           c.postMessage({type:"AGUS_SPEAK",text:ttsMsg});
         }
       });
-    });
+    }).catch(function(){});
   }
   return self.registration.showNotification(title,{
     body:body,tag:tag,requireInteraction:!!urgent,
@@ -61,6 +62,7 @@ function pop(title,body,tag,urgent){
 }
 /* ═══════════════ Background poll ═══════════════ */
 async function bgPoll(){
+  if(_bgPollBusy)return;_bgPollBusy=true;
   try{
     if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — skipping poll");return;}
     var db=await dbOpen();
@@ -83,7 +85,7 @@ async function bgPoll(){
       if(d.scheduleCooldownUntil&&d.scheduleCooldownUntil>Date.now()){
         schCool[n]=d.scheduleCooldownUntil;
       }
-      if((st==="Fault"||d.button)&&p.status!=="Fault"&&can("fault:"+n))
+      if((st==="Fault"||d.button===1||d.button===true||d.button==="1")&&p.status!=="Fault"&&can("fault:"+n))
         ps.push(pop("⚠️ Fault — "+n,n+" FAULT detected. Immediate attention required.","fault:"+n,true));
       if(st==="Offline"&&p.status==="Online"&&can("off:"+n))
         ps.push(pop("📴 Offline — "+n,n+" went offline. Check connection.","off:"+n,true));
@@ -135,6 +137,7 @@ async function bgPoll(){
     await Promise.all(ps);
     _swErr=0;
   }catch(err){console.error("[SW] bgPoll:",err);_swErr++}
+  finally{_bgPollBusy=false;}
   if(_swErr>5){_swErr=0;console.warn("[SW] Too many errors — skipping poll");return;}
 }
 /* ═══════════════ Error-type → cooldown mapping ═══════════════ */
@@ -191,7 +194,9 @@ async function pumpLinkControl(cfg,devs,db,ps){
   var stateSrc=(await dbGet(db,"pl_state_src"))||{};
   var now=Date.now();var PL_COOL=300000;
   var devMap={};devs.forEach(function(d){devMap[d.device]=d;});
+  var _reservoirSeen={};
   for(var i=0;i<links.length;i++){
+    try{
     var lnk=links[i];
     if(!lnk.enabled)continue;
     if(lnk.manualOverride)continue;
@@ -204,16 +209,19 @@ async function pumpLinkControl(cfg,devs,db,ps){
     var resD=devMap[lnk.reservoir],pumD=devMap[lnk.pump];
     if(!resD||!pumD)continue;
     var lv=parseFloat(resD.level);if(isNaN(lv))continue;
-    /* Level history for resume dampening — expanded to 4 samples */
-    if(!hist[lnk.reservoir])hist[lnk.reservoir]=[];
-    hist[lnk.reservoir].push(lv);
-    while(hist[lnk.reservoir].length>4)hist[lnk.reservoir].shift();
+    /* Level history for resume dampening — expanded to 4 samples, only once per reservoir per poll */
+    if(!_reservoirSeen[lnk.reservoir]){
+      if(!hist[lnk.reservoir])hist[lnk.reservoir]=[];
+      hist[lnk.reservoir].push(lv);
+      while(hist[lnk.reservoir].length>4)hist[lnk.reservoir].shift();
+      _reservoirSeen[lnk.reservoir]=true;
+    }
     var sOff=parseFloat(lnk.shutoffLevel),sRes=parseFloat(lnk.resumeLevel);
     var sOff2=parseFloat(lnk.shutoffLevel2)||0,sRes2=parseFloat(lnk.resumeLevel2)||0;
     if(isNaN(sOff)||isNaN(sRes))continue;
     var pOn=pumD.commandedRelay==1||pumD.commandedRelay===true||pumD.relay==1||pumD.relay===true||pumD.relay==="1";
     var ck=lnk.pump;
-    if(cool[ck]&&now-cool[ck]<PL_COOL)continue;
+    if(cool[ck]&&now<cool[ck])continue;
     var needOff=pOn&&(lv>=sOff||(sOff2>0&&lv>=sOff2));
     var needOn=!pOn&&(lv<=sRes||(sRes2>0&&lv<=sRes2));
     /* ★ FIX: Dampening — require 2 most-recent consecutive readings below resume before ON */
@@ -235,7 +243,7 @@ async function pumpLinkControl(cfg,devs,db,ps){
     delete cmdPend[lnk.pump];
     if(!tr){
       /* ★ FIX: Error-driven cooldown — different durations for different failures */
-      cool[ck]=now+300000;
+      cool[ck]=now+_ERR_COOL.unknown;
       continue;
     }
     if(tr.error){
@@ -247,7 +255,8 @@ async function pumpLinkControl(cfg,devs,db,ps){
         continue;
       }
       /* Use error-driven cooldown based on errorType or string matching */
-      cool[ck]=now+_cooldownForError(errType,tr.error);
+      var errCool = _cooldownForError(errType,tr.error);
+      if(errCool>0){cool[ck]=now+errCool;}else{delete cool[ck];}
       continue;
     }
     if(tr.success){
@@ -259,6 +268,7 @@ async function pumpLinkControl(cfg,devs,db,ps){
       ps.push(pop((newOn?"▶️ Auto-ON: ":"⏹️ Auto-OFF: ")+lnk.pump,
         lnk.reservoir+" "+thresh+". Level: "+lvStr,"pl:"+ck,true));
     }
+    }catch(e){console.warn("[SW] pumpLink error for",lnk&&lnk.pump,e);}
   }
   await dbSet(db,"pl_cool",cool);
   await dbSet(db,"pl_hist",hist);
@@ -324,7 +334,7 @@ self.addEventListener("message",function(e){
         }
         return dbSet(db3,"pl_cmd_pend",cp);
       });
-    });
+    }).catch(function(e){console.warn("[SW] AGUS_PL_CMD_LOCK error:",e);});
   }
   if(d.type==="AGUS_KEEPALIVE"||d.type==="AGUS_PING"){
     if(e.source)try{e.source.postMessage({type:"AGUS_ALIVE"});}catch(x){}
