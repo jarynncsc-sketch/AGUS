@@ -379,6 +379,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
+  <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -2520,6 +2521,138 @@ try {
   console.warn('[FB] Init error:', e);
 }
 
+// ════════════════════════════════════════════════════════════════════
+//  MQTT WebSocket — instant relay commands via EMQX
+//  Dashboard publishes directly to the device's MQTT topic.
+//  ESP32 receives and flips relay in <500ms (vs 15s Firebase poll).
+// ════════════════════════════════════════════════════════════════════
+var MQTT_BROKER = 'k196aaef.ala.asia-southeast1.emqxsl.com';
+var MQTT_WS_PORT = 8084;
+// ★ SECURITY FIX: MQTT_USER/MQTT_PASS used to be hardcoded here — anyone opening
+// dev tools or view-source on the dashboard got a live pump-control MQTT credential,
+// no login required. Credentials now come ONLY from the authenticated
+// ?action=getMqttCreds call below (which itself now requires a valid session token —
+// see the matching GAS fix). If that call fails or the user isn't logged in yet,
+// MQTT simply doesn't connect; the dashboard still works via the existing
+// GAS + Firebase fallback path (see the `_mqttSent` checks throughout).
+var MQTT_USER = null;
+var MQTT_PASS = null;
+var _mqttClient = null;
+var _mqttConnected = false;
+var _mqttDeviceTopics = {}; // { deviceName: { cmdTopic, telemTopic } }
+
+function _mqttSlug(name) {
+  if (!name) return '';
+  return name.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(Boolean).join('-');
+}
+
+function initMQTT() {
+  if (typeof mqtt === 'undefined') {
+    console.warn('[MQTT] mqtt.js not loaded');
+    return;
+  }
+  if (!sessionToken) {
+    console.log('[MQTT] Waiting for login before requesting MQTT credentials');
+    return; // called again from the post-login handler once sessionToken is set
+  }
+  _fetchMqttCredsThenConnect();
+}
+
+function _fetchMqttCredsThenConnect() {
+  var gasUrl = typeof API_URL !== 'undefined' ? API_URL : (typeof GAS_URL !== 'undefined' ? GAS_URL : (typeof gasWebAppUrl !== 'undefined' ? gasWebAppUrl : null));
+  if (gasUrl && sessionToken) {
+    fetch(gasUrl + '?action=getMqttCreds&token=' + encodeURIComponent(sessionToken))
+      .then(function(r) { return r.json(); })
+      .then(function(creds) {
+        if (creds && creds.mqttUser) {
+          MQTT_USER = creds.mqttUser;
+          MQTT_PASS = creds.mqttPass;
+          if (creds.mqttBroker) MQTT_BROKER = creds.mqttBroker;
+          if (creds.mqttWsPort) MQTT_WS_PORT = creds.mqttWsPort;
+          console.log('[MQTT] Credentials fetched from GAS');
+          _doMqttConnect();
+        } else {
+          console.warn('[MQTT] Creds request unauthorized or empty — MQTT will stay disconnected, GAS/Firebase path still active');
+        }
+      })
+      .catch(function(e) {
+        console.warn('[MQTT] Could not fetch creds from GAS — MQTT will stay disconnected, GAS/Firebase path still active:', e);
+      });
+  }
+}
+
+function _doMqttConnect() {
+  if (!MQTT_USER || !MQTT_PASS) { console.warn('[MQTT] No credentials available — skipping connect'); return; }
+  var clientId = 'dashboard_' + Math.random().toString(16).substr(2, 8);
+  var url = 'wss://' + MQTT_BROKER + ':' + MQTT_WS_PORT + '/mqtt';
+  console.log('[MQTT] Connecting to', url, 'as', MQTT_USER);
+  try {
+    _mqttClient = mqtt.connect(url, {
+      username: MQTT_USER,
+      password: MQTT_PASS,
+      clientId: clientId,
+      protocolVersion: 5,
+      clean: true,
+      connectTimeout: 10000,
+      reconnectPeriod: 5000
+    });
+    _mqttClient.on('connect', function() {
+      _mqttConnected = true;
+      console.log('[MQTT] Connected to EMQX WSS as', MQTT_USER);
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('error', function(err) {
+      _mqttConnected = false;
+      console.warn('[MQTT] Error:', err.message);
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('close', function() {
+      _mqttConnected = false;
+      _updateMQTTStatus();
+    });
+    _mqttClient.on('reconnect', function() {
+      console.log('[MQTT] Reconnecting...');
+    });
+  } catch(e) {
+    console.warn('[MQTT] Init failed:', e);
+  }
+}
+
+function _updateMQTTStatus() {
+  var el = document.getElementById('conn-indicator');
+  if (!el) return;
+  if (_mqttConnected && _firebaseConnected) {
+    el.style.color = '#22c55e';
+    el.title = 'MQTT + Firebase connected';
+  } else if (_firebaseConnected) {
+    el.style.color = '#f97316';
+    el.title = 'Firebase only — MQTT disconnected';
+  } else {
+    el.title = (_mqttConnected ? 'MQTT only' : 'Disconnected');
+  }
+}
+
+function mqttPublishRelay(deviceName, state) {
+  if (!_mqttClient || !_mqttConnected) {
+    console.warn('[MQTT] Not connected — cannot publish relay');
+    return false;
+  }
+  var slug = _mqttSlug(deviceName);
+  var topic = 'pumps/' + slug + '/relay';
+  var payload = state ? 'ON' : 'OFF';
+  try {
+    _mqttClient.publish(topic, payload, { qos: 1, retain: false });
+    console.log('[MQTT] Published', payload, '→', topic);
+    return true;
+  } catch(e) {
+    console.warn('[MQTT] Publish failed:', e);
+    return false;
+  }
+}
+
+// MQTT initializes from the post-login handler (see login()) once sessionToken exists —
+// not here on page load, since there's no session yet for getMqttCreds to authenticate.
+
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
 var _API_RETRY_DELAY = 2000; // 2s delay before retry
 function _fetchWithTimeout(url, timeoutMs) {
@@ -2614,7 +2747,7 @@ var _lastKnownRelay = {}; // { deviceName: 0|1 } — tracks actual relay state f
 var _lastKnownRelayInitialized = false; // BUG FIX: skip first-load "physical toggle" sync so user commands aren't overwritten
 var _esp32SyncCooldown = {}; // { deviceName: timestamp } — 10s debounce per device to avoid rapid GAS calls
 var _relayPendingUntil = {}; // { deviceName: timestamp } — dashboard wrote relay to Firebase, show "Sending…" until this time
-var _RELAY_PENDING_TIMEOUT = 120000; // 2 min — must match ESP32's GAS_POLL_INTERVAL so "Sending…" persists until device confirms
+var _RELAY_PENDING_TIMEOUT = 20000; // 20 sec — must match ESP32's COMMAND_POLL_INTERVAL (15s) + margin so "Sending…" persists until device confirms
 var _MANUAL_OVERRIDE_MS = 3600000; // 1 hour: manual toggle blocks APE + schedule via Firebase manualOverride flag
 function _setManualOverrideFB(deviceName, active) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
@@ -2899,6 +3032,7 @@ function login() {
     .then(function(token) {
       if (!token) { spinEl.style.display = 'none'; errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
       userToken = token; sessionToken = token; loggedInUser = user;
+      initMQTT(); // now that sessionToken exists, getMqttCreds can authenticate
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
@@ -3868,7 +4002,6 @@ function initDashboard() {
         var wantState = needOn ? 1 : 0;
 
         _setCommandedCache(lnk.pump, wantState);
-        _firebaseOptimisticToggle(lnk.pump, wantState, 'AutoEngine');
         window._apeCooldowns[ck] = now;
         _saveCooldowns();
 
@@ -3890,39 +4023,39 @@ function initDashboard() {
         /* Fire command */
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
+
+          /* INSTANT: publish directly to EMQX broker (~100ms) */
+          var _mqttSent = false;
+          try { _mqttSent = mqttPublishRelay(device, state); } catch(_e) {}
+          if (_mqttSent) {
+            console.log('[APE] EMQX instant relay:', device, state ? 'ON' : 'OFF');
+          } else {
+            console.warn('[APE] MQTT not connected — falling back to GAS-only');
+          }
+
+          /* Async GAS write — for logging/audit (non-blocking) */
           apiPost('togglePump', {
             device:       device,
             token:        userToken,
-            desiredState: state,          // ── FIX 1: explicit target state, never a blind flip
-            relay:        state,          // ── GAS compatibility alias
+            desiredState: state,
+            relay:        state,
             triggeredBy:  state ? 'AutoResume' : 'AutoShutoff',
             latitude:     coords.latitude  || '',
             longitude:    coords.longitude || ''
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
-              // ★ BUG FIX: was also writing relay: res.newState here — same premature-
-              // confirmation bug as dashboardTogglePump. This is the pump-link auto engine,
-              // so it hit every 5-min cooldown-eligible cycle, meaning relayPending for
-              // auto-shutoff/resume was masked most of the time. Only commandedRelay now.
-              if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState }); } catch(e) {}
-              }
               var onOff = res.newState ? 'ON' : 'OFF';
-              var reason = res.newState
-                ? link.reservoir + ' at ' + level.toFixed(1) + ' m³ (resume ≤ ' + link.resumeLevel + ' m³)'
-                : link.reservoir + ' at ' + level.toFixed(1) + ' m³ (shutoff ≥ ' + link.shutoffLevel + ' m³)';
               _addAutoShutoffLog({ pump: device, action: 'AUTO-' + onOff, timestamp: new Date().toLocaleString(), triggeredby: 'AutoEngine', reservoir: link.reservoir, level: level.toFixed(1) });
-              /* Re-sync the badge */
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
-            } else {
-              /* Revert optimistic state on failure — skip lastToggledBy, the change didn't happen */
+            } else if (!_mqttSent) {
               _setCommandedCache(device, state === 1 ? 0 : 1);
-              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
             }
           }).catch(function() {
-            /* Network error — leave optimistic state, will re-check next cycle */
+            if (!_mqttSent) {
+              /* Only revert if EMQX didn't fire — otherwise ESP32 already has the command */
+            }
           });
         })(lnk.pump, wantState, ck, lv, lnk);
       }
@@ -4315,32 +4448,43 @@ function hasAutomation(deviceName) {
 }
 
 // ── The real toggle execution ──
+// Flow: Dashboard → EMQX (instant) → ESP32. Then GAS (async) for logging.
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
   var _dKey = 'dTP:' + deviceName;
-  // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
+  // ═══ Step 1: Optimistic cache update ═══
   _setCommandedCache(deviceName, newStateInt);
-  _firebaseOptimisticToggle(deviceName, newStateInt);
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   _manualToggleCooldown[deviceName] = Date.now() + 300000;
-  // ★ FIX: cooldown is set here (optimistic phase) so the APE engine
-  //       & auto-shutoff respect it BEFORE GAS even returns.
-  try {
-    var _swDbReq = indexedDB.open("agus_sw", 1);
-    _swDbReq.onsuccess = function(_swDbEv) {
-      var _swDb = _swDbEv.target.result;
-      var _swTx = _swDb.transaction("kv", "readwrite");
-      var _swStore = _swTx.objectStore("kv");
-      var _swGet = _swStore.get("pl_man_cool");
-      _swGet.onsuccess = function() {
-        var _swMc = _swGet.result || {};
-        _swMc[deviceName] = Date.now() + 300000;
-        _swStore.put(_swMc, "pl_man_cool");
+    try {
+      var _swDbReq = indexedDB.open("agus_sw", 1);
+      _swDbReq.onsuccess = function(_swDbEv) {
+        var _swDb = _swDbEv.target.result;
+        var _swTx = _swDb.transaction("kv", "readwrite");
+        var _swStore = _swTx.objectStore("kv");
+        var _swGet = _swStore.get("pl_man_cool");
+        _swGet.onsuccess = function() {
+          var _swMc = _swGet.result || {};
+          _swMc[deviceName] = Date.now() + 300000;
+          _swStore.put(_swMc, "pl_man_cool");
+        };
       };
-    };
-  } catch(_swDbErr) {}
+    } catch(_swDbErr) {}
+    try {
+      var _sw = (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (_sw) _sw.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: true });
+    } catch(_cmdLockErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 3: Authoritative GAS write ═══
+  // ═══ Step 2: INSTANT EMQX MQTT — direct publish to broker ═══
+  var _mqttSent = false;
+  try { _mqttSent = mqttPublishRelay(deviceName, newStateInt); } catch(_e) {}
+  if (_mqttSent) {
+    console.log('[EMQX] Instant relay toggle sent:', deviceName, newStateInt ? 'ON' : 'OFF');
+  } else {
+    console.warn('[EMQX] MQTT not connected — falling back to GAS-only');
+  }
+
+  // ═══ Step 3: GAS write (async, non-blocking — for logging/audit) ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
@@ -4353,17 +4497,13 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   }).then(function(res) {
     delete _localTogglePending[_dKey];
     if (res && res.success) {
-      // ═══ Step 4: GAS confirmed ─ always re-assert relay in Firebase ═══
+      try {
+        var _sw2 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+        if (_sw2) _sw2.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+      } catch(_e2) {}
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
-      if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
-      }
-      if (res.firebaseDelivered === false) {
-        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
-      } else {
-        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
-      }
+      showNotification(deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
       pumpLinkConfigs.forEach(function(pl) {
         if (pl.pump === deviceName) {
@@ -4374,28 +4514,30 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
           }
         }
       });
-      // ═══ Step 4b: Manual override ─ set when OFF (leak/emergency), clear when ON ═══
       if (res.newState === 0) _setManualOverrideFB(deviceName, true);
       else _setManualOverrideFB(deviceName, false);
-      // ═══ Step 4c: Auto-engage pumpLink manualOverride + disable schedules ═══
       _engageAutomationForManualToggle(deviceName, res.newState);
       setTimeout(updateDashboard, 1500);
     } else {
-      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
+      try {
+        var _sw3 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+        if (_sw3) _sw3.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+      } catch(_e3) {}
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
-      _firebaseOptimisticToggle(deviceName, revert, false);
       if (cb) cb(revert);
-      showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
+      showNotification('Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
     }
   }).catch(function(e) {
-    // ═══ Step 4: Network error — revert cache + Firebase ═══
     delete _localTogglePending[_dKey];
+    try {
+      var _sw4 = (navigator.serviceWorker && navigator.serviceWorker.controller);
+      if (_sw4) _sw4.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
+    } catch(_e4) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
-    _firebaseOptimisticToggle(deviceName, revert, false);
     if (cb) cb(revert);
-    showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
+    showNotification('Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
   });
 }
@@ -4872,6 +5014,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -4902,6 +5045,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 0); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -4924,6 +5068,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -4951,6 +5096,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          try { mqttPublishRelay(pumpName, 1); } catch(_e) {}
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -9870,10 +10016,22 @@ function exportDashboardPDF() {
       var sw = (_swReg && (_swReg.active || _swReg.installing || _swReg.waiting))
                || (navigator.serviceWorker && navigator.serviceWorker.controller);
       if (!sw) return;
+      /* ★ NEW: Build schedule cooldown map from cached dashboard data */
+      var _schCool = {};
+      try {
+        var _devs = (typeof window._lastDevices !== 'undefined' && Array.isArray(window._lastDevices)) ? window._lastDevices : [];
+        _devs.forEach(function(d) {
+          if (d.scheduleCooldownUntil && d.scheduleCooldownUntil > Date.now()) {
+            _schCool[d.device] = d.scheduleCooldownUntil;
+          }
+        });
+      } catch(_e) {}
       sw.postMessage({
         type:    'AGUS_PL',
         links:   (typeof pumpLinkConfigs !== 'undefined' ? pumpLinkConfigs : []),
         manCool: (typeof _manualToggleCooldown !== 'undefined' ? _manualToggleCooldown : {}),
+        schCool: _schCool,
+        gasTriggerInstalled: (typeof _gasTriggerInstalled !== 'undefined' ? _gasTriggerInstalled : false),
         baseCfg: {
           apiUrl: (typeof API_URL !== 'undefined' ? API_URL : ''),
           token:  (typeof userToken !== 'undefined' ? userToken : '')
