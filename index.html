@@ -3650,6 +3650,14 @@ function initDashboard() {
   });
 }
 
+/* ═══ Save the real dashboardTogglePump BEFORE the IIFE wrapper overwrites it.
+   Due to hoisting, the function declaration at ~line 4019 already exists as
+   window.dashboardTogglePump at this point. We must capture it now so the
+   wrapper can defer to it at call-time without infinite recursion. ═══ */
+if (typeof dashboardTogglePump === 'function') {
+  window._dashboardTogglePumpReal = dashboardTogglePump;
+}
+
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║  AUTONOMOUS PUMP-LINK ENGINE                                            ║
 // ║  Runs every 60s completely independently of the dashboard UI.           ║
@@ -4030,7 +4038,13 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   if (cb) cb(newStateInt);
 
-  // ═══ Step 3: Authoritative GAS write ═══
+  // ═══ Step 3: Lock SW pump-link auto-control while command is in-flight ═══
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: true, device: deviceName });
+    }
+  } catch(e) {}
+
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
@@ -4041,6 +4055,12 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
     longitude:    coords.longitude || ''
   }).then(function(res) {
     delete _localTogglePending[_dKey];
+    // ═══ Unlock SW pump-link auto-control ═══
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: false, device: deviceName });
+      }
+    } catch(e) {}
     if (res && res.success) {
       // ═══ Step 4: GAS confirmed — always re-assert relay in Firebase (GAS may have overwritten it) ═══
       _setCommandedCache(deviceName, res.newState);
@@ -4070,6 +4090,11 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
       setTimeout(updateDashboard, 1500);
     } else {
       // ═══ Step 4: GAS rejected — revert cache + Firebase to original state (skip lastToggledBy) ═══
+      try {
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: false, device: deviceName });
+        }
+      } catch(e) {}
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
       _firebaseOptimisticToggle(deviceName, revert, false);
@@ -4079,6 +4104,11 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   }).catch(function(e) {
     // ═══ Step 4: Network error — revert cache + Firebase (skip lastToggledBy) ═══
     delete _localTogglePending[_dKey];
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: false, device: deviceName });
+      }
+    } catch(ex) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
     _firebaseOptimisticToggle(deviceName, revert, false);
@@ -4091,7 +4121,89 @@ function dashboardTogglePump(deviceName, newStateInt, cb) {
   //     when ESP32 writes relay = commandedRelay back to Firebase, the listener fires,
   //     _updateDashboardFromFirebase() sees they match, relayPending goes false.
 }
-window._dashboardTogglePumpReal = dashboardTogglePump;
+/* ═══ NOTE: _dashboardTogglePumpReal was already captured BEFORE the IIFE
+   wrapper above overwrote window.dashboardTogglePump. Do NOT reassign here —
+   doing so would capture the wrapper itself, causing infinite recursion. ═══ */
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  hasAutomation() — checks whether a pump has any enabled pump-link
+// ══════════════════════════════════════════════════════════════════════════════
+function hasAutomation(deviceName) {
+  if (!pumpLinkConfigs || !pumpLinkConfigs.length) return false;
+  return pumpLinkConfigs.some(function(pl) {
+    return pl.pump === deviceName && pl.enabled;
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  showPumpLinkConfirmModal() — styled overlay confirmation when toggling
+//  a pump that has active automation links
+// ══════════════════════════════════════════════════════════════════════════════
+function showPumpLinkConfirmModal(deviceName, newStateInt, linkedReservoirs, cb) {
+  var old = document.getElementById('pl-confirm-overlay'); if (old) old.remove();
+  var isOn = newStateInt === 1;
+  var action = isOn ? 'ON' : 'OFF';
+  var color = isOn ? '#059669' : '#dc2626';
+  var colorBg = isOn ? '#ecfdf5' : '#fef2f2';
+  var colorBorder = isOn ? '#a7f3d0' : '#fca5a5';
+  var icon = isOn ? '▶' : '⏹';
+  var ov = document.createElement('div');
+  ov.id = 'pl-confirm-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.72);z-index:6300;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;';
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;width:400px;max-width:95vw;box-shadow:0 24px 70px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);">'
+    + '<div style="background:linear-gradient(135deg,' + color + ',' + (isOn ? '#047857' : '#b91c1c') + ');padding:18px 20px;display:flex;align-items:center;gap:12px;">'
+    +   '<div style="background:rgba(255,255,255,0.2);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;">🔗</div>'
+    +   '<div>'
+    +     '<div style="color:#fff;font-weight:800;font-size:1rem;">Confirm Manual Toggle</div>'
+    +     '<div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:1px;">Automation links are active for this pump</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="padding:20px;">'
+    +   '<div style="background:' + colorBg + ';border:1.5px solid ' + colorBorder + ';border-radius:12px;padding:14px 16px;margin-bottom:14px;">'
+    +     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+    +       '<span style="font-size:20px;">' + icon + '</span>'
+    +       '<span style="font-weight:700;color:' + color + ';font-size:14px;">Turn ' + action + ': ' + deviceName + '</span>'
+    +     '</div>'
+    +     '<div style="font-size:12px;color:#475569;line-height:1.5;">'
+    +       'This pump has <b>active automation links</b> connected to:<br>'
+    +       '<span style="color:#0369a1;font-weight:600;">' + linkedReservoirs + '</span>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div style="font-size:11.5px;color:#64748b;margin-bottom:16px;line-height:1.5;">'
+    +     (isOn
+    ?       'Turning <b>ON</b> manually will activate a <b>30-minute manual override</b> — automation (auto-shutoff/resume) will be paused during this time.'
+    :       'Turning <b>OFF</b> manually will activate a <b>manual override</b> — automation will not restart this pump until you turn it back ON or the override is cleared.')
+    +   '</div>'
+    +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+    +     '<button id="pl-confirm-cancel" style="padding:9px 24px;background:#f1f5f9;color:#475569;border:1.5px solid #e2e8f0;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Cancel</button>'
+    +     '<button id="pl-confirm-ok" style="padding:9px 24px;background:linear-gradient(135deg,' + color + ',' + (isOn ? '#047857' : '#b91c1c') + ');color:#fff;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">' + icon + ' Turn ' + action + '</button>'
+    +   '</div>'
+    + '</div>'
+    + '</div>';
+  ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  ov.querySelector('#pl-confirm-cancel').addEventListener('click', function() { ov.remove(); });
+  ov.querySelector('#pl-confirm-ok').addEventListener('click', function() {
+    ov.remove();
+    dashboardTogglePump(deviceName, newStateInt, cb);
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  confirmAndTogglePump() — gate: if pump has active automation links, show
+//  confirmation modal first; otherwise toggle instantly
+// ══════════════════════════════════════════════════════════════════════════════
+function confirmAndTogglePump(deviceName, newStateInt, cb) {
+  if (newStateInt === 1 && hasAutomation(deviceName)) {
+    var linked = pumpLinkConfigs.filter(function(pl) {
+      return pl.pump === deviceName && pl.enabled;
+    });
+    var linkText = linked.map(function(pl) { return pl.reservoir; }).join(', ');
+    showPumpLinkConfirmModal(deviceName, newStateInt, linkText, cb);
+    return;
+  }
+  dashboardTogglePump(deviceName, newStateInt, cb);
+}
 
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list');
@@ -4171,7 +4283,7 @@ if (isResBooster) {
   var resCb = li.querySelector('input[type="checkbox"]');
   resCb.addEventListener('change', function() {
     var newStateInt = resCb.checked ? 1 : 0;
-    dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
+    confirmAndTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
@@ -4277,7 +4389,7 @@ if (isResBooster) {
           }
         }
         // ── FIX 3b: Clear autoShutoffState only AFTER confirmed success, not before ──
-        dashboardTogglePump(d.device, newStateInt, function(confirmed) {
+        confirmAndTogglePump(d.device, newStateInt, function(confirmed) {
           cb.checked = confirmed === 1;
           if (confirmed === 1) {
             Object.keys(reservoirAutoShutoffState).forEach(function(k) {
