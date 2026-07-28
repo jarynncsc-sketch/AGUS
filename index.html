@@ -4340,6 +4340,13 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   } catch(_swDbErr) {}
   if (cb) cb(newStateInt);
 
+  // ═══ Step 2b: Lock SW pump-link auto-control while command is in-flight ═══
+  try {
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: true, device: deviceName });
+    }
+  } catch(e) {}
+
   // ═══ Step 3: Authoritative GAS write ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
@@ -4352,6 +4359,12 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
     longitude:    coords.longitude || ''
   }).then(function(res) {
     delete _localTogglePending[_dKey];
+    // ═══ Unlock SW pump-link auto-control ═══
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: false, device: deviceName });
+      }
+    } catch(e) {}
     if (res && res.success) {
       // ═══ Step 4: GAS confirmed ─ always re-assert relay in Firebase ═══
       _setCommandedCache(deviceName, res.newState);
@@ -4391,6 +4404,12 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   }).catch(function(e) {
     // ═══ Step 4: Network error — revert cache + Firebase ═══
     delete _localTogglePending[_dKey];
+    // ═══ Unlock SW pump-link auto-control ═══
+    try {
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: 'AGUS_PL_CMD_LOCK', lock: false, device: deviceName });
+      }
+    } catch(e) {}
     var revert = newStateInt === 1 ? 0 : 1;
     _setCommandedCache(deviceName, revert);
     _firebaseOptimisticToggle(deviceName, revert, false);
@@ -4400,7 +4419,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   });
 }
 
-// ── New dashboardTogglePump: shows confirmation first ──
+// ── dashboardTogglePump: instant toggle ──
 window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   // Debounce: ignore rapid re-toggle within 600ms
   var _dKey = 'dTP:' + deviceName;
@@ -4408,12 +4427,64 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
-  _showToggleConfirmation(deviceName, newStateInt, cb);
+  _executeDashboardToggle(deviceName, newStateInt, cb);
   // Re-sync SW cooldowns after manual toggle
   setTimeout(function() {
     if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
   }, 500);
 };
+
+// ── Manual Override Popup ── shows info after manual OFF when automation exists ──
+function showManualOverridePopup(deviceName, newStateInt) {
+  var old = document.getElementById('pl-confirm-overlay'); if (old) old.remove();
+  var isOn = newStateInt === 1;
+  var color = isOn ? '#059669' : '#dc2626';
+  var colorGrad = isOn ? '#047857' : '#b91c1c';
+  var icon = isOn ? '▶' : '⏹';
+  var action = isOn ? 'ON' : 'OFF';
+  var linked = [];
+  if (pumpLinkConfigs && pumpLinkConfigs.length) {
+    pumpLinkConfigs.forEach(function(pl) {
+      if (pl.pump === deviceName && pl.enabled && linked.indexOf(pl.reservoir) === -1) linked.push(pl.reservoir);
+    });
+  }
+  var linkText = linked.length ? linked.join(', ') : 'N/A';
+  var ov = document.createElement('div');
+  ov.id = 'pl-confirm-overlay';
+  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.72);z-index:6300;display:flex;align-items:center;justify-content:center;padding:12px;box-sizing:border-box;';
+  ov.innerHTML = '<div style="background:#fff;border-radius:18px;width:400px;max-width:95vw;box-shadow:0 24px 70px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);">'
+    + '<div style="background:linear-gradient(135deg,' + color + ',' + colorGrad + ');padding:18px 20px;display:flex;align-items:center;gap:12px;">'
+    +   '<div style="background:rgba(255,255,255,0.2);border-radius:10px;width:40px;height:40px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff;">🔒</div>'
+    +   '<div>'
+    +     '<div style="color:#fff;font-weight:800;font-size:1rem;">Manual Override Active</div>'
+    +     '<div style="color:rgba(255,255,255,0.8);font-size:11px;margin-top:1px;">Automation paused for this pump</div>'
+    +   '</div>'
+    + '</div>'
+    + '<div style="padding:20px;">'
+    +   '<div style="background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px 16px;margin-bottom:14px;">'
+    +     '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'
+    +       '<span style="font-size:20px;">' + icon + '</span>'
+    +       '<span style="font-weight:700;color:' + color + ';font-size:14px;">' + deviceName + ' → ' + action + '</span>'
+    +     '</div>'
+    +     '<div style="font-size:12px;color:#475569;line-height:1.5;">'
+    +       'Connected automation links: <span style="color:#0369a1;font-weight:600;">' + linkText + '</span>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div style="font-size:11.5px;color:#64748b;margin-bottom:16px;line-height:1.5;">'
+    +     (isOn
+    ?       'Manual override is active — auto-shutoff and auto-resume will be <b>paused for 1 hour</b>. The pump will run until you turn it OFF or the override expires.'
+    :       'The pump has been turned OFF manually. Automation will not restart it until the reservoir drops below the resume level and you clear the override.')
+    +   '</div>'
+    +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
+    +     '<button id="pl-confirm-ok" style="padding:9px 24px;background:linear-gradient(135deg,' + color + ',' + colorGrad + ');color:#fff;border:none;border-radius:9px;font-size:12.5px;font-weight:700;cursor:pointer;touch-action:manipulation;">Got it</button>'
+    +   '</div>'
+    + '</div>'
+    + '</div>';
+  ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
+  document.body.appendChild(ov);
+  ov.querySelector('#pl-confirm-ok').addEventListener('click', function() { ov.remove(); });
+  setTimeout(function() { var el = document.getElementById('pl-confirm-overlay'); if (el) el.remove(); }, 8000);
+}
 
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list');
@@ -4516,7 +4587,16 @@ if (isResBooster) {
         return;
       }
     }
-    dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
+    var _stepDone = false;
+    var _popupShown = false;
+    dashboardTogglePump(d.device, newStateInt, function(confirmed) {
+      resCb.checked = confirmed === 1;
+      if (!_stepDone) { _stepDone = true; return; } // Step 1+2: optimistic only
+      if (!_popupShown && newStateInt === 0 && confirmed === 0 && hasAutomation(d.device)) {
+        _popupShown = true;
+        showManualOverridePopup(d.device, 0);
+      }
+    });
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
@@ -4605,13 +4685,20 @@ if (isResBooster) {
           }
         }
         // ── FIX 3b: Clear autoShutoffState only AFTER confirmed success, not before ──
+        var _stepDone = false;
+        var _psPopupShown = false;
         dashboardTogglePump(d.device, newStateInt, function(confirmed) {
           cb.checked = confirmed === 1;
+          if (!_stepDone) { _stepDone = true; return; } // Step 1+2: optimistic only
           if (confirmed === 1) {
             Object.keys(reservoirAutoShutoffState).forEach(function(k) {
               if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
             });
             localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+          }
+          if (!_psPopupShown && newStateInt === 0 && confirmed === 0 && hasAutomation(d.device)) {
+            _psPopupShown = true;
+            showManualOverridePopup(d.device, 0);
           }
         });
       });
