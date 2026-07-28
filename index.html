@@ -3805,9 +3805,10 @@ function initDashboard() {
           }).then(function(res) {
             if (res && res.success) {
               _setCommandedCache(device, res.newState);
-              // Re-assert relay in Firebase — GAS may have overwritten it
+              // Re-assert commandedRelay in Firebase — GAS may have overwritten it.
+              // ★ FIX: never write 'relay' here — that field is device-owned only.
               if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState, relay: res.newState }); } catch(e) {}
+                try { _fbDevicesRef.child(device).update({ commandedRelay: res.newState }); } catch(e) {}
               }
               var onOff = res.newState ? 'ON' : 'OFF';
               var reason = res.newState
@@ -4018,7 +4019,11 @@ function processOfflineQueue() { /* no-op in v3 */ }
 function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
   if (typeof firebase === 'undefined' || !_fbDevicesRef) return;
   try {
-    var _update = { commandedRelay: value, relay: value };
+    // ★ FIX: only write commandedRelay (the order) here — never 'relay' (the
+    // confirmed/actual state). 'relay' must stay device-owned so relayPending
+    // (commandedRelay !== relay) keeps working as a real "awaiting confirmation"
+    // signal instead of being permanently masked.
+    var _update = { commandedRelay: value };
     if (toggledBy !== false) _update.lastToggledBy = toggledBy || loggedInUser || 'dashboard';
     _fbDevicesRef.child(deviceName).update(_update).catch(function(e) {
       console.warn('[FB] Optimistic write failed:', e);
@@ -4077,14 +4082,25 @@ function dashboardTogglePumpImpl(deviceName, newStateInt, cb) {
       if (_swUnlock) _swUnlock.postMessage({ type: 'AGUS_PL_CMD_LOCK', device: deviceName, lock: false });
     } catch(_e) {}
     if (res && res.success) {
-      // ═══ Step 4: GAS confirmed — always re-assert relay in Firebase (GAS may have overwritten it) ═══
+      // ═══ Step 4: GAS confirmed the command was accepted — re-assert commandedRelay
+      // in Firebase (GAS may have overwritten it). Never touch 'relay' here — that
+      // field belongs to the ESP32 alone; the whole point of this fix is to let
+      // relayPending (commandedRelay !== relay) genuinely reflect reality. ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
       if (typeof firebase !== 'undefined' && _fbDevicesRef) {
-        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, relay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
+        try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
       }
-      if (res.firebaseDelivered === false) {
-        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
+      // ★ FIX: honestly report delivery. Previously this branch always showed a plain
+      // "success" toast because GAS never returned emqxDelivered/firebaseDelivered —
+      // now both are real, so we can tell the operator when neither transport actually
+      // reached the device (the exact "relay isn't responding" symptom).
+      if (res.anyTransportDelivered === false) {
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but NEITHER EMQX nor Firebase delivered the command — the physical relay likely did not respond. Check device connectivity / EventLog.', 'error');
+      } else if (res.emqxDelivered === false) {
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' — EMQX publish failed, falling back to Firebase (device may take up to ~10s to respond).', 'warning');
+      } else if (res.firebaseDelivered === false) {
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but the Firebase backup push failed — relying on EMQX only. Check EventLog.', 'warning');
       } else {
         showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
       }
