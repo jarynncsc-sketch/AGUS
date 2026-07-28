@@ -4482,8 +4482,9 @@ function _showToggleConfirmation(deviceName, newStateInt, cb) {
     }
   });
 
-  // Close modal on backdrop click
-  modal.addEventListener('click', function(e) {
+  // Close modal on backdrop click (remove previous listener first to avoid accumulation)
+  if (modal._backdropHandler) modal.removeEventListener('click', modal._backdropHandler);
+  modal._backdropHandler = function(e) {
     if (e.target === modal) {
       modal.style.display = 'none';
       if (_pendingToggle && _pendingToggle.cb) {
@@ -4491,7 +4492,8 @@ function _showToggleConfirmation(deviceName, newStateInt, cb) {
         _pendingToggle = null;
       }
     }
-  });
+  };
+  modal.addEventListener('click', modal._backdropHandler);
 }
 
 // ── Helper: does this device have any active automation? ──
@@ -4622,7 +4624,8 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
 window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   // Debounce: ignore rapid re-toggle within 600ms
   var _dKey = 'dTP:' + deviceName;
-  if (_localTogglePending[_dKey]) return;
+  var _prev = _localTogglePending[_dKey];
+  if (_prev && Date.now() - _prev < 600) return;
   _localTogglePending[_dKey] = Date.now();
   setTimeout(function() { delete _localTogglePending[_dKey]; }, 600);
 
@@ -5088,6 +5091,11 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          _publishToMQTT(pumpName, 0, 5, function() {});
+          _setCommandedCache(pumpName, 0);
+          if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+            try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 0 }); } catch(e) {}
+          }
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5118,6 +5126,11 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          _publishToMQTT(pumpName, 0, 5, function() {});
+          _setCommandedCache(pumpName, 0);
+          if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+            try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 0 }); } catch(e) {}
+          }
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 0, desiredState: 0, triggeredBy: 'AutoShutoff' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5140,6 +5153,11 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          _publishToMQTT(pumpName, 1, 5, function() {});
+          _setCommandedCache(pumpName, 1);
+          if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+            try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 1 }); } catch(e) {}
+          }
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume-Backup' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
@@ -5167,6 +5185,11 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
+          _publishToMQTT(pumpName, 1, 5, function() {});
+          _setCommandedCache(pumpName, 1);
+          if (typeof firebase !== 'undefined' && _fbDevicesRef) {
+            try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 1 }); } catch(e) {}
+          }
           apiPost('togglePump', { device: pumpName, token: userToken, relay: 1, desiredState: 1, triggeredBy: 'AutoResume' })
             .then(function() { updateDashboard(); })
             .catch(function() { updateDashboard(); });
