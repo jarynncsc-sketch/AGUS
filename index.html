@@ -2928,6 +2928,7 @@ function loadPumpLinksFromGAS(cb) {
     pumpLinkConfigs  = (Array.isArray(data) ? data : []).map(_normLink);
     _pumpLinksLoaded = true;
     _pumpLinksLoading = false;
+    _syncConfigsToFirebase();
     if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
     if (cb) cb();
   }).catch(function(err) {
@@ -5596,6 +5597,33 @@ function _populateScheduleDeviceDropdown(presetDevice) {
 
 var _scheduleWatchTimer = null;
 var _scheduleWatchFired = {}; // "device:HH:MM" -> true — avoid duplicate MQTT publishes within the same minute
+var _scheduleLastMin = '';
+
+// ── Sync pump link + schedule configs to Firebase (for ESP32 autonomous engine) ──
+var _fbConfigsRef = firebase.database().ref('configs');
+function _syncConfigsToFirebase() {
+  try {
+    if (!pumpLinkConfigs.length && !scheduleConfigs.length) return;
+    var linksByDevice = {}, schedByDevice = {};
+    pumpLinkConfigs.forEach(function(l) { if (l.pump) (linksByDevice[l.pump] = linksByDevice[l.pump] || []).push(l); });
+    scheduleConfigs.forEach(function(s) { if (s.device) (schedByDevice[s.device] = schedByDevice[s.device] || []).push(s); });
+    var allDevices = Object.keys(linksByDevice).concat(Object.keys(schedByDevice)).filter(function(d,i,a){ return a.indexOf(d)===i; });
+    allDevices.forEach(function(device) {
+      var devLinks = linksByDevice[device] || [];
+      var devScheds = schedByDevice[device] || [];
+      var linkStr = devLinks.map(function(l) {
+        return encodeURIComponent(l.reservoir)+'|'+l.shutoffLevel+'|'+l.resumeLevel+'|'+(l.enabled?'1':'0')+'|'+(l.manualOverride?'1':'0');
+      }).join(';');
+      var schedStr = devScheds.map(function(s) {
+        return encodeURIComponent(s.time)+'|'+(parseInt(s.action)===1?1:0)+'|'+encodeURIComponent((s.days||[]).join(','))+'|'+(s.enabled?'1':'0');
+      }).join(';');
+      var baseRef = _fbConfigsRef.child(device);
+      if (linkStr) baseRef.child('pumpLinks').child('body').set(linkStr);
+      if (schedStr) baseRef.child('schedules').child('body').set(schedStr);
+    });
+  } catch(e) { if (typeof DEBUG !== 'undefined' && DEBUG) console.warn('_syncConfigsToFirebase error:', e); }
+}
+
 function _startScheduleWatcher() {
   if (_scheduleWatchTimer) clearInterval(_scheduleWatchTimer);
   _scheduleWatchTimer = setInterval(function() {
@@ -5604,6 +5632,8 @@ function _startScheduleWatcher() {
     var hh = String(now.getHours()).padStart(2, '0');
     var mm = String(now.getMinutes()).padStart(2, '0');
     var nowTime = hh + ':' + mm;
+    // Clear fired keys when minute changes — prevents double-fire within same minute
+    if (nowTime !== _scheduleLastMin) { _scheduleWatchFired = {}; _scheduleLastMin = nowTime; }
     var dayAbbr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
     scheduleConfigs.forEach(function(sc) {
       if (!sc.enabled) return;
@@ -5616,8 +5646,6 @@ function _startScheduleWatcher() {
       _publishToMQTT(sc.device, wantState);
     });
   }, 30000); // check every 30s
-  // Clear fired keys on the next minute boundary so schedules fire again next day
-  setInterval(function() { _scheduleWatchFired = {}; }, 60000);
 }
 
 function loadSchedulesFromGAS(deviceFilter, cb) {
@@ -5652,6 +5680,7 @@ function loadSchedulesFromGAS(deviceFilter, cb) {
         }
       }
     });
+    _syncConfigsToFirebase();
     if (cb) cb();
   }).catch(function() {
     showNotification('⚠ Failed to load schedules from server', 'warning');
