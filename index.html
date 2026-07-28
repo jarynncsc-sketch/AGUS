@@ -2556,8 +2556,6 @@ var EMQX_MQTT_PASS = 'Jarynn@04162020';
 var EMQX_TOPIC_PREFIX = 'pumps';
 var _mqttClient = null;
 var _mqttConnected = false;
-var _mqttConnectAttempts = 0;
-var _mqttMaxRetries = 3;
 
 /**
  * Converts a device name to MQTT slug, matching the ESP32's mqttSlug():
@@ -2582,24 +2580,18 @@ function _initMQTT() {
       password: EMQX_MQTT_PASS,
       clientId: clientId,
       clean: true,
-      reconnectPeriod: 30000,
-      connectTimeout: 10000
+      reconnectPeriod: 5000,
+      connectTimeout: 5000
     });
 
     _mqttClient.on('connect', function() {
       _mqttConnected = true;
-      _mqttConnectAttempts = 0;
       if (typeof _updateConnStatus === 'function') _updateConnStatus();
     });
 
-    _mqttClient.on('error', function(err) {
+    _mqttClient.on('error', function() {
       _mqttConnected = false;
-      _mqttConnectAttempts++;
       if (typeof _updateConnStatus === 'function') _updateConnStatus();
-      if (_mqttConnectAttempts > _mqttMaxRetries) {
-        _mqttClient = null; // will re-init on next toggle
-        console.warn('[MQTT] Max reconnect attempts reached');
-      }
     });
 
     _mqttClient.on('close', function() {
@@ -4073,7 +4065,14 @@ function initDashboard() {
         }
 
         /* Fire command — instant MQTT then GAS API */
-        _publishToMQTT(lnk.pump, wantState);
+        /* Capture previous state for MQTT failure rollback */
+        var _prevPumpCmd = cmd;
+        _publishToMQTT(lnk.pump, wantState, 5, function(mqttOk) {
+          if (!mqttOk && _prevPumpCmd !== undefined && _prevPumpCmd !== wantState) {
+            _setCommandedCache(lnk.pump, _prevPumpCmd);
+            _firebaseOptimisticToggle(lnk.pump, _prevPumpCmd, 'AutoEngine');
+          }
+        });
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
           apiPost('togglePump', {
@@ -5643,7 +5642,11 @@ function _startScheduleWatcher() {
       if (_scheduleWatchFired[key]) return;
       _scheduleWatchFired[key] = true;
       var wantState = parseInt(sc.action) === 1 ? 1 : 0;
-      _publishToMQTT(sc.device, wantState);
+      _publishToMQTT(sc.device, wantState, 5, function(mqttOk) {
+        if (!mqttOk && typeof firebase !== 'undefined' && _fbDevicesRef) {
+          try { _fbDevicesRef.child(sc.device).update({ commandedRelay: wantState }); } catch(e) {}
+        }
+      });
     });
   }, 30000); // check every 30s
 }
