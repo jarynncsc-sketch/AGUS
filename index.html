@@ -4165,15 +4165,15 @@ function _firebaseDeviceToArray() {
     var fbCmd = (fbCmdRaw == 1 || fbCmdRaw === true || fbCmdRaw === '1') ? 1
               : (fbCmdRaw == 0 || fbCmdRaw === false || fbCmdRaw === '0') ? 0
               : null;
-    var cmd = _readCommandedCache(name);
-    if (cmd === undefined) {
-      // Always follow commandedRelay (the order from GAS/dashboard) — not the
-      // ESP32's actual relay. The relayPending flag already signals disagreement.
-      // Previously this fell back to `relay` after cache TTL, causing the slider
-      // to revert to OFF a few seconds after a manual ON toggle.
-      if (fbCmd !== null) cmd = fbCmd;
-      else cmd = relay;
+    // Force cache from Firebase data so slider always matches ESP32's actual state
+    if (fbCmd !== null) {
+      commandedRelayCache[name] = fbCmd;
+      commandedRelayCacheTimestamps[name] = Date.now();
+    } else {
+      commandedRelayCache[name] = relay;
+      commandedRelayCacheTimestamps[name] = Date.now();
     }
+    var cmd = commandedRelayCache[name];
     var s = pressureSettingsCache[name] || {};
     var r = reservoirThresholdsCache[name] || {};
     arr.push({
@@ -5680,6 +5680,8 @@ function _startScheduleWatcher() {
           try { _fbDevicesRef.child(sc.device).update({ commandedRelay: wantState }); } catch(e) {}
         }
       });
+      // Update GAS PropertiesService so ESP32 flushGasCall doesn't override relay back
+      apiPost('togglePump', { device: sc.device, token: userToken, relay: wantState, desiredState: wantState, triggeredBy: 'Scheduler', username: loggedInUser || '' }).catch(function(){});
     });
   }, 30000); // check every 30s
 }
