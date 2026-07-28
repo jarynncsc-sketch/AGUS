@@ -4472,7 +4472,7 @@ function showManualOverridePopup(deviceName, newStateInt) {
     +   '</div>'
     +   '<div style="font-size:11.5px;color:#64748b;margin-bottom:16px;line-height:1.5;">'
     +     (isOn
-    ?       'Manual override is active — auto-shutoff and auto-resume will be <b>paused for 1 hour</b>. The pump will run until you turn it OFF or the override expires.'
+    ?       'Manual override cleared — automation will resume normally when linked reservoirs reach their trigger levels.'
     :       'The pump has been turned OFF manually. Automation will not restart it until the reservoir drops below the resume level and you clear the override.')
     +   '</div>'
     +   '<div style="display:flex;gap:10px;justify-content:flex-end;">'
@@ -4592,9 +4592,9 @@ if (isResBooster) {
     dashboardTogglePump(d.device, newStateInt, function(confirmed) {
       resCb.checked = confirmed === 1;
       if (!_stepDone) { _stepDone = true; return; } // Step 1+2: optimistic only
-      if (!_popupShown && newStateInt === 0 && confirmed === 0 && hasAutomation(d.device)) {
+      if (!_popupShown && confirmed === newStateInt) {
         _popupShown = true;
-        showManualOverridePopup(d.device, 0);
+        showManualOverridePopup(d.device, confirmed);
       }
     });
   });
@@ -4696,9 +4696,9 @@ if (isResBooster) {
             });
             localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
           }
-          if (!_psPopupShown && newStateInt === 0 && confirmed === 0 && hasAutomation(d.device)) {
+          if (!_psPopupShown && confirmed === newStateInt) {
             _psPopupShown = true;
-            showManualOverridePopup(d.device, 0);
+            showManualOverridePopup(d.device, confirmed);
           }
         });
       });
