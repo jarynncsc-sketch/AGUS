@@ -3970,8 +3970,7 @@ function initDashboard() {
     if (typeof userToken === 'undefined' || !userToken) return;
     if (typeof apiGet !== 'function' || typeof apiPost !== 'function') return;
     // ── GAS-authoritative guard: when server trigger is installed, defer to it ──
-    if (typeof _gasTriggerInstalled !== 'undefined' && _gasTriggerInstalled) return;
-    _apeRunning = true;
+
 
     try {
       /* Use cached dashboard data if fresh enough, otherwise fetch */
@@ -4067,8 +4066,12 @@ function initDashboard() {
         /* Fire command — instant MQTT then GAS API */
         /* Capture previous state for MQTT failure rollback */
         var _prevPumpCmd = cmd;
+        var _apeMqttDelivered = false;
         _publishToMQTT(lnk.pump, wantState, 5, function(mqttOk) {
-          if (!mqttOk && _prevPumpCmd !== undefined && _prevPumpCmd !== wantState) {
+          if (mqttOk) {
+            _apeMqttDelivered = true;
+            _setCommandedCache(lnk.pump, wantState);
+          } else if (_prevPumpCmd !== undefined && _prevPumpCmd !== wantState) {
             _setCommandedCache(lnk.pump, _prevPumpCmd);
             _firebaseOptimisticToggle(lnk.pump, _prevPumpCmd, 'AutoEngine');
           }
@@ -4102,9 +4105,11 @@ function initDashboard() {
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
             } else {
-              /* Revert optimistic state on failure — skip lastToggledBy, the change didn't happen */
-              _setCommandedCache(device, state === 1 ? 0 : 1);
-              _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
+              /* Only revert if MQTT didn't already deliver the command */
+              if (!_apeMqttDelivered) {
+                _setCommandedCache(device, state === 1 ? 0 : 1);
+                _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
+              }
             }
           }).catch(function() {
             /* Network error — leave optimistic state, will re-check next cycle */
@@ -4529,8 +4534,10 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   // The ESP32 receives this via its existing MQTT subscription and toggles
   // the physical relay within milliseconds. This is the PRIMARY toggle path.
   // If it fails, the GAS + Firebase path serves as backup.
+  var _mqttDelivered = false;
   _publishToMQTT(deviceName, newStateInt, 3, function(mqttOk) {
     if (mqttOk) {
+      _mqttDelivered = true;
       // EMQX delivered — ESP32 should toggle relay instantly.
       // Monitor Firebase for confirmation (ESP32 writes back to Firebase)
       _waitForRelayConfirm(deviceName, newStateInt, 15000, function(confirmed) {
@@ -4588,21 +4595,25 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       _engageAutomationForManualToggle(deviceName, res.newState);
       setTimeout(updateDashboard, 1500);
     } else {
-      // ═══ Step 4: GAS rejected — revert cache + Firebase to original state ═══
+      // ═══ Step 4: GAS rejected — only revert if MQTT didn't deliver ═══
+      if (!_mqttDelivered) {
+        var revert = newStateInt === 1 ? 0 : 1;
+        _setCommandedCache(deviceName, revert);
+        _firebaseOptimisticToggle(deviceName, revert, false);
+        if (cb) cb(revert);
+        showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
+      }
+    }
+  }).catch(function(e) {
+    // ═══ Step 4: Network error — only revert if MQTT didn't deliver ═══
+    delete _localTogglePending[_dKey];
+    if (!_mqttDelivered) {
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
       _firebaseOptimisticToggle(deviceName, revert, false);
       if (cb) cb(revert);
-      showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
+      showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     }
-  }).catch(function(e) {
-    // ═══ Step 4: Network error — revert cache + Firebase ═══
-    delete _localTogglePending[_dKey];
-    var revert = newStateInt === 1 ? 0 : 1;
-    _setCommandedCache(deviceName, revert);
-    _firebaseOptimisticToggle(deviceName, revert, false);
-    if (cb) cb(revert);
-    showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     updateDashboard();
   });
 }
@@ -5011,8 +5022,6 @@ if (isResBooster) {
 
 function autoShutoffPumps(devices) {
   if (!devices || !devices.length || !pumpLinkConfigs.length) return;
-  // ── GAS-authoritative guard: when server trigger is installed, defer to it ──
-  if (_gasTriggerInstalled) return;
 
   var devMap = {};
   devices.forEach(function(d) { devMap[d.device] = d; });
@@ -5643,7 +5652,8 @@ function _startScheduleWatcher() {
       _scheduleWatchFired[key] = true;
       var wantState = parseInt(sc.action) === 1 ? 1 : 0;
       _publishToMQTT(sc.device, wantState, 5, function(mqttOk) {
-        if (!mqttOk && typeof firebase !== 'undefined' && _fbDevicesRef) {
+        _setCommandedCache(sc.device, wantState);
+        if (typeof firebase !== 'undefined' && _fbDevicesRef) {
           try { _fbDevicesRef.child(sc.device).update({ commandedRelay: wantState }); } catch(e) {}
         }
       });
