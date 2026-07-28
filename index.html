@@ -379,6 +379,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
+  <script src="https://unpkg.com/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -2448,14 +2449,28 @@ function _updateConnStatus() {
   if (!el) return;
   if (_firebaseConnected && _firebaseInitialDataLoaded) {
     el.style.color = '#22c55e';
-    el.title = 'Connected · Firebase real-time active';
+    el.title = 'Firebase: Connected · Real-time active';
   } else if (_firebaseConnected) {
     el.style.color = '#f97316';
-    el.title = 'Connecting… Firebase initial data pending';
+    el.title = 'Firebase: Connecting… initial data pending';
   } else {
     el.style.color = '#ef4444';
-    el.title = 'Disconnected · Click to retry Firebase';
+    el.title = 'Firebase: Disconnected · Click to retry';
     el.onclick = function(){ location.reload(); };
+  }
+  // Update EMQX MQTT status indicator
+  var mqttEl = document.getElementById('mqtt-conn-indicator');
+  if (mqttEl) {
+    if (_mqttConnected) {
+      mqttEl.style.color = '#22c55e';
+      mqttEl.title = 'EMQX MQTT: Connected · Instant toggle ready';
+    } else if (_mqttClient) {
+      mqttEl.style.color = '#f97316';
+      mqttEl.title = 'EMQX MQTT: Connecting…';
+    } else {
+      mqttEl.style.color = '#94a3b8';
+      mqttEl.title = 'EMQX MQTT: Not connected · Toggle falls back to Firebase';
+    }
   }
 }
 
@@ -2518,6 +2533,173 @@ try {
   _firebaseConnected = false;
   _updateConnStatus();
   console.warn('[FB] Init error:', e);
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  EMQX MQTT WebSocket — INSTANT RELAY PUBLISH
+//  Publishes relay state directly to EMQX so the ESP32 receives
+//  the command via its existing MQTT subscription INSTANTLY
+//  (milliseconds) instead of waiting for the Firebase poll
+//  interval (10 seconds).
+//
+//  The ESP32 firmware subscribes to: pumps/<slug>/relay
+//  Payload: "ON" or "OFF"
+//
+//  If MQTT publish fails → Firebase backup path still works
+//  (ESP32 polls Firebase every 10s).
+// ═══════════════════════════════════════════════════════════════
+
+// ── EMQX Config (matches ESP32 firmware credentials) ──
+var EMQX_BROKER_WSS = 'wss://k196aaef.ala.asia-southeast1.emqxsl.com:8084/mqtt';
+var EMQX_MQTT_USER = 'Jarynn';
+var EMQX_MQTT_PASS = 'Jarynn@04162020';
+var EMQX_TOPIC_PREFIX = 'pumps';
+var _mqttClient = null;
+var _mqttConnected = false;
+var _mqttConnectAttempts = 0;
+var _mqttMaxRetries = 3;
+
+/**
+ * Converts a device name to MQTT slug, matching the ESP32's mqttSlug():
+ *   "Lagang Pumping Station" → "lagang-pumping-station"
+ */
+function _mqttSlug(name) {
+  if (!name) return '';
+  var cleaned = name.toLowerCase().replace(/[^a-z0-9\s]/g, '');
+  return cleaned.split(/\s+/).filter(function(w) { return w.length > 0; }).join('-');
+}
+
+/**
+ * Initializes the MQTT WebSocket connection to EMQX.
+ * Called once after login (lazy init on first toggle attempt).
+ */
+function _initMQTT() {
+  if (_mqttClient || typeof mqtt === 'undefined') return;
+  try {
+    var clientId = 'agus_dash_' + Math.random().toString(36).substr(2, 10);
+    _mqttClient = mqtt.connect(EMQX_BROKER_WSS, {
+      username: EMQX_MQTT_USER,
+      password: EMQX_MQTT_PASS,
+      clientId: clientId,
+      clean: true,
+      reconnectPeriod: 30000,
+      connectTimeout: 10000
+    });
+
+    _mqttClient.on('connect', function() {
+      _mqttConnected = true;
+      _mqttConnectAttempts = 0;
+      if (typeof _updateConnStatus === 'function') _updateConnStatus();
+    });
+
+    _mqttClient.on('error', function(err) {
+      _mqttConnected = false;
+      _mqttConnectAttempts++;
+      if (typeof _updateConnStatus === 'function') _updateConnStatus();
+      if (_mqttConnectAttempts > _mqttMaxRetries) {
+        _mqttClient = null; // will re-init on next toggle
+        console.warn('[MQTT] Max reconnect attempts reached');
+      }
+    });
+
+    _mqttClient.on('close', function() {
+      _mqttConnected = false;
+      if (typeof _updateConnStatus === 'function') _updateConnStatus();
+    });
+  } catch(e) {
+    _mqttConnected = false;
+    console.warn('[MQTT] Init error:', e);
+  }
+}
+
+/**
+ * Publishes a relay command to EMQX MQTT topic for instant delivery to ESP32.
+ * Retries up to EMQX_MQTT_RETRIES times with exponential backoff.
+ *
+ * @param {string} deviceName — device display name
+ * @param {number} state — 0 or 1
+ * @param {number} retriesLeft — internal retry counter
+ * @param {function} callback — called with (success: boolean)
+ */
+function _publishToMQTT(deviceName, state, retriesLeft, callback) {
+  if (retriesLeft === undefined) retriesLeft = 3;
+  if (typeof mqtt === 'undefined') {
+    if (callback) callback(false);
+    return;
+  }
+  _initMQTT();
+
+  var slug = _mqttSlug(deviceName);
+  if (!slug) {
+    if (callback) callback(false);
+    return;
+  }
+
+  var topic = EMQX_TOPIC_PREFIX + '/' + slug + '/relay';
+  var payload = state === 1 ? 'ON' : 'OFF';
+
+  // If not connected, try connecting first, then publish
+  if (!_mqttConnected || !_mqttClient) {
+    if (retriesLeft > 0) {
+      setTimeout(function() {
+        _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
+      }, 2000);
+    } else {
+      if (callback) callback(false);
+    }
+    return;
+  }
+
+  try {
+    _mqttClient.publish(topic, payload, { qos: 1, retain: false }, function(err) {
+      if (err) {
+        if (retriesLeft > 0) {
+          setTimeout(function() {
+            _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
+          }, 1000 * Math.pow(2, 3 - retriesLeft));
+        } else {
+          if (callback) callback(false);
+        }
+      } else {
+        if (callback) callback(true);
+      }
+    });
+  } catch(e) {
+    if (retriesLeft > 0) {
+      setTimeout(function() {
+        _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
+      }, 1000 * Math.pow(2, 3 - retriesLeft));
+    } else {
+      if (callback) callback(false);
+    }
+  }
+}
+
+// ── EMQX confirmation monitor ──
+// After publishing to EMQX, we wait for the ESP32 to confirm by
+// writing back to Firebase's "relay" field. If the actual relay
+// matches commandedRelay, the toggle is confirmed.
+var _emqxConfirmTimers = {}; // { deviceName: timeoutId }
+
+function _waitForRelayConfirm(deviceName, desiredState, timeoutMs, cb) {
+  var start = Date.now();
+  var checkInterval = 500; // check every 500ms
+
+  var timer = setInterval(function() {
+    var fb = _firebaseDevicesCache[deviceName];
+    if (fb) {
+      var actualRelay = (fb.relay == 1 || fb.relay === true || fb.relay === '1' || fb.relay === 'ON') ? 1 : 0;
+      if (actualRelay === desiredState) {
+        clearInterval(timer);
+        if (cb) cb(true);
+        return;
+      }
+    }
+    if (Date.now() - start > timeoutMs) {
+      clearInterval(timer);
+      if (cb) cb(false);
+    }
+  }, checkInterval);
 }
 
 var _API_TIMEOUT = 25000; // 25s timeout — GAS cold-starts can take 15–30s
@@ -2902,12 +3084,14 @@ function login() {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:8px;"><span id="conn-indicator" title="Connection status">●</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
       initSensorThresholdsFromServer();
       initPumpLinksAndDisplay();
+      // Initialize EMQX MQTT connection for instant relay toggle
+      _initMQTT();
     })
     .catch(function(err) {
       spinEl.style.display = 'none';
@@ -4340,6 +4524,26 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   } catch(_swDbErr) {}
   if (cb) cb(newStateInt);
 
+  // ═══ Step 2b: EMQX MQTT Publish (INSTANT path — sends directly to ESP32) ═══
+  // The ESP32 receives this via its existing MQTT subscription and toggles
+  // the physical relay within milliseconds. This is the PRIMARY toggle path.
+  // If it fails, the GAS + Firebase path serves as backup.
+  _publishToMQTT(deviceName, newStateInt, 3, function(mqttOk) {
+    if (mqttOk) {
+      // EMQX delivered — ESP32 should toggle relay instantly.
+      // Monitor Firebase for confirmation (ESP32 writes back to Firebase)
+      _waitForRelayConfirm(deviceName, newStateInt, 15000, function(confirmed) {
+        if (confirmed) {
+          // ESP32 confirmed the toggle via Firebase — clear pending
+          delete _relayPendingUntil[deviceName];
+          _setCommandedCache(deviceName, newStateInt);
+        }
+        // If not confirmed within 15s, Firebase backup will eventually
+        // work (ESP32 polls every 10s) — the GAS call below also handles it.
+      });
+    }
+  });
+
   // ═══ Step 3: Authoritative GAS write ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
@@ -4359,10 +4563,12 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       if (typeof firebase !== 'undefined' && _fbDevicesRef) {
         try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
       }
-      if (res.firebaseDelivered === false) {
-        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but Firebase push failed — relay may not respond. Check EventLog.', 'warning');
+      if (res.emqxDelivered) {
+        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' via EMQX (by ' + (res.toggledBy || 'you') + ')', 'success');
+      } else if (res.firebaseDelivered) {
+        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' via Firebase (by ' + (res.toggledBy || 'you') + ') — EMQX unavailable', 'info');
       } else {
-        showNotification('✅ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' (by ' + (res.toggledBy || 'you') + ')', 'success');
+        showNotification('⚠ ' + deviceName + ' → ' + (res.newState ? 'ON' : 'OFF') + ' saved, but both EMQX & Firebase push failed — relay may not respond. Check EventLog.', 'warning');
       }
       _addAutoShutoffLog({ pump: deviceName, action: res.newState ? 'MANUAL-ON' : 'MANUAL-OFF', timestamp: new Date().toLocaleString(), triggeredby: loggedInUser || 'you' });
       pumpLinkConfigs.forEach(function(pl) {
