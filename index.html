@@ -3936,7 +3936,7 @@ var _dashboardTimer = null;
 function initDashboard() {
   updateDashboard();
   loadPumpLinksFromGAS(function(){});
-  loadSchedulesFromGAS(null, function(){}); // preload schedules so _engageAutomationForManualToggle has data
+  loadSchedulesFromGAS(null, function(){ _startScheduleWatcher(); }); // preload schedules + start instant MQTT schedule watcher
   _updateConnStatus();
   if (_dashboardTimer) clearInterval(_dashboardTimer);
   _dashboardTimer = setInterval(function() {
@@ -4071,7 +4071,8 @@ function initDashboard() {
           _enableSchedulesForPump(lnk.pump);
         }
 
-        /* Fire command */
+        /* Fire command — instant MQTT then GAS API */
+        _publishToMQTT(lnk.pump, wantState);
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
           apiPost('togglePump', {
@@ -5591,6 +5592,32 @@ function _populateScheduleDeviceDropdown(presetDevice) {
     });
     if (presetDevice) sel.value = presetDevice;
   }).catch(function() {});
+}
+
+var _scheduleWatchTimer = null;
+var _scheduleWatchFired = {}; // "device:HH:MM" -> true — avoid duplicate MQTT publishes within the same minute
+function _startScheduleWatcher() {
+  if (_scheduleWatchTimer) clearInterval(_scheduleWatchTimer);
+  _scheduleWatchTimer = setInterval(function() {
+    if (!scheduleConfigs.length) return;
+    var now = new Date();
+    var hh = String(now.getHours()).padStart(2, '0');
+    var mm = String(now.getMinutes()).padStart(2, '0');
+    var nowTime = hh + ':' + mm;
+    var dayAbbr = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][now.getDay()];
+    scheduleConfigs.forEach(function(sc) {
+      if (!sc.enabled) return;
+      if (!sc.time || sc.time !== nowTime) return;
+      if (sc.days && sc.days.indexOf(dayAbbr) === -1) return;
+      var key = sc.device + ':' + sc.time;
+      if (_scheduleWatchFired[key]) return;
+      _scheduleWatchFired[key] = true;
+      var wantState = parseInt(sc.action) === 1 ? 1 : 0;
+      _publishToMQTT(sc.device, wantState);
+    });
+  }, 30000); // check every 30s
+  // Clear fired keys on the next minute boundary so schedules fire again next day
+  setInterval(function() { _scheduleWatchFired = {}; }, 60000);
 }
 
 function loadSchedulesFromGAS(deviceFilter, cb) {
