@@ -2838,6 +2838,7 @@ function _isTogglePendingLocal(deviceName) {
   return true;
 }
 var allGraphData = [], currentDevice = '', activeRange = 14;
+var _animateChart = false; // replay sweep on open/range-change, not on live poll
 var today = new Date();
 // 👇 4 months range (past → present)
 var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 3, 1);
@@ -6265,15 +6266,15 @@ function buildParamSelector() {
       pill.addEventListener('click',function(){
         if(activePumpParams.has(p.id)){if(!p.isEvent){var ne=Array.from(activePumpParams).filter(function(id){var pm=PUMP_PARAMS.find(function(x){return x.id===id;});return pm&&!pm.isEvent;});if(ne.length<=1)return;}activePumpParams.delete(p.id);}
         else activePumpParams.add(p.id);
-        buildParamSelector(); renderRangeChart(false);
+        buildParamSelector(); renderRangeChart();
       });
       pg.appendChild(pill);
     });
     col.appendChild(pg); grid.appendChild(col);
   });
 }
-function toggleAllParams(){PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id];}).forEach(function(p){activePumpParams.add(p.id);});buildParamSelector();renderRangeChart(false);}
-function clearAllParams(){var av=PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id]&&!p.isEvent;});activePumpParams=new Set();activePumpParams.add(av[0]?av[0].id:'pressure');buildParamSelector();renderRangeChart(false);}
+function toggleAllParams(){PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id];}).forEach(function(p){activePumpParams.add(p.id);});buildParamSelector();renderRangeChart();}
+function clearAllParams(){var av=PUMP_PARAMS.filter(function(p){return pumpParamKeys[p.id]&&!p.isEvent;});activePumpParams=new Set();activePumpParams.add(av[0]?av[0].id:'pressure');buildParamSelector();renderRangeChart();}
 
 function startGraphPolling(){stopGraphPolling();livePaused=false;updateLivePauseBtn();graphPollInterval=setInterval(function(){if(!livePaused&&currentDevice)pollGraphData();},graphPollRate);liveCounterInterval=setInterval(updateLiveCounter,1000);}
 function stopGraphPolling(){if(graphPollInterval){clearInterval(graphPollInterval);graphPollInterval=null;}if(liveCounterInterval){clearInterval(liveCounterInterval);liveCounterInterval=null;}}
@@ -6284,7 +6285,7 @@ function pollGraphData(){
     if (!Array.isArray(rows) || !rows.length) return;
     var nc=rows.length, hadNew=nc>lastDataCount;
     allGraphData=rows; lastPollTime=new Date(); lastDataCount=nc; updateLiveCounter();
-    if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} try{renderRangeChart(false);}catch(e){console.warn('[AGUS CHART]',e);showDebugBar('Chart render error: '+(e.message||e));} updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
+    if (hadNew) { if(isQuickRange){rangeEnd=new Date();updateDateRangeLabel();} try{renderRangeChart();}catch(e){console.warn('[AGUS CHART]',e);showDebugBar('Chart render error: '+(e.message||e));} updateLastToggledBadge(allGraphData); flashChartUpdate(); var b=document.getElementById('live-new-badge');b.classList.add('visible');setTimeout(function(){b.classList.remove('visible');},4000); }
   }).catch(function(e){console.warn('[AGUS LIVE] Poll failed:',e);});
 }
 function flashChartUpdate(){var w=document.getElementById('graph-chart-wrap');w.classList.remove('chart-flash-anim');void w.offsetWidth;w.classList.add('chart-flash-anim');setTimeout(function(){w.classList.remove('chart-flash-anim');},1000);}
@@ -6325,6 +6326,7 @@ function showHistoricalGraph(deviceName, deviceType) {
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); updateLiveCounter(); updateLastToggledBadge(allGraphData); renderCalendars(); startGraphPolling();
+    _animateChart = true;
     try { renderRangeChart(); } catch(e) { console.error('[AGUS CHART]', e); showDebugBar('Chart render error: '+(e.message||e)); }
   }).catch(function(err){
     clearTimeout(_retryTimer);
@@ -6344,8 +6346,35 @@ function showDebugBar(msg){
   b.classList.add('visible');
 }
 
-function renderRangeChart(animate) {
-  if (animate===undefined) animate=true;
+function _progressiveReveal(chart, labels, dataArrays, opts) {
+  opts = opts || {};
+  var total = labels.length;
+  if (total < 3 || !chart) return;
+  var duration = opts.duration || 2400;
+  var steps = opts.steps || 60;
+  var stepCount = Math.max(1, Math.ceil(total / steps));
+  if (chart._progTimer) { clearInterval(chart._progTimer); chart._progTimer = null; }
+  chart.data.labels = labels;
+  chart.data.datasets.forEach(function(ds, i) { ds.data = []; });
+  chart.update('none');
+  var current = 0;
+  function tick() {
+    current += stepCount;
+    if (current >= total) {
+      chart.data.datasets.forEach(function(ds, i) { ds.data = dataArrays[i]; });
+      chart.update('none');
+      if (chart._progTimer) { clearInterval(chart._progTimer); chart._progTimer = null; }
+      return;
+    }
+    chart.data.datasets.forEach(function(ds, i) { ds.data = dataArrays[i].slice(0, current); });
+    chart.update('none');
+  }
+  tick();
+  chart._progTimer = setInterval(tick, Math.max(20, duration / steps));
+}
+
+function renderRangeChart() {
+  var _doAnim = _animateChart; _animateChart = false;
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
   var data=Array.isArray(raw)?raw:[];
@@ -6374,7 +6403,8 @@ function renderRangeChart(animate) {
     if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data,animate)});
+    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data)});
+    if (_doAnim) _progressiveReveal(myChart, labels, [lv]);
     return;
   }
   if (currentDeviceType !== 'pump') {
@@ -6383,7 +6413,8 @@ function renderRangeChart(animate) {
     if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data,animate)});
+    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
+    if (_doAnim) _progressiveReveal(myChart, labels, [pv]);
     return;
   }
   var datasets=[],leftP=[],rightP=[];
@@ -6406,7 +6437,8 @@ function renderRangeChart(animate) {
   var lr=merge(leftP),rr=merge(rightP);
   var axDefs=[{id:'yLeft',label:lr.label,min:lr.min,max:lr.max,pos:'left'}];
   if(rightP.length)axDefs.push({id:'yRight',label:rr.label,min:rr.min,max:rr.max,pos:'right'});
-  myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data,animate)});
+  myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data)});
+  if (_doAnim) _progressiveReveal(myChart, labels, datasets.map(function(ds){ return ds.data; }));
 }
 
 function buildToggleAnnotations(data) {
@@ -6431,48 +6463,11 @@ function updateLastToggledBadge(data) {
   badge.style.display='flex';badge.style.borderColor=isOn?'#22c55e':'#ef4444';badge.style.background=isOn?'#f0fdf4':'#fff5f5';
   badge.innerHTML='<span style="font-size:13px;margin-right:2px;">'+(isOn?'🟢':'🔴')+'</span><strong style="color:'+(isOn?'#14532d':'#7f1d1d')+'">Last Toggle:</strong><span style="color:#334155;margin-left:5px;">👤 <b>'+who+'</b></span><span style="color:'+(isOn?'#15803d':'#dc2626')+';margin-left:8px;font-weight:700;">'+act+'</span>'+(tsStr?'<span style="color:#94a3b8;margin-left:8px;font-size:11px;">@ '+tsStr+'</span>':'');
 }
-function buildWaveAnimation(numPoints) {
-  // Old→new left-to-right "wave" reveal: each point's line segment draws in
-  // sequentially, rising from the previous point's height, so the whole
-  // series sweeps across the chart like an incoming wave.
-  var n = Math.max(numPoints || 1, 1);
-  var totalWaveMs = n <= 20 ? 900 : (n >= 400 ? 2600 : 900 + (n - 20) * 4.5);
-  var perPt = Math.max(2, totalWaveMs / n);
-  return {
-    x: {
-      type: 'number', easing: 'linear', duration: perPt, from: NaN,
-      delay: function (ctx) {
-        if (ctx.type !== 'data' || ctx.xStarted) return 0;
-        ctx.xStarted = true;
-        return ctx.index * perPt;
-      }
-    },
-    y: {
-      type: 'number', easing: 'linear', duration: perPt,
-      from: function (ctx) {
-        var meta = ctx.chart.getDatasetMeta(ctx.datasetIndex);
-        if (ctx.index > 0 && meta.data[ctx.index - 1]) {
-          return meta.data[ctx.index - 1].getProps(['y'], true).y;
-        }
-        var ds = ctx.chart.data.datasets[ctx.datasetIndex];
-        var axId = (ds && ds.yAxisID) || 'yLeft';
-        var scale = ctx.chart.scales[axId];
-        return scale ? scale.getPixelForValue(scale.min !== undefined ? scale.min : 0) : 0;
-      },
-      delay: function (ctx) {
-        if (ctx.type !== 'data' || ctx.yStarted) return 0;
-        ctx.yStarted = true;
-        return ctx.index * perPt;
-      }
-    }
-  };
-}
-function buildChartOptions(labels,axisDefs,annotations,filteredData,animate) {
+function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#334155',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(0,64,128,0.07)',lineWidth:1},border:{color:'rgba(0,64,128,0.15)'}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#334155',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#002b5c',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(0,0,0,0.55)':(ax.pos==='left'?'rgba(0,64,128,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(0,64,128,0.15)'}};});
-  var animOpt = animate===false ? false : buildWaveAnimation(labels.length);
-  return {responsive:true,maintainAspectRatio:false,animation:animOpt,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 document.querySelectorAll('.range-btn').forEach(function(btn){
@@ -6482,6 +6477,7 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.getElementById('graph-no-data').classList.remove('visible');
     updateDateRangeLabel(); renderCalendars(); updateLastToggledBadge(getFilteredData());
+    _animateChart = true;
     try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
   });
 });
@@ -6520,7 +6516,7 @@ function shiftCalendar(dir){
 function onCalDayClick(date){
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
-  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
+  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();_animateChart = true;try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
   renderCalendars();
 }
 
@@ -6533,6 +6529,7 @@ function downloadCSV(){
 
 function closeGraph(){
   stopGraphPolling();
+  if (myChart) { if (myChart._progTimer) { clearInterval(myChart._progTimer); myChart._progTimer = null; } }
   document.getElementById('graph-modal').style.display='none';
   ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
   var sub=document.getElementById('graph-loading-sub');if(sub)sub.innerHTML='';
