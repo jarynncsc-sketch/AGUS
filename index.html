@@ -1385,7 +1385,6 @@
     .blink-alarm{animation:blink 1.2s cubic-bezier(0.45,0,0.55,1) infinite;}
     /* ── Auto-shutoff badge on device list items ─── */
     .auto-shutoff-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#b91c1c,#dc2626);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(185,28,28,0.35);letter-spacing:0.2px;width:100%!important;}
-    .auto-on-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#15803d,#22c55e);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(22,128,61,0.35);letter-spacing:0.2px;width:100%!important;}
 .manual-override-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#6d28d9,#7c3aed);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(109,40,217,0.35);letter-spacing:0.2px;width:100%!important;}
     #pressure-settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:5000;justify-content:center;align-items:center;}
     #pressure-settings-modal.visible{display:flex;}
@@ -2887,27 +2886,6 @@ var _pumpLinksLoaded          = false;
 var _pumpLinksLoading = false;
 var _pumpLinksRefreshCounter = 0;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
-var autoResumeBadges = JSON.parse(localStorage.getItem('autoResumeBadges') || '{}');
-var _AUTO_ON_BADGE_TTL = 600000; // 10 min — AUTO-ON badge auto-dismisses
-function _setAutoOnBadge(pump, reservoir) {
-  var k = pump + ':' + reservoir;
-  autoResumeBadges[k] = { pump: pump, reservoir: reservoir, timestamp: Date.now() };
-  try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {}
-}
-function _clearAutoOnBadge(pump, reservoir) {
-  var k = pump + ':' + reservoir;
-  if (autoResumeBadges[k]) {
-    delete autoResumeBadges[k];
-    try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {}
-  }
-}
-function _clearAutoOnBadgesForPump(pump) {
-  var changed = false;
-  Object.keys(autoResumeBadges).forEach(function(k) {
-    if (autoResumeBadges[k].pump === pump) { delete autoResumeBadges[k]; changed = true; }
-  });
-  if (changed) { try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {} }
-}
 var autoShutoffSuppressNotify  = {}; // debounce toasts
 var _autoShutoffLog            = []; // loaded from GAS on demand
 // ── Tracks when the OFF/ON command was last sent for a given pump:reservoir
@@ -4060,8 +4038,8 @@ function initDashboard() {
         if (needOn) {
           // ── FIX 5: hard level safety — never send ON if level is still at or above shutoff
           if (lv >= sOff || (sOff2 > 0 && lv >= sOff2)) continue;
-          // Resume must fire even if autoShutoffState is still set — the state entry is
-          // stale (level dropped below resume) and is cleared in the resume handler below.
+          var aoKey = lnk.pump + ':' + lnk.reservoir;
+          if (reservoirAutoShutoffState[aoKey]) continue;
         }
 
         var wantState = needOn ? 1 : 0;
@@ -4073,7 +4051,6 @@ function initDashboard() {
 
         /* Update autoShutoffState so UI reflects it */
         if (needOff) {
-          _clearAutoOnBadge(lnk.pump, lnk.reservoir);
           reservoirAutoShutoffState[ck] = {
             pump: lnk.pump, reservoir: lnk.reservoir,
             shutoffLevel: sOff, resumeLevel: sRes,
@@ -4084,7 +4061,6 @@ function initDashboard() {
         } else if (needOn) {
           delete reservoirAutoShutoffState[ck];
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-          _setAutoOnBadge(lnk.pump, lnk.reservoir);
           _enableSchedulesForPump(lnk.pump);
         }
 
@@ -4720,25 +4696,15 @@ if (isResBooster) {
     + '</div>';
 
   (function(){
-    var _dOn = (d.relay == 1 || d.relay === true || d.relay === '1' || (typeof d.relay === 'string' && d.relay.toUpperCase() === 'ON'));
     var _aok = Object.keys(reservoirAutoShutoffState).filter(function(k){return reservoirAutoShutoffState[k].pump===d.device;});
-    if (_aok.length && !_dOn) {
+    if (_aok.length) {
       var _ao = reservoirAutoShutoffState[_aok[0]];
       var _ab = document.createElement('div');
       _ab.className = 'auto-shutoff-badge';
       _ab.title = 'Auto-shutoff: ' + (_ao.reservoir||'') + ' at ' + (_ao.shutoffLevel||'') + ' m³';
       _ab.innerHTML = '🛑 AUTO-OFF · ' + (_ao.reservoir||'Reservoir');
       li.appendChild(_ab);
-    } else if (_dOn) {
-      var _rok = Object.keys(autoResumeBadges).filter(function(k){return autoResumeBadges[k].pump===d.device && (Date.now() - autoResumeBadges[k].timestamp) < _AUTO_ON_BADGE_TTL;});
-      if (_rok.length) {
-        var _ro = autoResumeBadges[_rok[0]];
-        var _rb = document.createElement('div');
-        _rb.className = 'auto-on-badge';
-        _rb.title = 'Auto-resume: ' + (_ro.reservoir||'') + ' dropped to resume level — pump ON automatically';
-        _rb.innerHTML = '✅ AUTO-ON · ' + (_ro.reservoir||'Reservoir');
-        li.appendChild(_rb);
-      }
+    }
   })();
 
   var resCb = li.querySelector('input[type="checkbox"]');
@@ -4863,7 +4829,6 @@ if (isResBooster) {
         // ── FIX 3b: Clear autoShutoffState only AFTER confirmed success, not before ──
         dashboardTogglePump(d.device, newStateInt, function(confirmed) {
           cb.checked = confirmed === 1;
-          _clearAutoOnBadgesForPump(d.device);
           if (confirmed === 1) {
             Object.keys(reservoirAutoShutoffState).forEach(function(k) {
               if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
@@ -5109,7 +5074,6 @@ function autoShutoffPumps(devices) {
     // ── Backup shutoff (primary command may have failed) ─────────────────
     if (shutoff2 > 0 && lv >= shutoff2 && serverRelayOn) {
       var ts = new Date().toLocaleString();
-      _clearAutoOnBadge(cfg.pump, cfg.reservoir);
       if (!autoOffEntry) {
         reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
@@ -5144,7 +5108,6 @@ function autoShutoffPumps(devices) {
     // ── Primary shutoff ──────────────────────────────────────────────────
     } else if (lv >= shutoff && serverRelayOn) {
       var ts = new Date().toLocaleString();
-      _clearAutoOnBadge(cfg.pump, cfg.reservoir);
       if (!autoOffEntry) {
         reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
@@ -5181,17 +5144,12 @@ function autoShutoffPumps(devices) {
     } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
       // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
       if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
-      // Clear the auto-shutoff state IMMEDIATELY on resume conditions, regardless of
-      // cooldown, so the AUTO-OFF badge never lingers after the pump turns back on.
-      if (reservoirAutoShutoffState[_stateKey]) {
-        delete reservoirAutoShutoffState[_stateKey];
-        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-      }
-      _setAutoOnBadge(cfg.pump, cfg.reservoir);
       // ── Only send the ON command once per resume event ────────────────────
       var _lastOn2 = _autoShutoffCommandSent[_bonCdKey] || 0;
       if (!_lastOn2 || Date.now() - _lastOn2 > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_bonCdKey] = Date.now();
+        delete reservoirAutoShutoffState[_stateKey];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
@@ -5213,17 +5171,12 @@ function autoShutoffPumps(devices) {
     } else if (lv <= resume && !serverRelayOn) {
       // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
       if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
-      // Clear the auto-shutoff state IMMEDIATELY on resume conditions, regardless of
-      // cooldown, so the AUTO-OFF badge never lingers after the pump turns back on.
-      if (reservoirAutoShutoffState[_stateKey]) {
-        delete reservoirAutoShutoffState[_stateKey];
-        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
-      }
-      _setAutoOnBadge(cfg.pump, cfg.reservoir);
       // ── Only send the ON command once per resume event ────────────────────
       var _lastOn = _autoShutoffCommandSent[_onCdKey] || 0;
       if (!_lastOn || Date.now() - _lastOn > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_onCdKey] = Date.now();
+        delete reservoirAutoShutoffState[_stateKey];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
         _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
         if (window.speechSynthesis) {
@@ -5248,7 +5201,7 @@ function autoShutoffPumps(devices) {
     }
   });
 
-  _updateAutoShutoffBadges(devices);
+  _updateAutoShutoffBadges();
   // Update the top-card badge count
   var activeShutoffs = Object.keys(reservoirAutoShutoffState).length;
   var plBadge = document.getElementById('pump-links-badge');
@@ -5286,31 +5239,12 @@ function _showResumeBanner(resName, pumpName, level, resume) {
   setTimeout(function() { var el = document.getElementById('res-resume-banner'); if (el) el.remove(); }, 15000);
 }
 
-function _updateAutoShutoffBadges(devices) {
-  document.querySelectorAll('.auto-shutoff-badge, .auto-on-badge').forEach(function(el) { el.remove(); });
-  var now = Date.now();
-  // Auto-dismiss expired AUTO-ON badges
-  var onChanged = false;
-  Object.keys(autoResumeBadges).forEach(function(k) {
-    if (now - autoResumeBadges[k].timestamp > _AUTO_ON_BADGE_TTL) { delete autoResumeBadges[k]; onChanged = true; }
-  });
-  if (onChanged) { try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {} }
+function _updateAutoShutoffBadges() {
+  document.querySelectorAll('.auto-shutoff-badge').forEach(function(el) { el.remove(); });
   var keys = Object.keys(reservoirAutoShutoffState);
-  // Build pump → actual relay map so a stale AUTO-OFF badge never shows on an ON pump
-  var pumpOn = {};
-  if (Array.isArray(devices)) devices.forEach(function(d) {
-    pumpOn[d.device] = (d.relay == 1 || d.relay === true || d.relay === '1' || (typeof d.relay === 'string' && d.relay.toUpperCase() === 'ON'));
-  });
-  var changed = false;
+  if (!keys.length) return;
   keys.forEach(function(k) {
     var entry = reservoirAutoShutoffState[k];
-    if (!entry) return;
-    // Stale entry — pump is actually ON, so clear the state and skip the badge
-    if (pumpOn[entry.pump]) {
-      delete reservoirAutoShutoffState[k];
-      changed = true;
-      return;
-    }
     document.querySelectorAll('#device-list li').forEach(function(li) {
       var nameEl = li.querySelector('span');
       if (nameEl && nameEl.textContent.trim() === entry.pump) {
@@ -5322,24 +5256,6 @@ function _updateAutoShutoffBadges(devices) {
       }
     });
   });
-  // Render recent AUTO-ON badges
-  Object.keys(autoResumeBadges).forEach(function(k) {
-    var e = autoResumeBadges[k];
-    if (!e) return;
-    if (pumpOn[e.pump]) {
-      document.querySelectorAll('#device-list li').forEach(function(li) {
-        var nameEl = li.querySelector('span');
-        if (nameEl && nameEl.textContent.trim() === e.pump) {
-          var badge = document.createElement('div');
-          badge.className = 'auto-on-badge';
-          badge.title = 'Auto-resume at ' + new Date(e.timestamp).toLocaleString() + '\n' + e.reservoir + ' dropped to resume level — pump turned ON automatically';
-          badge.innerHTML = '✅ AUTO-ON · ' + e.reservoir;
-          li.appendChild(badge);
-        }
-      });
-    }
-  });
-  if (changed) localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
 }
 
 function _addAutoShutoffLog(entry) {
@@ -8903,7 +8819,7 @@ function initPumpLinksAndDisplay() {
       var savedState = localStorage.getItem('reservoirAutoShutoff');
       if (savedState) {
         reservoirAutoShutoffState = JSON.parse(savedState);
-  _updateAutoShutoffBadges(devices);
+        _updateAutoShutoffBadges();
       }
     });
   }
