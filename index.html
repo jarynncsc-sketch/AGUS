@@ -2838,7 +2838,6 @@ function _isTogglePendingLocal(deviceName) {
   return true;
 }
 var allGraphData = [], currentDevice = '', activeRange = 14;
-var _animateChart = false; // replay sweep on open/range-change, not on live poll
 var today = new Date();
 // 👇 4 months range (past → present)
 var calMonth1 = new Date(today.getFullYear(), today.getMonth() - 3, 1);
@@ -6326,7 +6325,6 @@ function showHistoricalGraph(deviceName, deviceType) {
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); updateLiveCounter(); updateLastToggledBadge(allGraphData); renderCalendars(); startGraphPolling();
-    _animateChart = true;
     try { renderRangeChart(); } catch(e) { console.error('[AGUS CHART]', e); showDebugBar('Chart render error: '+(e.message||e)); }
   }).catch(function(err){
     clearTimeout(_retryTimer);
@@ -6346,35 +6344,7 @@ function showDebugBar(msg){
   b.classList.add('visible');
 }
 
-function _progressiveReveal(chart, labels, dataArrays, opts) {
-  opts = opts || {};
-  var total = labels.length;
-  if (total < 3 || !chart) return;
-  var duration = opts.duration || 2400;
-  var steps = opts.steps || 60;
-  var stepCount = Math.max(1, Math.ceil(total / steps));
-  if (chart._progTimer) { clearInterval(chart._progTimer); chart._progTimer = null; }
-  chart.data.labels = labels;
-  chart.data.datasets.forEach(function(ds, i) { ds.data = []; });
-  chart.update('none');
-  var current = 0;
-  function tick() {
-    current += stepCount;
-    if (current >= total) {
-      chart.data.datasets.forEach(function(ds, i) { ds.data = dataArrays[i]; });
-      chart.update('none');
-      if (chart._progTimer) { clearInterval(chart._progTimer); chart._progTimer = null; }
-      return;
-    }
-    chart.data.datasets.forEach(function(ds, i) { ds.data = dataArrays[i].slice(0, current); });
-    chart.update('none');
-  }
-  tick();
-  chart._progTimer = setInterval(tick, Math.max(20, duration / steps));
-}
-
 function renderRangeChart() {
-  var _doAnim = _animateChart; _animateChart = false;
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
   var data=Array.isArray(raw)?raw:[];
@@ -6404,7 +6374,6 @@ function renderRangeChart() {
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
     myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data)});
-    if (_doAnim) _progressiveReveal(myChart, labels, [lv]);
     return;
   }
   if (currentDeviceType !== 'pump') {
@@ -6414,7 +6383,6 @@ function renderRangeChart() {
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
     myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
-    if (_doAnim) _progressiveReveal(myChart, labels, [pv]);
     return;
   }
   var datasets=[],leftP=[],rightP=[];
@@ -6438,7 +6406,6 @@ function renderRangeChart() {
   var axDefs=[{id:'yLeft',label:lr.label,min:lr.min,max:lr.max,pos:'left'}];
   if(rightP.length)axDefs.push({id:'yRight',label:rr.label,min:rr.min,max:rr.max,pos:'right'});
   myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data)});
-  if (_doAnim) _progressiveReveal(myChart, labels, datasets.map(function(ds){ return ds.data; }));
 }
 
 function buildToggleAnnotations(data) {
@@ -6477,7 +6444,6 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
     rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
     document.getElementById('graph-no-data').classList.remove('visible');
     updateDateRangeLabel(); renderCalendars(); updateLastToggledBadge(getFilteredData());
-    _animateChart = true;
     try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
   });
 });
@@ -6516,7 +6482,7 @@ function shiftCalendar(dir){
 function onCalDayClick(date){
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
-  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();_animateChart = true;try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
+  else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
   renderCalendars();
 }
 
@@ -6529,7 +6495,6 @@ function downloadCSV(){
 
 function closeGraph(){
   stopGraphPolling();
-  if (myChart) { if (myChart._progTimer) { clearInterval(myChart._progTimer); myChart._progTimer = null; } }
   document.getElementById('graph-modal').style.display='none';
   ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
   var sub=document.getElementById('graph-loading-sub');if(sub)sub.innerHTML='';
