@@ -6516,13 +6516,7 @@ function showDebugBar(msg){
 // whenever the same chart "shape" is reused (e.g. picking a new date range),
 // otherwise tear down and rebuild from scratch. Returns the current chart.
 function _morphChart(oldChart, sigRef, sigKey, chartType, labels, datasets, options, canvas) {
-  var total = labels ? labels.length : 0;
-  // Progressive "heartbeat" reveal: the line draws itself OLD → NEW, left to right,
-  // point by point, instead of all data appearing together. State rides on the
-  // dataset objects so Chart.js normalization can never drop it.
-  var state = { v: 0, total: total };
-  _applyReveal(datasets, chartType, state);
-  options.animation = false;
+  if (!options.animation) options.animation = { duration: 800, easing: 'easeInOutQuart' };
   if (oldChart && oldChart.canvas === canvas && sigRef.last === sigKey) {
     oldChart.data.labels = labels;
     oldChart.data.datasets = datasets;
@@ -6533,65 +6527,16 @@ function _morphChart(oldChart, sigRef, sigKey, chartType, labels, datasets, opti
       _o.scales = options.scales;
       _o.plugins = options.plugins;
       _o.interaction = options.interaction;
-      _o.animation = false;
+      _o.animation = options.animation;
     }
-    _runReveal(oldChart, state);
+    oldChart.update();
     return oldChart;
   }
   sigRef.last = sigKey;
   if (oldChart) { try { oldChart.destroy(); } catch(e) {} }
-  oldChart = new Chart(canvas, { type: chartType, data: { labels: labels, datasets: datasets }, options: options });
-  _runReveal(oldChart, state);
-  return oldChart;
+  return new Chart(canvas, { type: chartType, data: { labels: labels, datasets: datasets }, options: options });
 }
 
-// Re-style every dataset so only the points/segments already "played" are visible.
-function _applyReveal(datasets, chartType, state) {
-  if (!datasets || !Array.isArray(datasets)) return;
-  datasets.forEach(function(ds) {
-    if (!ds) return;
-    ds._revealState = state;
-    if (ds.type === 'bar' || chartType === 'bar') {
-      var obg = ds.backgroundColor, obc = ds.borderColor;
-      ds.backgroundColor = function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obg; return (ctx.dataIndex !== undefined && ctx.dataIndex <= r.v) ? obg : 'rgba(0,0,0,0)'; };
-      ds.borderColor = function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obc; return (ctx.dataIndex !== undefined && ctx.dataIndex <= r.v) ? obc : 'rgba(0,0,0,0)'; };
-      return;
-    }
-    ds._origFill = ds.fill;
-    var obc = ds.borderColor, obw = ds.borderWidth, orr = ds.pointRadius, obg = ds.pointBackgroundColor, obC = ds.pointBorderColor;
-    ds.fill = false;
-    ds.pointRadius = function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return orr; return (ctx.dataIndex !== undefined && ctx.dataIndex <= r.v) ? (orr || 0) : 0; };
-    ds.pointBackgroundColor = function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obg; return (ctx.dataIndex !== undefined && ctx.dataIndex <= r.v) ? obg : 'transparent'; };
-    ds.pointBorderColor = function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obC; return (ctx.dataIndex !== undefined && ctx.dataIndex <= r.v) ? obC : 'transparent'; };
-    ds.segment = {
-      borderColor: function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obc; var i = (ctx.p1DataIndex !== undefined) ? ctx.p1DataIndex : ctx.p0DataIndex; return (i !== undefined && i <= r.v) ? obc : 'rgba(0,0,0,0)'; },
-      borderWidth: function(ctx) { var r = ctx.dataset && ctx.dataset._revealState; if (!r) return obw; var i = (ctx.p1DataIndex !== undefined) ? ctx.p1DataIndex : ctx.p0DataIndex; return (i !== undefined && i <= r.v) ? (obw || 2) : 0; }
-    };
-  });
-}
-
-// Sweep the reveal counter left→right on a rAF clock (~12–60 frames, ~1s), then
-// restore area-fill so the finished chart keeps its normal look.
-function _runReveal(chart, state) {
-  if (!chart || !state || !state.total) return;
-  var total = state.total;
-  var frames = Math.min(60, Math.max(12, total));
-  var inc = Math.max(1, Math.ceil(total / frames));
-  var seen = 0;
-  function step() {
-    seen += inc;
-    if (seen >= total) {
-      state.v = total;
-      if (chart.data && chart.data.datasets) chart.data.datasets.forEach(function(d) { if (d._origFill !== undefined) d.fill = d._origFill; });
-      chart.update('none');
-      return;
-    }
-    state.v = seen;
-    chart.update('none');
-    requestAnimationFrame(step);
-  }
-  requestAnimationFrame(step);
-}
 var _gSig = { last: null };
 
 function renderRangeChart() {
@@ -7828,7 +7773,7 @@ function renderTabModalChart(rows) {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
-      animation: false,
+      animation: { duration: 800, easing: 'easeInOutQuart' },
       plugins: {
         legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14, padding: 12 } },
         tooltip: { callbacks: {
@@ -7841,8 +7786,6 @@ function renderTabModalChart(rows) {
         yRight: cfg.alarmMode ? { min:0, afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});}, position: 'right', grid: { color:'rgba(0,0,0,0)' }, ticks: { font:{size:10} }, title: { display:true, text:'Alarms', font:{size:10}, color:'#ef4444' } } : hasElectrial ? { min:0, afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});}, position: 'right', grid: { color:'rgba(0,0,0,0)' }, ticks: { font:{size:10} }, title: { display:true, text:'Energy (kWh)', font:{size:10}, color:'#a78bfa' } } : undefined
       }
     };
-  var _tmState = { v: 0, total: sortedLabels.length };
-  _applyReveal(datasets, cfg.chartType, _tmState);
   var _tmSigKey = cfg.chartType + '|' + (cfg.alarmMode?'A':'') + (hasElectrial?'E':'');
   if (tabModalChart && tabModalChart.canvas === canvas && tabModalChart._sig === _tmSigKey) {
     tabModalChart.data.labels = sortedLabels;
@@ -7852,9 +7795,9 @@ function renderTabModalChart(rows) {
       _to.scales = _tmOpts.scales;
       _to.plugins = _tmOpts.plugins;
       _to.interaction = _tmOpts.interaction;
-      _to.animation = false;
+      _to.animation = _tmOpts.animation;
     }
-    _runReveal(tabModalChart, _tmState);
+    tabModalChart.update();
   } else {
     if (tabModalChart) { try{ tabModalChart.destroy(); }catch(e){} tabModalChart = null; }
     tabModalChart = new Chart(canvas.getContext('2d'), {
@@ -7863,7 +7806,6 @@ function renderTabModalChart(rows) {
       options: _tmOpts
     });
     tabModalChart._sig = _tmSigKey;
-    _runReveal(tabModalChart, _tmState);
   }
 
   // Summary stat chips
