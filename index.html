@@ -1385,6 +1385,7 @@
     .blink-alarm{animation:blink 1.2s cubic-bezier(0.45,0,0.55,1) infinite;}
     /* ── Auto-shutoff badge on device list items ─── */
     .auto-shutoff-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#b91c1c,#dc2626);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(185,28,28,0.35);letter-spacing:0.2px;width:100%!important;}
+    .auto-on-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#15803d,#22c55e);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(22,163,74,0.35);letter-spacing:0.2px;width:100%!important;}
 .manual-override-badge{display:flex;align-items:center;gap:4px;font-size:10px;font-weight:800;color:#fff;background:linear-gradient(90deg,#6d28d9,#7c3aed);border-radius:6px;padding:3px 8px;margin-top:4px;white-space:nowrap;box-shadow:0 1px 5px rgba(109,40,217,0.35);letter-spacing:0.2px;width:100%!important;}
     #pressure-settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,10,30,0.75);backdrop-filter:blur(6px);z-index:5000;justify-content:center;align-items:center;}
     #pressure-settings-modal.visible{display:flex;}
@@ -2885,6 +2886,53 @@ var _pumpLinksLoaded          = false;
 var _pumpLinksLoading = false;
 var _pumpLinksRefreshCounter = 0;
 var reservoirAutoShutoffState = JSON.parse(localStorage.getItem('reservoirAutoShutoff') || '{}');
+var autoResumeBadges = JSON.parse(localStorage.getItem('autoResumeBadges') || '{}');
+var _AUTO_ON_BADGE_TTL = 10000; // 10 s — AUTO-ON badge auto-dismisses after 10 seconds
+// Shows a green AUTO-ON badge when a pump is turned ON by ANY trigger
+// (manual toggle, schedule, pump link) so the operator isn't confused by a
+// stale AUTO-OFF badge. "Bypass the guard": it is set immediately on trigger,
+// outside any cooldown check, and expires on its own after _AUTO_ON_BADGE_TTL.
+function _setAutoOnBadge(pump, reservoir, byLabel) {
+  var k = pump + ':' + (reservoir || '');
+  autoResumeBadges[k] = { pump: pump, reservoir: reservoir || '', by: byLabel || 'Auto', timestamp: Date.now() };
+  try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {}
+}
+function _clearAutoOnBadge(pump, reservoir) {
+  var k = pump + ':' + (reservoir || '');
+  if (autoResumeBadges[k]) {
+    delete autoResumeBadges[k];
+    try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {}
+  }
+}
+function _clearAutoOnBadgesForPump(pump) {
+  var changed = false;
+  Object.keys(autoResumeBadges).forEach(function(k) {
+    if (autoResumeBadges[k] && autoResumeBadges[k].pump === pump) { delete autoResumeBadges[k]; changed = true; }
+  });
+  if (changed) { try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {} }
+}
+// Returns the linked reservoir name when its level is at/below the resume level
+// (auto-resume active), otherwise null. Used so a stale AUTO-OFF badge never
+// shows once the reservoir has reached the resume level.
+function _resumeActiveReservoir(pump, devices) {
+  var levelMap = {};
+  if (Array.isArray(devices)) {
+    devices.forEach(function(d) {
+      var lv = parseFloat(d.level);
+      if (!isNaN(lv)) levelMap[d.device] = lv;
+    });
+  }
+  var found = null;
+  if (typeof pumpLinkConfigs === 'undefined' || !pumpLinkConfigs.length) return null;
+  pumpLinkConfigs.forEach(function(pl) {
+    if (!pl.enabled || pl.pump !== pump) return;
+    var lv = levelMap[pl.reservoir];
+    if (lv === undefined) return;
+    var res = parseFloat(pl.resumeLevel);
+    if (!isNaN(res) && lv <= res) found = pl.reservoir;
+  });
+  return found;
+}
 var autoShutoffSuppressNotify  = {}; // debounce toasts
 var _autoShutoffLog            = []; // loaded from GAS on demand
 // ── Tracks when the OFF/ON command was last sent for a given pump:reservoir
@@ -4037,8 +4085,8 @@ function initDashboard() {
         if (needOn) {
           // ── FIX 5: hard level safety — never send ON if level is still at or above shutoff
           if (lv >= sOff || (sOff2 > 0 && lv >= sOff2)) continue;
-          var aoKey = lnk.pump + ':' + lnk.reservoir;
-          if (reservoirAutoShutoffState[aoKey]) continue;
+          // ── RESUME FIX: do NOT block resume while AUTO-OFF state is set —
+          //    that deadlock kept the pump off after the reservoir drained.
         }
 
         var wantState = needOn ? 1 : 0;
@@ -4050,6 +4098,7 @@ function initDashboard() {
 
         /* Update autoShutoffState so UI reflects it */
         if (needOff) {
+          _clearAutoOnBadge(lnk.pump, lnk.reservoir);
           reservoirAutoShutoffState[ck] = {
             pump: lnk.pump, reservoir: lnk.reservoir,
             shutoffLevel: sOff, resumeLevel: sRes,
@@ -4058,6 +4107,7 @@ function initDashboard() {
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
           _disableSchedulesForPump(lnk.pump);
         } else if (needOn) {
+          _setAutoOnBadge(lnk.pump, lnk.reservoir, 'PumpLink');
           delete reservoirAutoShutoffState[ck];
           localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
           _enableSchedulesForPump(lnk.pump);
@@ -4323,14 +4373,16 @@ function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
 }
 
 /**
- * Full toggle sequence (dashboard is the command authority):
+ * Full toggle sequence (dashboard issues the command; EMQX MQTT is PRIORITY):
  *
  *   Step 1 — Cache:     _setCommandedCache()          instant local UI feedback
- *   Step 2 — Firebase:  _firebaseOptimisticToggle()   other tabs see order instantly
- *   Step 3 — GAS:       apiPost('togglePump')         authoritative backend write
- *   Step 4 — Confirm:   GAS responds → update cache   mark as sent (relayPending shown)
- *   Step 5 — ESP32:     reads Firebase commandedRelay → sets physical relay → writes relay back
- *   Step 6 — Synced:    relay = commandedRelay        relayPending cleared, UI shows confirmed
+ *   Step 2 — MQTT:      _publishToMQTT()              PRIORITY — instant EMQX push to ESP32
+ *   Step 3 — Firebase:  _firebaseOptimisticToggle()   BACKUP record for other tabs
+ *   Step 4 — GAS:       apiPost('togglePump')         authoritative backend write
+ *   Step 5 — Confirm:   GAS responds → update cache   mark as sent (relayPending shown)
+ *   Step 6 — ESP32:     acts on MQTT first; only if MQTT is down it reads Firebase
+ *                       commandedRelay (Firebase is strictly backup)
+ *   Step 7 — Synced:    ESP32 writes relay back → relay = commandedRelay, relayPending cleared
  */
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -4509,11 +4561,13 @@ function hasAutomation(deviceName) {
 // ── The real toggle execution ──
 function _executeDashboardToggle(deviceName, newStateInt, cb) {
   var _dKey = 'dTP:' + deviceName;
-  // ═══ Step 1 + 2: Cache + Firebase (instant, parallel) ═══
+  // ═══ Step 1: UI cache + pending markers (instant) ═══
   _setCommandedCache(deviceName, newStateInt);
-  _firebaseOptimisticToggle(deviceName, newStateInt);
   _relayPendingUntil[deviceName] = Date.now() + _RELAY_PENDING_TIMEOUT;
   _manualToggleCooldown[deviceName] = Date.now() + 300000;
+  // AUTO-ON badge: optimistic on manual toggle (bypasses any guard/cooldown)
+  if (newStateInt === 1) _setAutoOnBadge(deviceName, '', 'Manual');
+  else _clearAutoOnBadgesForPump(deviceName);
   // ★ FIX: cooldown is set here (optimistic phase) so the APE engine
   //       & auto-shutoff respect it BEFORE GAS even returns.
   try {
@@ -4532,10 +4586,10 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   } catch(_swDbErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 2b: EMQX MQTT Publish (INSTANT path — sends directly to ESP32) ═══
+  // ═══ Step 2: EMQX MQTT Publish FIRST (PRIMARY / PRIORITY — instant path) ═══
   // The ESP32 receives this via its existing MQTT subscription and toggles
-  // the physical relay within milliseconds. This is the PRIMARY toggle path.
-  // If it fails, the GAS + Firebase path serves as backup.
+  // the physical relay within milliseconds. MQTT is authoritative; the
+  // Firebase write below is ONLY the backup/record path.
   var _mqttDelivered = false;
   _publishToMQTT(deviceName, newStateInt, 3, function(mqttOk) {
     if (mqttOk) {
@@ -4549,12 +4603,15 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
           _setCommandedCache(deviceName, newStateInt);
         }
         // If not confirmed within 15s, Firebase backup will eventually
-        // work (ESP32 polls every 10s) — the GAS call below also handles it.
+        // work (ESP32 polls every 2s) — the GAS call below also handles it.
       });
     }
   });
 
-  // ═══ Step 3: Authoritative GAS write ═══
+  // ═══ Step 3: Firebase backup record (issued after MQTT, ESP32 acts on MQTT first) ═══
+  _firebaseOptimisticToggle(deviceName, newStateInt);
+
+  // ═══ Step 4: Authoritative GAS write ═══
   var coords = deviceCoordinatesCache[deviceName] || {};
   apiPost('togglePump', {
     device:       deviceName,
@@ -4570,6 +4627,9 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       // ═══ Step 4: GAS confirmed ─ always re-assert relay in Firebase ═══
       _setCommandedCache(deviceName, res.newState);
       if (cb) cb(res.newState);
+      // AUTO-ON badge: manual ON shows the green badge (bypasses any guard/cooldown)
+      if (res.newState === 1) _setAutoOnBadge(deviceName, '', 'Manual');
+      else _clearAutoOnBadgesForPump(deviceName);
       if (typeof firebase !== 'undefined' && _fbDevicesRef) {
         try { _fbDevicesRef.child(deviceName).update({ commandedRelay: res.newState, lastToggledBy: res.toggledBy || loggedInUser || 'dashboard' }); } catch(e) {}
       }
@@ -4602,6 +4662,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
         var revert = newStateInt === 1 ? 0 : 1;
         _setCommandedCache(deviceName, revert);
         _firebaseOptimisticToggle(deviceName, revert, false);
+        _clearAutoOnBadgesForPump(deviceName);
         if (cb) cb(revert);
         showNotification('❌ Toggle failed: ' + (res && res.error ? res.error : 'Server error'), 'error');
       }
@@ -4613,6 +4674,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       var revert = newStateInt === 1 ? 0 : 1;
       _setCommandedCache(deviceName, revert);
       _firebaseOptimisticToggle(deviceName, revert, false);
+      _clearAutoOnBadgesForPump(deviceName);
       if (cb) cb(revert);
       showNotification('⚠ Network error — command could not be confirmed. State reverted.', 'error');
     }
@@ -4695,14 +4757,29 @@ if (isResBooster) {
     + '</div>';
 
   (function(){
+    var _dOn = (d.relay == 1 || d.relay === true || d.relay === '1' || (typeof d.relay === 'string' && d.relay.toUpperCase() === 'ON'));
+    var _resAct = _resumeActiveReservoir(d.device, devices);
     var _aok = Object.keys(reservoirAutoShutoffState).filter(function(k){return reservoirAutoShutoffState[k].pump===d.device;});
-    if (_aok.length) {
+    // AUTO-OFF badge only while the pump is actually OFF AND the reservoir is
+    // still above the resume level — never a stale AUTO-OFF on a resumed pump.
+    if (_aok.length && !_dOn && !_resAct) {
       var _ao = reservoirAutoShutoffState[_aok[0]];
       var _ab = document.createElement('div');
       _ab.className = 'auto-shutoff-badge';
       _ab.title = 'Auto-shutoff: ' + (_ao.reservoir||'') + ' at ' + (_ao.shutoffLevel||'') + ' m³';
       _ab.innerHTML = '🛑 AUTO-OFF · ' + (_ao.reservoir||'Reservoir');
       li.appendChild(_ab);
+    } else if (_dOn || _resAct) {
+      // AUTO-ON badge from a recent trigger (10 s auto-dismiss)
+      var _rok = Object.keys(autoResumeBadges).filter(function(k){return autoResumeBadges[k].pump===d.device && (Date.now() - autoResumeBadges[k].timestamp) < _AUTO_ON_BADGE_TTL;});
+      if (_rok.length) {
+        var _ro = autoResumeBadges[_rok[0]];
+        var _rb = document.createElement('div');
+        _rb.className = 'auto-on-badge';
+        _rb.title = 'Auto-resume at ' + new Date(_ro.timestamp).toLocaleString() + '\nTurned ON by: ' + (_ro.by || 'Auto');
+        _rb.innerHTML = '✅ AUTO-ON' + (_ro.reservoir ? ' · ' + _ro.reservoir : '') + ' · ' + (_ro.by || 'Auto');
+        li.appendChild(_rb);
+      }
     }
   })();
 
@@ -4732,12 +4809,29 @@ if (isResBooster) {
         if (reservoirAutoShutoffState[k].pump === d.device) liveOff = reservoirAutoShutoffState[k];
       });
       if (liveOff) {
-        resCb.checked = false;
-        showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
-        return;
+        // ── TOGGLE FIX: only block if the linked reservoir is STILL above resume level.
+        //    A stale AUTO-OFF entry after the reservoir drained must NOT block the operator. ──
+        var _rD = devices.find(function(x){ return x.device === liveOff.reservoir; });
+        var _rLv = _rD ? parseFloat(_rD.level) : NaN;
+        var _resV = parseFloat(liveOff.resumeLevel);
+        var _stillBlocked = !isNaN(_rLv) && !isNaN(_resV) && _rLv > _resV;
+        if (_stillBlocked || _rD === undefined) {
+          resCb.checked = false;
+          showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
+          return;
+        }
+        // Reservoir already at/below resume — stale state, clear it and allow the toggle
+        Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+          if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
+        });
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+        liveOff = null;
       }
     }
-    dashboardTogglePump(d.device, newStateInt, function(confirmed) { resCb.checked = confirmed === 1; });
+    dashboardTogglePump(d.device, newStateInt, function(confirmed) {
+      resCb.checked = confirmed === 1;
+      _clearAutoOnBadgesForPump(d.device);
+    });
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
@@ -4801,14 +4895,28 @@ if (isResBooster) {
             return;
           }
           // ── Guard: autoShutoffState still set for a different reason (e.g. backup) ──
+          // ── TOGGLE FIX: only block if the linked reservoir is STILL above resume level.
+          //    A stale AUTO-OFF entry after the reservoir drained must NOT block the operator. ──
           var liveOff = null;
           Object.keys(reservoirAutoShutoffState).forEach(function(k) {
             if (reservoirAutoShutoffState[k].pump === d.device) liveOff = reservoirAutoShutoffState[k];
           });
           if (liveOff) {
-            cb.checked = false;
-            showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
-            return;
+            var _resD = devices.find(function(x){ return x.device === liveOff.reservoir; });
+            var _resLv = _resD ? parseFloat(_resD.level) : NaN;
+            var _resumeVal = parseFloat(liveOff.resumeLevel);
+            var _stillBlocked = !isNaN(_resLv) && !isNaN(_resumeVal) && _resLv > _resumeVal;
+            if (_stillBlocked || _resD === undefined) {
+              cb.checked = false;
+              showNotification('⚠ Cannot turn ON ' + d.device + ': ' + (liveOff.reservoir||'Reservoir') + ' is still above resume level (' + (liveOff.resumeLevel||'--') + ' m³). Drain first or remove the link.', 'warning');
+              return;
+            }
+            // Reservoir already at/below resume — stale state, clear it and allow the toggle
+            Object.keys(reservoirAutoShutoffState).forEach(function(k) {
+              if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
+            });
+            localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+            liveOff = null;
           }
           // ── FIX 4: Near-full warning — only check reservoirs LINKED to this pump ──
           var linkedFull = null;
@@ -4828,6 +4936,8 @@ if (isResBooster) {
         // ── FIX 3b: Clear autoShutoffState only AFTER confirmed success, not before ──
         dashboardTogglePump(d.device, newStateInt, function(confirmed) {
           cb.checked = confirmed === 1;
+          // Operator took manual control — clear any AUTO-ON badge for this pump
+          _clearAutoOnBadgesForPump(d.device);
           if (confirmed === 1) {
             Object.keys(reservoirAutoShutoffState).forEach(function(k) {
               if (reservoirAutoShutoffState[k].pump === d.device) delete reservoirAutoShutoffState[k];
@@ -5073,6 +5183,7 @@ function autoShutoffPumps(devices) {
     // ── Backup shutoff (primary command may have failed) ─────────────────
     if (shutoff2 > 0 && lv >= shutoff2 && serverRelayOn) {
       var ts = new Date().toLocaleString();
+      _clearAutoOnBadge(cfg.pump, cfg.reservoir);
       if (!autoOffEntry) {
         reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
@@ -5107,6 +5218,7 @@ function autoShutoffPumps(devices) {
     // ── Primary shutoff ──────────────────────────────────────────────────
     } else if (lv >= shutoff && serverRelayOn) {
       var ts = new Date().toLocaleString();
+      _clearAutoOnBadge(cfg.pump, cfg.reservoir);
       if (!autoOffEntry) {
         reservoirAutoShutoffState[_stateKey] = {
           linkId: cfg.id, reservoir: cfg.reservoir, pump: cfg.pump,
@@ -5143,12 +5255,18 @@ function autoShutoffPumps(devices) {
     } else if (resume2 > 0 && lv <= resume2 && !serverRelayOn) {
       // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
       if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
+      // ── AUTO-ON badge: pump link backup-resume — set immediately (bypasses cooldown) ──
+      _setAutoOnBadge(cfg.pump, cfg.reservoir, 'PumpLink');
+      // ── RESUME FIX: clear AUTO-OFF state IMMEDIATELY on resume conditions,
+      //    even while the command cooldown is active, so the badge/state never lingers ──
+      if (reservoirAutoShutoffState[_stateKey]) {
+        delete reservoirAutoShutoffState[_stateKey];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+      }
       // ── Only send the ON command once per resume event ────────────────────
       var _lastOn2 = _autoShutoffCommandSent[_bonCdKey] || 0;
       if (!_lastOn2 || Date.now() - _lastOn2 > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_bonCdKey] = Date.now();
-        delete reservoirAutoShutoffState[_stateKey];
-        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs2 = new Date().toLocaleString();
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
@@ -5170,12 +5288,18 @@ function autoShutoffPumps(devices) {
     } else if (lv <= resume && !serverRelayOn) {
       // ── FIX 5: hard level safety — never resume if still at or above shutoff ──
       if (lv >= shutoff || (shutoff2 > 0 && lv >= shutoff2)) return;
+      // ── AUTO-ON badge: pump link resume — set immediately (bypasses cooldown) ──
+      _setAutoOnBadge(cfg.pump, cfg.reservoir, 'PumpLink');
+      // ── RESUME FIX: clear AUTO-OFF state IMMEDIATELY on resume conditions,
+      //    even while the command cooldown is active, so the badge/state never lingers ──
+      if (reservoirAutoShutoffState[_stateKey]) {
+        delete reservoirAutoShutoffState[_stateKey];
+        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+      }
       // ── Only send the ON command once per resume event ────────────────────
       var _lastOn = _autoShutoffCommandSent[_onCdKey] || 0;
       if (!_lastOn || Date.now() - _lastOn > _AUTO_SHUTOFF_COOLDOWN) {
         _autoShutoffCommandSent[_onCdKey] = Date.now();
-        delete reservoirAutoShutoffState[_stateKey];
-        localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
         var resumeTs = new Date().toLocaleString();
         _showResumeBanner(cfg.reservoir, cfg.pump, lv, resume);
         if (window.speechSynthesis) {
@@ -5200,7 +5324,7 @@ function autoShutoffPumps(devices) {
     }
   });
 
-  _updateAutoShutoffBadges();
+  _updateAutoShutoffBadges(devices);
   // Update the top-card badge count
   var activeShutoffs = Object.keys(reservoirAutoShutoffState).length;
   var plBadge = document.getElementById('pump-links-badge');
@@ -5238,12 +5362,35 @@ function _showResumeBanner(resName, pumpName, level, resume) {
   setTimeout(function() { var el = document.getElementById('res-resume-banner'); if (el) el.remove(); }, 15000);
 }
 
-function _updateAutoShutoffBadges() {
-  document.querySelectorAll('.auto-shutoff-badge').forEach(function(el) { el.remove(); });
+function _updateAutoShutoffBadges(devices) {
+  document.querySelectorAll('.auto-shutoff-badge, .auto-on-badge').forEach(function(el) { el.remove(); });
+  var now = Date.now();
+  // Auto-dismiss expired AUTO-ON badges (10 s TTL)
+  var onChanged = false;
+  Object.keys(autoResumeBadges).forEach(function(k) {
+    var e = autoResumeBadges[k];
+    if (!e || !e.timestamp) { delete autoResumeBadges[k]; onChanged = true; return; }
+    if (now - e.timestamp > _AUTO_ON_BADGE_TTL) { delete autoResumeBadges[k]; onChanged = true; }
+  });
+  if (onChanged) { try { localStorage.setItem('autoResumeBadges', JSON.stringify(autoResumeBadges)); } catch(e) {} }
   var keys = Object.keys(reservoirAutoShutoffState);
-  if (!keys.length) return;
+  // ── BADGE FIX: build pump → actual relay map so a stale AUTO-OFF badge
+  //    never shows on a pump that is already ON (or resumed) ──
+  var pumpOn = {};
+  if (Array.isArray(devices)) devices.forEach(function(d) {
+    pumpOn[d.device] = (d.relay == 1 || d.relay === true || d.relay === '1' || (typeof d.relay === 'string' && d.relay.toUpperCase() === 'ON'));
+  });
+  var changed = false;
   keys.forEach(function(k) {
     var entry = reservoirAutoShutoffState[k];
+    if (!entry) return;
+    // Stale entry — pump is actually ON or its reservoir already reached the
+    // resume level, so clear the state and skip the badge
+    if (pumpOn[entry.pump] || _resumeActiveReservoir(entry.pump, devices)) {
+      delete reservoirAutoShutoffState[k];
+      changed = true;
+      return;
+    }
     document.querySelectorAll('#device-list li').forEach(function(li) {
       var nameEl = li.querySelector('span');
       if (nameEl && nameEl.textContent.trim() === entry.pump) {
@@ -5254,6 +5401,24 @@ function _updateAutoShutoffBadges() {
         li.appendChild(badge);
       }
     });
+  });
+  if (changed) localStorage.setItem('reservoirAutoShutoff', JSON.stringify(reservoirAutoShutoffState));
+  // Render recent AUTO-ON badges (pump on, or resume still active during lag)
+  Object.keys(autoResumeBadges).forEach(function(k) {
+    var e = autoResumeBadges[k];
+    if (!e) return;
+    if (pumpOn[e.pump] || _resumeActiveReservoir(e.pump, devices)) {
+      document.querySelectorAll('#device-list li').forEach(function(li) {
+        var nameEl = li.querySelector('span');
+        if (nameEl && nameEl.textContent.trim() === e.pump) {
+          var badge = document.createElement('div');
+          badge.className = 'auto-on-badge';
+          badge.title = 'Auto-resume at ' + new Date(e.timestamp).toLocaleString() + '\nTurned ON by: ' + (e.by || 'Auto') + (e.reservoir ? '\n' + e.reservoir + ' dropped to resume level' : '');
+          badge.innerHTML = '✅ AUTO-ON' + (e.reservoir ? ' · ' + e.reservoir : '') + ' · ' + (e.by || 'Auto');
+          li.appendChild(badge);
+        }
+      });
+    }
   });
 }
 
@@ -5674,6 +5839,9 @@ function _startScheduleWatcher() {
       if (_scheduleWatchFired[key]) return;
       _scheduleWatchFired[key] = true;
       var wantState = parseInt(sc.action) === 1 ? 1 : 0;
+      // AUTO-ON badge: schedule ON shows the green badge (bypasses any guard/cooldown)
+      if (wantState === 1) _setAutoOnBadge(sc.device, '', 'Schedule');
+      else _clearAutoOnBadgesForPump(sc.device);
       _publishToMQTT(sc.device, wantState, 5, function(mqttOk) {
         _setCommandedCache(sc.device, wantState);
         if (typeof firebase !== 'undefined' && _fbDevicesRef) {
@@ -6344,6 +6512,24 @@ function showDebugBar(msg){
   b.classList.add('visible');
 }
 
+// Shared helper: animate the plot morphing from the OLD dataset to the NEW one
+// whenever the same chart "shape" is reused (e.g. picking a new date range),
+// otherwise tear down and rebuild from scratch. Returns the current chart.
+function _morphChart(oldChart, sigRef, sigKey, chartType, labels, datasets, options, canvas) {
+  if (!options.animation) options.animation = { duration: 800, easing: 'easeInOutQuart' };
+  if (oldChart && oldChart.canvas === canvas && sigRef.last === sigKey) {
+    oldChart.data.labels = labels;
+    oldChart.data.datasets = datasets;
+    oldChart.options = options;
+    oldChart.update();
+    return oldChart;
+  }
+  sigRef.last = sigKey;
+  if (oldChart) { try { oldChart.destroy(); } catch(e) {} }
+  return new Chart(canvas, { type: chartType, data: { labels: labels, datasets: datasets }, options: options });
+}
+var _gSig = { last: null };
+
 function renderRangeChart() {
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
@@ -6352,7 +6538,6 @@ function renderRangeChart() {
   var labels=[];
   try { labels=data.map(function(r){var d=parseSheetDate(r[window._timeKey]);if(!d)return'';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});}); } catch(e){nd.classList.add('visible');showDebugBar('Data format error: invalid time column');return;}
   var canvas=document.getElementById('pressureChart'),ctx=canvas.getContext('2d');
-  if (myChart) myChart.destroy();
   if (currentDeviceType==='reservoir') {
     // Resolve the actual level key — use _levelKey, fall back to _pressKey, then scan for any numeric column
     var resKey = window._levelKey || window._pressKey;
@@ -6373,7 +6558,7 @@ function renderRangeChart() {
     if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data)});
+    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data), canvas);
     return;
   }
   if (currentDeviceType !== 'pump') {
@@ -6382,7 +6567,7 @@ function renderRangeChart() {
     if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
-    myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:[{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}]},options:buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data)});
+    myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data), canvas);
     return;
   }
   var datasets=[],leftP=[],rightP=[];
@@ -6405,7 +6590,7 @@ function renderRangeChart() {
   var lr=merge(leftP),rr=merge(rightP);
   var axDefs=[{id:'yLeft',label:lr.label,min:lr.min,max:lr.max,pos:'left'}];
   if(rightP.length)axDefs.push({id:'yRight',label:rr.label,min:rr.min,max:rr.max,pos:'right'});
-  myChart=new Chart(ctx,{type:'line',data:{labels:labels,datasets:datasets},options:buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data)});
+  myChart=_morphChart(myChart,_gSig,'pump|'+axDefs.map(function(a){return a.id;}).join(',')+'|'+datasets.length, 'line', labels, datasets, buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data), canvas);
 }
 
 function buildToggleAnnotations(data) {
@@ -6434,7 +6619,7 @@ function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#334155',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(0,64,128,0.07)',lineWidth:1},border:{color:'rgba(0,64,128,0.15)'}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#334155',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#002b5c',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(0,0,0,0.55)':(ax.pos==='left'?'rgba(0,64,128,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(0,64,128,0.15)'}};});
-  return {responsive:true,maintainAspectRatio:false,animation:false,devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 document.querySelectorAll('.range-btn').forEach(function(btn){
@@ -7567,8 +7752,7 @@ function renderTabModalChart(rows) {
     });
   }
 
-  // Destroy old chart
-  if (tabModalChart) { tabModalChart.destroy(); tabModalChart = null; }
+  // Build chart with live morph: reuse the instance when the shape is unchanged
   var canvas = document.getElementById('tab-modal-canvas');
   if (!canvas) return;
   if (load) load.style.display = 'none';
@@ -7576,13 +7760,11 @@ function renderTabModalChart(rows) {
 
   var summaryCards = document.getElementById('tab-modal-summary-cards');
 
-  tabModalChart = new Chart(canvas.getContext('2d'), {
-    type: cfg.chartType,
-    data: { labels: sortedLabels, datasets: datasets },
-    options: {
+  var _tmOpts = {
       responsive: true,
       maintainAspectRatio: false,
       interaction: { mode: 'index', intersect: false },
+      animation: { duration: 800, easing: 'easeInOutQuart' },
       plugins: {
         legend: { position: 'top', labels: { font: { size: 11 }, boxWidth: 14, padding: 12 } },
         tooltip: { callbacks: {
@@ -7594,8 +7776,22 @@ function renderTabModalChart(rows) {
         y: { min:0, afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});}, grid: { color: function(ctx){return ctx.tick.value===0?'rgba(0,0,0,0.55)':'rgba(0,0,0,0.06)';}, lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;} }, ticks: { font: { size: 11 } }, title: { display: true, text: cfg.yLabel, font: { size: 11 }, color: '#5575a0' } },
         yRight: cfg.alarmMode ? { min:0, afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});}, position: 'right', grid: { color:'rgba(0,0,0,0)' }, ticks: { font:{size:10} }, title: { display:true, text:'Alarms', font:{size:10}, color:'#ef4444' } } : hasElectrial ? { min:0, afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});}, position: 'right', grid: { color:'rgba(0,0,0,0)' }, ticks: { font:{size:10} }, title: { display:true, text:'Energy (kWh)', font:{size:10}, color:'#a78bfa' } } : undefined
       }
-    }
-  });
+    };
+  var _tmSigKey = cfg.chartType + '|' + (cfg.alarmMode?'A':'') + (hasElectrial?'E':'');
+  if (tabModalChart && tabModalChart.canvas === canvas && tabModalChart._sig === _tmSigKey) {
+    tabModalChart.data.labels = sortedLabels;
+    tabModalChart.data.datasets = datasets;
+    tabModalChart.options = _tmOpts;
+    tabModalChart.update();
+  } else {
+    if (tabModalChart) { try{ tabModalChart.destroy(); }catch(e){} tabModalChart = null; }
+    tabModalChart = new Chart(canvas.getContext('2d'), {
+      type: cfg.chartType,
+      data: { labels: sortedLabels, datasets: datasets },
+      options: _tmOpts
+    });
+    tabModalChart._sig = _tmSigKey;
+  }
 
   // Summary stat chips
   if (summaryCards) {
@@ -8724,13 +8920,13 @@ function openForecastPanel() {
 }
 
 var _fcChart = null;
+var _fcSig = { last: null };
 function loadForecast() {
   var device=document.getElementById('fc-device')?document.getElementById('fc-device').value:null;
   var param=document.getElementById('fc-param')?document.getElementById('fc-param').value:'pressure';
   if(!device) return;
   var loading=document.getElementById('fc-loading'),wrap=document.getElementById('fc-chart-wrap');
   if(loading) loading.style.display='flex';if(wrap) wrap.style.display='none';
-  if(_fcChart){_fcChart.destroy();_fcChart=null;}
   apiGet('getSheetData',{sheet:device}).then(function(rows){
     rows=rows||[];
     var keys=rows.length?Object.keys(rows[0]):[];
@@ -8752,14 +8948,11 @@ function loadForecast() {
     if(loading) loading.style.display='none';
     if(wrap) wrap.style.display='block';
     var canvas=document.getElementById('fc-canvas');
-    _fcChart=new Chart(canvas.getContext('2d'),{
-      type:'line',
-      data:{labels:labels,datasets:[
+    var _fcOpts = {responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},animation:{duration:800,easing:'easeInOutQuart'},plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14,padding:12}}},scales:{x:{ticks:{font:{size:10},maxTicksLimit:12,maxRotation:30}},y:{ticks:{font:{size:11}},title:{display:true,text:param,font:{size:11},color:'#5575a0'}}}};
+    _fcChart = _morphChart(_fcChart, _fcSig, 'forecast|'+(valKey||param), 'line', labels, [
         {label:'Actual',data:actuals,borderColor:'rgba(59,130,246,0.9)',backgroundColor:'rgba(59,130,246,0.08)',borderWidth:2,pointRadius:0,fill:true,tension:0.35},
         {label:'AI Forecast',data:forecastVals,borderColor:'rgba(245,158,11,0.9)',backgroundColor:'rgba(245,158,11,0.08)',borderWidth:2,borderDash:[6,4],pointRadius:0,fill:true,tension:0.35,spanGaps:false}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,interaction:{mode:'index',intersect:false},plugins:{legend:{position:'top',labels:{font:{size:11},boxWidth:14,padding:12}}},scales:{x:{ticks:{font:{size:10},maxTicksLimit:12,maxRotation:30}},y:{ticks:{font:{size:11}},title:{display:true,text:param,font:{size:11},color:'#5575a0'}}}}
-    });
+      ], _fcOpts, canvas);
 
     // Quick AI insight
     var valid=actuals.filter(function(v){return v!==null;});
@@ -8784,7 +8977,7 @@ function initPumpLinksAndDisplay() {
       var savedState = localStorage.getItem('reservoirAutoShutoff');
       if (savedState) {
         reservoirAutoShutoffState = JSON.parse(savedState);
-        _updateAutoShutoffBadges();
+        _updateAutoShutoffBadges(window._lastDevices);
       }
     });
   }
