@@ -6520,7 +6520,15 @@ function _morphChart(oldChart, sigRef, sigKey, chartType, labels, datasets, opti
   if (oldChart && oldChart.canvas === canvas && sigRef.last === sigKey) {
     oldChart.data.labels = labels;
     oldChart.data.datasets = datasets;
-    oldChart.options = options;
+    // NOTE: Chart.js v4 `chart.options` is getter-only — assign in place so the
+    // new scales/plugins from the freshly-selected range actually take effect.
+    var _o = oldChart.options;
+    if (_o) {
+      _o.scales = options.scales;
+      _o.plugins = options.plugins;
+      _o.interaction = options.interaction;
+      _o.animation = options.animation;
+    }
     oldChart.update();
     return oldChart;
   }
@@ -7781,7 +7789,13 @@ function renderTabModalChart(rows) {
   if (tabModalChart && tabModalChart.canvas === canvas && tabModalChart._sig === _tmSigKey) {
     tabModalChart.data.labels = sortedLabels;
     tabModalChart.data.datasets = datasets;
-    tabModalChart.options = _tmOpts;
+    var _to = tabModalChart.options;
+    if (_to) {
+      _to.scales = _tmOpts.scales;
+      _to.plugins = _tmOpts.plugins;
+      _to.interaction = _tmOpts.interaction;
+      _to.animation = _tmOpts.animation;
+    }
     tabModalChart.update();
   } else {
     if (tabModalChart) { try{ tabModalChart.destroy(); }catch(e){} tabModalChart = null; }
