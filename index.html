@@ -3130,6 +3130,7 @@ function login() {
     .then(function(token) {
       if (!token) { spinEl.style.display = 'none'; errEl.innerText = 'Invalid credentials. Please try again.'; errEl.style.display = 'block'; return; }
       userToken = token; sessionToken = token; loggedInUser = user;
+      try { localStorage.setItem('agus_session', JSON.stringify({ token: token, user: user, at: Date.now() })); } catch(e) {}
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
@@ -3155,6 +3156,7 @@ function logout() {
   if (graphPollInterval) { clearInterval(graphPollInterval); graphPollInterval = null; }
   if (liveCounterInterval) { clearInterval(liveCounterInterval); liveCounterInterval = null; }
   userToken = null; loggedInUser = ''; selectedDevice = null; _deviceDetailsDismissed = false;
+  try { localStorage.removeItem('agus_session'); } catch(e) {}
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('password').value = '';
@@ -3645,11 +3647,31 @@ fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(func
   });
   requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
 })();
-/* Map feature refresh — throttled to 700ms, paused while tab hidden to cut GPU/compositor churn */
+/* Map feature refresh — data-driven, throttled to 2500ms, paused while tab hidden.
+   Only re-renders a feature when its relevant data actually changed. Previously this
+   loop called f.changed() on EVERY feature every 700ms for the whole session, which
+   made the OpenLayers style function rebuild a fresh SVG data-URI Icon for every
+   device ~120k+ times a day. That sustained allocation eventually starves the
+   compositor and crashes the tab ("access violation" white screen) after many hours.
+   Data only changes every 60s (updateDashboard), so unchanged features are skipped. */
+var _refreshSig = {};
 setInterval(function() {
   if (document.hidden) return;
-  clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();});
-}, 700);
+  clusterLayer.getSource().getFeatures().forEach(function(f){
+    var inner = f.get('features');
+    var src = (inner && inner.length === 1) ? inner[0] : null;
+    var sig;
+    if (src) {
+      sig = (src.get('status')||'') + '|' + (src.get('pressure')||'') + '|' + (src.get('level')||'') + '|' + (src.get('relay')||'') + '|' + (src.get('voltage')||'');
+    } else {
+      sig = 'cluster|' + (inner ? inner.length : 0);
+    }
+    var name = src ? src.get('name') : ('__c' + f.get('features').length);
+    if (_refreshSig[name] === sig) return;   // data unchanged — skip re-render
+    _refreshSig[name] = sig;
+    f.changed();
+  });
+}, 2500);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
@@ -4011,6 +4033,108 @@ function initDashboard() {
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
+// ║  SELF-HEALING WATCHDOG — keeps the dashboard alive for months/years.     ║
+// ║  No long-running JS page is 100% leak-proof, so instead of chasing every ║
+// ║  micro-leak we (1) persist the session so a reload stays logged in,      ║
+// ║  (2) watch the JS heap and reload gracefully if it grows too large       ║
+// ║  (kills slow leaks before the "access violation" crash), and             ║
+// ║  (3) do one gentle scheduled reload per day for a full state reset.      ║
+// ║  Reloads are throttled/cooldowned so the tab can never reload-loop.      ║
+// ╚══════════════════════════════════════════════════════════════════════════╝
+(function() {
+  'use strict';
+
+  var SESSION_KEY  = 'agus_session';
+  var HEAP_LIMIT   = 400 * 1024 * 1024;   // reload when JS heap > ~400 MB
+  var HEAP_MIN_SEC = 2 * 60 * 1000;       // only reload if heap stayed high 2 min
+  var RELOAD_EVERY = 24 * 60 * 60 * 1000; // one gentle full reload per day
+  var COOLDOWN_MS  = 10 * 60 * 1000;      // don't reload more often than 10 min
+  var _lastReload  = 0;
+  var _heapHighSince = 0;
+
+  window._restoreSession = function() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e) {}
+    if (!s || !s.token || !s.user) return false;
+    userToken = s.token; sessionToken = s.token; loggedInUser = s.user;
+    try {
+      document.getElementById('loginPage').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'flex';
+    } catch(e) { return false; }
+    if (typeof window._secActivatePostLogin === 'function') { try { window._secActivatePostLogin(s.user); } catch(e) {} }
+    try {
+      document.getElementById('welcome-user-topright').innerHTML =
+        '<span id="welcome-username">Welcome, ' + s.user + '</span>' +
+        '<div style="display:flex;align-items:center;gap:6px;">' +
+        '<span id="conn-indicator" title="Firebase status">●</span>' +
+        '<span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span>' +
+        '<span id="weather-display"></span>' +
+        '<div id="datetime-display"><span id="date-display" class="date-layer"></span>' +
+        '<span id="time-display" class="time-layer"></span></div></div>';
+    } catch(e) {}
+    updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+    initDashboard();
+    if (typeof initPressureSettingsFromServer === 'function') initPressureSettingsFromServer();
+    if (typeof initReservoirThresholdsFromServer === 'function') initReservoirThresholdsFromServer();
+    if (typeof initSensorThresholdsFromServer === 'function') initSensorThresholdsFromServer();
+    if (typeof initPumpLinksAndDisplay === 'function') initPumpLinksAndDisplay();
+    if (typeof _initMQTT === 'function') { try { _initMQTT(); } catch(e) {} }
+    window._startSelfHealWatchdog();
+    return true;
+  };
+
+  window._gracefulReload = function(reason) {
+    var now = Date.now();
+    if (now - _lastReload < COOLDOWN_MS) return;      // cooldown guard — never loop
+    _lastReload = now;
+    try { sessionStorage.setItem('agus_reload_reason', reason); } catch(e) {}
+    try { localStorage.setItem('agus_last_reload', String(now)); } catch(e) {}
+    window.location.reload();
+  };
+
+  window._startSelfHealWatchdog = function() {
+    var started = document.body.getAttribute('data-heal');
+    if (started) return;
+    document.body.setAttribute('data-heal', '1');
+
+    // 1) Scheduled daily reload — full state reset, session persists via localStorage.
+    setTimeout(function() { window._gracefulReload('scheduled-daily'); }, RELOAD_EVERY);
+
+    // 2) Memory watchdog (Chromium exposes performance.memory). If the JS heap
+    //    crosses the limit and STAYS high for HEAP_MIN_SEC, reload once.
+    if (window.performance && performance.memory) {
+      setInterval(function() {
+        if (document.hidden) return; // don't reload while the user is away on another tab
+        var used = performance.memory.usedJSHeapSize;
+        if (used > HEAP_LIMIT) {
+          if (_heapHighSince === 0) { _heapHighSince = Date.now(); }
+          else if (Date.now() - _heapHighSince >= HEAP_MIN_SEC) {
+            _heapHighSince = 0;
+            window._gracefulReload('heap-limit');
+          }
+        } else {
+          _heapHighSince = 0;
+        }
+      }, 15000);
+    }
+
+    // 3) Heartbeat guard: if the event loop stalls (e.g. renderer freeze), a
+    //    watchdog timer is reset each tick. A stall > 90s triggers a reload.
+    var _lastBeat = Date.now();
+    setInterval(function() {
+      if (Date.now() - _lastBeat > 90000) { window._gracefulReload('stall-detected'); return; }
+      _lastBeat = Date.now();
+    }, 20000);
+  };
+
+  // Auto-restore a saved session on boot — this is what makes any reload
+  // (manual, crash recovery, watchdog) land back on a live logged-in dashboard.
+  document.addEventListener('DOMContentLoaded', function() {
+    window._restoreSession();
+  });
+})();
+
+// ╔══════════════════════════════════════════════════════════════════════════╗
 // ║  AUTONOMOUS PUMP-LINK ENGINE                                            ║
 // ║  Runs every 60s completely independently of the dashboard UI.           ║
 // ║  Works even when the map/dashboard panel is not visible.                ║
@@ -4352,6 +4476,7 @@ function updateDashboard() {
 }
 function updateMap(devices) {
   deviceSource.clear(); deviceMarkers = {};
+  if (typeof _refreshSig === 'object') _refreshSig = {}; // reset refresh cache so rebuilt features re-render once
   devices.forEach(function(d) {
     if (!d.latitude || !d.longitude) return;
     var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
@@ -10340,6 +10465,23 @@ function exportDashboardPDF() {
     if (!('serviceWorker' in navigator)) return;
     function regDone(reg) {
       _swReg = reg;
+
+      // When the service worker file changes (new version deployed), the SW
+      // calls skipWaiting() + clients.claim(). A 'controllerchange' fires on
+      // every open tab at that moment — reloading each one so the updated
+      // index.html takes effect without anyone having to manually refresh.
+      // One-shot guard prevents reload storms on redundant events.
+      if (navigator.serviceWorker.oncontrollerchange === undefined) {
+        var _swApplying = false;
+        navigator.serviceWorker.addEventListener('controllerchange', function() {
+          if (_swApplying) return;
+          _swApplying = true;
+          setTimeout(function() {
+            try { window.location.reload(); } catch(e) {}
+          }, 500);
+        });
+      }
+
       _sendCfg(reg);
       if (reg.periodicSync) {
         navigator.permissions.query({ name: 'periodic-background-sync' })
