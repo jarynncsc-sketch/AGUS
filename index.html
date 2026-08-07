@@ -3045,8 +3045,9 @@ function drawLinks() {
     }
   }
 }
+var _animFrame = null;
 function animate() {
-  if (_animPaused) { requestAnimationFrame(animate); return; }
+  if (_animPaused) { _animFrame = null; return; } // fully release the rAF loop while hidden
   bgCtx.fillStyle = _bgGrad; bgCtx.fillRect(0,0,W,H);
   drawLinks();
   bgCtx.shadowColor = 'rgba(0,120,200,0.25)'; bgCtx.shadowBlur = 4;
@@ -3063,10 +3064,17 @@ function animate() {
     bgCtx.fillStyle = 'rgba(180,220,255,0.4)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r*0.4,0,Math.PI*2); bgCtx.fill();
   }
   bgCtx.shadowBlur = 0; bgCtx.shadowColor = 'transparent';
-  requestAnimationFrame(animate);
+  _animFrame = requestAnimationFrame(animate);
+}
+function _restartAnim() {
+  _animPaused = document.hidden;
+  if (!_animPaused) {
+    _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff');
+    if (_animFrame === null) _animFrame = requestAnimationFrame(animate);
+  }
 }
 animate();
-document.addEventListener('visibilitychange', function() { _animPaused = document.hidden; if (!document.hidden) { _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff'); } });
+document.addEventListener('visibilitychange', _restartAnim);
 window.addEventListener('resize', function() { W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff'); });
 function updateDateTime() {
     var elContainer = document.getElementById('datetime-display');
@@ -3620,7 +3628,9 @@ fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(func
 (function() {
   var _phase = 0;
   var _lastT = 0;
+  var _blinkPaused = false;
   function _tick(ts) {
+    if (_blinkPaused) { _phase = 0; _lastT = ts; return; }
     var dt = ts - _lastT; _lastT = ts;
     _phase += dt * 0.0022; // ~1.4s full cycle
     if (_phase > Math.PI * 2) _phase -= Math.PI * 2;
@@ -3629,10 +3639,17 @@ fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(func
     blinkOn = Math.sin(_phase) > 0;
     requestAnimationFrame(_tick);
   }
+  document.addEventListener('visibilitychange', function() {
+    _blinkPaused = document.hidden;
+    if (!_blinkPaused) requestAnimationFrame(_tick);
+  });
   requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
 })();
-/* Map feature refresh — throttled to 700ms to reduce paint pressure */
-setInterval(function() { clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();}); }, 700);
+/* Map feature refresh — throttled to 700ms, paused while tab hidden to cut GPU/compositor churn */
+setInterval(function() {
+  if (document.hidden) return;
+  clusterLayer.getSource().getFeatures().forEach(function(f){f.changed();});
+}, 700);
 map.on('singleclick', function(evt) {
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
@@ -3974,6 +3991,10 @@ function buildMiniRangeBar(mn, no, mx, cur) {
 }
 
 var _dashboardTimer = null;
+var _connStatusTimer = null;
+function _onVisibility() {
+  if (!document.hidden) { updateDashboard(); _updateConnStatus(); }
+}
 function initDashboard() {
   updateDashboard();
   loadPumpLinksFromGAS(function(){});
@@ -3983,10 +4004,10 @@ function initDashboard() {
   _dashboardTimer = setInterval(function() {
     if (!document.hidden) { updateDashboard(); processOfflineQueue(); }
   }, 60000);
-  setInterval(function(){ _updateConnStatus(); }, 10000);
-  document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) { updateDashboard(); _updateConnStatus(); }
-  });
+  if (_connStatusTimer) clearInterval(_connStatusTimer);
+  _connStatusTimer = setInterval(function(){ _updateConnStatus(); }, 10000);
+  document.removeEventListener('visibilitychange', _onVisibility);
+  document.addEventListener('visibilitychange', _onVisibility);
 }
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
