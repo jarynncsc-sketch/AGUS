@@ -4876,12 +4876,18 @@ function updateDeviceList(devices) {
       // ── Relay toggle for hybrid Reservoir+Pump devices only ───────────────
      var isResBooster = isReservoirPumpHybrid(d.device);
 if (isResBooster) {
-  if (d.commandedRelay !== undefined) {
-    var _ts = commandedRelayCacheTimestamps[d.device];
-    if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
-      commandedRelayCache[d.device] = d.commandedRelay;
-      commandedRelayCacheTimestamps[d.device] = Date.now();
-    }
+  // ★ FIX: only let the local cache override the server's commandedRelay while
+  // THIS tab has an optimistic toggle in flight for this device. Previously the
+  // cache only refreshed once it was older than _CACHE_TTL (3 min), so an
+  // external state change — pump-link AUTO-RESUME/AUTO-OFF fired by the GAS
+  // trigger, another dashboard tab, or a physical ESP32 toggle — could be
+  // masked by a stale local value for up to 3 minutes even after the sheet's
+  // Relay column and commandedRelay both already agreed on the new state.
+  var _resPendingLocal = (_localTogglePending[d.device] !== undefined) ||
+    (_relayPendingUntil[d.device] && Date.now() < _relayPendingUntil[d.device]);
+  if (d.commandedRelay !== undefined && !_resPendingLocal) {
+    commandedRelayCache[d.device] = d.commandedRelay;
+    commandedRelayCacheTimestamps[d.device] = Date.now();
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
   var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
@@ -4999,12 +5005,16 @@ if (isResBooster) {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
       //        relay = what Smart Device actually has (sheet)
       //        relayPending = they differ (waiting for Smart Device to confirm)
-      if (d.commandedRelay !== undefined) {
-        var _ts = commandedRelayCacheTimestamps[d.device];
-        if (!_ts || (Date.now() - _ts) >= _CACHE_TTL) {
-          commandedRelayCache[d.device] = d.commandedRelay;
-          commandedRelayCacheTimestamps[d.device] = Date.now();
-        }
+      // ★ FIX: same cache-staleness bug as the reservoir-booster toggle above —
+      // only defer to the local cache while THIS tab has an optimistic toggle
+      // pending for this device, otherwise always sync to the server's fresh
+      // commandedRelay so pump-link AUTO-RESUME/AUTO-OFF (or any external
+      // toggle) shows up immediately instead of after up to 3 minutes.
+      var _pumpPendingLocal = (_localTogglePending[d.device] !== undefined) ||
+        (_relayPendingUntil[d.device] && Date.now() < _relayPendingUntil[d.device]);
+      if (d.commandedRelay !== undefined && !_pumpPendingLocal) {
+        commandedRelayCache[d.device] = d.commandedRelay;
+        commandedRelayCacheTimestamps[d.device] = Date.now();
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
       var switchIsOn = commanded === 1 || commanded === true;
