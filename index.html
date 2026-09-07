@@ -1858,7 +1858,7 @@
           <div class="top-card grp-data" data-tab="map" title="Map overview of all devices"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><line x1="12" y1="2" x2="12" y2="22"/></svg><span>Map</span></div>
           <div class="top-card grp-data" data-tab="assets" onclick="openAssetModule()" title="Open Asset Management & inventory module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Asset Mgmt</span></div>
           <div class="top-card grp-data" data-tab="energy-audit" onclick="openEnergyAuditModule()" title="Open CWD Energy Audit module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Energy Audit</span></div>
-          <div class="top-card grp-data" data-tab="analytics" onclick="openTabModal('analytics')" title="Multi-parameter chart analysis" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="14"/></svg><span>Analytics</span><span class="date-picker-trigger" data-tab="analytics" onclick="event.stopPropagation();showDatePicker(event,'analytics')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
+          <div class="top-card grp-data" data-tab="agus-analytics" onclick="openSandboxAnalyticsModule()" title="Open AGUS Analytics — fleet-wide station comparison (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>AGUS Analytics</span></div>
           <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span class="date-picker-trigger" data-tab="reports" onclick="event.stopPropagation();showDatePicker(event,'reports')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span class="date-picker-trigger" data-tab="prod-history" onclick="event.stopPropagation();showDatePicker(event,'prod-history')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
@@ -13503,6 +13503,26 @@ document.addEventListener('visibilitychange', function() {
   </iframe>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     SANDBOX ANALYTICS MODULE OVERLAY (SANDBOX-ANALYTICS embedded)
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="sandbox-analytics-module-overlay" style="display:none;position:fixed;inset:0;background:rgba(4,12,24,0.86);z-index:2147486000;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#0d263d;border-bottom:1px solid rgba(93,213,192,0.25);gap:10px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+      <span style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>
+      </span>
+      <div style="min-width:0;">
+        <div style="color:#e6f5f1;font-weight:800;font-size:14px;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">AGUS Analytics</div>
+        <div style="color:#7dd3c8;font-size:10.5px;font-weight:600;">Fleet-wide Station Comparison · separate login</div>
+      </div>
+    </div>
+    <button onclick="event.stopPropagation();closeSandboxAnalyticsModule()" title="Close AGUS Analytics" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
+  </div>
+  <iframe src="https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
+  </iframe>
+</div>
+
 <script>
 function openAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
@@ -13528,12 +13548,26 @@ function closeEnergyAuditModule() {
   ov.style.display = 'none';
   document.body.style.overflow = '';
 }
+function openSandboxAnalyticsModule() {
+  var ov = document.getElementById('sandbox-analytics-module-overlay');
+  var fr = ov.querySelector('iframe');
+  if (!fr.src || fr.src.indexOf('SANDBOX-ANALYTICS') === -1) { fr.src = 'https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/'; }
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeSandboxAnalyticsModule() {
+  var ov = document.getElementById('sandbox-analytics-module-overlay');
+  ov.style.display = 'none';
+  document.body.style.overflow = '';
+}
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     var ov = document.getElementById('assets-module-overlay');
     if (ov && ov.style.display === 'flex') closeAssetModule();
     var ov2 = document.getElementById('energy-audit-module-overlay');
     if (ov2 && ov2.style.display === 'flex') closeEnergyAuditModule();
+    var ov3 = document.getElementById('sandbox-analytics-module-overlay');
+    if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
 </script>
