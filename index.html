@@ -735,12 +735,16 @@
     padding: 16px 14px !important;
   }
 
-  /* ── Graph modal ── */
+  /* ── Graph modal (single source of truth for mobile sizing —
+       see the later @media(max-width:900px) block for spacing/text
+       refinements only; it must NOT redefine width/height here) ── */
   #graph-modal-inner {
     width: 100vw !important;
     max-width: 100vw !important;
     height: 100dvh !important;
     height: 100vh !important;
+    min-height: 100dvh !important;
+    min-height: 100vh !important;
     border-radius: 0 !important;
     padding: 8px 8px 6px 8px !important;
     overflow-y: auto !important;
@@ -1346,16 +1350,9 @@
     .cal-day.in-range{background:#cfe4ff;}
     .cal-day.empty{cursor:default;}
     #graph-footer{margin-top:8px;font-size:12px;color:#666;text-align:center;}
-    /* ── Mobile graph modal refinements ── */
+    /* ── Mobile graph modal refinements (spacing/text only —
+         sizing is owned by the #graph-modal-inner rule above) ── */
     @media screen and (max-width: 900px) {
-      #graph-modal-inner {
-        padding: 14px 12px 10px 12px !important;
-        border-radius: 18px !important;
-        height: 97dvh !important;
-        height: 97vh !important;
-        width: 100vw !important;
-        max-width: 100vw !important;
-      }
       #graph-modal-inner h2 { font-size: 1.05rem !important; padding-right: 36px !important; }
       #graph-meta {
         flex-direction: column !important;
@@ -2769,6 +2766,40 @@ function apiCached(action, params) {
 }
 
 var deviceMarkers = {}, myChart = null, blinkOn = true;
+
+// Keep the graph modal's chart perfectly fit to its container at any
+// browser zoom level — mirrors the same fix used in AGUS Analytics so
+// both apps behave identically. Chart.js's own responsive handling
+// doesn't always catch zoom changes reliably across browsers/steps.
+(function setupGraphModalAutoFit() {
+  var rafId = null, settleId = null;
+  function refit() {
+    if (rafId) cancelAnimationFrame(rafId);
+    if (settleId) clearTimeout(settleId);
+    rafId = requestAnimationFrame(function() {
+      if (myChart) myChart.resize();
+      settleId = setTimeout(function() {
+        if (myChart) myChart.resize();
+      }, 150);
+    });
+  }
+  function attach() {
+    var target = document.getElementById('graph-chart-wrap');
+    if (target && 'ResizeObserver' in window) {
+      new ResizeObserver(refit).observe(target);
+    }
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', attach);
+  } else {
+    attach();
+  }
+  window.addEventListener('resize', refit);
+  window.addEventListener('orientationchange', refit);
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', refit);
+  }
+})();
 // ★ v3: Dashboard-as-Command-Authority — no OfflineQueue needed.
 //        commandedRelayCache mirrors server PropertiesService for optimistic UI.
 var commandedRelayCache = {}; // { deviceName: 0|1 }
@@ -13551,15 +13582,51 @@ function closeEnergyAuditModule() {
 function openSandboxAnalyticsModule() {
   var ov = document.getElementById('sandbox-analytics-module-overlay');
   var fr = ov.querySelector('iframe');
-  if (!fr.src || fr.src.indexOf('SANDBOX-ANALYTICS') === -1) { fr.src = 'https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/'; }
+  if (!fr.src || fr.src.indexOf('SANDBOX-ANALYTICS') === -1) {
+    fr.src = 'https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/';
+  }
   ov.style.display = 'flex';
   document.body.style.overflow = 'hidden';
+  agusPostZoomSync();
 }
 function closeSandboxAnalyticsModule() {
   var ov = document.getElementById('sandbox-analytics-module-overlay');
   ov.style.display = 'none';
   document.body.style.overflow = '';
 }
+
+// ═══════════════════════════════════════════════════════════════
+// ZOOM SYNC — AGUS main is the source of truth for zoom size.
+// Whatever browser-zoom level this page is at gets pushed into the
+// AGUS Analytics iframe, so the embedded module always matches the
+// main dashboard's scale instead of sizing itself independently.
+// ═══════════════════════════════════════════════════════════════
+var _agusZoomBaseline = window.devicePixelRatio || 1;
+function agusPostZoomSync() {
+  var ov = document.getElementById('sandbox-analytics-module-overlay');
+  if (!ov || ov.style.display !== 'flex') return;
+  var fr = ov.querySelector('iframe');
+  if (!fr || !fr.contentWindow) return;
+  var factor = (window.devicePixelRatio || 1) / _agusZoomBaseline;
+  try {
+    fr.contentWindow.postMessage({ type: 'agus-zoom-sync', factor: factor }, '*');
+  } catch (e) {}
+}
+(function() {
+  var fr = document.querySelector('#sandbox-analytics-module-overlay iframe');
+  if (fr) fr.addEventListener('load', agusPostZoomSync);
+  var rafId = null;
+  function scheduleSync() {
+    if (rafId) cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(function() {
+      agusPostZoomSync();
+      setTimeout(agusPostZoomSync, 150); // settle pass for large zoom jumps
+    });
+  }
+  window.addEventListener('resize', scheduleSync);
+  if (window.visualViewport) window.visualViewport.addEventListener('resize', scheduleSync);
+})();
+
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') {
     var ov = document.getElementById('assets-module-overlay');
