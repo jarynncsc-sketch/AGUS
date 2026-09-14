@@ -4883,6 +4883,17 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   }, 500);
 };
 
+// True if the relay value states ON (any type the ESP32/GAS might send)
+function _relayTrue(x) {
+  return x === 1 || x === true || x === '1' ||
+         (typeof x === 'string' && x.toUpperCase() === 'ON');
+}
+// True if the relay field carries a CONFIRMED value (0/1/ON/OFF)
+function _relayKnown(x) {
+  return x === 1 || x === true || x === '1' || x === '0' || x === 0 || x === false ||
+         (typeof x === 'string' && (x.toUpperCase() === 'ON' || x.toUpperCase() === 'OFF'));
+}
+
 function updateDeviceList(devices) {
   var list = document.getElementById('device-list');
   var frag = document.createDocumentFragment();
@@ -4928,7 +4939,11 @@ if (isResBooster) {
     commandedRelayCacheTimestamps[d.device] = Date.now();
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-  var resSwitchIsOn = resCommanded === 1 || resCommanded === true;
+  // ★ FIX: slider = CONFIRMED relay state, not the ordered state. Only the local
+  // optimistic window (pending toggle < 2 min) shows the commanded state so the
+  // indicator snaps back to OFF if the ESP32 is actually off / never confirms.
+  var resSwitchIsOn = _resPendingLocal ? (resCommanded === 1 || resCommanded === true)
+    : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (resCommanded === 1 || resCommanded === true));
 
   // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = ''
@@ -5055,7 +5070,11 @@ if (isResBooster) {
         commandedRelayCacheTimestamps[d.device] = Date.now();
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-      var switchIsOn = commanded === 1 || commanded === true;
+      // ★ FIX: slider = CONFIRMED relay state, not the ordered state. Only the local
+      // optimistic window (pending toggle < 2 min) shows the commanded state so the
+      // indicator snaps back to OFF if the ESP32 is actually off / never confirms.
+      var switchIsOn = _pumpPendingLocal ? (commanded === 1 || commanded === true)
+        : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (commanded === 1 || commanded === true));
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="Toggle pump ON/OFF">'
