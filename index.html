@@ -3869,7 +3869,7 @@ if (!isNaN(llvl)) {
             'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
               +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
             +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + (d.lastToggledBy || 'N/A') + '</b><br>' +
+            'Last toggle by: <b>' + (_togByLabel(d.lastToggledBy) || 'N/A') + '</b><br>' +
             _effBadge + '<br>' +
             '<div style="display:flex;gap:6px;margin-top:7px;">' +
               '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="flex:1;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Level Graph</button>' +
@@ -3978,7 +3978,7 @@ if (!isNaN(llvl)) {
             'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
               +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
             +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + (d.lastToggledBy || 'N/A') + '</b><br>' +
+            'Last toggle by: <b>' + (_togByLabel(d.lastToggledBy) || 'N/A') + '</b><br>' +
             _effBadge + '<br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -4457,7 +4457,7 @@ function _updateDashboardFromFirebase() {
     var relayState = d.commandedRelay != null ? d.commandedRelay : d.relay;
     var onOff = (relayState == 1 || relayState === true) ? 'ON' : 'OFF';
     var icon = (relayState == 1 || relayState === true) ? '▶️' : '⏹️';
-    var whoLabel = who;
+    var whoLabel = _togByLabel(who);
     if (/schedule/i.test(who)) whoLabel = 'Schedule Timer';
     else if (/AutoShutoff-Backup/i.test(who)) whoLabel = 'PumpLink Backup Shutoff';
     else if (/AutoShutoff/i.test(who)) whoLabel = 'PumpLink Auto-Shutoff';
@@ -4883,6 +4883,11 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   }, 500);
 };
 
+// Rebrand legacy toggle-source labels: the ESP32 used to report `MQTT` as the
+// toggle source; AGUS now shows it as `AGUS` (matching the system name).
+function _togByLabel(x) {
+  return (x && String(x).toUpperCase() === 'MQTT') ? 'AGUS' : x;
+}
 // True if the relay value states ON (any type the ESP32/GAS might send)
 function _relayTrue(x) {
   return x === 1 || x === true || x === '1' ||
@@ -6841,7 +6846,7 @@ function updateLastToggledBadge(data) {
   if (!window._toggleKey||!window._relayKey||!data.length){badge.style.display='none';return;}
   var found=null; for(var i=data.length-1;i>=0;i--){var who=String(data[i][window._toggleKey]||'').trim();if(who){found={row:data[i]};break;}}
   if (!found){badge.style.display='none';return;}
-  var who=String(found.row[window._toggleKey]).trim(),rv=parseInt(found.row[window._relayKey]),ts=parseSheetDate(found.row[window._timeKey]),isOn=rv===1,act=isOn?'▲ Turned ON':'▼ Turned OFF';
+  var who=_togByLabel(String(found.row[window._toggleKey]).trim()),rv=parseInt(found.row[window._relayKey]),ts=parseSheetDate(found.row[window._timeKey]),isOn=rv===1,act=isOn?'▲ Turned ON':'▼ Turned OFF';
   var tsStr=ts?ts.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'})+' '+ts.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}):'';
   badge.style.display='flex';badge.style.borderColor=isOn?'#22c55e':'#ef4444';badge.style.background=isOn?'#f0fdf4':'#fff5f5';
   badge.innerHTML='<span style="font-size:13px;margin-right:2px;">'+(isOn?'🟢':'🔴')+'</span><strong style="color:'+(isOn?'#14532d':'#7f1d1d')+'">Last Toggle:</strong><span style="color:#334155;margin-left:5px;">👤 <b>'+who+'</b></span><span style="color:'+(isOn?'#15803d':'#dc2626')+';margin-left:8px;font-weight:700;">'+act+'</span>'+(tsStr?'<span style="color:#94a3b8;margin-left:8px;font-size:11px;">@ '+tsStr+'</span>':'');
