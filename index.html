@@ -927,8 +927,8 @@
   
   #legend-card { bottom: 16px !important; right: 16px !important; font-size: 12px !important; padding: 8px 12px !important; }
  
-  /* Graph modal: large panel */
-  #graph-modal-inner { width: 95vw !important; max-width: 1100px !important; height: 90vh !important; border-radius: 18px !important; padding: 18px 20px 14px !important; }
+  /* Graph modal: full screen (maximized panel, no browser API) */
+  #graph-modal-inner { width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; min-height: 100dvh !important; height: 100vh !important; min-height: 100vh !important; border-radius: 0 !important; padding: 18px 20px 14px !important; }
   #graph-modal-inner h2 { font-size: 1.2rem !important; }
   #param-pill-grid { grid-template-columns: repeat(4,1fr) !important; }
   #calendar-container { flex-direction: row !important; justify-content: center !important; gap: 16px !important; }
@@ -1020,8 +1020,8 @@
   #legend-card { bottom: 20px !important; right: 20px !important; font-size: 14px !important; padding: 10px 16px !important; border-radius: 10px !important; }
   .legend-circle { width: 14px !important; height: 14px !important; }
  
-  /* Graph modal: very wide */
-  #graph-modal-inner { width: 92vw !important; max-width: 1400px !important; height: 88vh !important; border-radius: 22px !important; padding: 24px 28px 18px !important; }
+  /* Graph modal: full screen (maximized panel, no browser API) */
+  #graph-modal-inner { width: 100vw !important; max-width: 100vw !important; height: 100dvh !important; min-height: 100dvh !important; height: 100vh !important; min-height: 100vh !important; border-radius: 0 !important; padding: 24px 28px 18px !important; }
   #graph-modal-inner h2 { font-size: 1.4rem !important; }
   .range-btn { padding: 6px 16px !important; font-size: 13.5px !important; }
   #graph-download-btn { padding: 6px 16px !important; font-size: 13.5px !important; }
@@ -1279,7 +1279,7 @@
     #sheet-table th,#sheet-table td{border:1px solid #ddd;padding:6px;}
     #sheet-table th{background:#f0f4ff;}
     #graph-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,10,0.0);z-index:3000;justify-content:center;align-items:center;}
-    #graph-modal-inner{background: linear-gradient(145deg, #d4f1f9, #e3f2fd);padding:22px 26px 16px 26px;border-radius:26px;width:97vw;max-width:97vw;height:95vh;position:relative;display:flex;flex-direction:column;box-shadow:0 12px 30px rgba(0, 0, 0, 0.2);border:none;overflow-y:auto;}
+    #graph-modal-inner{background: linear-gradient(145deg, #d4f1f9, #e3f2fd);padding:22px 26px 16px 26px;border-radius:0;width:100vw;max-width:100vw;height:100dvh;min-height:100dvh;height:100vh;min-height:100vh;position:relative;display:flex;flex-direction:column;box-shadow:none;border:none;overflow-y:auto;}
     #graph-modal-inner h2{color:#002b5c;margin:0 0 6px 0;font-size:1.35rem;font-weight:700;}
     #graph-close-btn{position:absolute;right:18px;top:14px;border:none;background:none;font-size:26px;cursor:pointer;color:#004080;font-weight:bold;opacity:0.7;transition:opacity 0.2s;}
     #graph-close-btn:hover{opacity:1;}
@@ -1921,6 +1921,10 @@
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/><line x1="2" y1="2" x2="22" y2="22"/></svg>
             <span style="color:#dc2626;font-weight:800;">PUSH OFF</span>
           </div>
+          <div class="top-card grp-sys" id="ndrrmc-alarm-btn" data-tab="ndrrmc-alarm" onclick="toggleAGUSNdrrmc()" title="NDRRMC alarm OFF — tap to enable">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" style="vertical-align:middle;"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            <span style="color:#dc2626;font-weight:800;">NDRRMC OFF</span>
+          </div>
           <div class="top-card grp-sys" id="call-contacts-btn" data-tab="call-contacts" onclick="window.agusOpenCallSettings()" title="Emergency call contacts — auto-dial supervisors on alarm" style="cursor:pointer;">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#004080" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.5 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.44 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.5a16 16 0 0 0 6 6l.87-.87a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
             <span>Call Contacts</span>
@@ -2059,6 +2063,8 @@
         <span id="graph-battery"></span>
         <span id="date-range-label"></span>
         <div class="range-btn-group">
+          <button class="range-btn" data-range="24" data-unit="h">24H</button>
+          <button class="range-btn" data-range="3">3D</button>
           <button class="range-btn" data-range="7">7D</button>
           <button class="range-btn active" data-range="14">14D</button>
           <button class="range-btn" data-range="30">30D</button>
@@ -6578,8 +6584,15 @@ function detectKeys(rows) {
 }
 function getFilteredData() {
   if (!Array.isArray(allGraphData) || !allGraphData.length) return [];
-  var s = rangeStart?new Date(rangeStart):new Date(); s.setHours(0,0,0,0);
-  var e = rangeEnd?new Date(rangeEnd):new Date(); e.setHours(23,59,59,999);
+  var s, e;
+  if (window._rangeHourMode) {
+    // Hour-precision mode (24H): keep exact timestamps — no midnight flooring
+    s = rangeStart ? new Date(rangeStart) : new Date(Date.now() - 24*3600*1000);
+    e = rangeEnd   ? new Date(rangeEnd)   : new Date();
+  } else {
+    s = rangeStart ? new Date(rangeStart) : new Date(); s.setHours(0,0,0,0);
+    e = rangeEnd   ? new Date(rangeEnd)   : new Date(); e.setHours(23,59,59,999);
+  }
   return allGraphData.filter(function(r){var t=parseSheetDate(r[window._timeKey]);return t&&t>=s&&t<=e;});
 }
 
@@ -6679,7 +6692,8 @@ function showHistoricalGraph(deviceName, deviceType) {
     allGraphData=rows; lastDataCount=rows.length; lastPollTime=new Date();
     detectKeys(rows);
     if (currentDeviceType==='pump'){detectPumpParamKeys(rows);buildParamSelector();}
-    rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
+    if (window._rangeHourMode) { rangeEnd=new Date(); rangeStart=new Date(Date.now()-activeRange*3600*1000); }
+    else { rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange); }
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.toggle('active',parseInt(b.dataset.range)===activeRange);});
     updateDateRangeLabel(); updateLiveCounter(); updateLastToggledBadge(allGraphData); renderCalendars(); startGraphPolling();
     try { renderRangeChart(); } catch(e) { console.error('[AGUS CHART]', e); showDebugBar('Chart render error: '+(e.message||e)); }
@@ -6824,13 +6838,15 @@ document.querySelectorAll('.range-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.range-btn').forEach(function(b){b.classList.remove('active');}); btn.classList.add('active');
     activeRange=parseInt(btn.dataset.range); pickingStart=true; isQuickRange=true;
-    rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange);
+    window._rangeHourMode=(btn.dataset.unit==='h');
+    if (window._rangeHourMode) { rangeStart=new Date(Date.now()-activeRange*3600*1000); rangeEnd=new Date(); }
+    else { rangeEnd=new Date(); rangeStart=new Date(); rangeStart.setDate(rangeStart.getDate()-activeRange); }
     document.getElementById('graph-no-data').classList.remove('visible');
     updateDateRangeLabel(); renderCalendars(); updateLastToggledBadge(getFilteredData());
     try { renderRangeChart(); } catch(e) { showDebugBar('Chart render error: '+(e.message||e)); }
   });
 });
-function updateDateRangeLabel(){if(!rangeStart||!rangeEnd)return;var fmt=function(d){return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};document.getElementById('date-range-label').innerText=fmt(rangeStart)+' – '+fmt(rangeEnd);}
+function updateDateRangeLabel(){if(!rangeStart||!rangeEnd)return;var fmt=function(d){return d.toLocaleDateString('en-US',{month:'long',day:'numeric',year:'numeric'});};var f2=function(d){return fmt(d)+(window._rangeHourMode?(' '+d.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})):'');};document.getElementById('date-range-label').innerText=f2(rangeStart)+' – '+f2(rangeEnd);}
 
 function renderCalendars() {
   var c = document.getElementById('calendar-container');
@@ -6863,6 +6879,7 @@ function shiftCalendar(dir){
   renderCalendars();
 }
 function onCalDayClick(date){
+  window._rangeHourMode=false;
   document.getElementById('graph-no-data').classList.remove('visible');
   if(pickingStart){rangeStart=new Date(date);rangeEnd=null;pickingStart=false;}
   else{if(date<rangeStart){rangeEnd=new Date(rangeStart);rangeStart=new Date(date);}else rangeEnd=new Date(date);isQuickRange=false;pickingStart=true;updateDateRangeLabel();try{renderRangeChart();}catch(e){showDebugBar('Chart render error: '+(e.message||e));}updateLastToggledBadge(getFilteredData());}
@@ -10631,7 +10648,6 @@ function exportDashboardPDF() {
   function _disable() {
     _on = false;
     localStorage.removeItem(PUSH_KEY);
-    if (_pollTimer) { clearInterval(_pollTimer); _pollTimer = null; }
     _renderBtn();
     showNotification('Push notifications disabled.', 'info');
   }
@@ -10737,7 +10753,66 @@ function exportDashboardPDF() {
 })();
 
 
+(function initAGUSNdrrmcToggle() {
+  'use strict';
 
+  /* NDRRMC master on/off — default ON unless explicitly set to '0'
+     (absence of the key preserves the previous always-on behavior) */
+  var KEY = 'agus_ndrrmc_enabled';
+
+  function _isOn() {
+    return localStorage.getItem(KEY) !== '0';
+  }
+
+  window.agusNdrrmcEnabled = function() { return _isOn(); };
+
+  function _set(on) {
+    localStorage.setItem(KEY, on ? '1' : '0');
+    if (!on) {
+      if (typeof window.agusNdrrmcReset === 'function') window.agusNdrrmcReset();
+      if (typeof window.agusCallStop === 'function')    window.agusCallStop();
+      if (typeof showNotification === 'function') showNotification('NDRRMC alarm disabled. No sirens, overlay, or safety calls will fire.', 'warning');
+    } else {
+      if (typeof showNotification === 'function') showNotification('NDRRMC alarm enabled.', 'success');
+    }
+    _renderBtn();
+  }
+
+  window.toggleAGUSNdrrmc = function() {
+    _set(!_isOn());
+  };
+
+  function _renderBtn() {
+    var el = document.getElementById('ndrrmc-alarm-btn');
+    if (!el) return;
+    var on = _isOn();
+    el.style.background = on ? 'rgba(34,197,94,0.13)' : 'rgba(239,68,68,0.10)';
+    el.style.border = '1.5px solid ' + (on ? 'rgba(34,197,94,0.35)' : 'rgba(239,68,68,0.25)');
+    el.title = on ? 'NDRRMC alarm ON — tap to disable' : 'NDRRMC alarm OFF — tap to enable';
+    el.innerHTML = [
+      '<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"',
+      ' stroke="' + (on ? '#22c55e' : '#ef4444') + '" stroke-width="2" style="vertical-align:middle;">',
+      '<path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>',
+      on ? '<line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' : '',
+      on ? '' : '<line x1="2" y1="2" x2="22" y2="22"/>',
+      '</svg>',
+      '<span style="font-size:7.5px;font-weight:800;color:' + (on ? '#16a34a' : '#dc2626') + ';">',
+      on ? 'NDRRMC ON' : 'NDRRMC OFF',
+      '</span>'
+    ].join('');
+    el.style.display = 'flex';
+  }
+
+  function _init() {
+    _renderBtn();
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', _init);
+  } else {
+    setTimeout(_init, 700);
+  }
+})();
 // ════════════════════════════════════════════════════════════════════════════
 // AGUS ADVANCED ANALYTICS — v2
 // 1. Daily / Weekly / Monthly Summary Report
@@ -12533,6 +12608,7 @@ function _metCard(label, icon, value, unit, color) {
 
   /* ── MAIN TRIGGER — called by speakAlarm / speakPSAlarm ── */
   window.ndrrmcTriggerAlarm = function(deviceName, alarmType, opts) {
+    if (typeof window.agusNdrrmcEnabled === 'function' && !window.agusNdrrmcEnabled()) return;
     opts = opts || {};
     var key = (opts.key || deviceName) + ':' + alarmType;
 
@@ -12671,6 +12747,23 @@ function _metCard(label, icon, value, unit, color) {
       });
     } catch(e) {}
   }
+
+  /* ── Reset all active alarms + hide overlay (used when alarm is disabled) ── */
+  window.agusNdrrmcReset = function() {
+    _stopSpeech();
+    if (_flashTimer) { clearTimeout(_flashTimer); _flashTimer = null; }
+    if (_repeatTimer) { clearInterval(_repeatTimer); _repeatTimer = null; }
+    if (_attentionTimer) { clearTimeout(_attentionTimer); _attentionTimer = null; }
+    _sirenActive = false;
+    _alarmQueue = [];
+    _alarmData  = {};
+    _ackedKeys  = {};
+    _currentKey = null;
+    _silenceUntil = 0;
+    var ov = document.getElementById('ndrrmc-alarm-overlay');
+    if (ov) { ov.style.animation=''; ov.classList.remove('active','all-clear','flashing'); }
+    document.getElementById('ndrrmc-alarm-list').style.display = 'none';
+  };
 
 })();
 
@@ -13241,6 +13334,7 @@ document.addEventListener('visibilitychange', function() {
   /* ── Patch ndrrmcTriggerAlarm to also fire escalation ── */
   var _origTrigger = window.ndrrmcTriggerAlarm;
   window.ndrrmcTriggerAlarm = function(deviceName, alarmType, opts) {
+    if (typeof window.agusNdrrmcEnabled === 'function' && !window.agusNdrrmcEnabled()) return;
     if (_origTrigger) _origTrigger(deviceName, alarmType, opts);
     // Only start call escalation for the FIRST alarm (don't re-trigger if already calling)
     if (!_active) {
