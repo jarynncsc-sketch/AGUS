@@ -8116,10 +8116,7 @@ function toggleDarkMode() {
   localStorage.setItem('agus_darkmode', darkModeOn ? '1' : '0');
 }
 (function() {
-  // Initialize to Light Mode (default)
-  darkModeOn = false;
-  document.body.classList.remove('dark-mode');
-  localStorage.setItem('agus_darkmode', '0');
+  if (localStorage.getItem('agus_darkmode') === '1') toggleDarkMode();
 })();
 
 // ============================================================
