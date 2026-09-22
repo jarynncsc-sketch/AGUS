@@ -1368,9 +1368,6 @@
     #graph-debug-bar.visible{display:block;}
     #param-selector-wrap{display:none;flex-direction:column;background:var(--bg-secondary);border:1.5px solid var(--border-color);border-radius:11px;margin-bottom:8px;overflow:hidden;transition:background-color 0.3s ease,border-color 0.3s ease;}
     #param-selector-wrap.visible{display:flex;}
-    #param-selector-header{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:rgba(125,211,252,0.06);border-bottom:1.5px solid rgba(120,180,255,0.18);}
-    #param-selector-label{font-size:11.5px;font-weight:800;color:#eaf4ff;}
-    #param-selector-actions{display:flex;gap:6px;}
     .param-action-btn{padding:3px 13px;border:1.5px solid rgba(125,211,252,0.4);border-radius:6px;background:rgba(255,255,255,0.04);color:#a9c9ea;font-size:11px;font-weight:700;cursor:pointer;transition:0.15s;}
     .param-action-btn:hover{background:rgba(125,211,252,0.16);color:#fff;}
     #param-pill-grid{display:grid;grid-template-columns:repeat(4,1fr);}
@@ -1397,6 +1394,8 @@
     #live-new-badge{display:none;background:#22c55e;color:white;font-size:10px;font-weight:bold;padding:2px 7px;border-radius:10px;}
     #live-new-badge.visible{display:inline-block;}
     #graph-live-right{display:flex;align-items:center;gap:8px;}
+    #live-param-actions{display:none;align-items:center;gap:6px;margin-left:6px;padding-left:8px;border-left:1px solid rgba(120,180,255,0.25);}
+    #live-param-actions.visible{display:flex;}
     #live-interval-select{border:1px solid rgba(120,180,255,0.3);border-radius:5px;padding:2px 6px;font-size:11px;color:#a9c9ea;background:rgba(255,255,255,0.04);cursor:pointer;}
     #live-pause-btn{border:1px solid rgba(125,211,252,0.4);border-radius:5px;padding:2px 8px;font-size:11px;color:#a9c9ea;background:rgba(255,255,255,0.04);cursor:pointer;transition:0.2s;}
     #live-pause-btn:hover{background:rgba(125,211,252,0.16);color:#fff;}
@@ -1406,11 +1405,11 @@
     #calendar-container{display:flex;gap:16px;margin-top:10px;justify-content:center;}
     .cal-month{flex:1;min-width:200px;}
     .cal-month-header{display:flex;justify-content:space-between;align-items:center;font-weight:bold;color:var(--text-primary);margin-bottom:6px;}
-    .cal-month-header button{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-secondary);}
+    .cal-month-header button{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
     .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
     .cal-day-label{text-align:center;font-size:11px;font-weight:bold;color:var(--text-tertiary);padding:2px 0;}
-    .cal-day{text-align:center;font-size:12px;padding:4px 2px;border-radius:4px;cursor:pointer;transition:0.15s;color:var(--text-secondary);}
-    .cal-day:hover{background:rgba(125,211,252,0.14);}
+    .cal-day{text-align:center;font-size:12px;padding:4px 2px;border-radius:4px;cursor:pointer;transition:0.15s;color:var(--text-secondary);-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    .cal-day:hover,.cal-day:active,.cal-day:focus{background:rgba(125,211,252,0.14);outline:none;}
     .cal-day.today{font-weight:bold;color:var(--accent-blue-light);border:1px solid var(--accent-blue-light);}
     .cal-day.selected-start,.cal-day.selected-end{background:linear-gradient(135deg,#0891b2,#2563eb);color:white;}
     .cal-day.in-range{background:rgba(125,211,252,0.16);}
@@ -2160,17 +2159,14 @@
             <option value="60000">1m</option>
           </select>
           <button id="live-pause-btn" onclick="toggleLivePause()">⏸ Pause</button>
+          <span id="live-param-actions">
+            <button class="param-action-btn" onclick="toggleAllParams()">All</button>
+            <button class="param-action-btn" onclick="clearAllParams()">None</button>
+          </span>
         </div>
       </div>
     </div>
     <div id="param-selector-wrap">
-      <div id="param-selector-header">
-        <span id="param-selector-label">📊 Parameters</span>
-        <div id="param-selector-actions">
-          <button class="param-action-btn" onclick="toggleAllParams()">All</button>
-          <button class="param-action-btn" onclick="clearAllParams()">None</button>
-        </div>
-      </div>
       <div id="param-pill-grid"></div>
     </div>
     <div id="graph-stats-row" class="stats-hidden">
@@ -6801,7 +6797,8 @@ function showHistoricalGraph(deviceName, deviceType) {
   document.getElementById('live-updated').innerText='Loading…';
   updateLivePauseBtn();
   var pw=document.getElementById('param-selector-wrap');
-  if (currentDeviceType==='pump'){pw.classList.add('visible');activePumpParams=new Set(['pressure']);}else pw.classList.remove('visible');
+  var lpa=document.getElementById('live-param-actions');
+  if (currentDeviceType==='pump'){pw.classList.add('visible');lpa.classList.add('visible');activePumpParams=new Set(['pressure']);}else {pw.classList.remove('visible');lpa.classList.remove('visible');}
   document.getElementById('graph-modal').style.display='flex';
   document.getElementById('graph-title').innerText=(currentDeviceType==='reservoir'?'🏭 ':currentDeviceType==='pump'?'📊 ':'📈 ')+deviceName+' — Historical Data';
   document.getElementById('date-range-label').innerText='';
@@ -7082,7 +7079,7 @@ function downloadCSV(){
 function closeGraph(){
   stopGraphPolling();
   document.getElementById('graph-modal').style.display='none';
-  ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
+  ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap','live-param-actions'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
   hideGraphStats();
   var sub=document.getElementById('graph-loading-sub');if(sub)sub.innerHTML='';
   var ltb=document.getElementById('last-toggled-badge');if(ltb)ltb.style.display='none';
