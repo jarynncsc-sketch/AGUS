@@ -1818,6 +1818,12 @@
     .ml-score-ring { width:52px;height:52px; }
   }
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       LEAFLET MAP LIBRARY — OpenStreetMap with Google tiles
+       ═══════════════════════════════════════════════════════════════ -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
   </style>
 </head>
 <body>
@@ -13912,6 +13918,85 @@ document.addEventListener('keydown', function(e) {
     if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     MAP ATTRIBUTION
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="map-attribution" style="position:fixed;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-size:11px;color:#666;font-family:Arial,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.15);line-height:1.4;">
+  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">© OpenStreetMap contributors</a> |
+  <a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">CC-BY-SA</a> |
+  <a href="https://www.google.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">© 2015 Google</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LEAFLET MAP INITIALIZATION
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function() {
+  'use strict';
+
+  // Initialize map when DOM is ready
+  function initializeMap() {
+    var mapElement = document.getElementById('map');
+    if (!mapElement) return;
+
+    // Create map with default center on Philippines (Carcar Water District area)
+    var map = L.map(mapElement).setView([10.2906, 123.6474], 12);
+
+    // OpenStreetMap layer with proper attribution
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> | <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+      maxZoom: 19,
+      minZoom: 2
+    }).addTo(map);
+
+    // Add a marker for Carcar Water District
+    L.marker([10.2906, 123.6474], {
+      icon: L.icon({
+        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDMyIDQwIj48cGF0aCBmaWxsPSIjMDA0MDgwIiBkPSJNMTYgMEM5LjUgMCA0IDUuNSA0IDE2YzAgMTIgMTIgMjQgMTIgMjRzMTItMTIgMTItMjRjMC0xMC41LTUuNS0xNi0xMi0xNnoiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI2IiBmaWxsPSIjZmZmIi8+PC9zdmc+',
+        iconSize: [32, 40],
+        iconAnchor: [16, 40],
+        popupAnchor: [0, -40]
+      })
+    }).addTo(map).bindPopup('<strong>AGUS - Carcar Water District</strong><br/>Pump Station Dashboard');
+
+    // Handle map theme changes based on light/dark mode
+    function updateMapTheme() {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        // Optional: Add dark tile layer when dark mode is active
+        // For now, OSM tiles remain the same
+        mapElement.style.filter = 'invert(0.95) hue-rotate(180deg)';
+      } else {
+        mapElement.style.filter = 'none';
+      }
+    }
+
+    // Watch for theme changes
+    var observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'data-theme') {
+          updateMapTheme();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+    updateMapTheme();
+
+    // Resize map when container changes
+    setTimeout(function() {
+      map.invalidateSize();
+    }, 100);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeMap);
+  } else {
+    initializeMap();
+  }
+})();
 </script>
 
 </body>
