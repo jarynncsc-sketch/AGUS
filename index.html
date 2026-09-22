@@ -425,6 +425,9 @@
     overflow: hidden !important;
     height: 100dvh !important;
     height: 100vh !important;
+    background: var(--bg-primary) !important;
+    color: var(--text-primary) !important;
+    transition: background-color 0.3s ease, color 0.3s ease !important;
   }
  
   /* ── Login page ── */
@@ -1167,7 +1170,7 @@
     .lp-byline strong{color:var(--teal-1);font-weight:600;}
     body{margin:0;font-family:'DM Sans','Segoe UI',sans-serif;height:100vh;overflow:hidden;background:#000;}
     #bg-canvas{position:fixed;top:0;left:0;width:100%;height:100%;z-index:0;}
-    #dashboard{display:none;flex-direction:row;gap:1rem;padding:1rem;height:100vh;overflow:hidden;position:relative;z-index:5;color:#000;}
+    #dashboard{display:none;flex-direction:row;gap:1rem;padding:1rem;height:100vh;overflow:hidden;position:relative;z-index:5;color:var(--text-primary);background:var(--bg-primary);transition:background-color 0.3s ease,color 0.3s ease;}
 
     /* ── TOP MENU BAR: grouped strip ── */
     #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
@@ -1323,29 +1326,29 @@
     #sheet-table th,#sheet-table td{border:1px solid #ddd;padding:6px;}
     #sheet-table th{background:#f0f4ff;}
     #graph-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,10,0.0);z-index:3000;justify-content:center;align-items:center;}
-    #graph-modal-inner{background: linear-gradient(160deg, #0a1730, #0e2142 55%, #0a1e3d);padding:22px 26px 16px 26px;border-radius:0;width:100vw;max-width:100vw;height:100dvh;min-height:100dvh;height:100vh;min-height:100vh;position:relative;display:flex;flex-direction:column;box-shadow:none;border:none;overflow-y:auto;}
-    #graph-modal-inner h2{color:#eaf4ff;margin:0 0 6px 0;font-size:1.35rem;font-weight:700;}
-    #graph-close-btn{position:absolute;right:18px;top:14px;border:none;background:none;font-size:26px;cursor:pointer;color:#9fc4ec;font-weight:bold;opacity:0.7;transition:opacity 0.2s;}
-    #graph-close-btn:hover{opacity:1;color:#fff;}
+    #graph-modal-inner{background:var(--bg-primary);padding:22px 26px 16px 26px;border-radius:0;width:100vw;max-width:100vw;height:100dvh;min-height:100dvh;height:100vh;min-height:100vh;position:relative;display:flex;flex-direction:column;box-shadow:none;border:none;overflow-y:auto;transition:background-color 0.3s ease;}
+    #graph-modal-inner h2{color:var(--text-primary);margin:0 0 6px 0;font-size:1.35rem;font-weight:700;transition:color 0.3s ease;}
+    #graph-close-btn{position:absolute;right:18px;top:14px;border:none;background:none;font-size:26px;cursor:pointer;color:var(--text-secondary);font-weight:bold;opacity:0.7;transition:opacity 0.2s,color 0.3s ease;}
+    #graph-close-btn:hover{opacity:1;color:var(--text-primary);}
     #graph-battery{display:none;}
-    #graph-meta{background:rgba(255,255,255,0.045)!important;border:1px solid rgba(120,180,255,0.18)!important;}
-    #date-range-label{font-size:13.5px;color:#7dd3fc;font-weight:700;}
+    #graph-meta{background:var(--bg-secondary)!important;border:1px solid var(--border-color)!important;transition:background-color 0.3s ease,border-color 0.3s ease;}
+    #date-range-label{font-size:13.5px;color:var(--text-secondary);font-weight:700;transition:color 0.3s ease;}
     .range-btn-group{display:flex;gap:6px;}
-    .range-btn{padding:5px 13px;border:1.5px solid rgba(125,211,252,0.35);border-radius:7px;background:rgba(255,255,255,0.04);color:#a9c9ea;font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
-    .range-btn:hover{background:rgba(125,211,252,0.12);color:#eaf4ff;}
-    .range-btn.active{background:linear-gradient(135deg,#0891b2,#2563eb);color:white;border-color:transparent;}
-    #graph-download-btn{padding:5px 14px;background:linear-gradient(135deg,#0891b2,#2563eb);color:white;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
+    .range-btn{padding:5px 13px;border:1.5px solid var(--border-color);border-radius:7px;background:var(--bg-secondary);color:var(--text-secondary);font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
+    .range-btn:hover{background:var(--bg-tertiary);color:var(--text-primary);}
+    .range-btn.active{background:linear-gradient(135deg,var(--accent-teal),var(--accent-blue-light));color:white;border-color:transparent;}
+    #graph-download-btn{padding:5px 14px;background:linear-gradient(135deg,var(--accent-teal),var(--accent-blue-light));color:white;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
     #graph-download-btn:hover{filter:brightness(1.12);}
-    #graph-chart-wrap{flex-grow:1;min-height:0;min-width:0;background:rgba(255,255,255,0.03);border-radius:16px;padding:14px 16px 10px 16px;position:relative;border:1px solid rgba(120,180,255,0.16);overflow:hidden;}
+    #graph-chart-wrap{flex-grow:1;min-height:0;min-width:0;background:var(--graph-bg);border-radius:16px;padding:14px 16px 10px 16px;position:relative;border:1px solid var(--border-color);overflow:hidden;transition:background-color 0.3s ease,border-color 0.3s ease;}
     /* ── Stat cards: Current / Min / Max / Average, full width above the chart ── */
     #graph-stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:10px;}
     #graph-stats-row.stats-hidden{display:none;}
-    .stat-card{min-width:0;border-radius:13px;padding:11px 13px;border:1px solid;display:flex;align-items:flex-start;gap:10px;background:rgba(255,255,255,0.035);}
+    .stat-card{min-width:0;border-radius:13px;padding:11px 13px;border:1px solid;display:flex;align-items:flex-start;gap:10px;background:var(--bg-secondary);transition:background-color 0.3s ease,border-color 0.3s ease;}
     .stat-card-icon{flex-shrink:0;width:32px;height:32px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;}
     .stat-card-body{min-width:0;display:flex;flex-direction:column;gap:2px;}
-    .stat-card-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8;color:#9fb8d6;}
-    .stat-card-value{font-size:19px;font-weight:800;font-family:'DM Sans',sans-serif;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#f2f8ff;}
-    .stat-card-time{font-size:10.5px;font-weight:600;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#9fb8d6;}
+    .stat-card-label{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:.8;color:var(--text-tertiary);transition:color 0.3s ease;}
+    .stat-card-value{font-size:19px;font-weight:800;font-family:'DM Sans',sans-serif;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-primary);transition:color 0.3s ease;}
+    .stat-card-time{font-size:10.5px;font-weight:600;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--text-tertiary);transition:color 0.3s ease;}
     .stat-current{border-color:rgba(34,211,238,0.35);}
     .stat-current .stat-card-icon{background:rgba(34,211,238,0.16);color:#22d3ee;}
     .stat-min{border-color:rgba(96,165,250,0.35);}
@@ -1355,15 +1358,15 @@
     .stat-avg{border-color:rgba(167,139,250,0.35);}
     .stat-avg .stat-card-icon{background:rgba(167,139,250,0.16);color:#a78bfa;}
     #graph-chart-wrap canvas{width:100%!important;height:100%!important;}
-    #graph-loading{display:none;position:absolute;inset:0;background:rgba(10,20,45,0.82);z-index:10;justify-content:center;align-items:center;border-radius:10px;flex-direction:column;gap:12px;font-size:15px;color:#7dd3fc;font-weight:700;}
+    #graph-loading{display:none;position:absolute;inset:0;background:var(--bg-secondary);z-index:10;justify-content:center;align-items:center;border-radius:10px;flex-direction:column;gap:12px;font-size:15px;color:var(--accent-blue-light);font-weight:700;transition:background-color 0.3s ease,color 0.3s ease;}
     #graph-loading.visible{display:flex;}
-    .spinner{width:40px;height:40px;border:4px solid rgba(125,211,252,0.2);border-top-color:#7dd3fc;border-radius:50%;animation:spin 0.75s linear infinite;}
+    .spinner{width:40px;height:40px;border:4px solid rgba(13,148,136,0.2);border-top-color:var(--accent-teal);border-radius:50%;animation:spin 0.75s linear infinite;}
     @keyframes spin{to{transform:rotate(360deg);}}
-    #graph-no-data{display:none;position:absolute;inset:0;justify-content:center;align-items:center;flex-direction:column;gap:10px;color:#6b8bb0;font-size:15px;font-weight:600;}
+    #graph-no-data{display:none;position:absolute;inset:0;justify-content:center;align-items:center;flex-direction:column;gap:10px;color:var(--text-tertiary);font-size:15px;font-weight:600;transition:color 0.3s ease;}
     #graph-no-data.visible{display:flex;}
     #graph-debug-bar{background:rgba(245,166,35,0.12);border:1px solid #f5a623;border-radius:7px;padding:7px 12px;font-size:12px;color:#ffcf7d;margin-bottom:6px;display:none;word-break:break-all;}
     #graph-debug-bar.visible{display:block;}
-    #param-selector-wrap{display:none;flex-direction:column;background:rgba(255,255,255,0.035);border:1.5px solid rgba(120,180,255,0.18);border-radius:11px;margin-bottom:8px;overflow:hidden;}
+    #param-selector-wrap{display:none;flex-direction:column;background:var(--bg-secondary);border:1.5px solid var(--border-color);border-radius:11px;margin-bottom:8px;overflow:hidden;transition:background-color 0.3s ease,border-color 0.3s ease;}
     #param-selector-wrap.visible{display:flex;}
     #param-selector-header{display:flex;align-items:center;justify-content:space-between;padding:7px 16px;background:rgba(125,211,252,0.06);border-bottom:1.5px solid rgba(120,180,255,0.18);}
     #param-selector-label{font-size:11.5px;font-weight:800;color:#eaf4ff;}
@@ -1815,15 +1818,15 @@
     .ml-score-ring { width:52px;height:52px; }
   }
 
+  <!-- ═══════════════════════════════════════════════════════════════
+       LEAFLET MAP LIBRARY — OpenStreetMap with Google tiles
+       ═══════════════════════════════════════════════════════════════ -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+
   </style>
 </head>
 <body>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     THEME TOGGLE BUTTON
-     ═══════════════════════════════════════════════════════════════ -->
-<button id="theme-toggle" title="Toggle Light/Dark Mode" style="position:fixed;top:20px;right:20px;z-index:1000;background:var(--bg-secondary);color:var(--text-primary);border:1.5px solid var(--border-color);border-radius:50%;width:50px;height:50px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:24px;transition:all 0.3s ease;box-shadow:0 2px 8px var(--shadow);">☀️</button>
-
 <canvas id="bg-canvas"></canvas>
 
 <!-- LOGIN PAGE -->
@@ -13918,57 +13921,137 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     THEME TOGGLE FUNCTIONALITY
+     MAP ATTRIBUTION — Google Earth Satellite View
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="map-attribution" style="position:fixed;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,0.92);padding:8px 12px;border-radius:8px;font-size:10px;color:#666;font-family:Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.2);line-height:1.5;border:1px solid rgba(0,0,0,0.1);">
+  <span style="display:block;font-weight:bold;margin-bottom:4px;">Satellite Imagery</span>
+  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© OpenStreetMap</a> |
+  <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© Esri</a> |
+  <a href="https://www.google.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© Google</a>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     LEAFLET MAP INITIALIZATION — Google Earth Style Satellite View
      ═══════════════════════════════════════════════════════════════ -->
 <script>
 (function() {
   'use strict';
 
-  // Get theme toggle button
-  var themeToggle = document.getElementById('theme-toggle');
-  
-  // Initialize theme on page load
-  function initializeTheme() {
-    var savedTheme = localStorage.getItem('agus-theme') || 'light';
-    applyTheme(savedTheme);
-  }
+  // Initialize map when DOM is ready
+  function initializeMap() {
+    var mapElement = document.getElementById('map');
+    if (!mapElement) return;
 
-  // Apply theme to document
-  function applyTheme(theme) {
-    if (theme === 'dark') {
-      document.documentElement.setAttribute('data-theme', 'dark');
-      localStorage.setItem('agus-theme', 'dark');
-      if (themeToggle) themeToggle.textContent = '🌙';
-      if (themeToggle) themeToggle.title = 'Switch to Light Mode';
-    } else {
-      document.documentElement.removeAttribute('data-theme');
-      localStorage.setItem('agus-theme', 'light');
-      if (themeToggle) themeToggle.textContent = '☀️';
-      if (themeToggle) themeToggle.title = 'Switch to Dark Mode';
-    }
-  }
+    // Create map with default center on Philippines (Carcar Water District area)
+    var map = L.map(mapElement, {
+      zoomControl: true,
+      attributionControl: true,
+      preferCanvas: true
+    }).setView([10.2906, 123.6474], 15);
 
-  // Toggle between light and dark modes
-  function toggleTheme() {
-    var currentTheme = localStorage.getItem('agus-theme') || 'light';
-    var newTheme = currentTheme === 'light' ? 'dark' : 'light';
-    applyTheme(newTheme);
-  }
-
-  // Add click event listener to toggle button
-  if (themeToggle) {
-    themeToggle.addEventListener('click', function(e) {
-      e.preventDefault();
-      e.stopPropagation();
-      toggleTheme();
+    // Layer definitions for satellite and street view
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© OpenStreetMap contributors, © 2015 Google, Tiles © Esri',
+      maxZoom: 19,
+      minZoom: 2,
+      fadeAnimation: true
     });
+
+    var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
+      maxZoom: 19,
+      minZoom: 2
+    });
+
+    // Add satellite layer by default (Google Earth style)
+    satelliteLayer.addTo(map);
+
+    // Layer control for switching between satellite and street view
+    var layerControl = L.control.layers(
+      {
+        'Satellite': satelliteLayer,
+        'Street Map': streetLayer
+      },
+      null,
+      { position: 'topright', collapsed: true }
+    ).addTo(map);
+
+    // Style the layer control
+    setTimeout(function() {
+      var layerControlDiv = document.querySelector('.leaflet-control-layers');
+      if (layerControlDiv) {
+        layerControlDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        layerControlDiv.style.borderRadius = '8px';
+        layerControlDiv.style.border = '2px solid rgba(0, 64, 128, 0.2)';
+        layerControlDiv.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+      }
+    }, 100);
+
+    // Custom zoom controls styling
+    var zoomControl = document.querySelector('.leaflet-control-zoom');
+    if (zoomControl) {
+      zoomControl.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+      zoomControl.style.borderRadius = '8px';
+      zoomControl.style.border = '2px solid rgba(0, 64, 128, 0.2)';
+      zoomControl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+    }
+
+    // Add a prominent marker for Carcar Water District with enhanced styling
+    var markerIcon = L.icon({
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDQwIDUwIj48ZGVmcz48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZVhPZmZzZXQgaW49IlNvdXJjZUdyYXBoaWMiIGR4PSIwIiBkeT0iMiIgZmxvb2QtY29sb3I9IiMwMDAwMDAiIGZsb29kLW9wYWNpdHk9IjAuMyIgcmVzdWx0PSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2U+PGZlTWVyZ2VOb2RlIGluPSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+PC9mZU1lcmdlPjwvZmlsdGVyPjwvZGVmcz48cGF0aCBmaWxsPSIjMDA2NkNDIiBmaWx0ZXI9InVybCgjc2hhZG93KSIgZD0iTTIwIDJDMTEgMiA0IDkgNCAyMGMwIDE2IDEwIDI0IDE2IDI0czE2LTggMTYtMjRjMC0xMS05LTE4LTIwLTE4eiIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI1IiBmaWxsPSIjMDA2NkNDIi8+PC9zdmc+',
+      iconSize: [40, 50],
+      iconAnchor: [20, 50],
+      popupAnchor: [0, -50],
+      shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZWxsaXBzZSBjeD0iMjAiIGN5PSIzMiIgcng9IjE4IiByeT0iNiIgZmlsbD0iIzAwMDAwMCIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+',
+      shadowSize: [40, 40],
+      shadowAnchor: [20, 40]
+    });
+
+    var marker = L.marker([10.2906, 123.6474], { icon: markerIcon }).addTo(map);
+    marker.bindPopup(
+      '<div style="font-family:Arial,sans-serif;padding:8px;text-align:center;">' +
+      '<strong style="font-size:14px;color:#004080;">🌊 AGUS</strong><br/>' +
+      '<span style="font-size:12px;color:#666;">Carcar Water District</span><br/>' +
+      '<span style="font-size:11px;color:#999;">Pump Station Dashboard</span>' +
+      '</div>',
+      { maxWidth: 250 }
+    );
+
+    // Handle map theme changes based on light/dark mode
+    function updateMapTheme() {
+      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+      if (isDark) {
+        mapElement.style.filter = 'brightness(0.85) contrast(1.1)';
+      } else {
+        mapElement.style.filter = 'brightness(1) contrast(1)';
+      }
+    }
+
+    // Watch for theme changes
+    var observer = new MutationObserver(function(mutations) {
+      mutations.forEach(function(mutation) {
+        if (mutation.attributeName === 'data-theme') {
+          updateMapTheme();
+        }
+      });
+    });
+
+    observer.observe(document.documentElement, { attributes: true });
+    updateMapTheme();
+
+    // Resize map when container changes
+    setTimeout(function() {
+      map.invalidateSize();
+    }, 100);
+
+    // Store map reference for debugging
+    window.agusMap = map;
   }
 
-  // Initialize theme on page load
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeTheme);
+    document.addEventListener('DOMContentLoaded', initializeMap);
   } else {
-    initializeTheme();
+    initializeMap();
   }
 })();
 </script>
