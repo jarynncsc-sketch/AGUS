@@ -761,6 +761,13 @@
   .param-group { padding: 7px 8px 8px !important; min-width: 120px !important; }
   .param-pill { font-size: 10px !important; padding: 4px 5px !important; }
   #graph-chart-wrap { padding: 8px !important; }
+  /* Not enough width for a sidebar below 900px — stack stats as a row under the chart */
+  #graph-body-row { flex-direction: column !important; }
+  #graph-stats-row { flex-direction: row !important; width: 100% !important; gap: 6px !important; margin-top: 6px !important; }
+  .stat-card { flex: 1 !important; padding: 6px 8px !important; border-radius: 9px !important; }
+  .stat-card-label { font-size: 9px !important; }
+  .stat-card-value { font-size: 13.5px !important; }
+  .stat-card-time { font-size: 9px !important; }
   #calendar-container { flex-direction: column !important; gap: 10px !important; align-items: center !important; }
   .cal-month { min-width: unset !important; width: 100% !important; max-width: 320px !important; }
  
@@ -818,6 +825,7 @@
   #datetime-display { display: none !important; }
   #welcome-username { font-size: 10px !important; max-width: 100% !important; }
   .device-list li { width: 140px !important; min-width: 140px !important; }
+  #graph-stats-row { flex-direction: column !important; width: 100% !important; gap: 5px !important; }
 }
  
 /* ================================================================
@@ -1290,7 +1298,27 @@
     .range-btn:hover,.range-btn.active{background:#004080;color:white;}
     #graph-download-btn{padding:5px 14px;background:#004080;color:white;border:none;border-radius:7px;font-size:12.5px;font-weight:600;cursor:pointer;transition:0.18s;}
     #graph-download-btn:hover{background:#0055aa;}
-    #graph-chart-wrap{flex-grow:1;min-height:0;background:#f8faff;border-radius:16px;padding:14px 16px 10px 16px;position:relative;border:1px solid rgba(0,64,128,0.15);overflow:hidden;}
+    #graph-chart-wrap{flex-grow:1;min-height:0;min-width:0;background:#f8faff;border-radius:16px;padding:14px 16px 10px 16px;position:relative;border:1px solid rgba(0,64,128,0.15);overflow:hidden;}
+    /* Row that holds the chart plus its stats sidebar — fills the modal's
+       remaining vertical space so the sidebar can stretch full chart height. */
+    #graph-body-row{display:flex;flex-direction:row;gap:10px;flex-grow:1;min-height:0;}
+    #graph-body-row #graph-chart-wrap{flex-grow:1;}
+    /* Stats sit BESIDE the chart (right sidebar) on screens with room to spare */
+    #graph-stats-row{display:flex;flex-direction:column;gap:10px;flex-shrink:0;width:168px;justify-content:center;}
+    #graph-stats-row.stats-hidden{display:none;}
+    .stat-card{min-width:0;border-radius:12px;padding:12px 14px;border:1.5px solid;display:flex;flex-direction:column;gap:3px;}
+    .stat-card-label{font-size:10.5px;font-weight:700;letter-spacing:.05em;opacity:.85;}
+    .stat-card-value{font-size:20px;font-weight:800;font-family:'DM Sans',sans-serif;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .stat-card-time{font-size:11px;font-weight:600;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    .stat-max{background:#fff5f0;border-color:#fbc7a4;}
+    .stat-max .stat-card-label,.stat-max .stat-card-value{color:#a3410c;}
+    .stat-max .stat-card-time{color:#c2600f;}
+    .stat-min{background:#eef6ff;border-color:#a9cdf2;}
+    .stat-min .stat-card-label,.stat-min .stat-card-value{color:#14508f;}
+    .stat-min .stat-card-time{color:#2c6cb0;}
+    .stat-avg{background:#f0fbf6;border-color:#a6e0c4;}
+    .stat-avg .stat-card-label,.stat-avg .stat-card-value{color:#0f6e56;}
+    .stat-avg .stat-card-time{color:#2b8a6c;}
     #graph-chart-wrap canvas{width:100%!important;height:100%!important;}
     #graph-loading{display:none;position:absolute;inset:0;background:rgba(255,255,255,0.9);z-index:10;justify-content:center;align-items:center;border-radius:10px;flex-direction:column;gap:12px;font-size:15px;color:#004080;font-weight:700;}
     #graph-loading.visible{display:flex;}
@@ -2101,10 +2129,29 @@
       </div>
       <div id="param-pill-grid"></div>
     </div>
-    <div id="graph-chart-wrap">
-      <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span><span id="graph-loading-sub" style="font-size:11px;color:#7a9bb5;font-weight:500;margin-top:2px;display:block;text-align:center;"></span></div>
-      <div id="graph-no-data"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1"/></svg><span>No data in selected range</span></div>
-      <canvas id="pressureChart"></canvas>
+    <div id="graph-body-row">
+      <div id="graph-chart-wrap">
+        <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span><span id="graph-loading-sub" style="font-size:11px;color:#7a9bb5;font-weight:500;margin-top:2px;display:block;text-align:center;"></span></div>
+        <div id="graph-no-data"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1"/></svg><span>No data in selected range</span></div>
+        <canvas id="pressureChart"></canvas>
+      </div>
+      <div id="graph-stats-row" class="stats-hidden">
+        <div class="stat-card stat-max">
+          <div class="stat-card-label">▲ MAX</div>
+          <div class="stat-card-value" id="stat-max-value">–</div>
+          <div class="stat-card-time" id="stat-max-time">–</div>
+        </div>
+        <div class="stat-card stat-min">
+          <div class="stat-card-label">▼ MIN</div>
+          <div class="stat-card-value" id="stat-min-value">–</div>
+          <div class="stat-card-time" id="stat-min-time">–</div>
+        </div>
+        <div class="stat-card stat-avg">
+          <div class="stat-card-label">● AVG</div>
+          <div class="stat-card-value" id="stat-avg-value">–</div>
+          <div class="stat-card-time" id="stat-avg-time">Over selected range</div>
+        </div>
+      </div>
     </div>
     <div id="calendar-container"></div>
     <div id="graph-footer">Click two dates to set a custom range. Use the buttons above for quick ranges.</div>
@@ -6702,6 +6749,7 @@ function showHistoricalGraph(deviceName, deviceType) {
   document.getElementById('calendar-container').innerHTML='';
   document.getElementById('graph-debug-bar').classList.remove('visible');
   document.getElementById('graph-no-data').classList.remove('visible');
+  hideGraphStats();
   var loadEl=document.getElementById('graph-loading'); loadEl.classList.add('visible');
   if (myChart){myChart.destroy();myChart=null;}
   // Show "Loading…" first; update to "Retrying…" if first attempt fails
@@ -6712,7 +6760,7 @@ function showHistoricalGraph(deviceName, deviceType) {
   apiGet('getSheetData',{sheet:deviceName}).then(function(rows){
     clearTimeout(_retryTimer);
     loadEl.classList.remove('visible');
-    if (!Array.isArray(rows) || !rows.length){showDebugBar('No data returned for "'+deviceName+'". Try a broader date range.');renderCalendars();return;}
+    if (!Array.isArray(rows) || !rows.length){showDebugBar('No data returned for "'+deviceName+'". Try a broader date range.');hideGraphStats();renderCalendars();return;}
     allGraphData=rows; lastDataCount=rows.length; lastPollTime=new Date();
     detectKeys(rows);
     if (currentDeviceType==='pump'){detectPumpParamKeys(rows);buildParamSelector();}
@@ -6766,11 +6814,36 @@ function _morphChart(oldChart, sigRef, sigKey, chartType, labels, datasets, opti
 
 var _gSig = { last: null };
 
+// Computes and displays MAX / MIN / AVG for the currently plotted series,
+// including the date+time each MAX/MIN occurred on, over the selected range.
+function updateGraphStatsFromValues(values, data, unitLabel) {
+  var row=document.getElementById('graph-stats-row'); if (!row) return;
+  var entries=[];
+  for (var i=0;i<values.length;i++){
+    var v=values[i];
+    if (v===null||v===undefined||isNaN(v)) continue;
+    entries.push({v:v,row:data[i]});
+  }
+  if (!entries.length){ row.classList.add('stats-hidden'); return; }
+  row.classList.remove('stats-hidden');
+  var maxE=entries[0],minE=entries[0],sum=0;
+  entries.forEach(function(e){ if(e.v>maxE.v)maxE=e; if(e.v<minE.v)minE=e; sum+=e.v; });
+  var avg=sum/entries.length;
+  function fmtTime(r){ var d=parseSheetDate(r[window._timeKey]); if(!d) return '–'; return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false}); }
+  var u=unitLabel?(' '+unitLabel):'';
+  document.getElementById('stat-max-value').innerText=maxE.v.toFixed(1)+u;
+  document.getElementById('stat-max-time').innerText=fmtTime(maxE.row);
+  document.getElementById('stat-min-value').innerText=minE.v.toFixed(1)+u;
+  document.getElementById('stat-min-time').innerText=fmtTime(minE.row);
+  document.getElementById('stat-avg-value').innerText=avg.toFixed(1)+u;
+}
+function hideGraphStats(){ var row=document.getElementById('graph-stats-row'); if(row) row.classList.add('stats-hidden'); }
+
 function renderRangeChart() {
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
   var data=Array.isArray(raw)?raw:[];
-  if (!data.length){nd.classList.add('visible');return;}nd.classList.remove('visible');
+  if (!data.length){nd.classList.add('visible');hideGraphStats();return;}nd.classList.remove('visible');
   var labels=[];
   try { labels=data.map(function(r){var d=parseSheetDate(r[window._timeKey]);if(!d)return'';return d.toLocaleDateString('en-US',{month:'short',day:'numeric'})+' '+d.toLocaleTimeString('en-US',{hour:'2-digit',minute:'2-digit',hour12:false});}); } catch(e){nd.classList.add('visible');showDebugBar('Data format error: invalid time column');return;}
   var canvas=document.getElementById('pressureChart'),ctx=canvas.getContext('2d');
@@ -6791,22 +6864,24 @@ function renderRangeChart() {
     var resLabel = resKey ? (resKey.length <= 20 ? resKey : 'Water Level') : 'Water Level';
     var lv=[]; try{ lv=data.map(function(r){var v=parseFloat(r[resKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
     var vl=lv.filter(function(v){return v!==null;});
-    if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
+    if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); hideGraphStats(); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
     myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],{},data), canvas);
+    updateGraphStatsFromValues(lv, data, '');
     return;
   }
   if (currentDeviceType !== 'pump') {
     var pv=[]; try{ pv=data.map(function(r){var v=parseFloat(r[window._pressKey]);return isNaN(v)?null:v;}); }catch(e){nd.classList.add('visible');return;}
     var vp=pv.filter(function(v){return v!==null;});
-    if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); return; }
+    if (!vp.length) { document.getElementById('graph-no-data').classList.add('visible'); hideGraphStats(); return; }
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
     myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],buildToggleAnnotations(data),data), canvas);
+    updateGraphStatsFromValues(pv, data, 'psi');
     return;
   }
-  var datasets=[],leftP=[],rightP=[];
+  var datasets=[],leftP=[],rightP=[],statVals=null,statUnit='',statLabel='';
   var _dKeys=[]; try{ _dKeys=data.length?Object.keys(data[0]||{}):[]; }catch(e){}
   PUMP_PARAMS.forEach(function(p){
     if (!activePumpParams.has(p.id)||p.isEvent) return;
@@ -6817,6 +6892,7 @@ function renderRangeChart() {
     }); }catch(e){}
     var fill=false, bg=hexToRgba(p.color,0.08);
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
+    if (statVals===null){statVals=vals;statUnit=p.unit||'';statLabel=p.label||'';}
     datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
     var vv=vals.filter(function(v){return v!==null;}),vmn=vv.length?Math.min.apply(null,vv):0,vmx=vv.length?Math.max.apply(null,vv):10,vpd=Math.max((vmx-vmn)*0.18,1);
     if(p.yAxis==='yLeft')leftP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
@@ -6827,6 +6903,8 @@ function renderRangeChart() {
   var axDefs=[{id:'yLeft',label:lr.label,min:lr.min,max:lr.max,pos:'left'}];
   if(rightP.length)axDefs.push({id:'yRight',label:rr.label,min:rr.min,max:rr.max,pos:'right'});
   myChart=_morphChart(myChart,_gSig,'pump|'+axDefs.map(function(a){return a.id;}).join(',')+'|'+datasets.length, 'line', labels, datasets, buildChartOptions(labels,axDefs,buildToggleAnnotations(data),data), canvas);
+  if (statVals) updateGraphStatsFromValues(statVals, data, statUnit); else hideGraphStats();
+  document.getElementById('stat-avg-time').innerText = statLabel ? ('Over selected range · '+statLabel) : 'Over selected range';
 }
 
 function buildToggleAnnotations(data) {
@@ -6921,6 +6999,7 @@ function closeGraph(){
   stopGraphPolling();
   document.getElementById('graph-modal').style.display='none';
   ['graph-debug-bar','graph-no-data','graph-loading','live-new-badge','param-selector-wrap'].forEach(function(id){document.getElementById(id).classList.remove('visible');});
+  hideGraphStats();
   var sub=document.getElementById('graph-loading-sub');if(sub)sub.innerHTML='';
   var ltb=document.getElementById('last-toggled-badge');if(ltb)ltb.style.display='none';
   if(myChart){myChart.destroy();myChart=null;}
