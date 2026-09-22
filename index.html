@@ -121,11 +121,15 @@
       console.clear();
     }, 2000);
 
-    /* ── 5. Disable Text Selection ── */
+    /* ── 5. Disable Text Selection (except on graphs/charts) ── */
     document.addEventListener('selectstart', function(e) {
-      // Allow in inputs and textareas
+      // Allow in inputs, textareas, and graph elements
       var tag = (e.target.tagName || '').toUpperCase();
       if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+      
+      // Allow selection on graph/chart elements
+      if (e.target.closest('[data-selectable], svg, canvas, .chart, .graph, [role="img"]')) return true;
+      
       e.preventDefault();
       return false;
     }, true);
@@ -152,6 +156,36 @@
   </script>
 
   <style>
+    /* ── Dark/Light Mode CSS Variables ── */
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e2e8f0;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --border-color: #e2e8f0;
+    }
+    
+    html.dark-mode {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-tertiary: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #cbd5e1;
+      --border-color: #475569;
+    }
+    
+    /* Light Mode Body Styling */
+    body {
+      background: var(--bg-primary) !important;
+      color: var(--text-primary) !important;
+    }
+    
+    html.dark-mode body {
+      background: var(--bg-primary) !important;
+      color: var(--text-primary) !important;
+    }
+    
     /* ── Security CSS: Disable selection and drag globally ── */
     * {
       -webkit-user-select: none !important;
@@ -13755,6 +13789,42 @@ document.addEventListener('keydown', function(e) {
     if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
+
+// ═══════════════════════════════════════════════════════════════
+// DARK/LIGHT MODE TOGGLE
+// ═══════════════════════════════════════════════════════════════
+window.toggleDarkMode = function() {
+  var html = document.documentElement;
+  var isDarkMode = html.classList.contains('dark-mode');
+  
+  if (isDarkMode) {
+    // Switch to light mode
+    html.classList.remove('dark-mode');
+    localStorage.setItem('agus-theme', 'light');
+    document.getElementById('dark-mode-btn').title = 'Switch to dark mode';
+  } else {
+    // Switch to dark mode
+    html.classList.add('dark-mode');
+    localStorage.setItem('agus-theme', 'dark');
+    document.getElementById('dark-mode-btn').title = 'Switch to light mode';
+  }
+};
+
+// Initialize theme on page load (default to light mode)
+(function() {
+  var savedTheme = localStorage.getItem('agus-theme') || 'light';
+  var html = document.documentElement;
+  
+  if (savedTheme === 'dark') {
+    html.classList.add('dark-mode');
+    var btn = document.getElementById('dark-mode-btn');
+    if (btn) btn.title = 'Switch to light mode';
+  } else {
+    html.classList.remove('dark-mode');
+    var btn = document.getElementById('dark-mode-btn');
+    if (btn) btn.title = 'Switch to dark mode';
+  }
+})();
 </script>
 
 </body>
