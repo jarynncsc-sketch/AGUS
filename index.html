@@ -13921,16 +13921,17 @@ document.addEventListener('keydown', function(e) {
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     MAP ATTRIBUTION
+     MAP ATTRIBUTION — Google Earth Satellite View
      ═══════════════════════════════════════════════════════════════ -->
-<div id="map-attribution" style="position:fixed;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,0.9);padding:8px 12px;border-radius:8px;font-size:11px;color:#666;font-family:Arial,sans-serif;box-shadow:0 2px 6px rgba(0,0,0,0.15);line-height:1.4;">
-  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">© OpenStreetMap contributors</a> |
-  <a href="https://creativecommons.org/licenses/by-sa/2.0/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">CC-BY-SA</a> |
-  <a href="https://www.google.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;">© 2015 Google</a>
+<div id="map-attribution" style="position:fixed;bottom:10px;left:10px;z-index:999;background:rgba(255,255,255,0.92);padding:8px 12px;border-radius:8px;font-size:10px;color:#666;font-family:Arial,sans-serif;box-shadow:0 2px 8px rgba(0,0,0,0.2);line-height:1.5;border:1px solid rgba(0,0,0,0.1);">
+  <span style="display:block;font-weight:bold;margin-bottom:4px;">Satellite Imagery</span>
+  <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© OpenStreetMap</a> |
+  <a href="https://www.esri.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© Esri</a> |
+  <a href="https://www.google.com/" target="_blank" rel="noopener noreferrer" style="color:#0066cc;text-decoration:none;font-size:9px;">© Google</a>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════
-     LEAFLET MAP INITIALIZATION
+     LEAFLET MAP INITIALIZATION — Google Earth Style Satellite View
      ═══════════════════════════════════════════════════════════════ -->
 <script>
 (function() {
@@ -13942,34 +13943,87 @@ document.addEventListener('keydown', function(e) {
     if (!mapElement) return;
 
     // Create map with default center on Philippines (Carcar Water District area)
-    var map = L.map(mapElement).setView([10.2906, 123.6474], 12);
+    var map = L.map(mapElement, {
+      zoomControl: true,
+      attributionControl: true,
+      preferCanvas: true
+    }).setView([10.2906, 123.6474], 15);
 
-    // OpenStreetMap layer with proper attribution
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> | <a href="https://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>',
+    // Layer definitions for satellite and street view
+    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      attribution: '© OpenStreetMap contributors, © 2015 Google, Tiles © Esri',
+      maxZoom: 19,
+      minZoom: 2,
+      fadeAnimation: true
+    });
+
+    var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© OpenStreetMap contributors',
       maxZoom: 19,
       minZoom: 2
-    }).addTo(map);
+    });
 
-    // Add a marker for Carcar Water District
-    L.marker([10.2906, 123.6474], {
-      icon: L.icon({
-        iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMiIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDMyIDQwIj48cGF0aCBmaWxsPSIjMDA0MDgwIiBkPSJNMTYgMEM5LjUgMCA0IDUuNSA0IDE2YzAgMTIgMTIgMjQgMTIgMjRzMTItMTIgMTItMjRjMC0xMC41LTUuNS0xNi0xMi0xNnoiLz48Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI2IiBmaWxsPSIjZmZmIi8+PC9zdmc+',
-        iconSize: [32, 40],
-        iconAnchor: [16, 40],
-        popupAnchor: [0, -40]
-      })
-    }).addTo(map).bindPopup('<strong>AGUS - Carcar Water District</strong><br/>Pump Station Dashboard');
+    // Add satellite layer by default (Google Earth style)
+    satelliteLayer.addTo(map);
+
+    // Layer control for switching between satellite and street view
+    var layerControl = L.control.layers(
+      {
+        'Satellite': satelliteLayer,
+        'Street Map': streetLayer
+      },
+      null,
+      { position: 'topright', collapsed: true }
+    ).addTo(map);
+
+    // Style the layer control
+    setTimeout(function() {
+      var layerControlDiv = document.querySelector('.leaflet-control-layers');
+      if (layerControlDiv) {
+        layerControlDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+        layerControlDiv.style.borderRadius = '8px';
+        layerControlDiv.style.border = '2px solid rgba(0, 64, 128, 0.2)';
+        layerControlDiv.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+      }
+    }, 100);
+
+    // Custom zoom controls styling
+    var zoomControl = document.querySelector('.leaflet-control-zoom');
+    if (zoomControl) {
+      zoomControl.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
+      zoomControl.style.borderRadius = '8px';
+      zoomControl.style.border = '2px solid rgba(0, 64, 128, 0.2)';
+      zoomControl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+    }
+
+    // Add a prominent marker for Carcar Water District with enhanced styling
+    var markerIcon = L.icon({
+      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDQwIDUwIj48ZGVmcz48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZVhPZmZzZXQgaW49IlNvdXJjZUdyYXBoaWMiIGR4PSIwIiBkeT0iMiIgZmxvb2QtY29sb3I9IiMwMDAwMDAiIGZsb29kLW9wYWNpdHk9IjAuMyIgcmVzdWx0PSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2U+PGZlTWVyZ2VOb2RlIGluPSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+PC9mZU1lcmdlPjwvZmlsdGVyPjwvZGVmcz48cGF0aCBmaWxsPSIjMDA2NkNDIiBmaWx0ZXI9InVybCgjc2hhZG93KSIgZD0iTTIwIDJDMTEgMiA0IDkgNCAyMGMwIDE2IDEwIDI0IDE2IDI0czE2LTggMTYtMjRjMC0xMS05LTE4LTIwLTE4eiIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI1IiBmaWxsPSIjMDA2NkNDIi8+PC9zdmc+',
+      iconSize: [40, 50],
+      iconAnchor: [20, 50],
+      popupAnchor: [0, -50],
+      shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZWxsaXBzZSBjeD0iMjAiIGN5PSIzMiIgcng9IjE4IiByeT0iNiIgZmlsbD0iIzAwMDAwMCIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+',
+      shadowSize: [40, 40],
+      shadowAnchor: [20, 40]
+    });
+
+    var marker = L.marker([10.2906, 123.6474], { icon: markerIcon }).addTo(map);
+    marker.bindPopup(
+      '<div style="font-family:Arial,sans-serif;padding:8px;text-align:center;">' +
+      '<strong style="font-size:14px;color:#004080;">🌊 AGUS</strong><br/>' +
+      '<span style="font-size:12px;color:#666;">Carcar Water District</span><br/>' +
+      '<span style="font-size:11px;color:#999;">Pump Station Dashboard</span>' +
+      '</div>',
+      { maxWidth: 250 }
+    );
 
     // Handle map theme changes based on light/dark mode
     function updateMapTheme() {
       var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
       if (isDark) {
-        // Optional: Add dark tile layer when dark mode is active
-        // For now, OSM tiles remain the same
-        mapElement.style.filter = 'invert(0.95) hue-rotate(180deg)';
+        mapElement.style.filter = 'brightness(0.85) contrast(1.1)';
       } else {
-        mapElement.style.filter = 'none';
+        mapElement.style.filter = 'brightness(1) contrast(1)';
       }
     }
 
@@ -13989,6 +14043,9 @@ document.addEventListener('keydown', function(e) {
     setTimeout(function() {
       map.invalidateSize();
     }, 100);
+
+    // Store map reference for debugging
+    window.agusMap = map;
   }
 
   if (document.readyState === 'loading') {
