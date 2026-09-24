@@ -1303,6 +1303,9 @@
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
     #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
+    #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    #pv-counter-strip svg{flex-shrink:0;}
+    #pv-count{font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;}
     #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
     #health-diag-strip .hds-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
     #welcome-username{font-size:12px;font-weight:600;color:#002b5c;display:block;margin-bottom:1px;}
@@ -2029,6 +2032,34 @@
   <span class="hds-dot" id="hds-dot" style="background:#94a3b8;"></span>
   <span id="hds-label" style="font-size:11px;color:#94a3b8;">loading…</span>
 </div>
+<div id="pv-counter-strip" title="Total page views">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  <span>Page Views</span>
+  <span id="pv-count">&hellip;</span>
+</div>
+<script>
+(function(){
+  var el=document.getElementById('pv-count'); if(!el) return;
+  function show(n,local){ el.textContent=Number(n).toLocaleString('en-US'); if(local) el.parentNode.title='Page views on this device (shared counter unavailable)'; }
+  function localCount(){
+    try{
+      var n=(parseInt(localStorage.getItem('agus_pv_local')||'0',10)||0)+1;
+      localStorage.setItem('agus_pv_local',n);
+      show(n,true);
+    }catch(e){ el.textContent='\u2013'; }
+  }
+  var tries=0;
+  function run(){
+    var ok=false; try{ ok=window.firebase&&firebase.apps&&firebase.apps.length&&firebase.database; }catch(e){}
+    if(!ok){ if(++tries<12) return setTimeout(run,1000); return localCount(); }
+    var ref=firebase.database().ref('stats/pageViews');
+    /* every page open counts +1 */
+    ref.transaction(function(v){ return (v||0)+1; }).then(function(r){ return r.snapshot.val()||0; }).then(function(n){ show(n,false); }).catch(function(){ localCount(); });
+    ref.on('value',function(sn){ if(sn.val()!=null) show(sn.val(),false); },function(){});
+  }
+  run();
+})();
+</script>
     <div id="device-details"></div>
 <div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
   <!-- Pipeline toggle -->
@@ -6916,6 +6947,30 @@ function buildStatCalloutAnnotations(stats) {
 }
 function mergeAnn(a,b){ var o={}; for(var k in a)o[k]=a[k]; for(var k2 in b)o[k2]=b[k2]; return o; }
 
+// Hover dot fill = same teal→blue gradient as the selected range button (24H / 3D / 7D ...)
+function _selHoverFill(ctx){
+  try{
+    var cs=getComputedStyle(document.body);
+    var a=(cs.getPropertyValue('--accent-teal')||'#0d9488').trim();
+    var b=(cs.getPropertyValue('--accent-blue-light')||'#0066cc').trim();
+    var el=ctx&&ctx.element, r=8;
+    if(!el||isNaN(el.x)||isNaN(el.y)) return a;
+    var g=ctx.chart.ctx.createLinearGradient(el.x-r,el.y-r,el.x+r,el.y+r);
+    g.addColorStop(0,a); g.addColorStop(1,b); return g;
+  }catch(e){ return '#0d9488'; }
+}
+// Tooltip (date + value details) background = same teal->blue gradient as the selected range button
+function _selTipFill(ctx){
+  try{
+    var cs=getComputedStyle(document.body);
+    var a=(cs.getPropertyValue('--accent-teal')||'#0d9488').trim();
+    var b=(cs.getPropertyValue('--accent-blue-light')||'#0066cc').trim();
+    var t=ctx&&ctx.tooltip;
+    if(!t||isNaN(t.x)||isNaN(t.y)||!t.width||!t.height) return a;
+    var g=ctx.chart.ctx.createLinearGradient(t.x,t.y,t.x+t.width,t.y+t.height);
+    g.addColorStop(0,a); g.addColorStop(1,b); return g;
+  }catch(e){ return '#0d9488'; }
+}
 function renderRangeChart() {
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
@@ -6945,7 +7000,7 @@ function renderRangeChart() {
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
     var resStats=updateGraphStatsFromValues(lv, data, '');
-    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:'#06b6d4',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],buildStatCalloutAnnotations(resStats),data), canvas);
+    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],buildStatCalloutAnnotations(resStats),data), canvas);
     return;
   }
   if (currentDeviceType !== 'pump') {
@@ -6955,7 +7010,7 @@ function renderRangeChart() {
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
     var presStats=updateGraphStatsFromValues(pv, data, 'psi');
-    myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:'#4ade80',pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],mergeAnn(buildToggleAnnotations(data),buildStatCalloutAnnotations(presStats)),data), canvas);
+    myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],mergeAnn(buildToggleAnnotations(data),buildStatCalloutAnnotations(presStats)),data), canvas);
     return;
   }
   var datasets=[],leftP=[],rightP=[],statVals=null,statUnit='',statLabel='';
@@ -6970,7 +7025,7 @@ function renderRangeChart() {
     var fill=false, bg=hexToRgba(p.color,0.08);
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
     if (statVals===null){statVals=vals;statUnit=p.unit||'';statLabel=p.label||'';}
-    datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,pointHoverBackgroundColor:p.color,pointHoverBorderColor:'#fff',pointHoverBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
+    datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
     var vv=vals.filter(function(v){return v!==null;}),vmn=vv.length?Math.min.apply(null,vv):0,vmx=vv.length?Math.max.apply(null,vv):10,vpd=Math.max((vmx-vmn)*0.18,1);
     if(p.yAxis==='yLeft')leftP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
     else rightP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
@@ -7010,7 +7065,7 @@ function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#8ea9c9',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(125,211,252,0.07)',lineWidth:1},border:{color:'rgba(125,211,252,0.15)'}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#8ea9c9',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#7dd3fc',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
-  return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:'rgba(0,20,70,0.94)',titleColor:'#7dd3fc',bodyColor:'#f1f5f9',borderColor:'rgba(0,170,255,0.4)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:_selTipFill,titleColor:'#ffffff',bodyColor:'#ffffff',borderColor:'rgba(255,255,255,0.45)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 document.querySelectorAll('.range-btn').forEach(function(btn){
