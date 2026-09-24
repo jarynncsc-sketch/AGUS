@@ -768,13 +768,6 @@
     border-radius: 16px 16px 0 0 !important;
   }
 
-  /* ── Energy advisor overlay ── */
-  #energy-advisor-overlay > div {
-    width: 96vw !important;
-    max-width: 96vw !important;
-    padding: 16px 14px !important;
-  }
-
   /* ── Graph modal (single source of truth for mobile sizing —
        see the later @media(max-width:900px) block for spacing/text
        refinements only; it must NOT redefine width/height here) ── */
@@ -1570,7 +1563,6 @@
     .ai-msg-bot  { background: #f0f6ff; color: #002b5c; align-self: flex-start; border-radius: 10px 10px 10px 2px; border: 1px solid #d0e4f7; }
     .ai-msg-typing { opacity: 0.6; font-style: italic; }
     #ai-chat-panel { font-family: 'DM Sans', sans-serif; }
-    #energy-advisor-overlay .spinner { width: 32px; height: 32px; border: 3px solid #cfe4ff; border-top-color: #004080; border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto 12px; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (max-width: 700px) { .ai-msg { max-width: 95%; } #ai-chat-panel { width: calc(100vw - 32px); right: 16px; bottom: 16px; } }
 
@@ -1665,9 +1657,6 @@
   #bench-overlay > div,
   #forecast-overlay > div,
   #pump-link-overlay > div,
-  #energy-advisor-overlay > div,
-  #cost-calc-overlay > div,
-  #ml-trend-overlay > div,
   #alarm-timeline-overlay > div {
     animation: modal-pop 0.28s cubic-bezier(0.34,1.4,0.64,1) both;
   }
@@ -1683,10 +1672,6 @@
   #bench-overlay,
   #forecast-overlay,
   #pump-link-overlay,
-  #energy-advisor-overlay,
-  #cost-calc-overlay,
-  #ml-risk-overlay,
-  #ml-trend-overlay,
   #alarm-timeline-overlay {
     animation: overlay-fade-in 0.2s ease both;
   }
@@ -1793,32 +1778,6 @@
   .sheet-body,
   #pl-cards-area { scroll-behavior: smooth; }
 
-  /* ════════════════════════════════════════════════════
-     ML PREDICTIVE RISK ENGINE STYLES
-     ════════════════════════════════════════════════════ */
-  #ml-risk-overlay { position:fixed;inset:0;background:rgba(0,10,30,0.80);z-index:5600;display:flex;align-items:center;justify-content:center; }
-  #ml-risk-panel { background:#fff;border-radius:20px;width:980px;max-width:97vw;max-height:93vh;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 28px 80px rgba(0,0,0,0.5); }
-  #ml-risk-header { background:linear-gradient(135deg,#0f172a 0%,#1e40af 60%,#7c3aed 100%);padding:16px 22px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0; }
-  .ml-risk-card { background:#f8faff;border:1.5px solid #e0eaff;border-radius:14px;padding:14px 16px;transition:box-shadow .2s,transform .2s; }
-  .ml-risk-card:hover { box-shadow:0 6px 20px rgba(30,64,175,0.13);transform:translateY(-2px); }
-  .ml-score-ring { width:64px;height:64px;flex-shrink:0; }
-  .ml-badge { display:inline-flex;align-items:center;gap:4px;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.5px; }
-  .ml-badge-safe    { background:#dcfce7;color:#15803d; }
-  .ml-badge-watch   { background:#fef9c3;color:#a16207; }
-  .ml-badge-risk    { background:#ffedd5;color:#c2410c; }
-  .ml-badge-critical{ background:#fee2e2;color:#991b1b; }
-  .ml-stat-box { background:#fff;border-radius:9px;padding:9px 12px;text-align:center;border:1px solid #e5eef9; }
-  .ml-stat-box .ml-sv { font-size:17px;font-weight:800;color:#1e3a5f; }
-  .ml-stat-box .ml-sl { font-size:10px;color:#7a8fa6;font-weight:600;text-transform:uppercase;margin-top:2px; }
-  .ml-progress { height:7px;background:#e5eef9;border-radius:4px;overflow:hidden;margin:5px 0 8px; }
-  .ml-progress-bar { height:100%;border-radius:4px;transition:width .6s cubic-bezier(.34,1.4,.64,1); }
-  .ml-signal-row { display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid #f0f5ff; }
-  .ml-signal-row:last-child { border-bottom:none; }
-  #ml-ai-insight { background:linear-gradient(135deg,#f0f5ff,#e8f0fe);border:1.5px solid #bfdbfe;border-radius:12px;padding:14px 16px;font-size:13px;line-height:1.65;color:#1e293b; }
-  @media (max-width:700px) {
-    #ml-risk-panel { border-radius:14px 14px 0 0;max-height:95vh;align-self:flex-end; }
-    .ml-score-ring { width:52px;height:52px; }
-  }
 
   <!-- ═══════════════════════════════════════════════════════════════
        LEAFLET MAP LIBRARY — OpenStreetMap with Google tiles
@@ -1949,7 +1908,6 @@
         <div class="nav-group-cards">
           <div class="top-card grp-ctrl" data-tab="pump-links" onclick="openPumpLinkSettings()" style="position:relative;" title="Configure Reservoir–Pump Auto-Control Links"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg><span>Pump Links</span><span id="pump-links-badge" style="display:none;position:absolute;top:3px;right:3px;background:#dc2626;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
           <div class="top-card grp-ctrl" data-tab="device-schedules" onclick="openScheduleSettings()" style="position:relative;" title="Configure relay ON/OFF timers per device"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg><span>Schedules</span><span id="device-schedules-badge" style="display:none;position:absolute;top:3px;right:3px;background:#7c3aed;color:white;border-radius:50%;width:15px;height:15px;font-size:9px;font-weight:800;align-items:center;justify-content:center;line-height:15px;text-align:center;">0</span></div>
-          <div class="top-card grp-ctrl" data-tab="energy" onclick="openEnergyAdvisor()" title="AI energy optimizer & consumption analysis"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 8 14 13 14 11 18"/></svg><span>Energy</span></div>
           <div class="top-card grp-ctrl" data-tab="efficiency" onclick="openEfficiency()" title="Wire efficiency — Flow ÷ Power per pump. Decline = impeller wear."><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg><span>Efficiency</span></div>
           <div class="top-card grp-ctrl" data-tab="water-loss" onclick="openWaterLossTracker()" title="Non-revenue water & leak loss tracker"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg><span>Water Loss</span></div>
           <div class="top-card grp-ctrl" data-tab="flowmeter-cal" onclick="openSheet('Flowmeter Calibration','Flowmeter Calibration')" title="Flowmeter calibration records & history"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83"/><circle cx="12" cy="12" r="4"/></svg><span>Flowmeter Cal.</span></div>
@@ -1966,15 +1924,6 @@
           <div class="top-card grp-ctrl" data-tab="preventive-maintenance" onclick="openTabModal('preventive-maintenance')" title="Equipment maintenance tracking & schedules"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg><span>Prev. Maint.</span></div>
           <div class="top-card grp-ctrl" data-tab="maint-calendar" onclick="openMaintenanceCalendar()" title="Maintenance calendar & scheduling"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span>Maint. Calendar</span></div>
           <div class="top-card grp-ctrl" data-tab="logbook" onclick="openLogbook()" title="Shift logbook for operator entries"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0F6E56" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span>Logbook</span></div>
-        </div>
-      </div>
-      <div class="nav-group-sep"></div>
-      <!-- AI group -->
-      <div class="nav-group-wrap">
-        <div class="nav-group-label">AI</div>
-        <div class="nav-group-cards">
-          <div class="top-card grp-ai" data-tab="ai-chat" onclick="toggleAIChat()" title="Open AI Chat Assistant — ask anything about your system"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span>AI Chat</span></div>
-          <div class="top-card grp-ai" data-tab="cost-calc" onclick="openCostCalculator()" title="Cost per Cubic Calculator — energy cost per m³"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg><span>Cost Calc</span></div>
         </div>
       </div>
       <div class="nav-group-sep"></div>
@@ -7242,8 +7191,6 @@ function saveAISettings() {
   localStorage.setItem('agus_ai_api_key', apiKey);
   localStorage.setItem('agus_ai_model', model);
   document.getElementById('ais-validation').textContent = '';
-  var dot = document.getElementById('ai-config-dot');
-  if (dot) dot.style.display = apiKey ? 'block' : 'none';
   showNotification(apiKey ? '✅ GitHub Models AI configured — ' + model : '⚠ AI token cleared — using keyword engine', apiKey ? 'success' : 'warning');
   closeAISettings();
 }
@@ -8886,458 +8833,6 @@ function runBenchmark() {
    6. Remaining Useful Life (RUL) estimation
    ─────────────────────────────────────────────────────────────  */
 
-function mlLinearRegression(values) {
-  /* Returns { slope, intercept, r2, predicted } */
-  var n = values.length;
-  if (n < 3) return { slope: 0, intercept: values[0] || 0, r2: 0, predicted: values.slice() };
-  var sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
-  for (var i = 0; i < n; i++) {
-    sumX += i; sumY += values[i]; sumXY += i * values[i];
-    sumX2 += i * i; sumY2 += values[i] * values[i];
-  }
-  var slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
-  var intercept = (sumY - slope * sumX) / n;
-  var meanY = sumY / n;
-  var ssTot = 0, ssRes = 0;
-  for (var j = 0; j < n; j++) {
-    ssTot += Math.pow(values[j] - meanY, 2);
-    ssRes += Math.pow(values[j] - (slope * j + intercept), 2);
-  }
-  var r2 = ssTot > 0 ? Math.max(0, 1 - ssRes / ssTot) : 0;
-  var predicted = [];
-  for (var k = 0; k < n; k++) predicted.push(parseFloat((slope * k + intercept).toFixed(4)));
-  return { slope: slope, intercept: intercept, r2: parseFloat(r2.toFixed(4)), predicted: predicted };
-}
-
-function mlEMA(values, alpha) {
-  /* Exponential Moving Average smoother, alpha ∈ (0,1) */
-  if (!values.length) return [];
-  alpha = alpha || 0.2;
-  var out = [values[0]];
-  for (var i = 1; i < values.length; i++) out.push(alpha * values[i] + (1 - alpha) * out[i - 1]);
-  return out;
-}
-
-function mlIQRAnomalyScore(values) {
-  /* Returns { iqr, q1, q3, lowerFence, upperFence, outlierCount, outlierRatio } */
-  if (values.length < 4) return { iqr: 0, outlierCount: 0, outlierRatio: 0 };
-  var sorted = values.slice().sort(function(a, b) { return a - b; });
-  var n = sorted.length;
-  var q1 = sorted[Math.floor(n * 0.25)];
-  var q3 = sorted[Math.floor(n * 0.75)];
-  var iqr = q3 - q1;
-  var lo = q1 - 1.5 * iqr;
-  var hi = q3 + 1.5 * iqr;
-  var outliers = values.filter(function(v) { return v < lo || v > hi; });
-  return {
-    iqr: parseFloat(iqr.toFixed(3)),
-    q1: q1, q3: q3,
-    lowerFence: parseFloat(lo.toFixed(3)),
-    upperFence: parseFloat(hi.toFixed(3)),
-    outlierCount: outliers.length,
-    outlierRatio: parseFloat((outliers.length / values.length).toFixed(4))
-  };
-}
-
-function mlCoeffVariation(values) {
-  /* Coefficient of Variation = σ / μ  (dimensionless volatility) */
-  if (values.length < 2) return 0;
-  var mean = values.reduce(function(a, b) { return a + b; }, 0) / values.length;
-  if (Math.abs(mean) < 0.001) return 0;
-  var variance = values.reduce(function(s, v) { return s + Math.pow(v - mean, 2); }, 0) / values.length;
-  return parseFloat((Math.sqrt(variance) / Math.abs(mean)).toFixed(4));
-}
-
-function mlRiskScore(signals) {
-  /*  Weighted fusion of ML signals into a 0-100 risk score
-      signals: { trendSlope, r2, cvVolatility, outlierRatio, zScore,
-                 slopeDirection, trendAccel, seasonalityDev, higherIsBad }
-  */
-  var score = 0;
-  var breakdown = [];
-
-  // 1. Trend severity (slope relative to mean) — 25 pts
-  var normalizedSlope = Math.min(1, Math.abs(signals.trendSlope || 0) / (Math.abs(signals.meanVal) || 1) * 100);
-  var trendScore = normalizedSlope * 25;
-  if (signals.slopeDirection === 'up' && signals.higherIsBad) trendScore *= 1.3;
-  trendScore = Math.min(25, trendScore);
-  score += trendScore;
-  breakdown.push({ label: 'Trend', score: trendScore, max: 25 });
-
-  // 2. Regression fit (high R² + bad slope = consistent deterioration) — 15 pts
-  var regScore = Math.min(15, (signals.r2 || 0) * (normalizedSlope > 0.1 ? 15 : 4));
-  score += regScore;
-  breakdown.push({ label: 'Fit', score: regScore, max: 15 });
-
-  // 3. Volatility (CV) — 15 pts
-  var volScore = Math.min(15, (signals.cvVolatility || 0) * 60);
-  score += volScore;
-  breakdown.push({ label: 'Volatility', score: volScore, max: 15 });
-
-  // 4. Outlier frequency (IQR-based) — 15 pts
-  var outScore = Math.min(15, (signals.outlierRatio || 0) * 150);
-  score += outScore;
-  breakdown.push({ label: 'Outliers', score: outScore, max: 15 });
-
-  // 5. Z-score anomaly strength — 10 pts
-  var zScore = Math.min(10, Math.abs(signals.zScore || 0) * 2);
-  score += zScore;
-  breakdown.push({ label: 'Z-Score', score: zScore, max: 10 });
-
-  // 6. Trend acceleration (second derivative / momentum) — 10 pts
-  var accelScore = Math.min(10, Math.abs(signals.trendAccel || 0) * 500);
-  score += accelScore;
-  breakdown.push({ label: 'Acceleration', score: accelScore, max: 10 });
-
-  // 7. Seasonality deviation — 10 pts
-  var seasScore = Math.min(10, (signals.seasonalityDev || 0) * 100);
-  score += seasScore;
-  breakdown.push({ label: 'Seasonality', score: seasScore, max: 10 });
-
-  return { total: Math.min(100, Math.round(score)), breakdown: breakdown };
-}
-
-function mlRUL(values, slope, targetMax) {
-  /* Remaining Useful Life in data-points (approximate).
-     Returns days estimate if the series degrades linearly to targetMax. */
-  if (!slope || slope <= 0 || !values.length) return null;
-  var current = values[values.length - 1];
-  if (current >= targetMax) return 0;
-  var pointsLeft = (targetMax - current) / slope;
-  // Assume one reading every 15 min → readings/day = 96
-  return Math.max(0, Math.round(pointsLeft / 96));
-}
-
-/* ─────────────────────────────────────────────────────────────
-   ML PANEL OPEN & ORCHESTRATION
-   ─────────────────────────────────────────────────────────────  */
-
-var _mlResults = [];
-var _mlAIInsight = '';
-
-function openMLRiskEngine() {
-  var old = document.getElementById('ml-risk-overlay'); if (old) old.remove();
-  var ov = document.createElement('div');
-  ov.id = 'ml-risk-overlay';
-  ov.innerHTML = '<div id="ml-risk-panel">'
-    + '<div id="ml-risk-header">'
-    +   '<div>'
-    +     '<div style="color:#fff;font-weight:800;font-size:1.15rem;">🧠 ML Predictive Risk Engine</div>'
-    +     '<div style="color:rgba(255,255,255,0.7);font-size:12px;margin-top:3px;">Trend regression · Acceleration detection · IQR anomaly scoring · Seasonality deviation · EMA smoothing · AI interpretation</div>'
-    +   '</div>'
-    +   '<button onclick="document.getElementById(\'ml-risk-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;">✕</button>'
-    + '</div>'
-    + '<div style="padding:10px 18px;background:#f8faff;border-bottom:1px solid #e0eaff;display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">'
-    +   '<label style="font-size:12px;font-weight:700;color:#1e3a5f;">Device:</label>'
-    +   '<select id="ml-device-sel" onchange="runMLAnalysis()" style="padding:6px 10px;border:1.5px solid #c7d8f7;border-radius:8px;font-size:12px;outline:none;min-width:200px;"><option>Loading…</option></select>'
-    +   '<label style="font-size:12px;font-weight:700;color:#1e3a5f;">Window:</label>'
-    +   '<select id="ml-window-sel" onchange="runMLAnalysis()" style="padding:6px 10px;border:1.5px solid #c7d8f7;border-radius:8px;font-size:12px;outline:none;">'
-    +     '<option value="48">Last 48 readings</option>'
-    +     '<option value="96" selected>Last 96 readings</option>'
-    +     '<option value="200">Last 200 readings</option>'
-    +     '<option value="500">Last 500 readings</option>'
-    +   '</select>'
-    +   '<button onclick="genMLAIInterpretation()" style="padding:7px 16px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;margin-left:auto;">🤖 AI Interpret</button>'
-    + '</div>'
-    + '<div style="flex:1;overflow-y:auto;padding:14px 18px;">'
-    +   '<div id="ml-loading" style="text-align:center;padding:50px;color:#7a8fa6;"><div class="spinner" style="margin:0 auto 12px;"></div>Running ML analysis…</div>'
-    +   '<div id="ml-body" style="display:none;"></div>'
-    +   '<div id="ml-ai-insight" style="display:none;margin-top:14px;"></div>'
-    + '</div>'
-    + '</div>';
-  ov.addEventListener('click', function(e) { if (e.target === ov) ov.remove(); });
-  document.body.appendChild(ov);
-
-  apiCached('getDashboardData').then(function(devices) {
-    var sel = document.getElementById('ml-device-sel'); if (!sel) return;
-    var filtered = devices.filter(function(d) {
-      var n = (d.device || '').toLowerCase();
-      return !n.endsWith('pressurelog') && !n.endsWith('reservoirlog');
-    });
-    sel.innerHTML = filtered.map(function(d) {
-      return '<option value="' + d.device.replace(/"/g, '&quot;') + '">' + d.device + '</option>';
-    }).join('');
-    if (filtered.length) runMLAnalysis();
-  }).catch(function(e) {
-    var l = document.getElementById('ml-loading');
-    if (l) l.innerHTML = '<span style="color:#e05555;">Error loading devices: ' + e.message + '</span>';
-  });
-}
-
-function runMLAnalysis() {
-  var deviceSel = document.getElementById('ml-device-sel');
-  var windowSel = document.getElementById('ml-window-sel');
-  if (!deviceSel) return;
-  var device = deviceSel.value;
-  var winSize = parseInt(windowSel ? windowSel.value : '96') || 96;
-
-  var loading = document.getElementById('ml-loading');
-  var body = document.getElementById('ml-body');
-  var insight = document.getElementById('ml-ai-insight');
-  if (loading) { loading.style.display = 'block'; loading.innerHTML = '<div class="spinner" style="margin:0 auto 12px;"></div>Running ML analysis on <b>' + device + '</b>…'; }
-  if (body) body.style.display = 'none';
-  if (insight) insight.style.display = 'none';
-  _mlResults = [];
-
-  apiGet('getSheetData', { sheet: device }).then(function(rows) {
-    rows = rows || [];
-    if (rows.length < 10) {
-      if (loading) loading.innerHTML = '<span style="color:#7a8fa6;">Insufficient data (need at least 10 records).</span>';
-      return;
-    }
-
-    var keys = Object.keys(rows[0]);
-    var timeKey = keys.find(function(k) { return /time|date|timestamp/i.test(k); }) || keys[0];
-
-    // Define parameters to analyse
-    var paramDefs = [
-      { id: 'pressure', label: 'Pressure', unit: 'psi', color: '#3b82f6', pattern: /pressure|psi/i, targetMax: 120, higherIsBad: true },
-      { id: 'flowrate', label: 'Flow Rate', unit: 'L/s', color: '#22c55e', pattern: /flowrate|flow/i, targetMax: null, higherIsBad: false },
-      { id: 'power',    label: 'Power',     unit: 'W',   color: '#f97316', pattern: /power/i,        targetMax: 5000, higherIsBad: true },
-      { id: 'voltage',  label: 'Voltage',   unit: 'V',   color: '#8b5cf6', pattern: /voltage/i,       targetMax: null, higherIsBad: false },
-      { id: 'current',  label: 'Current',   unit: 'A',   color: '#ec4899', pattern: /current/i,       targetMax: null, higherIsBad: true },
-      { id: 'level',    label: 'Water Level',unit:'m³',  color: '#06b6d4', pattern: /cubic\s*meter|cube|res.*water|water.*level|reservoir.*level|water.*volume|volume.*m3|level.*res|level.*water|water.*m3/i, targetMax: null, higherIsBad: false }
-    ];
-
-    var analysed = [];
-    paramDefs.forEach(function(pd) {
-      var k = keys.find(function(kk) { return pd.pattern.test(kk.trim()); });
-      if (!k) return;
-      var raw = rows.slice(-winSize).map(function(r) { return parseFloat(r[k]); }).filter(function(v) { return !isNaN(v) && v >= 0; });
-      if (raw.length < 10) return;
-
-      // ML pipeline
-      var smoothed = mlEMA(raw, 0.15);
-      var reg = mlLinearRegression(smoothed);
-      var iqr = mlIQRAnomalyScore(raw);
-      var cv  = mlCoeffVariation(raw);
-      var mean = raw.reduce(function(a,b){return a+b;},0)/raw.length;
-      var zMax = 0;
-      if (raw.length >= 5) {
-        var std = Math.sqrt(raw.reduce(function(s,v){return s+Math.pow(v-mean,2);},0)/raw.length);
-        if (std > 0.001) zMax = Math.abs(raw[raw.length-1] - mean) / std;
-      }
-
-      // Trend acceleration: compare slope in first vs second half of smoothed
-      var trendAccel = 0;
-      if (smoothed.length >= 10 && Math.abs(mean) > 0.001) {
-        var mid = Math.floor(smoothed.length / 2);
-        var firstHalf = smoothed.slice(0, mid);
-        var secondHalf = smoothed.slice(mid);
-        if (firstHalf.length >= 3 && secondHalf.length >= 3) {
-          var regFirst = mlLinearRegression(firstHalf);
-          var regSecond = mlLinearRegression(secondHalf);
-          trendAccel = (regSecond.slope - regFirst.slope) / Math.abs(mean);
-        }
-      }
-
-      // Seasonality deviation: how far latest value falls outside IQR core
-      var seasonalityDev = 0;
-      if (iqr.iqr > 0.001 && raw.length >= 10) {
-        var latest = raw[raw.length - 1];
-        if (latest > iqr.q3) seasonalityDev = (latest - iqr.q3) / iqr.iqr;
-        else if (latest < iqr.q1) seasonalityDev = (iqr.q1 - latest) / iqr.iqr;
-      }
-
-      var riskResult = mlRiskScore({
-        trendSlope: reg.slope,
-        r2: reg.r2,
-        cvVolatility: cv,
-        outlierRatio: iqr.outlierRatio,
-        zScore: zMax,
-        meanVal: Math.abs(mean),
-        slopeDirection: reg.slope > 0 ? 'up' : 'down',
-        higherIsBad: pd.higherIsBad,
-        trendAccel: trendAccel,
-        seasonalityDev: seasonalityDev
-      });
-
-      var rul = pd.targetMax ? mlRUL(raw, pd.higherIsBad ? reg.slope : null, pd.targetMax) : null;
-
-      analysed.push({
-        id: pd.id, label: pd.label, unit: pd.unit, color: pd.color,
-        raw: raw, smoothed: smoothed,
-        slope: reg.slope, r2: reg.r2, intercept: reg.intercept,
-        cv: cv, iqr: iqr, zMax: parseFloat(zMax.toFixed(2)), mean: parseFloat(mean.toFixed(2)),
-        riskScore: riskResult.total,
-        riskBreakdown: riskResult.breakdown,
-        trendAccel: trendAccel,
-        seasonalityDev: seasonalityDev,
-        rul: rul,
-        n: raw.length, key: k
-      });
-    });
-
-    _mlResults = analysed;
-
-    if (!analysed.length) {
-      if (loading) loading.innerHTML = '<span style="color:#7a8fa6;">No recognised sensor columns found in this device\'s data.</span>';
-      return;
-    }
-
-    if (loading) loading.style.display = 'none';
-    if (body) { body.style.display = 'block'; body.innerHTML = buildMLBodyHTML(device, analysed, winSize); }
-
-    // Update badge
-    var criticalCount = analysed.filter(function(a){ return a.riskScore >= 65; }).length;
-    var badge = document.getElementById('ml-risk-badge');
-    if (badge) {
-      if (criticalCount > 0) { badge.style.display = 'flex'; badge.innerText = criticalCount; }
-      else badge.style.display = 'none';
-    }
-
-  }).catch(function(e) {
-    if (loading) loading.innerHTML = '<span style="color:#e05555;">Error: ' + e.message + '</span>';
-  });
-}
-
-function buildMLBodyHTML(device, analysed, winSize) {
-  function riskLabel(score) {
-    if (score < 25) return { label: 'Safe',     cls: 'ml-badge-safe',     hex: '#15803d', bg: '#dcfce7' };
-    if (score < 50) return { label: 'Watch',    cls: 'ml-badge-watch',    hex: '#a16207', bg: '#fef9c3' };
-    if (score < 70) return { label: 'At Risk',  cls: 'ml-badge-risk',     hex: '#c2410c', bg: '#ffedd5' };
-    return            { label: 'Critical', cls: 'ml-badge-critical', hex: '#991b1b', bg: '#fee2e2' };
-  }
-
-  function slopeArrow(slope) {
-    if (Math.abs(slope) < 0.001) return '→ Stable';
-    if (slope > 0) return '↗ Rising';
-    return '↘ Declining';
-  }
-
-  function trendIndicator(accel) {
-    if (Math.abs(accel) < 0.001) return '<span style="color:#64748b;">→ Stable momentum</span>';
-    if (accel > 0) return '<span style="color:#dc2626;">↑ Accelerating</span>';
-    return '<span style="color:#16a34a;">↓ Decelerating</span>';
-  }
-
-  function scoreRingHTML(score, hex) {
-    var circ = 2 * Math.PI * 26;
-    var dash = (score / 100) * circ;
-    return '<svg class="ml-score-ring" viewBox="0 0 64 64">'
-      + '<circle cx="32" cy="32" r="26" fill="none" stroke="#e5eef9" stroke-width="7"/>'
-      + '<circle cx="32" cy="32" r="26" fill="none" stroke="' + hex + '" stroke-width="7" stroke-dasharray="' + dash.toFixed(1) + ' ' + circ.toFixed(1) + '" stroke-linecap="round" transform="rotate(-90 32 32)"/>'
-      + '<text x="32" y="37" text-anchor="middle" font-size="13" font-weight="800" fill="' + hex + '">' + score + '</text>'
-      + '</svg>';
-  }
-
-  function sparklineSVG(values, color, w, h) {
-    w = w || 120; h = h || 28;
-    if (!values || values.length < 2) return '';
-    var mn = Math.min.apply(null, values), mx = Math.max.apply(null, values);
-    var range = mx - mn || 1;
-    var pts = values.map(function(v, i) {
-      var x = (i / (values.length - 1)) * (w - 4) + 2;
-      var y = h - 2 - ((v - mn) / range) * (h - 4);
-      return x.toFixed(1) + ',' + y.toFixed(1);
-    }).join(' ');
-    var fillPts = pts + ' ' + (w - 2).toFixed(1) + ',' + (h - 2).toFixed(1) + ' 2,' + (h - 2).toFixed(1);
-    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" style="display:block;margin:4px auto 0;">'
-      + '<polygon points="' + fillPts + '" fill="' + color + '22" stroke="none"/>'
-      + '<polyline points="' + pts + '" fill="none" stroke="' + color + '" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
-      + '<circle cx="' + pts.split(' ').pop().split(',')[0] + '" cy="' + pts.split(' ').pop().split(',')[1] + '" r="2" fill="' + color + '"/>'
-      + '</svg>';
-  }
-
-  function breakdownBarsHTML(breakdown) {
-    if (!breakdown || !breakdown.length) return '';
-    var bars = breakdown.map(function(b) {
-      var pct = (b.score / b.max) * 100;
-      return '<div style="display:flex;align-items:center;gap:4px;margin:2px 0;">'
-        + '<span style="font-size:9px;color:#64748b;min-width:48px;text-align:right;">' + b.label + '</span>'
-        + '<div style="flex:1;height:6px;background:#e5eef9;border-radius:3px;overflow:hidden;">'
-        +   '<div style="width:' + pct.toFixed(0) + '%;height:100%;background:#3b82f6;border-radius:3px;transition:width 0.3s;"></div>'
-        + '</div>'
-        + '<span style="font-size:9px;color:#475569;min-width:18px;text-align:right;">' + Math.round(b.score) + '</span>'
-        + '</div>';
-    }).join('');
-    return '<div style="margin:6px 0 0;padding:6px 8px;background:#f8faff;border-radius:6px;">'
-      + '<div style="font-size:9px;font-weight:700;color:#1e3a5f;margin-bottom:3px;">Risk Factor Breakdown</div>'
-      + bars + '</div>';
-  }
-
-  // Sort by risk descending
-  var sorted = analysed.slice().sort(function(a, b) { return b.riskScore - a.riskScore; });
-
-  // Summary row
-  var overallRisk = Math.max.apply(null, analysed.map(function(a){return a.riskScore;}));
-  var overallInfo = riskLabel(overallRisk);
-  var avgScore = Math.round(analysed.reduce(function(s,a){return s+a.riskScore;},0)/analysed.length);
-  var worstAccel = analysed.reduce(function(m,a){return Math.max(m,Math.abs(a.trendAccel||0));},0);
-  var accelIndicator = worstAccel > 0.005
-    ? '<span style="font-size:11px;color:#dc2626;">⚠ Acceleration detected in ' + analysed.filter(function(a){return Math.abs(a.trendAccel||0) > 0.005;}).length + ' parameters</span>'
-    : '<span style="font-size:11px;color:#16a34a;">✓ Momentum stable</span>';
-
-  var html = '<div style="background:linear-gradient(135deg,' + overallInfo.bg + ',#fff);border:2px solid ' + overallInfo.hex + '33;border-radius:14px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">'
-    + scoreRingHTML(overallRisk, overallInfo.hex)
-    + '<div style="flex:1;min-width:180px;">'
-    +   '<div style="font-size:13px;font-weight:800;color:#1e3a5f;margin-bottom:4px;">Overall Risk Assessment — <b>' + device + '</b></div>'
-    +   '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;">'
-    +     '<span class="ml-badge ' + overallInfo.cls + '">' + overallInfo.label + '</span>'
-    +     '<span style="font-size:11px;color:#5575a0;">' + analysed.length + ' parameters analysed · ' + winSize + ' readings</span>'
-    +   '</div>'
-    +   '<div style="font-size:12px;color:#475569;">Average risk: <b>' + avgScore + '/100</b> &nbsp;|&nbsp; Peak risk: <b style="color:' + overallInfo.hex + '">' + overallRisk + '/100</b></div>'
-    +   '<div style="margin-top:3px;">' + accelIndicator + '</div>'
-    + '</div>'
-    + '</div>';
-
-  // Parameter cards grid
-  html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;">';
-  sorted.forEach(function(a) {
-    var info = riskLabel(a.riskScore);
-    var slopeStr = (a.slope >= 0 ? '+' : '') + a.slope.toFixed(4) + ' ' + a.unit + '/reading';
-    var rulStr = a.rul !== null ? (a.rul === 0 ? '<b style="color:#dc2626;">Threshold exceeded</b>' : a.rul + ' days est.') : '—';
-    var accelStr = (a.trendAccel >= 0 ? '+' : '') + (a.trendAccel || 0).toFixed(5);
-    var seasStr = (a.seasonalityDev || 0).toFixed(3);
-
-    html += '<div class="ml-risk-card">'
-      + '<div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">'
-      +   scoreRingHTML(a.riskScore, info.hex)
-      +   '<div style="flex:1;">'
-      +     '<div style="font-size:13px;font-weight:800;color:#1e3a5f;">' + a.label + '</div>'
-      +     '<div style="display:flex;gap:5px;margin-top:3px;flex-wrap:wrap;">'
-      +       '<span class="ml-badge ' + info.cls + '">' + info.label + '</span>'
-      +       '<span style="font-size:10px;color:#5575a0;padding:3px 7px;background:#f0f5ff;border-radius:10px;">' + slopeArrow(a.slope) + '</span>'
-      +     '</div>'
-      +   '</div>'
-      + '</div>'
-      + sparklineSVG(a.raw, info.hex)
-      + '<div class="ml-progress"><div class="ml-progress-bar" style="width:' + a.riskScore + '%;background:' + info.hex + ';"></div></div>'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:6px;">'
-      +   '<div class="ml-stat-box"><div class="ml-sv">' + a.mean + '</div><div class="ml-sl">Mean ' + a.unit + '</div></div>'
-      +   '<div class="ml-stat-box"><div class="ml-sv">' + (a.cv * 100).toFixed(1) + '%</div><div class="ml-sl">Volatility</div></div>'
-      +   '<div class="ml-stat-box"><div class="ml-sv">' + a.iqr.outlierCount + '</div><div class="ml-sl">IQR Outliers</div></div>'
-      + '</div>'
-      + breakdownBarsHTML(a.riskBreakdown)
-      + '<div style="font-size:11px;color:#5575a0;background:#f8faff;border-radius:8px;padding:8px 10px;margin-top:6px;">'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Trend Slope</span><span>' + slopeStr + '</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">R² Fit</span><span>' + (a.r2 * 100).toFixed(1) + '% confidence</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Acceleration</span><span>' + accelStr + ' ' + trendIndicator(a.trendAccel) + '</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Seasonality Dev</span><span>' + seasStr + ' σ from IQR</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Z-Score</span><span>' + a.zMax + 'σ deviation</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Est. RUL</span><span>' + rulStr + '</span></div>'
-      +   '<div class="ml-signal-row"><span style="flex:1;font-weight:700;color:#1e3a5f;">Samples</span><span>' + a.n + ' readings</span></div>'
-      + '</div>'
-      + '</div>';
-  });
-  html += '</div>';
-
-  // Signal explanation footer
-  html += '<div style="margin-top:14px;padding:12px 16px;background:#f0f5ff;border-radius:10px;font-size:11px;color:#5575a0;line-height:1.7;">'
-    + '<b style="color:#1e3a5f;">ML Signal Glossary:</b> '
-    + '<b>Trend Slope</b> = linear regression slope (rate of change per reading) · '
-    + '<b>R²</b> = regression confidence (how consistently linear the trend is) · '
-    + '<b>Acceleration</b> = slope change between first/second half (momentum) · '
-    + '<b>Volatility</b> = coefficient of variation (σ/μ × 100%) · '
-    + '<b>IQR Outliers</b> = readings outside 1.5×IQR fence · '
-    + '<b>Seasonality Dev</b> = latest value deviation from IQR core range · '
-    + '<b>Z-Score</b> = standard deviations of latest reading from mean · '
-    + '<b>Est. RUL</b> = estimated remaining days before threshold breach (linear projection)'
-    + '</div>';
-
-  return html;
-}
-
 
 // ============================================================
 // MODULE: 24H DEMAND FORECAST PANEL
@@ -9545,129 +9040,6 @@ function fetchWeather() {
 setInterval(fetchWeather, 600000);
 
 // ============================================================
-// WORLD-CLASS FEATURE: ML Risk Score Persistence + Trend Chart
-// ============================================================
-var mlRiskHistory = JSON.parse(localStorage.getItem('agus_ml_risk_history') || '[]');
-
-function mlSaveRiskSnapshot(device, analysed) {
-  if (!analysed || !analysed.length) return;
-  var entry = {
-    ts: Date.now(),
-    time: new Date().toLocaleString(),
-    device: device,
-    scores: analysed.map(function(a) { return { label: a.label, risk: a.riskScore, unit: a.unit, color: a.color }; }),
-    overall: Math.max.apply(null, analysed.map(function(a){return a.riskScore;}))
-  };
-  mlRiskHistory.push(entry);
-  if (mlRiskHistory.length > 200) mlRiskHistory = mlRiskHistory.slice(-200);
-  localStorage.setItem('agus_ml_risk_history', JSON.stringify(mlRiskHistory));
-}
-
-function mlShowRiskTrend() {
-  if (!mlRiskHistory.length) { showNotification('No risk history data yet — run ML analysis first.', 'info'); return; }
-  var old = document.getElementById('ml-trend-overlay'); if (old) old.remove();
-  var ov = document.createElement('div');
-  ov.id = 'ml-trend-overlay';
-  ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,10,30,0.75);z-index:5700;display:flex;align-items:center;justify-content:center;';
-  var recent = mlRiskHistory.slice(-50);
-  var labels = recent.map(function(e){ return e.time.slice(-8); });
-  var overalls = recent.map(function(e){ return e.overall; });
-  var maxR = Math.max.apply(null, overalls);
-  var chartH = 200, chartW = 600, pad = 40;
-  var svgW = chartW + pad * 2, svgH = chartH + pad * 2;
-  var points = overalls.map(function(v, i) {
-    var x = pad + (i / Math.max(overalls.length - 1, 1)) * chartW;
-    var y = pad + chartH - (v / Math.max(maxR, 100)) * chartH;
-    return x.toFixed(0) + ',' + y.toFixed(0);
-  });
-  var polyline = points.join(' ');
-  var area = 'M' + pad + ',' + (pad + chartH) + ' L' + points.join(' L') + ' L' + (pad + chartW) + ',' + (pad + chartH) + ' Z';
-  var thresholdY = pad + chartH - (65 / Math.max(maxR, 100)) * chartH;
-  var deviceSel = document.getElementById('ml-device-sel');
-  var devName = deviceSel ? deviceSel.value : 'All';
-  ov.innerHTML = '<div style="background:#fff;border-radius:18px;width:700px;max-width:95vw;box-shadow:0 24px 70px rgba(0,0,0,0.45);overflow:hidden;animation:ps-slide-in 0.3s cubic-bezier(0.34,1.56,0.64,1);">'
-    + '<div style="background:linear-gradient(135deg,#1e3a5f,#4f46e5);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;color:#fff;">'
-    + '<div><div style="font-weight:800;font-size:1.1rem;">&#128200; ML Risk Trend — ' + devName + '</div><div style="font-size:11px;color:rgba(255,255,255,0.7);">Last ' + recent.length + ' snapshots</div></div>'
-    + '<button onclick="this.closest(\'#ml-trend-overlay\').remove()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:30px;height:30px;border-radius:50%;font-size:16px;cursor:pointer;">✕</button></div>'
-    + '<div style="padding:16px 20px;text-align:center;">'
-    + '<svg viewBox="0 0 ' + svgW + ' ' + svgH + '" style="width:100%;max-width:650px;height:auto;">'
-    + '<defs><linearGradient id="mlTrendGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4f46e5" stop-opacity="0.3"/><stop offset="100%" stop-color="#4f46e5" stop-opacity="0.02"/></linearGradient></defs>'
-    + '<rect x="' + pad + '" y="' + pad + '" width="' + chartW + '" height="' + chartH + '" fill="#f8faff" rx="6"/>'
-    + '<line x1="' + pad + '" y1="' + thresholdY + '" x2="' + (pad + chartW) + '" y2="' + thresholdY + '" stroke="#ef4444" stroke-width="1.5" stroke-dasharray="6,4" opacity="0.6"/>'
-    + '<text x="' + (pad + chartW + 4) + '" y="' + (thresholdY + 4) + '" font-size="9" fill="#ef4444">Critical 65</text>'
-    + '<path d="' + area + '" fill="url(#mlTrendGrad)"/>'
-    + '<polyline points="' + polyline + '" fill="none" stroke="#4f46e5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>'
-    + '<circle cx="' + points[points.length - 1].split(',')[0] + '" cy="' + points[points.length - 1].split(',')[1] + '" r="4" fill="#4f46e5" stroke="#fff" stroke-width="2"/>'
-    + '</svg>'
-    + '<div style="display:flex;justify-content:space-between;font-size:10px;color:#94a3b8;padding:0 20px;margin-top:4px;"><span>Older</span><span>Latest</span></div>'
-    + '<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">'
-    + '<button onclick="mlExportRiskCSV()" style="padding:6px 14px;background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;font-weight:700;color:#1e40af;cursor:pointer;">&#128196; Export CSV</button>'
-    + '<button onclick="mlPrintReport()" style="padding:6px 14px;background:#f0f5ff;border:1px solid #bfdbfe;border-radius:8px;font-size:11px;font-weight:700;color:#1e40af;cursor:pointer;">&#128424; Print Report</button>'
-    + '</div></div></div>';
-  ov.addEventListener('click', function(e){ if(e.target===ov) ov.remove(); });
-  document.body.appendChild(ov);
-}
-
-function mlExportRiskCSV() {
-  if (!mlRiskHistory.length) return;
-  var csv = 'Time,Device,Overall Risk,Parameters\n';
-  mlRiskHistory.forEach(function(e) {
-    var params = (e.scores||[]).map(function(s){ return s.label + '=' + s.risk; }).join('; ');
-    csv += '"' + e.time + '","' + (e.device||'') + '",' + e.overall + ',"' + params + '"\n';
-  });
-  var blob = new Blob([csv], { type: 'text/csv' });
-  var a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'ml_risk_history.csv'; a.click();
-}
-
-function mlPrintReport() {
-  var content = document.getElementById('ml-trend-overlay');
-  if (!content) return;
-  var html = '<html><head><title>ML Risk Report - AGUS</title><style>body{font-family:sans-serif;padding:20px;}table{width:100%;border-collapse:collapse;}th,td{padding:6px 10px;border:1px solid #ddd;text-align:center;}th{background:#1e3a5f;color:#fff;}h1{color:#1e3a5f;}</style></head><body>'
-    + '<h1>AGUS ML Risk Report</h1><p>Generated: ' + new Date().toLocaleString() + '</p>'
-    + '<table><thead><tr><th>Time</th><th>Device</th><th>Overall Risk</th><th>Parameters</th></tr></thead><tbody>';
-  mlRiskHistory.slice(-100).forEach(function(e) {
-    var params = (e.scores||[]).map(function(s){ return s.label + ': ' + s.risk; }).join(', ');
-    html += '<tr><td>' + e.time + '</td><td>' + (e.device||'') + '</td><td>' + e.overall + '</td><td>' + params + '</td></tr>';
-  });
-  html += '</tbody></table></body></html>';
-  var w = window.open('', '_blank');
-  w.document.write(html);
-  w.document.close();
-  w.print();
-}
-
-// Hook ML save into existing runMLAnalysis
-var originalRunMLAnalysis = window.runMLAnalysis;
-if (originalRunMLAnalysis) {
-  window.runMLAnalysis = function() {
-    originalRunMLAnalysis.apply(this, arguments);
-    var chkInterval = setInterval(function() {
-      if (window._mlResults && window._mlResults.length) {
-        var sel = document.getElementById('ml-device-sel');
-        mlSaveRiskSnapshot(sel ? sel.value : 'Unknown', window._mlResults);
-        clearInterval(chkInterval);
-      }
-    }, 500);
-  };
-}
-
-// Add "Risk Trend" button to ML panel header (panel is created dynamically)
-(function addMLTrendBtn() {
-  var observer = new MutationObserver(function() {
-    var mlHeader = document.getElementById('ml-risk-header');
-    if (mlHeader && !document.getElementById('ml-trend-btn')) {
-      var btn = document.createElement('button');
-      btn.id = 'ml-trend-btn';
-      btn.onclick = mlShowRiskTrend;
-      btn.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;';
-      btn.innerHTML = '&#128200; Trend';
-      mlHeader.querySelector('div') ? mlHeader.querySelector('div').appendChild(btn) : mlHeader.appendChild(btn);
-    }
-  });
-  observer.observe(document.body, { childList: true, subtree: true });
-})();
-
-// ============================================================
 // WORLD-CLASS FEATURE: Batch Alarm Timeline / Gantt View
 // ============================================================
 var alarmCorrelationLog = JSON.parse(localStorage.getItem('agus_alarm_corr_log') || '[]');
@@ -9787,31 +9159,6 @@ function showRemediationSuggestions(analysed) {
   return html;
 }
 
-// Hook into ML body rendering
-var originalBuildMLBodyHTML = window.buildMLBodyHTML;
-if (originalBuildMLBodyHTML) {
-  window.buildMLBodyHTML = function(device, analysed, winSize) {
-    var base = originalBuildMLBodyHTML(device, analysed, winSize);
-    var remHtml = showRemediationSuggestions(analysed);
-    return base + (remHtml || '');
-  };
-}
-
-
-// Hook into ML analysis
-var _origRunML = window.runMLAnalysis;
-if (_origRunML) {
-  window.runMLAnalysis = function() {
-    _origRunML.apply(this, arguments);
-    var chk = setInterval(function() {
-      if (window._mlResults && window._mlResults.length) {
-        autoScheduleMaintenance(window._mlResults);
-        clearInterval(chk);
-      }
-    }, 1000);
-  };
-}
-
 // ============================================================
 // WORLD-CLASS FEATURE: Export AI Reports as PDF / Print
 // ============================================================
@@ -9861,22 +9208,6 @@ function exportDashboardPDF() {
     }
   });
   kpiObserver.observe(document.body, { childList: true, subtree: true });
-
-  // ML panel
-  var mlObserver = new MutationObserver(function() {
-    var mlBody = document.getElementById('ml-risk-panel');
-    if (mlBody && !document.getElementById('ml-export-btn')) {
-      var btn = document.createElement('button');
-      btn.id = 'ml-export-btn';
-      btn.onclick = function() { exportPanelAsPDF('ml-risk-panel', 'AGUS ML Risk Report'); };
-      btn.style.cssText = 'background:rgba(255,255,255,0.15);border:none;color:#fff;padding:5px 12px;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;margin-left:8px;';
-      btn.innerHTML = '&#128196; Export';
-      var hdr = mlBody.querySelector('#ml-risk-header');
-      if (hdr) hdr.querySelector('div:last-child') ? hdr.insertBefore(btn, hdr.querySelector('div:last-child')) : hdr.appendChild(btn);
-      mlObserver.disconnect();
-    }
-  });
-  mlObserver.observe(document.body, { childList: true, subtree: true });
 })();
 
 
@@ -10953,12 +10284,6 @@ function exportDashboardPDF() {
       /* notification checker already runs via _lastDevices hook */
     }
     _watchToken();
-    /* Init AI config dot: shows green dot if a GitHub token is stored */
-    var _aiDot = document.getElementById('ai-config-dot');
-    if (_aiDot) {
-      var _ak = localStorage.getItem('agus_ai_api_key') || AI_API_KEY || '';
-      _aiDot.style.display = _ak ? 'block' : 'none';
-    }
     /* Show a subtle prompt after 5 s if push was never set up */
     if (!localStorage.getItem(PUSH_KEY) && !localStorage.getItem('agus_push_asked')) {
       setTimeout(function() {
