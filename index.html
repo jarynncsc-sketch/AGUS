@@ -1309,6 +1309,21 @@
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
+    /* ── Map compass: sits below the Health Diagnostic / Page Views strips ── */
+    #map-compass{position:absolute;top:164px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
+    #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
+    #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
+    #map-compass .mc-btn.mc-n{top:1px;left:22px;color:#dc2626;}
+    #map-compass .mc-btn.mc-s{bottom:1px;left:22px;}
+    #map-compass .mc-btn.mc-e{right:1px;top:22px;}
+    #map-compass .mc-btn.mc-w{left:1px;top:22px;}
+    #map-compass .mc-btn.mc-active{background:#004080;color:#fff;}
+    #map-compass .mc-btn.mc-n.mc-active{background:#dc2626;color:#fff;}
+    #map-compass .mc-center{position:absolute;left:23px;top:23px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    #map-compass .mc-center:hover{background:rgba(0,64,128,0.1);}
+    #map-compass .mc-deg{position:absolute;left:0;right:0;bottom:-15px;text-align:center;font:700 10px 'DM Sans',Arial,sans-serif;color:#334155;pointer-events:none;}
+
     #pv-count{font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;}
     #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
     #health-diag-strip .hds-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
@@ -1996,6 +2011,21 @@
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
   <span>Page Views</span>
   <span id="pv-count">&hellip;</span>
+</div>
+<div id="map-compass" title="Compass — tap N / E / S / W to turn that direction to the top. Tap the centre to reset to North.">
+  <div class="mc-ring" id="mc-ring">
+    <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute;inset:0;pointer-events:none;">
+      <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(0,64,128,0.18)" stroke-width="1"/>
+      <polygon points="32,12 36.5,32 27.5,32" fill="#dc2626"/>
+      <polygon points="32,52 36.5,32 27.5,32" fill="#94a3b8"/>
+    </svg>
+  </div>
+  <div class="mc-btn mc-n" data-dir="N">N</div>
+  <div class="mc-btn mc-e" data-dir="E">E</div>
+  <div class="mc-btn mc-s" data-dir="S">S</div>
+  <div class="mc-btn mc-w" data-dir="W">W</div>
+  <div class="mc-center" id="mc-center" title="Reset to North"><svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#004080"/></svg></div>
+  <div class="mc-deg" id="mc-deg">0°</div>
 </div>
 <script>
 (function(){
@@ -13316,6 +13346,42 @@ document.addEventListener('keydown', function(e) {
     if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
+</script>
+
+<script>
+/* ── Map compass: rotate the OpenLayers map so N / E / S / W points to the top ── */
+(function(){
+  var DIR = { N:0, E:-Math.PI/2, S:Math.PI, W:Math.PI/2 }; /* OL rotation = clockwise radians */
+  function setup(){
+    var m = window.map, box = document.getElementById('map-compass');
+    if(!m || !m.getView || !box) return false;
+    var view = m.getView(), ring = document.getElementById('mc-ring'), deg = document.getElementById('mc-deg');
+    function sync(){
+      var r = view.getRotation() || 0, d = ((Math.round(-r*180/Math.PI) % 360) + 360) % 360;
+      ring.style.transform = 'rotate(' + (r*180/Math.PI) + 'deg)'; /* needle keeps pointing at true north */
+      deg.textContent = d + '°';
+      var up = null;
+      Object.keys(DIR).forEach(function(k){
+        var diff = Math.abs(((r - DIR[k]) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI);
+        if(diff < 0.02) up = k;
+      });
+      Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){ b.classList.toggle('mc-active', b.getAttribute('data-dir') === up); });
+    }
+    function turnTo(target){
+      var cur = view.getRotation() || 0, delta = ((target - cur) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI;
+      view.animate({ rotation: cur + delta, duration: 400 });
+    }
+    Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); turnTo(DIR[b.getAttribute('data-dir')]); });
+    });
+    document.getElementById('mc-center').addEventListener('click', function(e){ e.stopPropagation(); turnTo(0); });
+    view.on('change:rotation', sync);
+    sync();
+    return true;
+  }
+  var tries = 0;
+  (function wait(){ if(setup() || ++tries > 50) return; setTimeout(wait, 200); })();
+})();
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════
