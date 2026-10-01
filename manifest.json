@@ -1,16 +1,32 @@
 {
-  "name": "AGUS - Advanced Groundwater Utility Supervisor",
+  "name": "AGUS – Carcar Water District",
   "short_name": "AGUS",
-  "description": "Real-time SCADA dashboard for water utility pump stations, pressure monitoring, and reservoir management",
-  "start_url": "index.html",
+  "description": "AI-powered water pump station monitoring & control",
+  "id": "./",
+  "start_url": "./",
+  "scope": "./",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
   "background_color": "#ffffff",
   "theme_color": "#004080",
-  "orientation": "any",
-  "categories": ["utilities", "business", "productivity"],
   "icons": [
-    { "src": "FINAL%20LOGO%20DESIGN%202025%20-%20Copy%20(1).png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "FINAL%20LOGO%20DESIGN%202025%20-%20Copy%20(1).png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512-maskable.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
   ]
 }

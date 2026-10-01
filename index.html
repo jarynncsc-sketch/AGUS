@@ -390,12 +390,23 @@
         {src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='110' fill='%23004080'/%3E%3Cpath d='M256 80 C196 152 140 200 140 252 a116 116 0 0 0 232 0 c0-52-60-100-116-172z' fill='%2300aaff'/%3E%3Ctext x='256' y='424' font-family='Arial Black,Arial' font-weight='900' font-size='76' fill='white' text-anchor='middle'%3EAGUS%3C/text%3E%3C/svg%3E",sizes:'512x512',type:'image/svg+xml',purpose:'any maskable'}
       ]
     };
+    /* Prefer the real manifest.json (needed for a true installed app, so notifications show
+       "AGUS" instead of the web address). Fall back to the inline blob manifest if missing. */
+    function _blobManifest(){
+      try {
+        var b = new Blob([JSON.stringify(M)],{type:'application/manifest+json'});
+        var l = document.createElement('link');
+        l.rel='manifest'; l.href=URL.createObjectURL(b);
+        document.head.appendChild(l);
+      } catch(e){}
+    }
     try {
-      var b = new Blob([JSON.stringify(M)],{type:'application/manifest+json'});
-      var l = document.createElement('link');
-      l.rel='manifest'; l.href=URL.createObjectURL(b);
-      document.head.appendChild(l);
-    } catch(e){}
+      fetch('manifest.json',{method:'GET',cache:'no-cache'}).then(function(r){
+        if(!r.ok) throw new Error('no manifest');
+        var l=document.createElement('link'); l.rel='manifest'; l.href='manifest.json';
+        document.head.appendChild(l);
+      }).catch(_blobManifest);
+    } catch(e){ _blobManifest(); }
   })();
   </script>
   <!-- ═══ END PWA SETUP ═══ -->
