@@ -1310,7 +1310,7 @@
     #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
     /* ── Map compass: sits below the Health Diagnostic / Page Views strips ── */
-    #map-compass{position:absolute;top:164px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    #map-compass{position:absolute;top:176px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
     #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
     #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
     #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
@@ -1921,6 +1921,7 @@
           <div class="top-card grp-data" data-tab="assets" onclick="openAssetModule()" title="Open Asset Management & inventory module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Asset Mgmt</span></div>
           <div class="top-card grp-data" data-tab="energy-audit" onclick="openEnergyAuditModule()" title="Open CWD Energy Audit module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Energy Audit</span></div>
           <div class="top-card grp-data" data-tab="agus-analytics" onclick="openSandboxAnalyticsModule()" title="Open AGUS Analytics — fleet-wide station comparison (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>AGUS Analytics</span></div>
+          <div class="top-card grp-data" data-tab="leak-detection" onclick="openLeakDetectionModule()" title="Open Leak Detection — satellite leak survey map (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg><span>Leak Detection</span></div>
           <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span class="date-picker-trigger" data-tab="reports" onclick="event.stopPropagation();showDatePicker(event,'reports')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span class="date-picker-trigger" data-tab="prod-history" onclick="event.stopPropagation();showDatePicker(event,'prod-history')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
@@ -2022,8 +2023,8 @@
   <div class="mc-ring" id="mc-ring">
     <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute;inset:0;pointer-events:none;">
       <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(0,64,128,0.18)" stroke-width="1"/>
-      <polygon points="32,12 36.5,32 27.5,32" fill="#dc2626"/>
-      <polygon points="32,52 36.5,32 27.5,32" fill="#94a3b8"/>
+      <polygon points="32,11 37.5,32 26.5,32" fill="#ef4444"/>
+      <polygon points="32,53 37.5,32 26.5,32" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.8"/>
     </svg>
   </div>
   <div class="mc-btn mc-n" data-dir="N">N</div>
@@ -13271,6 +13272,25 @@ document.addEventListener('visibilitychange', function() {
   </iframe>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     LEAK DETECTION MODULE OVERLAY (Leak-Detection repo embedded — separate GAS + GitHub repo)
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="leak-detection-module-overlay" style="display:none;position:fixed;inset:0;background:rgba(4,12,24,0.86);z-index:2147486000;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#0d263d;border-bottom:1px solid rgba(93,213,192,0.25);gap:10px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+      <span style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+      </span>
+      <div style="min-width:0;">
+        <div style="color:#e6f5f1;font-weight:800;font-size:14px;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Leak Detection</div>
+        <div style="color:#7dd3c8;font-size:10.5px;font-weight:600;">Leak Survey Map · separate login</div>
+      </div>
+    </div>
+    <button onclick="event.stopPropagation();closeLeakDetectionModule()" title="Close Leak Detection" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;">&#10005; Close</button>
+  </div>
+  <iframe src="about:blank" title="AGUS Leak Detection" style="flex:1;width:100%;border:none;background:#fff;"></iframe>
+</div>
+
 <script>
 function openAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
@@ -13281,6 +13301,19 @@ function openAssetModule() {
 }
 function closeAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
+  ov.style.display = 'none';
+  document.body.style.overflow = '';
+}
+var LEAK_DETECTION_URL = 'https://jarynncsc-sketch.github.io/Leak-Detection/'; // separate Leak Detection GitHub Pages repo
+function openLeakDetectionModule() {
+  var ov = document.getElementById('leak-detection-module-overlay');
+  var fr = ov.querySelector('iframe');
+  if (!fr.src || fr.src.indexOf('Leak-Detection') === -1) { fr.src = LEAK_DETECTION_URL; }
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeLeakDetectionModule() {
+  var ov = document.getElementById('leak-detection-module-overlay');
   ov.style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -13419,6 +13452,28 @@ document.addEventListener('keydown', function(e) {
   }
   var tries = 0;
   (function wait(){ if(setup() || ++tries > 50) return; setTimeout(wait, 200); })();
+})();
+
+/* keep the compass clear of the Health Diagnostic / Page Views cards (adds a gap below them) */
+(function(){
+  var GAP = 18;
+  function place(){
+    var c=document.getElementById('map-compass'); if(!c) return;
+    var bottom=0;
+    ['health-diag-strip','pv-counter-strip'].forEach(function(id){
+      var e=document.getElementById(id); if(!e||e.offsetParent===null) return;
+      bottom=Math.max(bottom, e.offsetTop+e.offsetHeight);
+    });
+    if(bottom) c.style.top=(bottom+GAP)+'px';
+  }
+  window.addEventListener('resize', place);
+  window.addEventListener('load', place);
+  [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(place);
+    ['health-diag-strip','pv-counter-strip'].forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
+  }
+  place();
 })();
 </script>
 
