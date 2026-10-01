@@ -1322,7 +1322,13 @@
     #map-compass .mc-btn.mc-n.mc-active{background:#dc2626;color:#fff;}
     #map-compass .mc-center{position:absolute;left:23px;top:23px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
     #map-compass .mc-center:hover{background:rgba(0,64,128,0.1);}
-    #map-compass .mc-deg{position:absolute;left:0;right:0;bottom:-15px;text-align:center;font:700 10px 'DM Sans',Arial,sans-serif;color:#334155;pointer-events:none;}
+    #map-compass{cursor:grab;touch-action:none;}
+    #map-compass.mc-dragging{cursor:grabbing;}
+    #map-compass .mc-rot{position:absolute;bottom:-21px;width:20px;height:20px;line-height:19px;text-align:center;font:800 14px Arial,sans-serif;color:#004080;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.2);border-radius:50%;box-shadow:0 2px 6px rgba(0,40,100,0.15);cursor:pointer;}
+    #map-compass .mc-rot:hover{background:#004080;color:#fff;}
+    #map-compass .mc-rot.l{left:0;}
+    #map-compass .mc-rot.r{right:0;}
+    #map-compass .mc-deg{position:absolute;left:0;right:0;bottom:-17px;text-align:center;font:700 10px 'DM Sans',Arial,sans-serif;color:#334155;pointer-events:none;}
 
     #pv-count{font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;}
     #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
@@ -2012,7 +2018,7 @@
   <span>Page Views</span>
   <span id="pv-count">&hellip;</span>
 </div>
-<div id="map-compass" title="Compass — tap N / E / S / W to turn that direction to the top. Tap the centre to reset to North.">
+<div id="map-compass" title="Compass — click N / E / S / W to put that direction at the top, drag the dial (or use the ↺ ↻ buttons / mouse wheel) to rotate freely, click the centre to reset to North. Also: Alt+Shift+drag on the map.">
   <div class="mc-ring" id="mc-ring">
     <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute;inset:0;pointer-events:none;">
       <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(0,64,128,0.18)" stroke-width="1"/>
@@ -2025,6 +2031,8 @@
   <div class="mc-btn mc-s" data-dir="S">S</div>
   <div class="mc-btn mc-w" data-dir="W">W</div>
   <div class="mc-center" id="mc-center" title="Reset to North"><svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#004080"/></svg></div>
+  <div class="mc-rot l" id="mc-rot-l" title="Rotate map left (counter-clockwise)">&#8634;</div>
+  <div class="mc-rot r" id="mc-rot-r" title="Rotate map right (clockwise)">&#8635;</div>
   <div class="mc-deg" id="mc-deg">0°</div>
 </div>
 <script>
@@ -13371,10 +13379,40 @@ document.addEventListener('keydown', function(e) {
       var cur = view.getRotation() || 0, delta = ((target - cur) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI;
       view.animate({ rotation: cur + delta, duration: 400 });
     }
+    var STEP = 15*Math.PI/180, dragged = false;
+    function nudge(d){ view.animate({ rotation: (view.getRotation()||0) + d, duration: 150 }); }
     Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){
-      b.addEventListener('click', function(e){ e.stopPropagation(); turnTo(DIR[b.getAttribute('data-dir')]); });
+      b.addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(DIR[b.getAttribute('data-dir')]); });
     });
-    document.getElementById('mc-center').addEventListener('click', function(e){ e.stopPropagation(); turnTo(0); });
+    document.getElementById('mc-center').addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(0); });
+    document.getElementById('mc-rot-l').addEventListener('click', function(e){ e.stopPropagation(); nudge(-STEP); });
+    document.getElementById('mc-rot-r').addEventListener('click', function(e){ e.stopPropagation(); nudge(STEP); });
+    /* mouse wheel over the compass rotates the map */
+    box.addEventListener('wheel', function(e){ e.preventDefault(); e.stopPropagation(); nudge((e.deltaY>0?1:-1)*STEP); }, { passive:false });
+    /* drag the dial with mouse / pen / finger to rotate freely */
+    var drag = null;
+    function angleOf(e){ var r = box.getBoundingClientRect(); return Math.atan2(e.clientY-(r.top+r.height/2), e.clientX-(r.left+r.width/2)); }
+    box.addEventListener('pointerdown', function(e){
+      if(e.target.closest && e.target.closest('.mc-rot')) return;
+      if(e.button!==undefined && e.button!==0) return;
+      drag = { a0: angleOf(e), r0: view.getRotation()||0, moved:false, id:e.pointerId };
+      try{ box.setPointerCapture(e.pointerId); }catch(x){}
+    });
+    box.addEventListener('pointermove', function(e){
+      if(!drag || e.pointerId!==drag.id) return;
+      var d = angleOf(e) - drag.a0; d = Math.atan2(Math.sin(d), Math.cos(d));
+      if(!drag.moved && Math.abs(d) < 0.08) return;
+      drag.moved = true; dragged = true; box.classList.add('mc-dragging');
+      view.setRotation(drag.r0 + d);
+    });
+    function endDrag(e){
+      if(!drag) return;
+      var moved = drag.moved; drag = null; box.classList.remove('mc-dragging');
+      try{ box.releasePointerCapture(e.pointerId); }catch(x){}
+      if(moved) setTimeout(function(){ dragged=false; }, 0);
+    }
+    box.addEventListener('pointerup', endDrag);
+    box.addEventListener('pointercancel', endDrag);
     view.on('change:rotation', sync);
     sync();
     return true;
