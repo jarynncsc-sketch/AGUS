@@ -7012,7 +7012,21 @@ function updateLastToggledBadge(data) {
 }
 function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
-  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#8ea9c9',font:{size:13,weight:'500'},padding:6},grid:{color:'rgba(125,211,252,0.07)',lineWidth:1},border:{color:'rgba(125,211,252,0.15)'}}};
+  var _xTickColor=(function(){
+    var LIGHT='#f8fafc',DARK='#0b1220',pick=LIGHT;
+    try{
+      var el=document.getElementById('graph-chart-wrap');
+      while(el){var m=getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/);
+        if(m){var q=m[1].split(',').map(parseFloat);if(q.length<4||q[3]>0.05){pick=(0.299*q[0]+0.587*q[1]+0.114*q[2])<140?LIGHT:DARK;break;}}
+        el=el.parentElement;}
+      var lbl=document.getElementById('date-range-label');
+      if(lbl)lbl.style.setProperty('color',pick,'important');
+      /* dark-mode page filter inverts the label but not the canvas, so flip the canvas color to stay matched */
+      if(document.body.classList.contains('dark-mode'))return pick===LIGHT?DARK:LIGHT;
+    }catch(e){}
+    return pick;
+  })();
+  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:_xTickColor,font:{size:14,weight:'700'},padding:10},grid:{color:'rgba(125,211,252,0.12)',lineWidth:1},border:{color:'rgba(125,211,252,0.35)',width:1.5}}};
   axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#8ea9c9',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#7dd3fc',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
   return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:_selTipFill,titleColor:'#ffffff',bodyColor:'#ffffff',borderColor:'rgba(255,255,255,0.45)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
