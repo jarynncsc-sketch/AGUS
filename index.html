@@ -1307,10 +1307,13 @@
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
     #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
-    #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    /* top:120px collided with the AI Health Card (also top:120px, z-index:1200), so the
+       Page Views strip sits lower-left of it, on the same row as the compass. */
+    #pv-counter-strip{position:absolute;top:254px;right:86px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
-    /* ── Map compass: sits below the Health Diagnostic / Page Views strips ── */
-    #map-compass{position:absolute;top:176px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    /* Map compass: sits below the Health Diagnostic / Page Views strips AND below the
+       AI Health Card (top:120px, ~114px tall, z-index:1200), which would otherwise cover it. */
+    #map-compass{position:absolute;top:246px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
     #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
     #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
     #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
@@ -1337,7 +1340,17 @@
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
     #conn-indicator{font-size:14px;cursor:pointer;pointer-events:auto;transition:color 0.3s;}
-    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);}
+    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:calc(100% - 40px);max-height:calc(100% - 40px);overflow:hidden;}
+    #legend-card #legend-content{display:flex;flex-wrap:wrap;gap:16px;}
+    /* Legend starts collapsed on every screen size (matches Leak Detection); "Show" expands it. */
+    #legend-card .legend-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;}
+    #legend-card .legend-head-title{font-weight:800;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#31456f;white-space:nowrap;}
+    #legend-toggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid rgba(0,64,128,0.18);border-radius:9px;background:#edf3ff;color:#1742a5;padding:6px 12px;font:800 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;}
+    #legend-toggle:hover{background:#dbe8ff;}
+    #legend-toggle:focus-visible{outline:2px solid #2563eb;outline-offset:2px;}
+    #legend-card.legend-collapsed{padding:9px 13px;}
+    #legend-card.legend-collapsed #legend-content{display:none;}
+    #legend-card.legend-expanded #legend-content{margin-top:11px;overflow:auto;overscroll-behavior:contain;}
     .legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:#1a2e35;}
     .legend-circle{width:10px;height:10px;border-radius:50%;display:inline-block;}
     .legend-Online{background:#16a34a;}.legend-Offline{background:#ea580c;}.legend-Fault{background:#dc2626;}
@@ -1815,10 +1828,9 @@
      MAP BASEMAP SWITCHER (Satellite / Street) - OpenLayers control
      ═══════════════════════════════════════════════════════════════ */
   /* ol 7.5.0 has no Control.setPosition - place the switcher with CSS.
-     Top-left, just under the OL zoom buttons: bottom-left is occupied by the
-     fixed "Get Fault Alerts" push bar (z-index 9990).
-     Parent .ol-overlaycontainer-stopevent is pointer-events:none, so re-enable. */
-  #map-basemap{position:absolute;left:10px;top:92px;z-index:2;pointer-events:auto;display:flex;flex-direction:column;gap:4px;background:transparent;}
+     Right side, vertically aligned with the map compass (top:246px, 64px wide at
+     right:14px), which sits below the AI Health Card. */
+  #map-basemap{position:absolute;right:86px;top:246px;z-index:1100;pointer-events:auto;display:flex;flex-direction:column;gap:4px;background:transparent;}
   #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
   #map-basemap .mb:hover{background:#004080;color:#fff;border-color:#004080;}
   #map-basemap .mb.active{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;border-color:#002b5c;box-shadow:0 3px 10px rgba(0,60,140,.35);}
@@ -2091,7 +2103,12 @@
 </script>
     <div id="device-details"></div>
 <div id="pipe-popup"></div>
-<div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
+<div id="legend-card" class="legend-collapsed" style="display:flex;flex-direction:column;gap:0;font-family:'DM Sans',sans-serif;">
+  <div class="legend-head">
+    <span class="legend-head-title">Map Legend</span>
+    <button type="button" id="legend-toggle" aria-expanded="false" aria-controls="legend-content">Show</button>
+  </div>
+  <div id="legend-content">
   <!-- Pipeline toggle -->
   <div style="min-width:96px;">
     <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pipeline</div>
@@ -2156,13 +2173,16 @@
     <div class="legend-item"><span class="legend-circle legend-Offline"></span><span>Offline</span></div>
     <div class="legend-item"><span class="legend-circle legend-Fault" style="animation:gentlePulse 1.5s infinite;"></span><span>Fault</span></div>
   </div>
-  <!-- Dashboard loading overlay -->
+  </div><!-- /#legend-content -->
+</div><!-- /#legend-card -->
+
+<!-- Dashboard loading overlay: direct child of #map-container so inset:0 covers the whole map
+     (it used to sit inside #legend-card, which clipped it to the legend box). -->
   <div id="dash-loading" style="position:absolute;inset:0;z-index:4000;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.4s;">
     <div style="width:44px;height:44px;border:4px solid #cfe4ff;border-top-color:#004080;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
     <div style="font-size:15px;font-weight:700;color:#004080;font-family:'DM Sans',sans-serif;">Loading dashboard data…</div>
     <div style="font-size:12px;color:#7a8fa6;font-family:'DM Sans',sans-serif;">Fetching device information from server</div>
   </div>
-</div>
 
 <style>
   @keyframes gentlePulse {
@@ -2173,8 +2193,7 @@
   /* Responsive tweak */
   @media (max-width: 700px) {
     #legend-card {
-      gap: 16px;
-      padding: 12px 18px;
+      padding: 9px 13px;
       backdrop-filter: blur(4px);
     }
     #legend-card > div {
@@ -2188,6 +2207,33 @@
 .filter-pill.active.pump{background:#854F0B;border-color:#854F0B;}
 #device-filter-bar{display:flex;gap:5px;padding:8px 10px 8px;border-bottom:1px solid rgba(0,64,128,0.08);flex-wrap:wrap;background:#f8fbff;}
 </style>
+<script>
+/* Map legend: collapsed on initial load at every screen size (same behaviour as
+   Leak Detection); the user can expand it, and the choice survives resize. */
+(function initLegendToggle(){
+  var box=document.getElementById('legend-card'),btn=document.getElementById('legend-toggle');
+  if(!box||!btn)return;
+  function setCollapsed(collapsed){
+    box.classList.toggle('legend-collapsed',collapsed);
+    box.classList.toggle('legend-expanded',!collapsed);
+    btn.setAttribute('aria-expanded',String(!collapsed));
+    btn.textContent=collapsed?'Show':'Hide';
+    btn.setAttribute('aria-label',collapsed?'Show map legend options':'Hide map legend options');
+  }
+  function syncForScreen(){
+    /* Keep the current expanded/collapsed state on resize; first load is always collapsed. */
+    if(!box.dataset.initialized){ box.dataset.initialized='1'; setCollapsed(true); }
+    else{ setCollapsed(box.classList.contains('legend-collapsed')); }
+  }
+  btn.addEventListener('click',function(){
+    var collapsed=!box.classList.contains('legend-collapsed');
+    box.dataset.userToggled='1'; setCollapsed(collapsed);
+  });
+  window.addEventListener('resize',syncForScreen);
+  if(window.visualViewport) window.visualViewport.addEventListener('resize',syncForScreen);
+  syncForScreen();
+})();
+</script>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
   <div id="graph-modal-inner">
@@ -3546,20 +3592,21 @@ function setBasemap(name) {
   try { map.updateSize(); } catch (e) {}
 }
 try { if (localStorage.getItem('agus_basemap_v1') === 'street') _basemap = 'street'; } catch (e) {}
-var BasemapSwitcher = new ol.control.Control({
-  element: (function () {
-    var d = document.createElement('div');
-    d.id = 'map-basemap';
-    d.innerHTML = '<button type="button" class="mb" data-base="sat" title="Satellite view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M2 20l7-7M12 20l4-4M18 20l3-3"/></svg><span>Satellite</span></button>'
-      + '<button type="button" class="mb" data-base="street" title="Street map view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v16"/></svg><span>Street</span></button>';
-    d.addEventListener('click', function (e) {
-      var b = e.target.closest ? e.target.closest('.mb') : null;
-      if (b) setBasemap(b.getAttribute('data-base'));
-    });
-    return d;
-  })()
-});
-map.addControl(BasemapSwitcher);
+/* Satellite / Street switcher. Appended straight to #map-container (not via an ol Control)
+   so it shares the same positioning context as #map-compass and can sit beside it.
+   ol 7.5.0's Control has no setPosition, so placement is done in CSS. */
+(function () {
+  var d = document.createElement('div');
+  d.id = 'map-basemap';
+  d.innerHTML = '<button type="button" class="mb" data-base="sat" title="Satellite view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M2 20l7-7M12 20l4-4M18 20l3-3"/></svg><span>Satellite</span></button>'
+    + '<button type="button" class="mb" data-base="street" title="Street map view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v16"/></svg><span>Street</span></button>';
+  d.addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('.mb') : null;
+    if (b) setBasemap(b.getAttribute('data-base'));
+  });
+  var host = document.getElementById('map-container') || document.getElementById('map');
+  host.appendChild(d);
+})();
 setBasemap(_basemap);
 var deviceSource = new ol.source.Vector();
 var clusterSource = new ol.source.Cluster({distance:15, minDistance:5, source:deviceSource});
@@ -4925,8 +4972,17 @@ function _updateDashboardFromFirebase() {
   updateDeviceList(devices); updateMap(devices);
   autoShutoffPumps(devices);
   if (selectedDevice) showDeviceDetails(selectedDevice);
+  _hideDashLoading();
+}
+
+/* The loading veil covers the whole map, so it must always come down - including on
+   the error paths - otherwise a Firebase/network failure leaves a blank white map. */
+function _hideDashLoading(){
   var dl = document.getElementById('dash-loading');
-  if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
+  if (!dl || dl.dataset.hidden === '1') return;
+  dl.dataset.hidden = '1';
+  dl.style.opacity = '0';
+  setTimeout(function(){ dl.style.display = 'none'; }, 400);
 }
 
 function updateDashboard() {
@@ -4965,9 +5021,11 @@ function updateDashboard() {
     updateDeviceList(devices); updateMap(devices);
     autoShutoffPumps(devices);
     if (selectedDevice) showDeviceDetails(selectedDevice);
-    var dl = document.getElementById('dash-loading');
-    if (dl) { dl.style.opacity = '0'; setTimeout(function(){ dl.style.display = 'none'; }, 400); }
-  }).catch(function(err) { console.error('updateDashboard error:', err); });
+    _hideDashLoading();
+  }).catch(function(err) {
+    console.error('updateDashboard error:', err);
+    _hideDashLoading();   /* never leave the full-map loading veil stuck on screen */
+  });
 }
 function updateMap(devices) {
   deviceSource.clear(); deviceMarkers = {};
@@ -13802,24 +13860,37 @@ document.addEventListener('keydown', function(e) {
   (function wait(){ if(setup() || ++tries > 50) return; setTimeout(wait, 200); })();
 })();
 
-/* keep the compass clear of the Health Diagnostic / Page Views cards (adds a gap below them) */
+/* Keep the compass (and the Satellite/Street switcher beside it) clear of the cards
+   stacked above them. ai-health-card must be included: it is top:120px with
+   z-index:1200, so it would otherwise cover the compass completely. */
 (function(){
   var GAP = 18;
+  var ABOVE = ['health-diag-strip','pv-counter-strip','ai-health-card'];
   function place(){
     var c=document.getElementById('map-compass'); if(!c) return;
+    var b=document.getElementById('map-basemap');
     var bottom=0;
-    ['health-diag-strip','pv-counter-strip'].forEach(function(id){
+    ABOVE.forEach(function(id){
       var e=document.getElementById(id); if(!e||e.offsetParent===null) return;
       bottom=Math.max(bottom, e.offsetTop+e.offsetHeight);
     });
-    if(bottom) c.style.top=(bottom+GAP)+'px';
+    if(!bottom) return;                     /* none of the cards are laid out yet */
+    c.style.top=(bottom+GAP)+'px';
+    if(b) b.style.top=(bottom+GAP)+'px';    /* stay vertically aligned with the compass */
   }
   window.addEventListener('resize', place);
   window.addEventListener('load', place);
   [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
+  /* Safety net: never leave the full-map loading veil up if data never arrives. */
+  setTimeout(function(){ if(typeof _hideDashLoading==='function') _hideDashLoading(); }, 12000);
   if(window.ResizeObserver){
     var ro=new ResizeObserver(place);
-    ['health-diag-strip','pv-counter-strip'].forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
+    ABOVE.forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
+    /* ai.js builds the AI card asynchronously, so watch for it appearing */
+    var host=document.getElementById('map-container');
+    if(host && window.MutationObserver){
+      new MutationObserver(place).observe(host,{childList:true,subtree:true});
+    }
   }
   place();
 })();
