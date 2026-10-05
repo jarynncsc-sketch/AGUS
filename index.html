@@ -1309,27 +1309,6 @@
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
-    /* ── Map compass: sits below the Health Diagnostic / Page Views strips ── */
-    #map-compass{position:absolute;top:176px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
-    #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
-    #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
-    #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
-    #map-compass .mc-btn.mc-n{top:1px;left:22px;color:#dc2626;}
-    #map-compass .mc-btn.mc-s{bottom:1px;left:22px;}
-    #map-compass .mc-btn.mc-e{right:1px;top:22px;}
-    #map-compass .mc-btn.mc-w{left:1px;top:22px;}
-    #map-compass .mc-btn.mc-active{background:#004080;color:#fff;}
-    #map-compass .mc-btn.mc-n.mc-active{background:#dc2626;color:#fff;}
-    #map-compass .mc-center{position:absolute;left:23px;top:23px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-    #map-compass .mc-center:hover{background:rgba(0,64,128,0.1);}
-    #map-compass{cursor:grab;touch-action:none;}
-    #map-compass.mc-dragging{cursor:grabbing;}
-    #map-compass .mc-rot{position:absolute;bottom:-21px;width:20px;height:20px;line-height:19px;text-align:center;font:800 14px Arial,sans-serif;color:#004080;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.2);border-radius:50%;box-shadow:0 2px 6px rgba(0,40,100,0.15);cursor:pointer;}
-    #map-compass .mc-rot:hover{background:#004080;color:#fff;}
-    #map-compass .mc-rot.l{left:0;}
-    #map-compass .mc-rot.r{right:0;}
-    #map-compass .mc-deg{position:absolute;left:0;right:0;bottom:-17px;text-align:center;font:700 10px 'DM Sans',Arial,sans-serif;color:#334155;pointer-events:none;}
-
     #pv-count{font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;}
     #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
     #health-diag-strip .hds-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
@@ -1337,7 +1316,16 @@
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
     #conn-indicator{font-size:14px;cursor:pointer;pointer-events:auto;transition:color 0.3s;}
-    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);}
+    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:min(780px,calc(100% - 28px));transition:padding .18s ease,max-width .18s ease;}
+    #legend-card .legend-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:0;}
+    #legend-card .legend-head-title{font-weight:800;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:#31456f;white-space:nowrap;}
+    #legendToggle{display:inline-flex;align-items:center;justify-content:center;border:1px solid #d7e2f5;border-radius:9px;background:#edf3ff;color:#1742a5;padding:7px 10px;font:800 10px 'DM Sans',sans-serif;cursor:pointer;white-space:nowrap;}
+    #legendToggle:focus-visible{outline:2px solid #2563eb;outline-offset:2px;}
+    #legend-card.legend-collapsed{width:auto;max-width:calc(100% - 18px);padding:7px 10px;border-radius:13px;}
+    #legend-card.legend-collapsed #legendContent{display:none;}
+    #legend-card.legend-expanded{width:min(780px,calc(100% - 28px));}
+    #legend-card.legend-expanded #legendContent{display:flex;flex-flow:row wrap;align-items:flex-start;column-gap:12px;row-gap:6px;max-height:min(46vh,420px);overflow:auto;overscroll-behavior:contain;padding-top:8px;}
+    #legend-card.legend-expanded #legendContent > div[style*="width:1px"]{align-self:stretch;}
     .legend-item{display:flex;align-items:center;gap:7px;margin-bottom:5px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;color:#1a2e35;}
     .legend-circle{width:10px;height:10px;border-radius:50%;display:inline-block;}
     .legend-Online{background:#16a34a;}.legend-Offline{background:#ea580c;}.legend-Fault{background:#dc2626;}
@@ -1921,7 +1909,6 @@
           <div class="top-card grp-data" data-tab="assets" onclick="openAssetModule()" title="Open Asset Management & inventory module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Asset Mgmt</span></div>
           <div class="top-card grp-data" data-tab="energy-audit" onclick="openEnergyAuditModule()" title="Open CWD Energy Audit module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Energy Audit</span></div>
           <div class="top-card grp-data" data-tab="agus-analytics" onclick="openSandboxAnalyticsModule()" title="Open AGUS Analytics — fleet-wide station comparison (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>AGUS Analytics</span></div>
-          <div class="top-card grp-data" data-tab="leak-detection" onclick="openLeakDetectionModule()" title="Open Leak Detection — satellite leak survey map (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg><span>Leak Detection</span></div>
           <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span class="date-picker-trigger" data-tab="reports" onclick="event.stopPropagation();showDatePicker(event,'reports')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span class="date-picker-trigger" data-tab="prod-history" onclick="event.stopPropagation();showDatePicker(event,'prod-history')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
@@ -2019,23 +2006,6 @@
   <span>Page Views</span>
   <span id="pv-count">&hellip;</span>
 </div>
-<div id="map-compass" title="Compass — click N / E / S / W to put that direction at the top, drag the dial (or use the ↺ ↻ buttons / mouse wheel) to rotate freely, click the centre to reset to North. Also: Alt+Shift+drag on the map.">
-  <div class="mc-ring" id="mc-ring">
-    <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute;inset:0;pointer-events:none;">
-      <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(0,64,128,0.18)" stroke-width="1"/>
-      <polygon points="32,11 37.5,32 26.5,32" fill="#ef4444"/>
-      <polygon points="32,53 37.5,32 26.5,32" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.8"/>
-    </svg>
-  </div>
-  <div class="mc-btn mc-n" data-dir="N">N</div>
-  <div class="mc-btn mc-e" data-dir="E">E</div>
-  <div class="mc-btn mc-s" data-dir="S">S</div>
-  <div class="mc-btn mc-w" data-dir="W">W</div>
-  <div class="mc-center" id="mc-center" title="Reset to North"><svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#004080"/></svg></div>
-  <div class="mc-rot l" id="mc-rot-l" title="Rotate map left (counter-clockwise)">&#8634;</div>
-  <div class="mc-rot r" id="mc-rot-r" title="Rotate map right (clockwise)">&#8635;</div>
-  <div class="mc-deg" id="mc-deg">0°</div>
-</div>
 <script>
 (function(){
   var el=document.getElementById('pv-count'); if(!el) return;
@@ -2060,20 +2030,55 @@
 })();
 </script>
     <div id="device-details"></div>
-<div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
-  <!-- Pipeline toggle -->
+<div id="legend-card" class="legend-collapsed" style="font-family:'DM Sans',sans-serif;">
+  <div class="legend-head">
+    <span class="legend-head-title">🗺 Map Legend</span>
+    <button type="button" id="legendToggle" aria-expanded="false" aria-controls="legendContent">Show</button>
+  </div>
+  <div id="legendContent" class="legend-content">
+  <!-- Map layers (Satellite / Street — same as Leak Detection) -->
   <div style="min-width:96px;">
-    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pipeline</div>
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Map layers</div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#334155;margin-bottom:4px;">
+      <input type="radio" name="bm" value="sat" checked onchange="if(window.setBasemap)window.setBasemap('sat');" style="accent-color:#2563eb;">
+      Satellite
+    </label>
     <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#334155;">
+      <input type="radio" name="bm" value="street" onchange="if(window.setBasemap)window.setBasemap('street');" style="accent-color:#2563eb;">
+      Street
+    </label>
+  </div>
+  <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
+
+  <!-- Pipeline network (same color code as Leak Detection) -->
+  <div style="min-width:140px;max-width:220px;">
+    <div style="font-size:11px;font-weight:600;color:#5575a0;text-transform:uppercase;letter-spacing:.05em;margin-bottom:9px;">Pipe network</div>
+    <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;color:#334155;margin-bottom:6px;">
       <input type="checkbox" id="pipeline-toggle" checked onchange="if(window.pipelineLayer)window.pipelineLayer.setVisible(this.checked);" style="accent-color:#2563eb;">
       Show pipelines
     </label>
-    <div style="margin-top:6px;">
-      <div class="legend-item"><span style="width:20px;height:4px;background:#8B5CF6;border-radius:2px;display:inline-block;"></span><span>Trunk (&ge;250mm)</span></div>
-      <div class="legend-item"><span style="width:16px;height:4px;background:#2563EB;border-radius:2px;display:inline-block;"></span><span>Primary (150-200mm)</span></div>
-      <div class="legend-item"><span style="width:12px;height:4px;background:#10B981;border-radius:2px;display:inline-block;"></span><span>Secondary (75-100mm)</span></div>
-      <div class="legend-item"><span style="width:8px;height:4px;background:#F59E0B;border-radius:2px;display:inline-block;"></span><span>Lateral (&le;50mm)</span></div>
+    <div style="font-size:10px;font-weight:700;color:#8c9ab4;letter-spacing:.4px;margin-bottom:4px;">Colour by</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;color:#334155;">
+        <input type="radio" name="pcm" value="size" checked onchange="window.pipeColorMode='size';if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#2563eb;"> Size
+      </label>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;cursor:pointer;color:#334155;">
+        <input type="radio" name="pcm" value="mat" onchange="window.pipeColorMode='mat';if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#2563eb;"> Material
+      </label>
     </div>
+    <div style="font-size:10px;font-weight:700;color:#8c9ab4;letter-spacing:.4px;margin:6px 0 4px;">By size · line thickness</div>
+    <div class="legend-item"><span style="width:20px;height:4px;background:#8B5CF6;border-radius:2px;display:inline-block;"></span><span>Trunk (&ge;250mm)</span></div>
+    <div class="legend-item"><span style="width:16px;height:3px;background:#2563EB;border-radius:2px;display:inline-block;"></span><span>Primary (150–200mm)</span></div>
+    <div class="legend-item"><span style="width:12px;height:2.5px;background:#10B981;border-radius:2px;display:inline-block;"></span><span>Secondary (75–100mm)</span></div>
+    <div class="legend-item"><span style="width:8px;height:2px;background:#F59E0B;border-radius:2px;display:inline-block;"></span><span>Lateral (&le;50mm)</span></div>
+    <div style="font-size:10px;font-weight:700;color:#8c9ab4;letter-spacing:.4px;margin:8px 0 4px;">By material</div>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="UPVC" checked onchange="window.pipeMatFilter['UPVC']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#16a34a;"><span style="width:10px;height:10px;border-radius:50%;background:#16a34a;display:inline-block;border:1px solid #0f7c32;"></span><span>UPVC</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="PE" checked onchange="window.pipeMatFilter['PE']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#2563eb;"><span style="width:10px;height:10px;border-radius:50%;background:#2563eb;display:inline-block;border:1px solid #1e4fd9;"></span><span>PE</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="PVC" checked onchange="window.pipeMatFilter['PVC']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#0ea5e9;"><span style="width:10px;height:10px;border-radius:50%;background:#0ea5e9;display:inline-block;border:1px solid #0284c7;"></span><span>PVC</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="GI" checked onchange="window.pipeMatFilter['GI']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#f59e0b;"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;border:1px solid #d97706;"></span><span>GI</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="CI" checked onchange="window.pipeMatFilter['CI']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#dc2626;"><span style="width:10px;height:10px;border-radius:50%;background:#dc2626;display:inline-block;border:1px solid #b91c1c;"></span><span>CI</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="CEMENT COATED" checked onchange="window.pipeMatFilter['CEMENT COATED']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#7c2d12;"><span style="width:10px;height:10px;border-radius:50%;background:#7c2d12;display:inline-block;border:1px solid #431407;"></span><span>Cement coated</span></label>
+    <label class="legend-item" style="cursor:pointer;"><input type="checkbox" class="pmat" data-m="Unknown" checked onchange="window.pipeMatFilter['Unknown']=this.checked?1:0;if(window.refreshPipelineStyle)window.refreshPipelineStyle();" style="accent-color:#94a3b8;"><span style="width:10px;height:10px;border-radius:50%;background:#94a3b8;display:inline-block;border:1px solid #64748b;"></span><span>Unknown</span></label>
   </div>
   <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
 
@@ -2117,6 +2122,7 @@
     <div class="legend-item"><span class="legend-circle legend-Offline"></span><span>Offline</span></div>
     <div class="legend-item"><span class="legend-circle legend-Fault" style="animation:gentlePulse 1.5s infinite;"></span><span>Fault</span></div>
   </div>
+  </div><!-- /#legendContent -->
   <!-- Dashboard loading overlay -->
   <div id="dash-loading" style="position:absolute;inset:0;z-index:4000;background:rgba(255,255,255,0.92);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity 0.4s;">
     <div style="width:44px;height:44px;border:4px solid #cfe4ff;border-top-color:#004080;border-radius:50%;animation:spin 0.75s linear infinite;"></div>
@@ -3468,7 +3474,36 @@ function buildPumpStationSVG(f, name, status) {
   return _svg;
 }
 
-var map = new ol.Map({ target:'map', layers:[new ol.layer.Tile({source:new ol.source.OSM()})], view: new ol.View({center:ol.proj.fromLonLat([123.6740,10.1129]),zoom:12}) });
+/* ── Base maps (same sources as Leak Detection Leaflet map) ── */
+var satelliteLayer = new ol.layer.Tile({
+  source: new ol.source.XYZ({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attributions: 'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics',
+    maxZoom: 19
+  }),
+  visible: true,
+  properties: { name: 'satellite' }
+});
+var streetLayer = new ol.layer.Tile({
+  source: new ol.source.OSM(),
+  visible: false,
+  properties: { name: 'street' }
+});
+var map = new ol.Map({
+  target: 'map',
+  layers: [satelliteLayer, streetLayer],
+  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12 })
+});
+window.satelliteLayer = satelliteLayer;
+window.streetLayer = streetLayer;
+window.setBasemap = function(which) {
+  var sat = which === 'sat' || which === 'satellite';
+  satelliteLayer.setVisible(sat);
+  streetLayer.setVisible(!sat);
+  document.querySelectorAll('input[name="bm"]').forEach(function(r) {
+    r.checked = (r.value === (sat ? 'sat' : 'street'));
+  });
+};
 var deviceSource = new ol.source.Vector();
 var clusterSource = new ol.source.Cluster({distance:15, minDistance:5, source:deviceSource});
 var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(feature) {
@@ -3776,23 +3811,83 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
+/* ── Pipeline color code (same as Leak Detection) ── */
+var PIPE_MAT_COLORS = {
+  'UPVC': '#16a34a',
+  'PE': '#2563eb',
+  'PVC': '#0ea5e9',
+  'GI': '#f59e0b',
+  'CI': '#dc2626',
+  'CEMENT COATED': '#7c2d12',
+  'CEMENT': '#7c2d12',
+  'UNKNOWN': '#94a3b8'
+};
+var PIPE_SIZE_COLORS = {
+  trunk: '#8B5CF6',    /* >=250mm */
+  primary: '#2563EB',  /* 150-200mm */
+  secondary: '#10B981',/* 75-100mm */
+  lateral: '#F59E0B'   /* <=50mm */
+};
+window.pipeColorMode = 'size'; /* 'mat' | 'size' — same as Leak Detection */
+window.pipeMatFilter = { UPVC:1, PE:1, PVC:1, GI:1, CI:1, 'CEMENT COATED':1, Unknown:1 };
+
+function _normMat(m) {
+  m = String(m || '').toUpperCase().trim();
+  if (!m) return 'UNKNOWN';
+  if (m.indexOf('UPVC') >= 0) return 'UPVC';
+  if (m === 'PE' || m.indexOf('HDPE') >= 0 || m.indexOf('POLYETHYLENE') >= 0) return 'PE';
+  if (m.indexOf('PVC') >= 0) return 'PVC';
+  if (m === 'GI' || m.indexOf('GALVAN') >= 0) return 'GI';
+  if (m === 'CI' || m.indexOf('CAST IRON') >= 0) return 'CI';
+  if (m.indexOf('CEMENT') >= 0) return 'CEMENT COATED';
+  return 'UNKNOWN';
+}
+function _sizeBand(d) {
+  d = Number(d) || 0;
+  if (d >= 250) return 'trunk';
+  if (d >= 150) return 'primary';
+  if (d >= 75) return 'secondary';
+  return 'lateral';
+}
+function _sizeWidth(d) {
+  d = Number(d) || 0;
+  if (d >= 250) return 4;
+  if (d >= 150) return 3;
+  if (d >= 75) return 2.5;
+  return 2;
+}
+function pipelineStyle(feature) {
+  var d = feature.get('DIAMETER') || feature.get('diameter') || 0;
+  var matRaw = feature.get('MATERIALS') || feature.get('MATERIAL') || feature.get('materials') || '';
+  var mat = _normMat(matRaw);
+  var st = feature.get('STATUS') || feature.get('status') || 'Open';
+  var filterKey = mat === 'UNKNOWN' ? 'Unknown' : mat;
+  if (window.pipeMatFilter && !window.pipeMatFilter[filterKey] && !window.pipeMatFilter[mat]) {
+    return null; /* hidden by material filter */
+  }
+  var w = _sizeWidth(d);
+  var c;
+  if (window.pipeColorMode === 'mat') {
+    c = PIPE_MAT_COLORS[mat] || PIPE_MAT_COLORS.UNKNOWN;
+  } else {
+    c = PIPE_SIZE_COLORS[_sizeBand(d)];
+  }
+  var o = 0.85;
+  if (st && String(st).toLowerCase() !== 'open') { o = 0.4; c = '#EF4444'; }
+  return new ol.style.Style({ stroke: new ol.style.Stroke({ color: c, width: w }) });
+}
 var pipelineSource = new ol.source.Vector();
-var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:function(feature){
-  var d = feature.get('DIAMETER') || 0;
-  var mat = (feature.get('MATERIALS') || '').toUpperCase();
-  var st = feature.get('STATUS') || '';
-  var w, c, o=0.85;
-  if (d >= 250) { w=4; c='#8B5CF6'; }
-  else if (d >= 150) { w=3; c='#2563EB'; }
-  else if (d >= 75) { w=2.5; c='#10B981'; }
-  else { w=2; c='#F59E0B'; }
-  if (st !== 'Open') { o=0.4; c='#EF4444'; }
-  return new ol.style.Style({stroke:new ol.style.Stroke({color:c,width:w,opacity:o})});
-}});
+var pipelineLayer = new ol.layer.Vector({ source: pipelineSource, style: pipelineStyle });
 window.pipelineLayer = pipelineLayer;
+window.refreshPipelineStyle = function() {
+  pipelineLayer.changed();
+  pipelineSource.getFeatures().forEach(function(f){ f.changed(); });
+};
 map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
-fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
+fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){
+  pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));
+}).catch(function(e){console.warn('Pipeline not loaded',e);});
 /* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
 (function() {
   var _phase = 0;
@@ -9235,7 +9330,57 @@ function exportPanelAsPDF(elementId, title) {
     + '<style>' + style + 'body{padding:20px;font-family:sans-serif;}button{display:none !important;}@media print{@page{size:landscape;margin:10mm;}}</style>'
     + '</head><body><h1 style="color:#1e3a5f;">' + (title || 'AGUS Report') + '</h1>'
     + '<p style="color:#94a3b8;font-size:12px;">Generated: ' + new Date().toLocaleString() + '</p>'
-    + '<div>' + content + '</div></body></html>';
+    + '<div>' + content + '</div>
+<script>
+/* Map legend: start collapsed; Show/Hide toggle; auto-hide after idle when expanded */
+(function initLegendAutoHide(){
+  function run(){
+    var box = document.getElementById('legend-card');
+    var btn = document.getElementById('legendToggle');
+    if (!box || !btn) return;
+    var hideTimer = null;
+    var AUTO_HIDE_MS = 8000; /* auto-collapse 8s after last interaction */
+
+    function setCollapsed(collapsed){
+      box.classList.toggle('legend-collapsed', collapsed);
+      box.classList.toggle('legend-expanded', !collapsed);
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.textContent = collapsed ? 'Show' : 'Hide';
+      btn.setAttribute('aria-label', collapsed ? 'Show map legend' : 'Hide map legend');
+      if (collapsed) {
+        if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+      } else {
+        armAutoHide();
+      }
+    }
+    function armAutoHide(){
+      if (hideTimer) clearTimeout(hideTimer);
+      hideTimer = setTimeout(function(){
+        if (box.classList.contains('legend-expanded')) setCollapsed(true);
+      }, AUTO_HIDE_MS);
+    }
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      setCollapsed(!box.classList.contains('legend-collapsed'));
+    });
+    box.addEventListener('mouseenter', function(){
+      if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; }
+    });
+    box.addEventListener('mouseleave', function(){
+      if (box.classList.contains('legend-expanded')) armAutoHide();
+    });
+    box.addEventListener('touchstart', function(){
+      if (box.classList.contains('legend-expanded')) armAutoHide();
+    }, { passive: true });
+    /* start collapsed (same as Leak Detection) */
+    setCollapsed(true);
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', run);
+  else run();
+})();
+</script>
+
+</body></html>';
   var w = window.open('', '_blank');
   w.document.write(html);
   w.document.close();
@@ -13272,25 +13417,6 @@ document.addEventListener('visibilitychange', function() {
   </iframe>
 </div>
 
-<!-- ═══════════════════════════════════════════════════════════════
-     LEAK DETECTION MODULE OVERLAY (Leak-Detection repo embedded — separate GAS + GitHub repo)
-     ═══════════════════════════════════════════════════════════════ -->
-<div id="leak-detection-module-overlay" style="display:none;position:fixed;inset:0;background:rgba(4,12,24,0.86);z-index:2147486000;flex-direction:column;">
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#0d263d;border-bottom:1px solid rgba(93,213,192,0.25);gap:10px;flex-shrink:0;">
-    <div style="display:flex;align-items:center;gap:9px;min-width:0;">
-      <span style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg>
-      </span>
-      <div style="min-width:0;">
-        <div style="color:#e6f5f1;font-weight:800;font-size:14px;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Leak Detection</div>
-        <div style="color:#7dd3c8;font-size:10.5px;font-weight:600;">Leak Survey Map · separate login</div>
-      </div>
-    </div>
-    <button onclick="event.stopPropagation();closeLeakDetectionModule()" title="Close Leak Detection" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;">&#10005; Close</button>
-  </div>
-  <iframe src="about:blank" title="AGUS Leak Detection" style="flex:1;width:100%;border:none;background:#fff;"></iframe>
-</div>
-
 <script>
 function openAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
@@ -13301,19 +13427,6 @@ function openAssetModule() {
 }
 function closeAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
-  ov.style.display = 'none';
-  document.body.style.overflow = '';
-}
-var LEAK_DETECTION_URL = 'https://jarynncsc-sketch.github.io/Leak-Detection/'; // separate Leak Detection GitHub Pages repo
-function openLeakDetectionModule() {
-  var ov = document.getElementById('leak-detection-module-overlay');
-  var fr = ov.querySelector('iframe');
-  if (!fr.src || fr.src.indexOf('Leak-Detection') === -1) { fr.src = LEAK_DETECTION_URL; }
-  ov.style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-function closeLeakDetectionModule() {
-  var ov = document.getElementById('leak-detection-module-overlay');
   ov.style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -13387,220 +13500,6 @@ document.addEventListener('keydown', function(e) {
     if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
-</script>
-
-<script>
-/* ── Map compass: rotate the OpenLayers map so N / E / S / W points to the top ── */
-(function(){
-  var DIR = { N:0, E:-Math.PI/2, S:Math.PI, W:Math.PI/2 }; /* OL rotation = clockwise radians */
-  function setup(){
-    var m = window.map, box = document.getElementById('map-compass');
-    if(!m || !m.getView || !box) return false;
-    var view = m.getView(), ring = document.getElementById('mc-ring'), deg = document.getElementById('mc-deg');
-    function sync(){
-      var r = view.getRotation() || 0, d = ((Math.round(-r*180/Math.PI) % 360) + 360) % 360;
-      ring.style.transform = 'rotate(' + (r*180/Math.PI) + 'deg)'; /* needle keeps pointing at true north */
-      deg.textContent = d + '°';
-      var up = null;
-      Object.keys(DIR).forEach(function(k){
-        var diff = Math.abs(((r - DIR[k]) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI);
-        if(diff < 0.02) up = k;
-      });
-      Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){ b.classList.toggle('mc-active', b.getAttribute('data-dir') === up); });
-    }
-    function turnTo(target){
-      var cur = view.getRotation() || 0, delta = ((target - cur) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI;
-      view.animate({ rotation: cur + delta, duration: 400 });
-    }
-    var STEP = 15*Math.PI/180, dragged = false;
-    function nudge(d){ view.animate({ rotation: (view.getRotation()||0) + d, duration: 150 }); }
-    Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){
-      b.addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(DIR[b.getAttribute('data-dir')]); });
-    });
-    document.getElementById('mc-center').addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(0); });
-    document.getElementById('mc-rot-l').addEventListener('click', function(e){ e.stopPropagation(); nudge(-STEP); });
-    document.getElementById('mc-rot-r').addEventListener('click', function(e){ e.stopPropagation(); nudge(STEP); });
-    /* mouse wheel over the compass rotates the map */
-    box.addEventListener('wheel', function(e){ e.preventDefault(); e.stopPropagation(); nudge((e.deltaY>0?1:-1)*STEP); }, { passive:false });
-    /* drag the dial with mouse / pen / finger to rotate freely */
-    var drag = null;
-    function angleOf(e){ var r = box.getBoundingClientRect(); return Math.atan2(e.clientY-(r.top+r.height/2), e.clientX-(r.left+r.width/2)); }
-    box.addEventListener('pointerdown', function(e){
-      if(e.target.closest && e.target.closest('.mc-rot')) return;
-      if(e.button!==undefined && e.button!==0) return;
-      drag = { a0: angleOf(e), r0: view.getRotation()||0, moved:false, id:e.pointerId };
-      try{ box.setPointerCapture(e.pointerId); }catch(x){}
-    });
-    box.addEventListener('pointermove', function(e){
-      if(!drag || e.pointerId!==drag.id) return;
-      var d = angleOf(e) - drag.a0; d = Math.atan2(Math.sin(d), Math.cos(d));
-      if(!drag.moved && Math.abs(d) < 0.08) return;
-      drag.moved = true; dragged = true; box.classList.add('mc-dragging');
-      view.setRotation(drag.r0 + d);
-    });
-    function endDrag(e){
-      if(!drag) return;
-      var moved = drag.moved; drag = null; box.classList.remove('mc-dragging');
-      try{ box.releasePointerCapture(e.pointerId); }catch(x){}
-      if(moved) setTimeout(function(){ dragged=false; }, 0);
-    }
-    box.addEventListener('pointerup', endDrag);
-    box.addEventListener('pointercancel', endDrag);
-    view.on('change:rotation', sync);
-    sync();
-    return true;
-  }
-  var tries = 0;
-  (function wait(){ if(setup() || ++tries > 50) return; setTimeout(wait, 200); })();
-})();
-
-/* keep the compass clear of the Health Diagnostic / Page Views cards (adds a gap below them) */
-(function(){
-  var GAP = 18;
-  function place(){
-    var c=document.getElementById('map-compass'); if(!c) return;
-    var bottom=0;
-    ['health-diag-strip','pv-counter-strip'].forEach(function(id){
-      var e=document.getElementById(id); if(!e||e.offsetParent===null) return;
-      bottom=Math.max(bottom, e.offsetTop+e.offsetHeight);
-    });
-    if(bottom) c.style.top=(bottom+GAP)+'px';
-  }
-  window.addEventListener('resize', place);
-  window.addEventListener('load', place);
-  [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
-  if(window.ResizeObserver){
-    var ro=new ResizeObserver(place);
-    ['health-diag-strip','pv-counter-strip'].forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
-  }
-  place();
-})();
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     LEAFLET MAP INITIALIZATION — Google Earth Style Satellite View
-     ═══════════════════════════════════════════════════════════════ -->
-<script>
-(function() {
-  'use strict';
-
-  // Initialize map when DOM is ready
-  function initializeMap() {
-    var mapElement = document.getElementById('map');
-    if (!mapElement) return;
-
-    // Create map with default center on Philippines (Carcar Water District area)
-    var map = L.map(mapElement, {
-      zoomControl: true,
-      attributionControl: true,
-      preferCanvas: true
-    }).setView([10.2906, 123.6474], 15);
-
-    // Layer definitions for satellite and street view
-    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© OpenStreetMap contributors, © 2015 Google, Tiles © Esri',
-      maxZoom: 19,
-      minZoom: 2,
-      fadeAnimation: true
-    });
-
-    var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-      minZoom: 2
-    });
-
-    // Add satellite layer by default (Google Earth style)
-    satelliteLayer.addTo(map);
-
-    // Layer control for switching between satellite and street view
-    var layerControl = L.control.layers(
-      {
-        'Satellite': satelliteLayer,
-        'Street Map': streetLayer
-      },
-      null,
-      { position: 'topright', collapsed: true }
-    ).addTo(map);
-
-    // Style the layer control
-    setTimeout(function() {
-      var layerControlDiv = document.querySelector('.leaflet-control-layers');
-      if (layerControlDiv) {
-        layerControlDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-        layerControlDiv.style.borderRadius = '8px';
-        layerControlDiv.style.border = '2px solid rgba(0, 64, 128, 0.2)';
-        layerControlDiv.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-      }
-    }, 100);
-
-    // Custom zoom controls styling
-    var zoomControl = document.querySelector('.leaflet-control-zoom');
-    if (zoomControl) {
-      zoomControl.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-      zoomControl.style.borderRadius = '8px';
-      zoomControl.style.border = '2px solid rgba(0, 64, 128, 0.2)';
-      zoomControl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-    }
-
-    // Add a prominent marker for Carcar Water District with enhanced styling
-    var markerIcon = L.icon({
-      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDQwIDUwIj48ZGVmcz48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZVhPZmZzZXQgaW49IlNvdXJjZUdyYXBoaWMiIGR4PSIwIiBkeT0iMiIgZmxvb2QtY29sb3I9IiMwMDAwMDAiIGZsb29kLW9wYWNpdHk9IjAuMyIgcmVzdWx0PSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2U+PGZlTWVyZ2VOb2RlIGluPSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+PC9mZU1lcmdlPjwvZmlsdGVyPjwvZGVmcz48cGF0aCBmaWxsPSIjMDA2NkNDIiBmaWx0ZXI9InVybCgjc2hhZG93KSIgZD0iTTIwIDJDMTEgMiA0IDkgNCAyMGMwIDE2IDEwIDI0IDE2IDI0czE2LTggMTYtMjRjMC0xMS05LTE4LTIwLTE4eiIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI1IiBmaWxsPSIjMDA2NkNDIi8+PC9zdmc+',
-      iconSize: [40, 50],
-      iconAnchor: [20, 50],
-      popupAnchor: [0, -50],
-      shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZWxsaXBzZSBjeD0iMjAiIGN5PSIzMiIgcng9IjE4IiByeT0iNiIgZmlsbD0iIzAwMDAwMCIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+',
-      shadowSize: [40, 40],
-      shadowAnchor: [20, 40]
-    });
-
-    var marker = L.marker([10.2906, 123.6474], { icon: markerIcon }).addTo(map);
-    marker.bindPopup(
-      '<div style="font-family:Arial,sans-serif;padding:8px;text-align:center;">' +
-      '<strong style="font-size:14px;color:#004080;">🌊 AGUS</strong><br/>' +
-      '<span style="font-size:12px;color:#666;">Carcar Water District</span><br/>' +
-      '<span style="font-size:11px;color:#999;">Pump Station Dashboard</span>' +
-      '</div>',
-      { maxWidth: 250 }
-    );
-
-    // Handle map theme changes based on light/dark mode
-    function updateMapTheme() {
-      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      if (isDark) {
-        mapElement.style.filter = 'brightness(0.85) contrast(1.1)';
-      } else {
-        mapElement.style.filter = 'brightness(1) contrast(1)';
-      }
-    }
-
-    // Watch for theme changes
-    var observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.attributeName === 'data-theme') {
-          updateMapTheme();
-        }
-      });
-    });
-
-    observer.observe(document.documentElement, { attributes: true });
-    updateMapTheme();
-
-    // Resize map when container changes
-    setTimeout(function() {
-      map.invalidateSize();
-    }, 100);
-
-    // Store map reference for debugging
-    window.agusMap = map;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeMap);
-  } else {
-    initializeMap();
-  }
-})();
 </script>
 
 </body>
