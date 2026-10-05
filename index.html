@@ -1309,6 +1309,27 @@
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     #pv-counter-strip{position:absolute;top:120px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
+    /* ── Map compass: sits below the Health Diagnostic / Page Views strips ── */
+    #map-compass{position:absolute;top:176px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
+    #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
+    #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
+    #map-compass .mc-btn.mc-n{top:1px;left:22px;color:#dc2626;}
+    #map-compass .mc-btn.mc-s{bottom:1px;left:22px;}
+    #map-compass .mc-btn.mc-e{right:1px;top:22px;}
+    #map-compass .mc-btn.mc-w{left:1px;top:22px;}
+    #map-compass .mc-btn.mc-active{background:#004080;color:#fff;}
+    #map-compass .mc-btn.mc-n.mc-active{background:#dc2626;color:#fff;}
+    #map-compass .mc-center{position:absolute;left:23px;top:23px;width:18px;height:18px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+    #map-compass .mc-center:hover{background:rgba(0,64,128,0.1);}
+    #map-compass{cursor:grab;touch-action:none;}
+    #map-compass.mc-dragging{cursor:grabbing;}
+    #map-compass .mc-rot{position:absolute;bottom:-21px;width:20px;height:20px;line-height:19px;text-align:center;font:800 14px Arial,sans-serif;color:#004080;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.2);border-radius:50%;box-shadow:0 2px 6px rgba(0,40,100,0.15);cursor:pointer;}
+    #map-compass .mc-rot:hover{background:#004080;color:#fff;}
+    #map-compass .mc-rot.l{left:0;}
+    #map-compass .mc-rot.r{right:0;}
+    #map-compass .mc-deg{position:absolute;left:0;right:0;bottom:-17px;text-align:center;font:700 10px 'DM Sans',Arial,sans-serif;color:#334155;pointer-events:none;}
+
     #pv-count{font-weight:800;color:#0d9488;font-variant-numeric:tabular-nums;}
     #health-diag-strip:hover{box-shadow:0 4px 20px rgba(124,58,237,0.2);border-color:#7c3aed66;}
     #health-diag-strip .hds-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0;}
@@ -1900,6 +1921,7 @@
           <div class="top-card grp-data" data-tab="assets" onclick="openAssetModule()" title="Open Asset Management & inventory module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg><span>Asset Mgmt</span></div>
           <div class="top-card grp-data" data-tab="energy-audit" onclick="openEnergyAuditModule()" title="Open CWD Energy Audit module"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"/></svg><span>Energy Audit</span></div>
           <div class="top-card grp-data" data-tab="agus-analytics" onclick="openSandboxAnalyticsModule()" title="Open AGUS Analytics — fleet-wide station comparison (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg><span>AGUS Analytics</span></div>
+          <div class="top-card grp-data" data-tab="leak-detection" onclick="openLeakDetectionModule()" title="Open Leak Detection — satellite leak survey map (hosted on GitHub)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg><span>Leak Detection</span></div>
           <div class="top-card grp-data" data-tab="reports" onclick="openTabModal('reports')" title="Energy, power, flow historical reports" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><path d="M4 4h12l4 4v12H4z"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="16" y2="16"/></svg><span>Reports</span><span class="date-picker-trigger" data-tab="reports" onclick="event.stopPropagation();showDatePicker(event,'reports')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="prod-history" onclick="openTabModal('prod-history')" title="Production & discharge history charts" style="position:relative;"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><polyline points="3 12 8 7 13 12 21 4"/></svg><span>Production</span><span class="date-picker-trigger" data-tab="prod-history" onclick="event.stopPropagation();showDatePicker(event,'prod-history')" style="position:absolute;top:1px;right:1px;font-size:10px;cursor:pointer;background:#e5eef9;border-radius:4px;padding:1px 3px;line-height:1.2;opacity:0.7;" title="Select date range">📅</span></div>
           <div class="top-card grp-data" data-tab="kpi" onclick="openKPIDashboard()" title="Key Performance Indicators dashboard"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#185FA5" stroke-width="2"><rect x="2" y="13" width="5" height="8"/><rect x="9" y="8" width="5" height="13"/><rect x="16" y="3" width="5" height="18"/></svg><span>KPI</span></div>
@@ -1996,6 +2018,23 @@
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
   <span>Page Views</span>
   <span id="pv-count">&hellip;</span>
+</div>
+<div id="map-compass" title="Compass — click N / E / S / W to put that direction at the top, drag the dial (or use the ↺ ↻ buttons / mouse wheel) to rotate freely, click the centre to reset to North. Also: Alt+Shift+drag on the map.">
+  <div class="mc-ring" id="mc-ring">
+    <svg width="64" height="64" viewBox="0 0 64 64" style="position:absolute;inset:0;pointer-events:none;">
+      <circle cx="32" cy="32" r="30" fill="none" stroke="rgba(0,64,128,0.18)" stroke-width="1"/>
+      <polygon points="32,11 37.5,32 26.5,32" fill="#ef4444"/>
+      <polygon points="32,53 37.5,32 26.5,32" fill="#f8fafc" stroke="#94a3b8" stroke-width="0.8"/>
+    </svg>
+  </div>
+  <div class="mc-btn mc-n" data-dir="N">N</div>
+  <div class="mc-btn mc-e" data-dir="E">E</div>
+  <div class="mc-btn mc-s" data-dir="S">S</div>
+  <div class="mc-btn mc-w" data-dir="W">W</div>
+  <div class="mc-center" id="mc-center" title="Reset to North"><svg width="8" height="8"><circle cx="4" cy="4" r="3" fill="#004080"/></svg></div>
+  <div class="mc-rot l" id="mc-rot-l" title="Rotate map left (counter-clockwise)">&#8634;</div>
+  <div class="mc-rot r" id="mc-rot-r" title="Rotate map right (clockwise)">&#8635;</div>
+  <div class="mc-deg" id="mc-deg">0°</div>
 </div>
 <script>
 (function(){
@@ -13233,6 +13272,25 @@ document.addEventListener('visibilitychange', function() {
   </iframe>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════
+     LEAK DETECTION MODULE OVERLAY (Leak-Detection repo embedded — separate GAS + GitHub repo)
+     ═══════════════════════════════════════════════════════════════ -->
+<div id="leak-detection-module-overlay" style="display:none;position:fixed;inset:0;background:rgba(4,12,24,0.86);z-index:2147486000;flex-direction:column;">
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;background:#0d263d;border-bottom:1px solid rgba(93,213,192,0.25);gap:10px;flex-shrink:0;">
+    <div style="display:flex;align-items:center;gap:9px;min-width:0;">
+      <span style="width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,#0d9488,#0f766e);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+        <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M12 2.5s6 6.2 6 10.5a6 6 0 0 1-12 0C6 8.7 12 2.5 12 2.5z"/><path d="M9.5 14a2.5 2.5 0 0 0 2.5 2.5"/></svg>
+      </span>
+      <div style="min-width:0;">
+        <div style="color:#e6f5f1;font-weight:800;font-size:14px;letter-spacing:0.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">Leak Detection</div>
+        <div style="color:#7dd3c8;font-size:10.5px;font-weight:600;">Leak Survey Map · separate login</div>
+      </div>
+    </div>
+    <button onclick="event.stopPropagation();closeLeakDetectionModule()" title="Close Leak Detection" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:700;cursor:pointer;">&#10005; Close</button>
+  </div>
+  <iframe src="about:blank" title="AGUS Leak Detection" style="flex:1;width:100%;border:none;background:#fff;"></iframe>
+</div>
+
 <script>
 function openAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
@@ -13243,6 +13301,19 @@ function openAssetModule() {
 }
 function closeAssetModule() {
   var ov = document.getElementById('assets-module-overlay');
+  ov.style.display = 'none';
+  document.body.style.overflow = '';
+}
+var LEAK_DETECTION_URL = 'https://jarynncsc-sketch.github.io/Leak-Detection/'; // separate Leak Detection GitHub Pages repo
+function openLeakDetectionModule() {
+  var ov = document.getElementById('leak-detection-module-overlay');
+  var fr = ov.querySelector('iframe');
+  if (!fr.src || fr.src.indexOf('Leak-Detection') === -1) { fr.src = LEAK_DETECTION_URL; }
+  ov.style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeLeakDetectionModule() {
+  var ov = document.getElementById('leak-detection-module-overlay');
   ov.style.display = 'none';
   document.body.style.overflow = '';
 }
@@ -13316,6 +13387,94 @@ document.addEventListener('keydown', function(e) {
     if (ov3 && ov3.style.display === 'flex') closeSandboxAnalyticsModule();
   }
 });
+</script>
+
+<script>
+/* ── Map compass: rotate the OpenLayers map so N / E / S / W points to the top ── */
+(function(){
+  var DIR = { N:0, E:-Math.PI/2, S:Math.PI, W:Math.PI/2 }; /* OL rotation = clockwise radians */
+  function setup(){
+    var m = window.map, box = document.getElementById('map-compass');
+    if(!m || !m.getView || !box) return false;
+    var view = m.getView(), ring = document.getElementById('mc-ring'), deg = document.getElementById('mc-deg');
+    function sync(){
+      var r = view.getRotation() || 0, d = ((Math.round(-r*180/Math.PI) % 360) + 360) % 360;
+      ring.style.transform = 'rotate(' + (r*180/Math.PI) + 'deg)'; /* needle keeps pointing at true north */
+      deg.textContent = d + '°';
+      var up = null;
+      Object.keys(DIR).forEach(function(k){
+        var diff = Math.abs(((r - DIR[k]) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI);
+        if(diff < 0.02) up = k;
+      });
+      Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){ b.classList.toggle('mc-active', b.getAttribute('data-dir') === up); });
+    }
+    function turnTo(target){
+      var cur = view.getRotation() || 0, delta = ((target - cur) % (2*Math.PI) + 3*Math.PI) % (2*Math.PI) - Math.PI;
+      view.animate({ rotation: cur + delta, duration: 400 });
+    }
+    var STEP = 15*Math.PI/180, dragged = false;
+    function nudge(d){ view.animate({ rotation: (view.getRotation()||0) + d, duration: 150 }); }
+    Array.prototype.forEach.call(box.querySelectorAll('.mc-btn'), function(b){
+      b.addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(DIR[b.getAttribute('data-dir')]); });
+    });
+    document.getElementById('mc-center').addEventListener('click', function(e){ e.stopPropagation(); if(dragged){ dragged=false; return; } turnTo(0); });
+    document.getElementById('mc-rot-l').addEventListener('click', function(e){ e.stopPropagation(); nudge(-STEP); });
+    document.getElementById('mc-rot-r').addEventListener('click', function(e){ e.stopPropagation(); nudge(STEP); });
+    /* mouse wheel over the compass rotates the map */
+    box.addEventListener('wheel', function(e){ e.preventDefault(); e.stopPropagation(); nudge((e.deltaY>0?1:-1)*STEP); }, { passive:false });
+    /* drag the dial with mouse / pen / finger to rotate freely */
+    var drag = null;
+    function angleOf(e){ var r = box.getBoundingClientRect(); return Math.atan2(e.clientY-(r.top+r.height/2), e.clientX-(r.left+r.width/2)); }
+    box.addEventListener('pointerdown', function(e){
+      if(e.target.closest && e.target.closest('.mc-rot')) return;
+      if(e.button!==undefined && e.button!==0) return;
+      drag = { a0: angleOf(e), r0: view.getRotation()||0, moved:false, id:e.pointerId };
+      try{ box.setPointerCapture(e.pointerId); }catch(x){}
+    });
+    box.addEventListener('pointermove', function(e){
+      if(!drag || e.pointerId!==drag.id) return;
+      var d = angleOf(e) - drag.a0; d = Math.atan2(Math.sin(d), Math.cos(d));
+      if(!drag.moved && Math.abs(d) < 0.08) return;
+      drag.moved = true; dragged = true; box.classList.add('mc-dragging');
+      view.setRotation(drag.r0 + d);
+    });
+    function endDrag(e){
+      if(!drag) return;
+      var moved = drag.moved; drag = null; box.classList.remove('mc-dragging');
+      try{ box.releasePointerCapture(e.pointerId); }catch(x){}
+      if(moved) setTimeout(function(){ dragged=false; }, 0);
+    }
+    box.addEventListener('pointerup', endDrag);
+    box.addEventListener('pointercancel', endDrag);
+    view.on('change:rotation', sync);
+    sync();
+    return true;
+  }
+  var tries = 0;
+  (function wait(){ if(setup() || ++tries > 50) return; setTimeout(wait, 200); })();
+})();
+
+/* keep the compass clear of the Health Diagnostic / Page Views cards (adds a gap below them) */
+(function(){
+  var GAP = 18;
+  function place(){
+    var c=document.getElementById('map-compass'); if(!c) return;
+    var bottom=0;
+    ['health-diag-strip','pv-counter-strip'].forEach(function(id){
+      var e=document.getElementById(id); if(!e||e.offsetParent===null) return;
+      bottom=Math.max(bottom, e.offsetTop+e.offsetHeight);
+    });
+    if(bottom) c.style.top=(bottom+GAP)+'px';
+  }
+  window.addEventListener('resize', place);
+  window.addEventListener('load', place);
+  [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(place);
+    ['health-diag-strip','pv-counter-strip'].forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
+  }
+  place();
+})();
 </script>
 
 <!-- ═══════════════════════════════════════════════════════════════
