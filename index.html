@@ -1811,11 +1811,37 @@
   #pl-cards-area { scroll-behavior: smooth; }
 
 
-  <!-- ═══════════════════════════════════════════════════════════════
-       LEAFLET MAP LIBRARY — OpenStreetMap with Google tiles
-       ═══════════════════════════════════════════════════════════════ -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  /* ═══════════════════════════════════════════════════════════════
+     MAP BASEMAP SWITCHER (Satellite / Street) - OpenLayers control
+     ═══════════════════════════════════════════════════════════════ */
+  #map-basemap{display:flex;flex-direction:column;gap:4px;background:transparent;}
+  #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
+  #map-basemap .mb:hover{background:#004080;color:#fff;border-color:#004080;}
+  #map-basemap .mb.active{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;border-color:#002b5c;box-shadow:0 3px 10px rgba(0,60,140,.35);}
+  @media (max-width:768px){#map-basemap .mb span{display:none;}#map-basemap .mb{padding:7px 8px;}}
+
+  /* ═══════════════════════════════════════════════════════════════
+     PIPELINE LEGEND CHIPS (material / size) + click popup
+     ═══════════════════════════════════════════════════════════════ */
+  .pipe-mode-row{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:4px;}
+  .pipe-mode-row>span{font-size:10px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;}
+  .pipe-mode-row label{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;color:#334155;cursor:pointer;}
+  .pipe-chips{display:flex;flex-wrap:wrap;gap:3px 10px;}
+  .pipe-chips label{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#334155;cursor:pointer;white-space:nowrap;}
+  .pipe-chips label.off{opacity:.38;text-decoration:line-through;}
+  .pipe-chips i{display:inline-block;border-radius:2px;flex:none;}
+  .pipe-chips .lgn{color:#94a3b8;font-weight:600;font-size:10px;}
+  .pipe-info{font-size:10px;color:#94a3b8;margin-top:5px;}
+  #pipe-popup{position:absolute;z-index:1200;min-width:212px;max-width:272px;background:#fff;border-radius:11px;box-shadow:0 8px 26px rgba(0,30,70,.28);border:1px solid rgba(0,64,128,.14);font-family:'DM Sans',Arial,sans-serif;font-size:12px;color:#334155;padding:0;overflow:hidden;pointer-events:auto;}
+  #pipe-popup .pp-h{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;padding:8px 11px;font-weight:800;font-size:12px;display:flex;align-items:center;gap:7px;justify-content:space-between;}
+  #pipe-popup .pp-x{background:rgba(255,255,255,.2);border:none;color:#fff;width:18px;height:18px;border-radius:50%;font-size:12px;line-height:1;cursor:pointer;padding:0;}
+  #pipe-popup .pp-x:hover{background:rgba(255,255,255,.38);}
+  #pipe-popup .pp-b{padding:8px 11px 10px;}
+  #pipe-popup .pp-r{display:flex;justify-content:space-between;gap:10px;padding:3px 0;border-bottom:1px dashed #e8eef6;}
+  #pipe-popup .pp-r:last-child{border-bottom:none;}
+  #pipe-popup .pp-k{color:#7c8ba1;font-weight:600;white-space:nowrap;}
+  #pipe-popup .pp-v{font-weight:800;color:#1e293b;text-align:right;}
+  #pipe-popup .pp-badge{display:inline-block;padding:1px 8px;border-radius:20px;color:#fff;font-size:10px;font-weight:800;}
 
   </style>
 </head>
@@ -2060,6 +2086,7 @@
 })();
 </script>
     <div id="device-details"></div>
+<div id="pipe-popup"></div>
 <div id="legend-card" style="display:flex;flex-wrap:wrap;gap:16px;font-family:'DM Sans',sans-serif;">
   <!-- Pipeline toggle -->
   <div style="min-width:96px;">
@@ -2068,12 +2095,20 @@
       <input type="checkbox" id="pipeline-toggle" checked onchange="if(window.pipelineLayer)window.pipelineLayer.setVisible(this.checked);" style="accent-color:#2563eb;">
       Show pipelines
     </label>
-    <div style="margin-top:6px;">
-      <div class="legend-item"><span style="width:20px;height:4px;background:#8B5CF6;border-radius:2px;display:inline-block;"></span><span>Trunk (&ge;250mm)</span></div>
-      <div class="legend-item"><span style="width:16px;height:4px;background:#2563EB;border-radius:2px;display:inline-block;"></span><span>Primary (150-200mm)</span></div>
-      <div class="legend-item"><span style="width:12px;height:4px;background:#10B981;border-radius:2px;display:inline-block;"></span><span>Secondary (75-100mm)</span></div>
-      <div class="legend-item"><span style="width:8px;height:4px;background:#F59E0B;border-radius:2px;display:inline-block;"></span><span>Lateral (&le;50mm)</span></div>
+    <div class="pipe-mode-row" style="margin-top:9px;">
+      <span>Colour by</span>
+      <label for="pipecm-mat"><input type="radio" name="pipecm" id="pipecm-mat" value="mat" checked onchange="applyPipeFilter();" style="accent-color:#2563eb;"> Material</label>
+      <label for="pipecm-size"><input type="radio" name="pipecm" id="pipecm-size" value="size" onchange="applyPipeFilter();" style="accent-color:#2563eb;"> Size</label>
     </div>
+    <div style="margin-top:6px;">
+      <div style="font-size:10px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Material</div>
+      <div class="pipe-chips" id="pipe-mats"><small style="color:#94a3b8;">Loading pipe data&hellip;</small></div>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="font-size:10px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Size <span style="font-weight:600;text-transform:none;letter-spacing:0;">&middot; line thickness</span></div>
+      <div class="pipe-chips" id="pipe-sizes"><small style="color:#94a3b8;">Loading pipe data&hellip;</small></div>
+    </div>
+    <div class="pipe-info" id="pipe-info">&nbsp;</div>
   </div>
   <div style="width:1px;background:rgba(0,64,128,0.10);align-self:stretch;border-radius:1px;"></div>
 
@@ -3468,7 +3503,61 @@ function buildPumpStationSVG(f, name, status) {
   return _svg;
 }
 
-var map = new ol.Map({ target:'map', layers:[new ol.layer.Tile({source:new ol.source.OSM()})], view: new ol.View({center:ol.proj.fromLonLat([123.6740,10.1129]),zoom:12}) });
+/* ════════════════════════════════════════════════════════════════════════════
+   BASEMAPS — Satellite (Esri World Imagery) + Street (OSM), switchable.
+   Mirrors the Leak Detection module so both maps feel identical.
+   ════════════════════════════════════════════════════════════════════════════ */
+var satelliteLayer = new ol.layer.Tile({
+  title: 'Satellite',
+  source: new ol.source.XYZ({
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    maxZoom: 19,
+    crossOrigin: 'anonymous',
+    attributions: 'Tiles &copy; Esri'
+  })
+});
+var streetLayer = new ol.layer.Tile({
+  title: 'Street',
+  visible: false,
+  source: new ol.source.OSM({ attributions: '&copy; OpenStreetMap contributors' })
+});
+var map = new ol.Map({
+  target: 'map',
+  layers: [satelliteLayer, streetLayer],
+  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12 })
+});
+window.agusMap = map;
+
+var _basemap = 'sat';
+function setBasemap(name) {
+  _basemap = (name === 'street') ? 'street' : 'sat';
+  satelliteLayer.setVisible(_basemap === 'sat');
+  streetLayer.setVisible(_basemap === 'street');
+  try { localStorage.setItem('agus_basemap_v1', _basemap); } catch (e) {}
+  var btns = document.querySelectorAll('#map-basemap .mb');
+  for (var i = 0; i < btns.length; i++) {
+    if (btns[i].getAttribute('data-base') === _basemap) btns[i].classList.add('active');
+    else btns[i].classList.remove('active');
+  }
+  try { map.updateSize(); } catch (e) {}
+}
+try { if (localStorage.getItem('agus_basemap_v1') === 'street') _basemap = 'street'; } catch (e) {}
+var BasemapSwitcher = new ol.control.Control({
+  element: (function () {
+    var d = document.createElement('div');
+    d.id = 'map-basemap';
+    d.innerHTML = '<button type="button" class="mb" data-base="sat" title="Satellite view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="10" r="3"/><path d="M2 20l7-7M12 20l4-4M18 20l3-3"/></svg><span>Satellite</span></button>'
+      + '<button type="button" class="mb" data-base="street" title="Street map view"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3L3 5v16l6-2 6 2 6-2V3l-6 2-6-2z"/><path d="M9 3v16M15 5v16"/></svg><span>Street</span></button>';
+    d.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('.mb') : null;
+      if (b) setBasemap(b.getAttribute('data-base'));
+    });
+    return d;
+  })()
+});
+BasemapSwitcher.setPosition('bottom-left');
+map.addControl(BasemapSwitcher);
+setBasemap(_basemap);
 var deviceSource = new ol.source.Vector();
 var clusterSource = new ol.source.Cluster({distance:15, minDistance:5, source:deviceSource});
 var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(feature) {
@@ -3776,23 +3865,234 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
+/* ════════════════════════════════════════════════════════════════════════════
+   PIPELINE NETWORK — material / size colouring, filter chips and click details.
+   Parity with the Leak Detection module: colour-by material or size, per-material
+   and per-size-band toggles, and a popup with pipe size, material, length, nodes,
+   status and install year.
+   ════════════════════════════════════════════════════════════════════════════ */
+var PIPE_MATERIALS = {
+  'UPVC':          { c: '#16a34a', t: 'UPVC' },
+  'PE':            { c: '#2563eb', t: 'PE' },
+  'PVC':           { c: '#0ea5e9', t: 'PVC' },
+  'GI':            { c: '#f59e0b', t: 'GI' },
+  'CI':            { c: '#dc2626', t: 'CI' },
+  'CEMENT COATED': { c: '#7c2d12', t: 'Cement coated' },
+  'UNKNOWN':       { c: '#94a3b8', t: 'Unknown' }
+};
+var PIPE_SIZE_BANDS = [
+  { k: 0, t: '\u2264 25 mm',    max: 25,   c: '#818cf8', w: 1.6 },
+  { k: 1, t: '26\u201350 mm',   max: 50,   c: '#22d3ee', w: 2 },
+  { k: 2, t: '51\u201375 mm',   max: 75,   c: '#4ade80', w: 2.5 },
+  { k: 3, t: '76\u2013100 mm',  max: 100,  c: '#facc15', w: 3 },
+  { k: 4, t: '101\u2013150 mm', max: 150,  c: '#fb923c', w: 3.6 },
+  { k: 5, t: '151\u2013200 mm', max: 200,  c: '#f43f5e', w: 4.2 },
+  { k: 6, t: '&gt; 200 mm',    max: 1e9,  c: '#e879f9', w: 4.8 },
+  { k: 7, t: 'Size unknown',   max: null, c: '#94a3b8', w: 1.9 }
+];
+function pipeBand(d) {
+  d = parseFloat(d);
+  if (!isFinite(d) || d <= 0) return 7;
+  for (var i = 0; i < 7; i++) if (d <= PIPE_SIZE_BANDS[i].max) return i;
+  return 6;
+}
+function pipeMaterialKey(raw) {
+  var s = (raw === null || raw === undefined ? '' : String(raw)).trim().toUpperCase();
+  return PIPE_MATERIALS[s] ? s : 'UNKNOWN';
+}
+function pipeMaterialColor(raw) { return PIPE_MATERIALS[pipeMaterialKey(raw)].c; }
+function pipeMaterialLabel(raw) { return PIPE_MATERIALS[pipeMaterialKey(raw)].t; }
+var pipeMode = 'mat';
+var pipeFilter = { mat: {}, band: {} };
+var pipeStats = { total: 0, len: 0, mat: {}, band: {} };
+var PIPE_SOURCES = ['PipelineColorCode.geojson', 'PipelineColorCode (2).geojson'];
+
 var pipelineSource = new ol.source.Vector();
-var pipelineLayer = new ol.layer.Vector({source:pipelineSource,style:function(feature){
-  var d = feature.get('DIAMETER') || 0;
-  var mat = (feature.get('MATERIALS') || '').toUpperCase();
-  var st = feature.get('STATUS') || '';
-  var w, c, o=0.85;
-  if (d >= 250) { w=4; c='#8B5CF6'; }
-  else if (d >= 150) { w=3; c='#2563EB'; }
-  else if (d >= 75) { w=2.5; c='#10B981'; }
-  else { w=2; c='#F59E0B'; }
-  if (st !== 'Open') { o=0.4; c='#EF4444'; }
-  return new ol.style.Style({stroke:new ol.style.Stroke({color:c,width:w,opacity:o})});
+var pipelineLayer = new ol.layer.Vector({ source: pipelineSource, style: function (feature) {
+  var band = PIPE_SIZE_BANDS[pipeBand(feature.get('DIAMETER'))];
+  var hidden = !pipeFilter.mat[pipeMaterialKey(feature.get('MATERIALS'))] || !pipeFilter.band[band.k];
+  var status = String(feature.get('STATUS') || '').trim();
+  var closed = status !== '' && status.toLowerCase() !== 'open';
+  var color, width, opacity;
+  if (hidden) { color = '#cbd5e1'; width = Math.max(1, band.w * 0.5); opacity = 0.3; }
+  else if (closed) { color = '#EF4444'; width = band.w; opacity = 0.5; }
+  else if (pipeMode === 'size') { color = band.c; width = band.w; opacity = 0.9; }
+  else { color = pipeMaterialColor(feature.get('MATERIALS')); width = band.w; opacity = 0.75; }
+  return new ol.style.Style({ stroke: new ol.style.Stroke({ color: color, width: width, opacity: opacity }) });
 }});
 window.pipelineLayer = pipelineLayer;
 map.addLayer(pipelineLayer);
 map.addLayer(clusterLayer);
-fetch('PipelineColorCode.geojson').then(function(r){return r.json();}).then(function(data){pipelineSource.addFeatures(new ol.format.GeoJSON().readFeatures(data,{featureProjection:'EPSG:3857'}));}).catch(function(e){console.warn('Pipeline not loaded',e);});
+
+/* -- pipeline click popup -- */
+var pipePopupEl = document.getElementById('pipe-popup');
+var pipePopupOverlay = pipePopupEl ? new ol.Overlay({ element: pipePopupEl, positioning: 'bottom-center', offset: [0, -14], stopEvent: true }) : null;
+if (pipePopupOverlay) map.addOverlay(pipePopupOverlay);
+function closePipePopup() { if (pipePopupOverlay) pipePopupOverlay.setPosition(undefined); }
+function pipePopupHtml(f) {
+  var dc   = f.get('DC_ID') || '';
+  var n1   = f.get('NODE1') || '';
+  var n2   = f.get('NODE2') || '';
+  var ln   = parseFloat(f.get('LENGTH'));
+  var d    = parseFloat(f.get('DIAMETER'));
+  var mat  = f.get('MATERIALS');
+  var st   = String(f.get('STATUS') || '').trim();
+  var mon  = f.get('MONTH') || '';
+  var yr   = f.get('YEAR');
+  function esc(s) { return String(s === null || s === undefined ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+  function row(k, v) { return v === '' ? '' : '<div class="pp-r"><span class="pp-k">' + k + '</span><span class="pp-v">' + v + '</span></div>'; }
+  var html = '<div class="pp-h"><span>Pipeline' + (dc ? ' &middot; ' + esc(dc) : '') + '</span><button type="button" class="pp-x" onclick="closePipePopup()" title="Close">&times;</button></div><div class="pp-b">';
+  html += row('Size', isFinite(d) && d > 0 ? '&Oslash; ' + d + ' mm' : 'Size unknown');
+  html += row('Band', PIPE_SIZE_BANDS[pipeBand(f.get('DIAMETER'))].t);
+  html += row('Material', '<span style="color:' + pipeMaterialColor(mat) + ';">&#9644; ' + esc(pipeMaterialLabel(mat)) + '</span>');
+  html += row('Length', isFinite(ln) && ln > 0 ? Number(ln).toLocaleString('en-US') + ' m' : '');
+  html += row('Nodes', (n1 || n2) ? esc(n1) + ' &ndash; ' + esc(n2) : '');
+  html += row('Installed', (mon || yr) ? esc([mon, yr].filter(Boolean).join(' ')) : '');
+  html += row('Status', st ? '<span class="pp-badge" style="background:' + (st.toLowerCase() === 'open' ? '#16a34a' : '#dc2626') + ';">' + esc(st) + '</span>' : '');
+  return html + '</div>';
+}
+
+/* -- data ingestion + statistics -- */
+function registerPipeStats(p) {
+  var d = parseFloat(p.DIAMETER), ln = parseFloat(p.LENGTH);
+  var b = pipeBand(p.DIAMETER), mk = pipeMaterialKey(p.MATERIALS);
+  var bm = pipeStats.band[b] || (pipeStats.band[b] = { n: 0, len: 0, sizes: {} });
+  bm.n++; if (isFinite(ln)) bm.len += ln;
+  if (isFinite(d) && d > 0) bm.sizes[d] = 1;
+  var mm = pipeStats.mat[mk] || (pipeStats.mat[mk] = { n: 0, len: 0 });
+  mm.n++; if (isFinite(ln)) mm.len += ln;
+  pipeStats.total++; if (isFinite(ln)) pipeStats.len += ln;
+}
+function setPipeInfo(txt) { var el = document.getElementById('pipe-info'); if (el) el.textContent = txt; }
+function ingestPipelineGeoJSON(data) {
+  var feats = (data && data.features) ? data.features : [];
+  var format = new ol.format.GeoJSON();
+  var built = [];
+  for (var i = 0; i < feats.length; i++) {
+    var gj = feats[i];
+    if (!gj || !gj.geometry) continue;
+    registerPipeStats(gj.properties || {});
+    var olFeat;
+    try { olFeat = format.readFeature(gj, { featureProjection: 'EPSG:3857' }); } catch (e) { continue; }
+    if (!olFeat) continue;
+    olFeat.set('isPipeline', true);
+    built.push(olFeat);
+  }
+  if (built.length) pipelineSource.addFeatures(built);
+  initPipeFilters();
+  buildPipeLegend();
+  applyPipeFilter();
+}
+function ingestPipeSegments(segs, mats) {
+  var built = [];
+  for (var i = 0; i < segs.length; i++) {
+    var s = segs[i];
+    var parts = String(s[9] || '').split(';'), lines = [];
+    for (var j = 0; j < parts.length; j++) {
+      if (!parts[j]) continue;
+      var nums = parts[j].split(','), ln = [];
+      for (var k = 0; k + 1 < nums.length; k += 2) {
+        var lo = parseFloat(nums[k]), la = parseFloat(nums[k + 1]);
+        if (isFinite(lo) && isFinite(la)) ln.push(lo, la);
+      }
+      if (ln.length > 4) lines.push(ln);
+    }
+    if (!lines.length) continue;
+    var props = { DC_ID: s[0], NODE1: s[1], NODE2: s[2], LENGTH: s[3], MATERIALS: mats[s[4]] || 'Unknown', STATUS: s[5], DIAMETER: s[6], MONTH: s[7], YEAR: s[8], isPipeline: true };
+    registerPipeStats(props);
+    var geom = new ol.geom.MultiLineString(lines);
+    geom.transform('EPSG:4326', 'EPSG:3857');
+    built.push(new ol.Feature(geom, props));
+  }
+  if (built.length) pipelineSource.addFeatures(built);
+  initPipeFilters();
+  buildPipeLegend();
+  applyPipeFilter();
+}
+function loadPipelines(attempt) {
+  attempt = attempt || 0;
+  var name = PIPE_SOURCES[attempt];
+  fetch(name).then(function (r) {
+    if (!r.ok) throw new Error(name + ' HTTP ' + r.status);
+    return r.json();
+  }).then(function (data) {
+    ingestPipelineGeoJSON(data);
+  }).catch(function (e) {
+    if (attempt + 1 < PIPE_SOURCES.length) { loadPipelines(attempt + 1); return; }
+    if (window.PIPES && Array.isArray(window.PIPES.segs)) { ingestPipeSegments(window.PIPES.segs, window.PIPES.materials || []); return; }
+    console.warn('Pipeline data not loaded', e);
+    setPipeInfo('Pipeline data not loaded \u2014 GeoJSON or pipeline-data.js must sit next to index.html');
+  });
+}
+
+/* -- legend chips + filtering -- */
+function initPipeFilters() {
+  pipeFilter = { mat: {}, band: {} };
+  var mk;
+  for (mk in PIPE_MATERIALS) if (Object.prototype.hasOwnProperty.call(PIPE_MATERIALS, mk)) pipeFilter.mat[mk] = true;
+  for (var i = 0; i < PIPE_SIZE_BANDS.length; i++) pipeFilter.band[PIPE_SIZE_BANDS[i].k] = true;
+}
+function buildPipeLegend() {
+  var mbox = document.getElementById('pipe-mats'), sbox = document.getElementById('pipe-sizes');
+  var mhtml = '', sh = '', mk, i;
+  for (mk in PIPE_MATERIALS) {
+    if (!Object.prototype.hasOwnProperty.call(PIPE_MATERIALS, mk)) continue;
+    var ms = pipeStats.mat[mk];
+    if (!ms || !ms.n) continue;
+    var mid = 'pmat-' + mk.replace(/[^A-Za-z0-9]+/g, '');
+    mhtml += '<label class="opt" for="' + mid + '" data-mk="' + mk + '"><input type="checkbox" id="' + mid + '" class="pmat" data-m="' + mk + '" checked>'
+      + '<i class="lgbar" style="height:3px;width:18px;background:' + PIPE_MATERIALS[mk].c + ';"></i>' + PIPE_MATERIALS[mk].t
+      + '<span class="lgn">' + ms.n.toLocaleString('en-US') + ' &middot; ' + (ms.len / 1000).toFixed(1) + ' km</span></label>';
+  }
+  if (mbox) {
+    mbox.innerHTML = mhtml || '<small style="color:#94a3b8;">Material appears once the pipe data loads.</small>';
+    mbox.onchange = function () {
+      var cs = mbox.querySelectorAll('.pmat');
+      for (var j = 0; j < cs.length; j++) pipeFilter.mat[cs[j].getAttribute('data-m')] = cs[j].checked;
+      for (var k = 0; k < cs.length; k++) cs[k].parentNode.classList.toggle('off', !cs[k].checked);
+      applyPipeFilter();
+    };
+  }
+  for (i = 0; i < PIPE_SIZE_BANDS.length; i++) {
+    var b = PIPE_SIZE_BANDS[i], bs = pipeStats.band[b.k];
+    if (!bs || !bs.n) continue;
+    var bid = 'pbnd-' + b.k;
+    sh += '<label class="opt" for="' + bid + '" data-bk="' + b.k + '"><input type="checkbox" id="' + bid + '" class="psz" data-b="' + b.k + '" checked>'
+      + '<i class="lgbar" style="height:' + Math.max(3, Math.round(b.w)) + 'px;width:18px;background:' + b.c + ';"></i>' + b.t
+      + '<span class="lgn">' + bs.n.toLocaleString('en-US') + ' &middot; ' + (bs.len / 1000).toFixed(1) + ' km</span></label>';
+  }
+  if (sbox) {
+    sbox.innerHTML = sh || '<small style="color:#94a3b8;">Sizes appear once the pipe data loads.</small>';
+    sbox.onchange = function () {
+      var cs = sbox.querySelectorAll('.psz');
+      for (var j = 0; j < cs.length; j++) pipeFilter.band[cs[j].getAttribute('data-b')] = cs[j].checked;
+      for (var k = 0; k < cs.length; k++) cs[k].parentNode.classList.toggle('off', !cs[k].checked);
+      applyPipeFilter();
+    };
+  }
+}
+function applyPipeFilter() {
+  var mode = document.querySelector('input[name="pipecm"]:checked');
+  pipeMode = mode ? mode.value : 'mat';
+  try { localStorage.setItem('agus_pipe_mode_v1', pipeMode); } catch (e) {}
+  var shown = 0, km = 0;
+  pipelineSource.forEachFeature(function (f) {
+    var band = PIPE_SIZE_BANDS[pipeBand(f.get('DIAMETER'))];
+    if (pipeFilter.mat[pipeMaterialKey(f.get('MATERIALS'))] && pipeFilter.band[band.k]) {
+      shown++; var ln = parseFloat(f.get('LENGTH')); if (isFinite(ln)) km += ln;
+    }
+  });
+  pipelineLayer.changed();
+  setPipeInfo(shown.toLocaleString('en-US') + ' of ' + pipeStats.total.toLocaleString('en-US') + ' segments \u00b7 '
+    + (km / 1000).toFixed(1) + ' of ' + (pipeStats.len / 1000).toFixed(1) + ' km \u00b7 coloured by '
+    + (pipeMode === 'size' ? 'size' : 'material'));
+}
+window.applyPipeFilter = applyPipeFilter;
+try {
+  var _pm = localStorage.getItem('agus_pipe_mode_v1');
+  if (_pm === 'size') pipeMode = 'size';
+} catch (e) {}
+loadPipelines(0);
 /* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
 (function() {
   var _phase = 0;
@@ -3840,6 +4140,19 @@ setInterval(function() {
   });
 }, 2500);
 map.on('singleclick', function(evt) {
+  var pipelineHit = null;
+  map.forEachFeatureAtPixel(evt.pixel, function(feature) {
+    if (feature.get('isPipeline')) { pipelineHit = feature; return true; }
+    return false;
+  }, { hitTolerance: 6 });
+  if (pipelineHit) {
+    if (pipePopupOverlay) {
+      pipePopupEl.innerHTML = pipePopupHtml(pipelineHit);
+      pipePopupOverlay.setPosition(pipelineHit.getGeometry().getClosestPoint(evt.coordinate));
+    }
+    return;
+  }
+  closePipePopup();
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     var features = feature.get('features'); if (!features || features.length !== 1) return;
     var f = features[0], name = f.get('name')||'', type = (f.get('type')||'').toLowerCase().trim();
@@ -3854,7 +4167,7 @@ map.on('singleclick', function(evt) {
   });
 });
 map.on('pointermove', function(evt) {
-  map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel) ? 'pointer' : '';
+  map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
 var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,-10],stopEvent:false});
 map.addOverlay(detailsOverlay);
@@ -10526,41 +10839,61 @@ function _parseRow(r, keys) {
 window.openPipelineLegend = function() {
   _spinCss();
   var ov = _overlay('pipeline-legend-ov');
-  var pn = _panel('Pipeline Color Code','Diameter-based coloring for pipeline network','🔴','#8B5CF6');
+  var pn = _panel('Pipeline Color Code','Colour by material or nominal diameter — click any pipe for details','🔴','#8B5CF6');
   ov.appendChild(pn);
   document.body.appendChild(ov);
   var body = pn.querySelector('.ana-body');
   body.innerHTML =
     '<div style="max-width:600px;margin:0 auto;font-family:\'DM Sans\',sans-serif;">'
-    + '<p style="color:#475569;font-size:14px;margin-bottom:20px;text-align:center;">The pipeline network is color-coded by nominal diameter to help operators quickly identify pipe sizes at a glance.</p>'
-    + '<div style="display:flex;flex-direction:column;gap:12px;">'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#f5f3ff,#ede9fe);border-radius:12px;padding:16px 20px;border-left:5px solid #8B5CF6;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:6px;background:#8B5CF6;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#4c1d95;font-size:15px;">Trunk</div><div style="color:#6d28d9;font-size:12px;">&ge; 250 mm diameter &middot; 4px line width</div></div>'
-    + '    <div style="background:#8B5CF6;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Purple</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;padding:16px 20px;border-left:5px solid #2563EB;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:5px;background:#2563EB;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#1e40af;font-size:15px;">Primary</div><div style="color:#2563eb;font-size:12px;">150–200 mm diameter &middot; 3px line width</div></div>'
-    + '    <div style="background:#2563EB;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Blue</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:12px;padding:16px 20px;border-left:5px solid #10B981;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:4px;background:#10B981;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#065f46;font-size:15px;">Secondary</div><div style="color:#059669;font-size:12px;">75–100 mm diameter &middot; 2.5px line width</div></div>'
-    + '    <div style="background:#10B981;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Green</div>'
-    + '  </div>'
-    + '  <div style="display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border-radius:12px;padding:16px 20px;border-left:5px solid #F59E0B;">'
-    + '    <div style="width:50px;text-align:center;"><span style="display:block;height:3px;background:#F59E0B;border-radius:3px;margin:0 auto;"></span></div>'
-    + '    <div style="flex:1;"><div style="font-weight:800;color:#92400e;font-size:15px;">Lateral</div><div style="color:#d97706;font-size:12px;">&le; 50 mm diameter &middot; 2px line width</div></div>'
-    + '    <div style="background:#F59E0B;color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">Amber</div>'
-    + '  </div>'
+    + '<p style="color:#475569;font-size:14px;margin-bottom:20px;text-align:center;">The pipeline network can be coloured by <strong>material</strong> (default) or by <strong>nominal diameter</strong>. Whichever mode is active, the line thickness always reflects pipe size, so trunk mains read heavier than laterals.</p>'
+    + '<div style="display:flex;flex-direction:column;gap:10px;">'
+    + '  <div style="font-size:11px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;">Material</div>'
+    + '  <div id="pcMats" style="display:flex;flex-direction:column;gap:8px;"></div>'
     + '</div>'
-    + '<div style="margin-top:24px;padding:16px 20px;background:#f1f5f9;border-radius:12px;border:1px solid #e2e8f0;">'
-    + '  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:16px;">⚠️</span><span style="font-weight:700;color:#334155;font-size:13px;">Non-Open Status</span></div>'
-    + '  <p style="color:#64748b;font-size:13px;margin:0;">Pipelines with a status other than <strong>Open</strong> are drawn in <span style="color:#dc2626;font-weight:700;">red</span> with reduced opacity (0.4) to indicate they may be closed, under maintenance, or inactive.</p>'
+    + '<div style="display:flex;flex-direction:column;gap:10px;margin-top:20px;">'
+    + '  <div style="font-size:11px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;">Size &middot; line thickness</div>'
+    + '  <div id="pcSizes" style="display:flex;flex-direction:column;gap:8px;"></div>'
     + '</div>'
-    + '<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:20px;">Toggle pipeline visibility on the map using the Pipeline checkbox in the legend card.</p>'
++ '<div style="margin-top:20px;padding:16px 20px;background:linear-gradient(135deg,#eff6ff,#dbeafe);border-radius:12px;border:1px solid #bfdbfe;">'
++ '  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:16px;">👆</span><span style="font-weight:700;color:#1e40af;font-size:13px;">Click any pipeline</span></div>'
++ '  <p style="color:#1e40af;font-size:13px;margin:0;">Clicking a pipe opens a details card with its <strong>pipe size</strong> (&Oslash;), <strong>material</strong>, length, connected nodes, install year and status. Use the material and size chips in the legend card to isolate specific pipes, and the <strong>Satellite / Street</strong> switcher (bottom-left of the map) to change basemap.</p>'
++ '</div>'
++ '<div style="margin-top:16px;padding:16px 20px;background:#f1f5f9;border-radius:12px;border:1px solid #e2e8f0;">'
++ '  <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;"><span style="font-size:16px;">⚠️</span><span style="font-weight:700;color:#334155;font-size:13px;">Non-Open Status</span></div>'
++ '  <p style="color:#64748b;font-size:13px;margin:0;">Pipelines with a status other than <strong>Open</strong> are drawn in <span style="color:#dc2626;font-weight:700;">red</span> with reduced opacity (0.5) to indicate they may be closed, under maintenance, or inactive.</p>'
++ '</div>'
++ '<p style="text-align:center;color:#94a3b8;font-size:11px;margin-top:20px;">Toggle pipeline visibility on the map using the Show pipelines checkbox in the legend card.</p>'
     + '</div>';
+  /* Fill the material + size reference from the live pipeline registries so the
+     panel always matches whatever is actually loaded on the map. */
+  (function() {
+    var matBox = document.getElementById('pcMats'), sizeBox = document.getElementById('pcSizes');
+    if (!matBox || !sizeBox) return;
+    if (typeof PIPE_MATERIALS === 'undefined' || typeof PIPE_SIZE_BANDS === 'undefined') return;
+    function swatch(c, h) { return '<div style="width:50px;text-align:center;"><span style="display:block;height:' + h + 'px;width:34px;background:' + c + ';border-radius:3px;margin:0 auto;"></span></div>'; }
+    var m = '', k;
+    for (k in PIPE_MATERIALS) {
+      if (!Object.prototype.hasOwnProperty.call(PIPE_MATERIALS, k)) continue;
+      var def = PIPE_MATERIALS[k], st = (pipeStats && pipeStats.mat && pipeStats.mat[k]) || null;
+      m += '<div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border-radius:12px;padding:14px 18px;border-left:5px solid ' + def.c + ';">'
+        + swatch(def.c, 5)
+        + '<div style="flex:1;"><div style="font-weight:800;color:#334155;font-size:14px;">' + def.t + '</div>'
+        + '<div style="color:#64748b;font-size:12px;">' + (st ? st.n.toLocaleString('en-US') + ' segments &middot; ' + (st.len / 1000).toFixed(1) + ' km' : 'not present in data') + '</div></div>'
+        + '<div style="background:' + def.c + ';color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">' + k + '</div></div>';
+    }
+    matBox.innerHTML = m;
+    var s = '';
+    for (var i = 0; i < PIPE_SIZE_BANDS.length; i++) {
+      var b = PIPE_SIZE_BANDS[i], bs = (pipeStats && pipeStats.band && pipeStats.band[b.k]) || null;
+      if (bs && !bs.n) continue;
+      s += '<div style="display:flex;align-items:center;gap:16px;background:#f8fafc;border-radius:12px;padding:14px 18px;border-left:5px solid ' + b.c + ';">'
+        + swatch(b.c, Math.max(4, Math.round(b.w * 1.4)))
+        + '<div style="flex:1;"><div style="font-weight:800;color:#334155;font-size:14px;">' + b.t + '</div>'
+        + '<div style="color:#64748b;font-size:12px;">' + (bs ? bs.n.toLocaleString('en-US') + ' segments &middot; ' + (bs.len / 1000).toFixed(1) + ' km &middot; ' + b.w + 'px' : 'not present in data') + '</div></div>'
+        + '<div style="background:' + b.c + ';color:#fff;font-weight:700;font-size:11px;padding:4px 12px;border-radius:20px;">' + (b.max === null ? 'n/a' : (b.k === 0 ? '&le;' : b.k === 6 ? '&gt;' : '')) + '</div></div>';
+    }
+    sizeBox.innerHTML = s || '<small style="color:#94a3b8;">Sizes appear once the pipe data loads.</small>';
+  })();
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -13475,133 +13808,5 @@ document.addEventListener('keydown', function(e) {
   }
   place();
 })();
-</script>
-
-<!-- ═══════════════════════════════════════════════════════════════
-     LEAFLET MAP INITIALIZATION — Google Earth Style Satellite View
-     ═══════════════════════════════════════════════════════════════ -->
-<script>
-(function() {
-  'use strict';
-
-  // Initialize map when DOM is ready
-  function initializeMap() {
-    var mapElement = document.getElementById('map');
-    if (!mapElement) return;
-
-    // Create map with default center on Philippines (Carcar Water District area)
-    var map = L.map(mapElement, {
-      zoomControl: true,
-      attributionControl: true,
-      preferCanvas: true
-    }).setView([10.2906, 123.6474], 15);
-
-    // Layer definitions for satellite and street view
-    var satelliteLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-      attribution: '© OpenStreetMap contributors, © 2015 Google, Tiles © Esri',
-      maxZoom: 19,
-      minZoom: 2,
-      fadeAnimation: true
-    });
-
-    var streetLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '© OpenStreetMap contributors',
-      maxZoom: 19,
-      minZoom: 2
-    });
-
-    // Add satellite layer by default (Google Earth style)
-    satelliteLayer.addTo(map);
-
-    // Layer control for switching between satellite and street view
-    var layerControl = L.control.layers(
-      {
-        'Satellite': satelliteLayer,
-        'Street Map': streetLayer
-      },
-      null,
-      { position: 'topright', collapsed: true }
-    ).addTo(map);
-
-    // Style the layer control
-    setTimeout(function() {
-      var layerControlDiv = document.querySelector('.leaflet-control-layers');
-      if (layerControlDiv) {
-        layerControlDiv.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-        layerControlDiv.style.borderRadius = '8px';
-        layerControlDiv.style.border = '2px solid rgba(0, 64, 128, 0.2)';
-        layerControlDiv.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-      }
-    }, 100);
-
-    // Custom zoom controls styling
-    var zoomControl = document.querySelector('.leaflet-control-zoom');
-    if (zoomControl) {
-      zoomControl.style.backgroundColor = 'rgba(255, 255, 255, 0.95)';
-      zoomControl.style.borderRadius = '8px';
-      zoomControl.style.border = '2px solid rgba(0, 64, 128, 0.2)';
-      zoomControl.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
-    }
-
-    // Add a prominent marker for Carcar Water District with enhanced styling
-    var markerIcon = L.icon({
-      iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI1MCIgdmlld0JveD0iMCAwIDQwIDUwIj48ZGVmcz48ZmlsdGVyIGlkPSJzaGFkb3ciPjxmZVhPZmZzZXQgaW49IlNvdXJjZUdyYXBoaWMiIGR4PSIwIiBkeT0iMiIgZmxvb2QtY29sb3I9IiMwMDAwMDAiIGZsb29kLW9wYWNpdHk9IjAuMyIgcmVzdWx0PSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2U+PGZlTWVyZ2VOb2RlIGluPSJjb2xvcmVkU2hhZG93Ii8+PGZlTWVyZ2VOb2RlIGluPSJTb3VyY2VHcmFwaGljIi8+PC9mZU1lcmdlPjwvZmlsdGVyPjwvZGVmcz48cGF0aCBmaWxsPSIjMDA2NkNDIiBmaWx0ZXI9InVybCgjc2hhZG93KSIgZD0iTTIwIDJDMTEgMiA0IDkgNCAyMGMwIDE2IDEwIDI0IDE2IDI0czE2LTggMTYtMjRjMC0xMS05LTE4LTIwLTE4eiIvPjxjaXJjbGUgY3g9IjIwIiBjeT0iMjAiIHI9IjgiIGZpbGw9IiNmZmYiLz48Y2lyY2xlIGN4PSIyMCIgY3k9IjIwIiByPSI1IiBmaWxsPSIjMDA2NkNDIi8+PC9zdmc+',
-      iconSize: [40, 50],
-      iconAnchor: [20, 50],
-      popupAnchor: [0, -50],
-      shadowUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgdmlld0JveD0iMCAwIDQwIDQwIj48ZWxsaXBzZSBjeD0iMjAiIGN5PSIzMiIgcng9IjE4IiByeT0iNiIgZmlsbD0iIzAwMDAwMCIgb3BhY2l0eT0iMC4yIi8+PC9zdmc+',
-      shadowSize: [40, 40],
-      shadowAnchor: [20, 40]
-    });
-
-    var marker = L.marker([10.2906, 123.6474], { icon: markerIcon }).addTo(map);
-    marker.bindPopup(
-      '<div style="font-family:Arial,sans-serif;padding:8px;text-align:center;">' +
-      '<strong style="font-size:14px;color:#004080;">🌊 AGUS</strong><br/>' +
-      '<span style="font-size:12px;color:#666;">Carcar Water District</span><br/>' +
-      '<span style="font-size:11px;color:#999;">Pump Station Dashboard</span>' +
-      '</div>',
-      { maxWidth: 250 }
-    );
-
-    // Handle map theme changes based on light/dark mode
-    function updateMapTheme() {
-      var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-      if (isDark) {
-        mapElement.style.filter = 'brightness(0.85) contrast(1.1)';
-      } else {
-        mapElement.style.filter = 'brightness(1) contrast(1)';
-      }
-    }
-
-    // Watch for theme changes
-    var observer = new MutationObserver(function(mutations) {
-      mutations.forEach(function(mutation) {
-        if (mutation.attributeName === 'data-theme') {
-          updateMapTheme();
-        }
-      });
-    });
-
-    observer.observe(document.documentElement, { attributes: true });
-    updateMapTheme();
-
-    // Resize map when container changes
-    setTimeout(function() {
-      map.invalidateSize();
-    }, 100);
-
-    // Store map reference for debugging
-    window.agusMap = map;
-  }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initializeMap);
-  } else {
-    initializeMap();
-  }
-})();
-</script>
-
 </body>
 </html>
