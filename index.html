@@ -1814,7 +1814,11 @@
   /* ═══════════════════════════════════════════════════════════════
      MAP BASEMAP SWITCHER (Satellite / Street) - OpenLayers control
      ═══════════════════════════════════════════════════════════════ */
-  #map-basemap{display:flex;flex-direction:column;gap:4px;background:transparent;}
+  /* ol 7.5.0 has no Control.setPosition - place the switcher with CSS.
+     Top-left, just under the OL zoom buttons: bottom-left is occupied by the
+     fixed "Get Fault Alerts" push bar (z-index 9990).
+     Parent .ol-overlaycontainer-stopevent is pointer-events:none, so re-enable. */
+  #map-basemap{position:absolute;left:10px;top:92px;z-index:2;pointer-events:auto;display:flex;flex-direction:column;gap:4px;background:transparent;}
   #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
   #map-basemap .mb:hover{background:#004080;color:#fff;border-color:#004080;}
   #map-basemap .mb.active{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;border-color:#002b5c;box-shadow:0 3px 10px rgba(0,60,140,.35);}
@@ -2100,11 +2104,11 @@
       <label for="pipecm-mat"><input type="radio" name="pipecm" id="pipecm-mat" value="mat" checked onchange="applyPipeFilter();" style="accent-color:#2563eb;"> Material</label>
       <label for="pipecm-size"><input type="radio" name="pipecm" id="pipecm-size" value="size" onchange="applyPipeFilter();" style="accent-color:#2563eb;"> Size</label>
     </div>
-    <div style="margin-top:6px;">
+    <div style="margin-top:6px;" id="pipe-mats-wrap">
       <div style="font-size:10px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Material</div>
       <div class="pipe-chips" id="pipe-mats"><small style="color:#94a3b8;">Loading pipe data&hellip;</small></div>
     </div>
-    <div style="margin-top:8px;">
+    <div style="margin-top:8px;" id="pipe-sizes-wrap">
       <div style="font-size:10px;font-weight:700;color:#7c8ba1;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;">Size <span style="font-weight:600;text-transform:none;letter-spacing:0;">&middot; line thickness</span></div>
       <div class="pipe-chips" id="pipe-sizes"><small style="color:#94a3b8;">Loading pipe data&hellip;</small></div>
     </div>
@@ -3555,7 +3559,6 @@ var BasemapSwitcher = new ol.control.Control({
     return d;
   })()
 });
-BasemapSwitcher.setPosition('bottom-left');
 map.addControl(BasemapSwitcher);
 setBasemap(_basemap);
 var deviceSource = new ol.source.Vector();
@@ -3910,14 +3913,16 @@ var PIPE_SOURCES = ['PipelineColorCode.geojson', 'PipelineColorCode (2).geojson'
 var pipelineSource = new ol.source.Vector();
 var pipelineLayer = new ol.layer.Vector({ source: pipelineSource, style: function (feature) {
   var band = PIPE_SIZE_BANDS[pipeBand(feature.get('DIAMETER'))];
-  var hidden = !pipeFilter.mat[pipeMaterialKey(feature.get('MATERIALS'))] || !pipeFilter.band[band.k];
+  var mk = pipeMaterialKey(feature.get('MATERIALS'));
+  /* Filtered out -> not rendered at all, exactly like the Leak Detection map.
+     Returning null also removes it from hit detection. */
+  if (!pipeFilter.mat[mk] || !pipeFilter.band[band.k]) return null;
   var status = String(feature.get('STATUS') || '').trim();
   var closed = status !== '' && status.toLowerCase() !== 'open';
   var color, width, opacity;
-  if (hidden) { color = '#cbd5e1'; width = Math.max(1, band.w * 0.5); opacity = 0.3; }
-  else if (closed) { color = '#EF4444'; width = band.w; opacity = 0.5; }
+  if (closed) { color = '#EF4444'; width = band.w; opacity = 0.5; }
   else if (pipeMode === 'size') { color = band.c; width = band.w; opacity = 0.9; }
-  else { color = pipeMaterialColor(feature.get('MATERIALS')); width = band.w; opacity = 0.75; }
+  else { color = PIPE_MATERIALS[mk].c; width = band.w; opacity = 0.75; }
   return new ol.style.Style({ stroke: new ol.style.Stroke({ color: color, width: width, opacity: opacity }) });
 }});
 window.pipelineLayer = pipelineLayer;
@@ -4075,6 +4080,10 @@ function applyPipeFilter() {
   var mode = document.querySelector('input[name="pipecm"]:checked');
   pipeMode = mode ? mode.value : 'mat';
   try { localStorage.setItem('agus_pipe_mode_v1', pipeMode); } catch (e) {}
+  /* show only the filter group that matches the active colouring mode */
+  var mw = document.getElementById('pipe-mats-wrap'), sw = document.getElementById('pipe-sizes-wrap');
+  if (mw) mw.style.display = (pipeMode === 'size') ? 'none' : '';
+  if (sw) sw.style.display = (pipeMode === 'size') ? '' : 'none';
   var shown = 0, km = 0;
   pipelineSource.forEachFeature(function (f) {
     var band = PIPE_SIZE_BANDS[pipeBand(f.get('DIAMETER'))];
@@ -4088,10 +4097,16 @@ function applyPipeFilter() {
     + (pipeMode === 'size' ? 'size' : 'material'));
 }
 window.applyPipeFilter = applyPipeFilter;
-try {
-  var _pm = localStorage.getItem('agus_pipe_mode_v1');
-  if (_pm === 'size') pipeMode = 'size';
-} catch (e) {}
+/* Restore the saved colouring mode and make every pipecm radio agree with it,
+   otherwise applyPipeFilter() would read the static "checked" attribute and
+   silently overwrite the stored preference. */
+(function () {
+  var saved = 'mat';
+  try { if (localStorage.getItem('agus_pipe_mode_v1') === 'size') saved = 'size'; } catch (e) {}
+  pipeMode = saved;
+  var radios = document.querySelectorAll('input[name="pipecm"]');
+  for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === saved);
+})();
 loadPipelines(0);
 /* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
 (function() {
@@ -13808,5 +13823,7 @@ document.addEventListener('keydown', function(e) {
   }
   place();
 })();
+</script>
+
 </body>
 </html>
