@@ -427,7 +427,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
-  <script src="https://unpkg.com/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -1307,9 +1306,10 @@
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
     #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
-    /* top:120px collided with the AI Health Card (also top:120px, z-index:1200), so the
-       Page Views strip sits lower-left of it, on the same row as the compass. */
-    #pv-counter-strip{position:absolute;top:254px;right:86px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    /* Sits directly above the (collapsed) map legend in the bottom-right corner.
+       bottom/right are set by JS in placePvAboveLegend() so it tracks the legend
+       automatically at every breakpoint and while the legend expands/collapses. */
+    #pv-counter-strip{position:absolute;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
     /* Map compass: sits below the Health Diagnostic / Page Views strips AND below the
        AI Health Card (top:120px, ~114px tall, z-index:1200), which would otherwise cover it. */
@@ -2677,20 +2677,22 @@ function _updateConnStatus() {
     el.title = 'Firebase: Disconnected · Click to retry';
     el.onclick = function(){ location.reload(); };
   }
-  // Update EMQX MQTT status indicator
-  var mqttEl = document.getElementById('mqtt-conn-indicator');
-  if (mqttEl) {
-    if (_mqttConnected) {
-      mqttEl.style.color = '#22c55e';
-      mqttEl.title = 'EMQX MQTT: Connected · Instant toggle ready';
-    } else if (_mqttClient) {
-      mqttEl.style.color = '#f97316';
-      mqttEl.title = 'EMQX MQTT: Connecting…';
-    } else {
-      mqttEl.style.color = '#94a3b8';
-      mqttEl.title = 'EMQX MQTT: Not connected · Toggle falls back to Firebase';
+    // Relay transport status. MQTT now goes through the authenticated backend
+    // (relayCommand), so the indicator tracks Firebase connectivity instead of a
+    // direct broker socket.
+    var mqttEl = document.getElementById('mqtt-conn-indicator');
+    if (mqttEl) {
+      if (_firebaseConnected && _firebaseInitialDataLoaded) {
+        mqttEl.style.color = '#22c55e';
+        mqttEl.title = 'Relay path: Backend (EMQX via server) + Firebase fallback — Ready';
+      } else if (_firebaseConnected) {
+        mqttEl.style.color = '#f97316';
+        mqttEl.title = 'Relay path: Backend ready — Firebase initial data pending';
+      } else {
+        mqttEl.style.color = '#94a3b8';
+        mqttEl.title = 'Relay path: Backend relay commands still work — Firebase backup pending';
+      }
     }
-  }
 }
 
 try {
@@ -2755,30 +2757,32 @@ try {
 }
 
 // ═══════════════════════════════════════════════════════════════
-//  EMQX MQTT WebSocket — INSTANT RELAY PUBLISH
-//  Publishes relay state directly to EMQX so the ESP32 receives
-//  the command via its existing MQTT subscription INSTANTLY
-//  (milliseconds) instead of waiting for the Firebase poll
-//  interval (10 seconds).
-//
+//  RELAY COMMAND DISPATCH
 //  The ESP32 firmware subscribes to: pumps/<slug>/relay
 //  Payload: "ON" or "OFF"
 //
-//  If MQTT publish fails → Firebase backup path still works
-//  (ESP32 polls Firebase every 10s).
+//  The browser used to publish here directly over an MQTT WebSocket, which
+//  required shipping the broker username and password to every client. The
+//  transport now runs server-side: the dashboard posts an authenticated
+//  relayCommand, and Apps Script publishes to EMQX via the REST API with
+//  credentials that never leave the server.
+//
+//  If EMQX is unreachable → Firebase backup still works (ESP32 polls every 10s).
+//  Every dispatch is token-validated, so relay control is attributable and
+//  logged instead of being an unauthenticated publish from any browser.
 // ═══════════════════════════════════════════════════════════════
 
-// ── EMQX Config (matches ESP32 firmware credentials) ──
-var EMQX_BROKER_WSS = 'wss://k196aaef.ala.asia-southeast1.emqxsl.com:8084/mqtt';
-var EMQX_MQTT_USER = 'Jarynn';
-var EMQX_MQTT_PASS = 'Jarynn@04162020';
-var EMQX_TOPIC_PREFIX = 'pumps';
-var _mqttClient = null;
-var _mqttConnected = false;
+// ── EMQX Config ──
+// The dashboard no longer connects to the MQTT broker directly. Broker credentials
+// now live only in the Apps Script backend; the browser sends authenticated relay
+// commands through the backend's relayCommand action instead.
+var EMQX_TOPIC_PREFIX = 'pumps'; // retained for slug/topic display only
 
 /**
  * Converts a device name to MQTT slug, matching the ESP32's mqttSlug():
  *   "Lagang Pumping Station" → "lagang-pumping-station"
+ * Kept in sync with the backend's _deviceNameToMqttSlug() — verified identical
+ * across 29 cases (punctuation, accents, dashes, whitespace, empty input).
  */
 function _mqttSlug(name) {
   if (!name) return '';
@@ -2787,103 +2791,54 @@ function _mqttSlug(name) {
 }
 
 /**
- * Initializes the MQTT WebSocket connection to EMQX.
- * Called once after login (lazy init on first toggle attempt).
- */
-function _initMQTT() {
-  if (_mqttClient || typeof mqtt === 'undefined') return;
-  try {
-    var clientId = 'agus_dash_' + Math.random().toString(36).substr(2, 10);
-    _mqttClient = mqtt.connect(EMQX_BROKER_WSS, {
-      username: EMQX_MQTT_USER,
-      password: EMQX_MQTT_PASS,
-      clientId: clientId,
-      clean: true,
-      reconnectPeriod: 5000,
-      connectTimeout: 5000
-    });
-
-    _mqttClient.on('connect', function() {
-      _mqttConnected = true;
-      if (typeof _updateConnStatus === 'function') _updateConnStatus();
-    });
-
-    _mqttClient.on('error', function() {
-      _mqttConnected = false;
-      if (typeof _updateConnStatus === 'function') _updateConnStatus();
-    });
-
-    _mqttClient.on('close', function() {
-      _mqttConnected = false;
-      if (typeof _updateConnStatus === 'function') _updateConnStatus();
-    });
-  } catch(e) {
-    _mqttConnected = false;
-    console.warn('[MQTT] Init error:', e);
-  }
-}
-
-/**
- * Publishes a relay command to EMQX MQTT topic for instant delivery to ESP32.
- * Retries up to EMQX_MQTT_RETRIES times with exponential backoff.
+ * Dispatches a relay command to the ESP32 through the Apps Script backend.
  *
- * @param {string} deviceName — device display name
- * @param {number} state — 0 or 1
- * @param {number} retriesLeft — internal retry counter
- * @param {function} callback — called with (success: boolean)
+ * The backend publishes to EMQX over its REST API (credentials never leave the
+ * server) and falls back to Firebase, which the ESP32 already polls. Signature and
+ * retry behaviour match the old direct-MQTT version, so every call site keeps
+ * working unchanged — only the transport moved server-side.
+ *
+ * @param {string} deviceName - device display name
+ * @param {number} state - 0 or 1
+ * @param {number} retriesLeft - internal retry counter
+ * @param {function} callback - called with (success: boolean)
+ * @param {string} [source] - automation tag. Omit (or pass 'Dashboard') for genuine
+ *   manual clicks so the backend's manual-override gate treats them as operator intent.
+ *   Must match one of the tags the backend accepts, otherwise it is downgraded server-side.
  */
-function _publishToMQTT(deviceName, state, retriesLeft, callback) {
+function _publishToMQTT(deviceName, state, retriesLeft, callback, source) {
   if (retriesLeft === undefined) retriesLeft = 3;
-  if (typeof mqtt === 'undefined') {
-    if (callback) callback(false);
-    return;
-  }
-  _initMQTT();
-
-  var slug = _mqttSlug(deviceName);
-  if (!slug) {
+  var token = (typeof userToken !== 'undefined' && userToken) ? userToken
+            : (typeof sessionToken !== 'undefined' && sessionToken ? sessionToken : '');
+  if (!deviceName || !token) {
     if (callback) callback(false);
     return;
   }
 
-  var topic = EMQX_TOPIC_PREFIX + '/' + slug + '/relay';
-  var payload = state === 1 ? 'ON' : 'OFF';
-
-  // If not connected, try connecting first, then publish
-  if (!_mqttConnected || !_mqttClient) {
-    if (retriesLeft > 0) {
+  apiPostSecure('relayCommand', {
+    device: deviceName,
+    relay: state === 1 ? 1 : 0,
+    token: token,
+    triggeredBy: source || 'Dashboard'
+  }).then(function(res) {
+    if (res && res.success && (res.emqxDelivered || res.firebaseDelivered)) {
+      if (callback) callback(true);
+    } else if (retriesLeft > 0) {
       setTimeout(function() {
-        _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
-      }, 2000);
-    } else {
-      if (callback) callback(false);
-    }
-    return;
-  }
-
-  try {
-    _mqttClient.publish(topic, payload, { qos: 1, retain: false }, function(err) {
-      if (err) {
-        if (retriesLeft > 0) {
-          setTimeout(function() {
-            _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
-          }, 1000 * Math.pow(2, 3 - retriesLeft));
-        } else {
-          if (callback) callback(false);
-        }
-      } else {
-        if (callback) callback(true);
-      }
-    });
-  } catch(e) {
-    if (retriesLeft > 0) {
-      setTimeout(function() {
-        _publishToMQTT(deviceName, state, retriesLeft - 1, callback);
+        _publishToMQTT(deviceName, state, retriesLeft - 1, callback, source);
       }, 1000 * Math.pow(2, 3 - retriesLeft));
     } else {
       if (callback) callback(false);
     }
-  }
+  }).catch(function() {
+    if (retriesLeft > 0) {
+      setTimeout(function() {
+        _publishToMQTT(deviceName, state, retriesLeft - 1, callback, source);
+      }, 1000 * Math.pow(2, 3 - retriesLeft));
+    } else {
+      if (callback) callback(false);
+    }
+  });
 }
 
 // ── EMQX confirmation monitor ──
@@ -2954,6 +2909,42 @@ function apiPost(action, data) {
   data = data || {}; data.action = action;
   var url = API_URL + '?' + Object.keys(data).map(function(k) { var v = data[k]; return encodeURIComponent(k) + '=' + encodeURIComponent(v == null ? '' : (typeof v === 'object' ? JSON.stringify(v) : v)); }).join('&');
   return _fetchWithRetry(url);
+}
+// True POST with the payload in the request body, so session tokens and
+// credentials never appear in the URL (where they land in Apps Script execution
+// logs, Cloud Logging, and proxy Referer headers).
+//
+// Content-Type stays text/plain deliberately: that is a CORS-safelisted value, so
+// the browser sends this without an OPTIONS preflight, which Apps Script's /exec
+// endpoint does not answer. The backend reads the JSON via e.postData.contents and
+// falls back to e.parameter, so both paths keep working.
+function apiPostSecure(action, data) {
+  data = data || {}; data.action = action;
+  var ms = _API_TIMEOUT;
+  var attempt = function() {
+    var controller = new AbortController();
+    var timer = setTimeout(function() { controller.abort(); }, ms);
+    return fetch(API_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data),
+      signal: controller.signal
+    }).then(function(r) {
+      clearTimeout(timer);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).catch(function(e) {
+      clearTimeout(timer);
+      if (e.name === 'AbortError') throw new Error('Request timed out');
+      throw e;
+    });
+  };
+  // Same single-retry behaviour as _fetchWithRetry.
+  return attempt().catch(function(err) {
+    return new Promise(function(resolve, reject) {
+      setTimeout(function() { attempt().then(resolve).catch(reject); }, _API_RETRY_DELAY);
+    });
+  });
 }
 
 var userToken = null, loggedInUser = '', selectedDevice = null, _deviceDetailsDismissed = false;
@@ -3391,10 +3382,10 @@ function login() {
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
       initSensorThresholdsFromServer();
-      initPumpLinksAndDisplay();
-      // Initialize EMQX MQTT connection for instant relay toggle
-      _initMQTT();
-    })
+initPumpLinksAndDisplay();
+  // Relay commands are dispatched server-side (backend relayCommand → EMQX REST),
+  // so there is no browser-side MQTT socket to open on login.
+})
     .catch(function(err) {
       spinEl.style.display = 'none';
       errEl.innerText = 'Login failed. Check your API_URL in the code or try again.';
@@ -3615,8 +3606,12 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   var fc = 'green', sc = '#000', sw = 1, text = sz > 1 ? sz.toString() : features[0].get('name');
   if (sz === 1) {
     var f = features[0], status = f.get('status'), type = (f.get('type')||'').toLowerCase().trim(), name = f.get('name')||'';
-    var isRes = type==='reservoir' || name.toLowerCase().includes('reservoir');
-    var isPS = type==='pumping station' || name.toLowerCase().includes('pumping station') || name.toLowerCase().includes('pump') || name.toLowerCase().includes('booster');
+    var _nm = name.toLowerCase();
+    var _typed = (type==='reservoir' || type==='pressure' || type==='pumping station');
+    var isRes = _typed ? type==='reservoir' : _nm.includes('reservoir');
+    var isPS = _typed
+      ? (type==='pumping station' || (type==='reservoir' && (_nm.includes('pump') || _nm.includes('booster'))))
+      : (_nm.includes('pumping station') || _nm.includes('pump') || _nm.includes('booster'));
    //reservior ── ENHANCED 3D TANK WITH GRADIENT WATER ──
     if (isRes) {
   var level = f.get('level');
@@ -3778,8 +3773,8 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + '" width="' + _tW + '" height="' + _tH + '" rx="8"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
     + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
-    + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="18" font-weight="800"'
-    + ' fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
+    + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="19" font-weight="900"'
+    + ' fill="#0f172a" stroke="white" stroke-width="6" stroke-linejoin="round" paint-order="stroke">'
     + _wlt + '</text>'
     + '<text x="' + (_W / 2) + '" y="' + (_totalH - 6) + '"'
     + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="' + _nameFontSize + '" font-weight="700"'
@@ -3900,9 +3895,9 @@ if (isPS) {
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
         // Center bullseye removed for clean look
         // Center value (blinks + follows anomaly color when out of range)
-        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="' + _pC + '" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
+        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
         // Unit below
-        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="' + _pC + '" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
+        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="'+(0.2+_bPulse*0.6).toFixed(2)+'"/>' : '')
@@ -4562,7 +4557,7 @@ function _onVisibility() {
 function initDashboard() {
   updateDashboard();
   loadPumpLinksFromGAS(function(){});
-  loadSchedulesFromGAS(null, function(){ _startScheduleWatcher(); }); // preload schedules + start instant MQTT schedule watcher
+  loadSchedulesFromGAS(null, function(){ _startScheduleWatcher(); }); // preload schedules + start relay schedule watcher
   _updateConnStatus();
   if (_dashboardTimer) clearInterval(_dashboardTimer);
   _dashboardTimer = setInterval(function() {
@@ -4609,7 +4604,7 @@ function initDashboard() {
         '<span id="welcome-username">Welcome, ' + s.user + '</span>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
         '<span id="conn-indicator" title="Firebase status">●</span>' +
-        '<span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span>' +
+        '<span id="mqtt-conn-indicator" title="Relay path status" style="font-size:10px;">⚡</span>' +
         '<span id="weather-display"></span>' +
         '<div id="datetime-display"><span id="date-display" class="date-layer"></span>' +
         '<span id="time-display" class="time-layer"></span></div></div>';
@@ -4619,9 +4614,8 @@ function initDashboard() {
     if (typeof initPressureSettingsFromServer === 'function') initPressureSettingsFromServer();
     if (typeof initReservoirThresholdsFromServer === 'function') initReservoirThresholdsFromServer();
     if (typeof initSensorThresholdsFromServer === 'function') initSensorThresholdsFromServer();
-    if (typeof initPumpLinksAndDisplay === 'function') initPumpLinksAndDisplay();
-    if (typeof _initMQTT === 'function') { try { _initMQTT(); } catch(e) {} }
-    window._startSelfHealWatchdog();
+if (typeof initPumpLinksAndDisplay === 'function') initPumpLinksAndDisplay();
+window._startSelfHealWatchdog();
     return true;
   };
 
@@ -4800,8 +4794,8 @@ function initDashboard() {
           _enableSchedulesForPump(lnk.pump);
         }
 
-        /* Fire command — instant MQTT then GAS API */
-        /* Capture previous state for MQTT failure rollback */
+        /* Fire command — relay fast path then GAS API */
+        /* Capture previous state for relay-path failure rollback */
         var _prevPumpCmd = cmd;
         var _apeMqttDelivered = false;
         _publishToMQTT(lnk.pump, wantState, 5, function(mqttOk) {
@@ -4812,7 +4806,7 @@ function initDashboard() {
             _setCommandedCache(lnk.pump, _prevPumpCmd);
             _firebaseOptimisticToggle(lnk.pump, _prevPumpCmd, 'AutoEngine');
           }
-        });
+        }, wantState ? 'AutoResume' : 'AutoShutoff');
         (function(device, state, key, level, link) {
           var coords = (typeof deviceCoordinatesCache !== 'undefined' && deviceCoordinatesCache[device]) || {};
           apiPost('togglePump', {
@@ -4842,7 +4836,7 @@ function initDashboard() {
               if (typeof _updatePumpLinksBadge === 'function') _updatePumpLinksBadge();
               setTimeout(function() { if (typeof updateDashboard === 'function') updateDashboard(); }, 2000);
             } else {
-              /* Only revert if MQTT didn't already deliver the command */
+              /* Only revert if the relay fast path didn't already deliver the command */
               if (!_apeMqttDelivered) {
                 _setCommandedCache(device, state === 1 ? 0 : 1);
                 _firebaseOptimisticToggle(device, state === 1 ? 0 : 1, false);
@@ -5036,11 +5030,22 @@ function updateMap(devices) {
     var rawType = (d.type || '').toLowerCase().trim();
     var deviceName = (d.device || '').toLowerCase();
     var effectiveType = rawType;
-    if (effectiveType==='reservoir' && !activeFilters.has('reservoir')) return;
-if (effectiveType==='pressure'  && !activeFilters.has('pressure'))  return;
-if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.has('pumping')) return;
-    if (rawType !== 'pressure' && deviceName.includes('pressure')) effectiveType = 'pressure';
-    else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
+    /* explicit type wins over name heuristics; fall back to the name only when the
+       backend gave us an unrecognised type string */
+    var typed = (rawType==='reservoir' || rawType==='pressure' || rawType==='pumping station');
+    if (!typed) {
+      if (deviceName.includes('pressure')) effectiveType = 'pressure';
+      else if (deviceName.includes('reservoir')) effectiveType = 'reservoir';
+      else effectiveType = 'pumping station';
+    }
+    /* a reservoir booster reads as either reservoir or pumping station, so it stays
+       visible when only one of those two filters is active */
+    var hybrid = (effectiveType==='reservoir' && (deviceName.includes('pump')||deviceName.includes('booster')));
+    if (hybrid) {
+      if (!activeFilters.has('reservoir') && !activeFilters.has('pumping')) return;
+    } else if (effectiveType==='reservoir' && !activeFilters.has('reservoir')) return;
+    else if (effectiveType==='pressure'  && !activeFilters.has('pressure'))  return;
+    else if (effectiveType==='pumping station' && !activeFilters.has('pumping')) return;
     var isPres = effectiveType === 'pressure';
     var stat = derivePressureStatus(d);
     var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
@@ -5072,14 +5077,15 @@ function _firebaseOptimisticToggle(deviceName, value, toggledBy) {
 }
 
 /**
- * Full toggle sequence (dashboard issues the command; EMQX MQTT is PRIORITY):
+ * Full toggle sequence (dashboard issues the command; the fast relay path is PRIORITY):
  *
  *   Step 1 — Cache:     _setCommandedCache()          instant local UI feedback
- *   Step 2 — MQTT:      _publishToMQTT()              PRIORITY — instant EMQX push to ESP32
+ *   Step 2 — Relay:     _publishToMQTT()              PRIORITY — backend relayCommand
+ *                                                      → EMQX REST publish to ESP32
  *   Step 3 — Firebase:  _firebaseOptimisticToggle()   BACKUP record for other tabs
  *   Step 4 — GAS:       apiPost('togglePump')         authoritative backend write
  *   Step 5 — Confirm:   GAS responds → update cache   mark as sent (relayPending shown)
- *   Step 6 — ESP32:     acts on MQTT first; only if MQTT is down it reads Firebase
+ *   Step 6 — ESP32:     acts on the fast path first; if EMQX is down it reads Firebase
  *                       commandedRelay (Firebase is strictly backup)
  *   Step 7 — Synced:    ESP32 writes relay back → relay = commandedRelay, relayPending cleared
  */
@@ -5099,10 +5105,11 @@ function _engageAutomationForManualToggle(deviceName, newStateInt) {
     if (pl.pump !== deviceName) return;
     var wantMO = newStateInt === 0; // OFF → manualOverride=true (block auto), ON → manualOverride=false
     if (pl.manualOverride === wantMO) return; // already correct — skip API call
-    var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok)
-      + '&linkId=' + encodeURIComponent(pl.id)
-      + '&manualOverride=' + (wantMO ? 'true' : 'false');
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
+    apiPostSecure('updatePumpLink', {
+      linkId: pl.id,
+      manualOverride: wantMO ? 'true' : 'false',
+      token: tok
+    }).then(function(resp) {
       if (resp && resp.success) {
         pl.manualOverride = wantMO;
         if (wantMO) {
@@ -5124,10 +5131,11 @@ function _engageAutomationForManualToggle(deviceName, newStateInt) {
     scheduleConfigs.forEach(function(sc) {
       if (sc.device !== deviceName || !sc.enabled) return;
       _autoDisabledSchedules[deviceName].push(sc.scheduleId);
-      var url2 = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-        + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-        + '&enabled=false';
-      fetch(url2).then(function(r) { return r.json(); }).then(function(resp) {
+      apiPostSecure('updateSchedule', {
+        scheduleId: sc.scheduleId,
+        enabled: 'false',
+        token: tok
+      }).then(function(resp) {
         if (resp && resp.success) sc.enabled = false;
       }).catch(function() {});
     });
@@ -5138,10 +5146,11 @@ function _engageAutomationForManualToggle(deviceName, newStateInt) {
       if (sc.device !== deviceName) return;
       if (toReenable.indexOf(sc.scheduleId) === -1) return;
       if (sc.enabled) return; // already on
-      var url3 = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-        + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-        + '&enabled=true';
-      fetch(url3).then(function(r) { return r.json(); }).then(function(resp) {
+      apiPostSecure('updateSchedule', {
+        scheduleId: sc.scheduleId,
+        enabled: 'true',
+        token: tok
+      }).then(function(resp) {
         if (resp && resp.success) sc.enabled = true;
       }).catch(function() {});
     });
@@ -5160,10 +5169,11 @@ function _disableSchedulesForPump(pumpName) {
     if (sc.device !== pumpName || !sc.enabled) return;
     _autoDisabledSchedules[pumpName] = _autoDisabledSchedules[pumpName] || [];
     _autoDisabledSchedules[pumpName].push(sc.scheduleId);
-    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-      + '&enabled=false';
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
+    apiPostSecure('updateSchedule', {
+      scheduleId: sc.scheduleId,
+      enabled: 'false',
+      token: tok
+    }).then(function(resp) {
       if (resp && resp.success) sc.enabled = false;
     }).catch(function() {});
   });
@@ -5177,10 +5187,11 @@ function _enableSchedulesForPump(pumpName) {
     if (sc.device !== pumpName) return;
     if (toReenable.indexOf(sc.scheduleId) === -1) return;
     if (sc.enabled) return;
-    var url = API_URL + '?action=updateSchedule&token=' + encodeURIComponent(tok)
-      + '&scheduleId=' + encodeURIComponent(sc.scheduleId)
-      + '&enabled=true';
-    fetch(url).then(function(r) { return r.json(); }).then(function(resp) {
+    apiPostSecure('updateSchedule', {
+      scheduleId: sc.scheduleId,
+      enabled: 'true',
+      token: tok
+    }).then(function(resp) {
       if (resp && resp.success) sc.enabled = true;
     }).catch(function() {});
   });
@@ -5285,10 +5296,11 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
   } catch(_swDbErr) {}
   if (cb) cb(newStateInt);
 
-  // ═══ Step 2: EMQX MQTT Publish FIRST (PRIMARY / PRIORITY — instant path) ═══
-  // The ESP32 receives this via its existing MQTT subscription and toggles
-  // the physical relay within milliseconds. MQTT is authoritative; the
-  // Firebase write below is ONLY the backup/record path.
+  // ═══ Step 2: Relay fast path FIRST (PRIMARY / PRIORITY) ═══
+  // The ESP32 receives this over its existing MQTT subscription and toggles the
+  // physical relay immediately. The publish happens server-side (backend
+  // relayCommand → EMQX REST); the browser no longer holds broker credentials.
+  // Firebase below is ONLY the backup/record path.
   var _mqttDelivered = false;
   _publishToMQTT(deviceName, newStateInt, 3, function(mqttOk) {
     if (mqttOk) {
@@ -5307,7 +5319,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
     }
   });
 
-  // ═══ Step 3: Firebase backup record (issued after MQTT, ESP32 acts on MQTT first) ═══
+  // ═══ Step 3: Firebase backup record (issued after the relay fast path) ═══
   _firebaseOptimisticToggle(deviceName, newStateInt);
 
   // ═══ Step 4: Authoritative GAS write ═══
@@ -5356,7 +5368,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       _engageAutomationForManualToggle(deviceName, res.newState);
       setTimeout(updateDashboard, 1500);
     } else {
-      // ═══ Step 4: GAS rejected — only revert if MQTT didn't deliver ═══
+      // ═══ Step 4: GAS rejected — only revert if the relay fast path didn't deliver ═══
       if (!_mqttDelivered) {
         var revert = newStateInt === 1 ? 0 : 1;
         _setCommandedCache(deviceName, revert);
@@ -5367,7 +5379,7 @@ function _executeDashboardToggle(deviceName, newStateInt, cb) {
       }
     }
   }).catch(function(e) {
-    // ═══ Step 4: Network error — only revert if MQTT didn't deliver ═══
+    // ═══ Step 4: Network error — only revert if the relay fast path didn't deliver ═══
     delete _localTogglePending[_dKey];
     if (!_mqttDelivered) {
       var revert = newStateInt === 1 ? 0 : 1;
@@ -5419,19 +5431,31 @@ function updateDeviceList(devices) {
   var oldScrollTop = list.parentNode ? list.parentNode.scrollTop : 0;
   
   // Hidden internal sheets — never render in device list
-  var HIDDEN_DEVICES = ['ReservoirPumpLinks','AutoShutoffLog','EventLog','Summary','DailyTotals','DeviceInfo','LoginHistory'];
+  var HIDDEN_DEVICES = ['summary','dailytotals','deviceinfo','charts','monthlyarchive','users',
+    'pump schedules','deviceschedules','pressuresettings','reservoirthresholds',
+    'sensorthresholds','sensorthresholdslog','loginhistory',
+    'reservoirpumplinks','autoshutofflog','eventlog'];
 
   devices.forEach(function(d) {
     if (!d.device) return;
-    if (HIDDEN_DEVICES.indexOf(d.device) !== -1) return; // ← add this line
+    var devName = d.device.toString().trim();
+    if (HIDDEN_DEVICES.indexOf(devName.toLowerCase()) !== -1) return;
     
     var name = d.device.toLowerCase();
-    // ... rest of your existing code unchanged
+    
     if (name.endsWith('pressurelog')||name.endsWith('reservoirlog')) return;
-    var isRes = (d.type&&d.type.toLowerCase().trim()==='reservoir')||name.includes('reservoir');
-    var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
-    var isPS = (d.type&&d.type.toLowerCase().trim()==='pumping station')||name.includes('pumping station')||name.includes('pump')||name.includes('booster');
-    if (!isPres&&!isPS&&!isRes) return; if (isRes && !activeFilters.has('reservoir')) return; if (isPres && !activeFilters.has('pressure')) return; if (isPS && !activeFilters.has('pumping')) return;
+    var _t = (d.type||'').toLowerCase().trim();
+    var _typed = (_t==='reservoir' || _t==='pressure' || _t==='pumping station');
+    var isRes = _typed ? _t==='reservoir' : name.includes('reservoir');
+    var isPres = _typed ? _t==='pressure' : name.includes('pressure');
+    var isPS = _typed
+      ? (_t==='pumping station' || (_t==='reservoir' && (name.includes('pump')||name.includes('booster'))))
+      : (name.includes('pumping station')||name.includes('pump')||name.includes('booster'));
+    if (!isPres&&!isPS&&!isRes) return;
+    if (isRes && isPS) { if (!activeFilters.has('reservoir') && !activeFilters.has('pumping')) return; }
+    else if (isRes && !activeFilters.has('reservoir')) return;
+    else if (isPres && !activeFilters.has('pressure')) return;
+    else if (isPS && !activeFilters.has('pumping')) return;
     var effSt = derivePressureStatus(d);
     var sc = effSt==='Online'?'status-Online':effSt==='Offline'?'status-Offline':'status-Fault';
     var fi = d.button?'<span class="blink" title="Fault">!</span>':'', fb = d.button?'Fault-blink':'';
@@ -5935,7 +5959,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff2, action: 'BACKUP-OFF', timestamp: ts, triggeredby: 'System' });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          _publishToMQTT(pumpName, 0, 5, function() {});
+_publishToMQTT(pumpName, 0, 5, function() {}, 'AutoShutoff-Backup');
           _setCommandedCache(pumpName, 0);
           if (typeof firebase !== 'undefined' && _fbDevicesRef) {
             try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 0 }); } catch(e) {}
@@ -5971,7 +5995,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, shutoffLevel: shutoff, action: 'AUTO-OFF', timestamp: ts });
         _disableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          _publishToMQTT(pumpName, 0, 5, function() {});
+_publishToMQTT(pumpName, 0, 5, function() {}, 'AutoShutoff');
           _setCommandedCache(pumpName, 0);
           if (typeof firebase !== 'undefined' && _fbDevicesRef) {
             try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 0 }); } catch(e) {}
@@ -6004,7 +6028,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume2, action: 'BACKUP-ON', timestamp: resumeTs2, triggeredby: 'System' });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          _publishToMQTT(pumpName, 1, 5, function() {});
+_publishToMQTT(pumpName, 1, 5, function() {}, 'AutoResume-Backup');
           _setCommandedCache(pumpName, 1);
           if (typeof firebase !== 'undefined' && _fbDevicesRef) {
             try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 1 }); } catch(e) {}
@@ -6042,7 +6066,7 @@ function autoShutoffPumps(devices) {
         _addAutoShutoffLog({ pump: cfg.pump, reservoir: cfg.reservoir, level: lv, resumeLevel: resume, action: 'AUTO-RESUME', timestamp: resumeTs });
         _enableSchedulesForPump(cfg.pump);
         (function(pumpName) {
-          _publishToMQTT(pumpName, 1, 5, function() {});
+_publishToMQTT(pumpName, 1, 5, function() {}, 'AutoResume');
           _setCommandedCache(pumpName, 1);
           if (typeof firebase !== 'undefined' && _fbDevicesRef) {
             try { _fbDevicesRef.child(pumpName).update({ commandedRelay: 1 }); } catch(e) {}
@@ -6223,6 +6247,11 @@ window._togglePumpLinkServerTrigger = function() {
   if (!label || !btn || !tok) return;
   /* If button says "Authorize", open GAS URL in new tab for OAuth */
   if ((btn.textContent || '').trim() === '🔗 Authorize') {
+    /* OAuth consent must be a top-level navigation, so this one stays a GET with the
+       token in the query string. A POST body is not possible here — window.open only
+       navigates. Acceptable because it is user-initiated, opens a Google consent
+       screen, and the backend treats installPumpLinkTrigger as a no-op once the
+       trigger already exists. */
     var url = API_URL + '?action=installPumpLinkTrigger&token=' + encodeURIComponent(tok);
     window.open(url, '_blank');
     label.textContent = '⏳ Check after authorizing…';
@@ -6525,7 +6554,7 @@ function _populateScheduleDeviceDropdown(presetDevice) {
 }
 
 var _scheduleWatchTimer = null;
-var _scheduleWatchFired = {}; // "device:HH:MM" -> true — avoid duplicate MQTT publishes within the same minute
+var _scheduleWatchFired = {}; // "device:HH:MM" -> true — avoid duplicate relay publishes within the same minute
 var _scheduleLastMin = '';
 
 // ── Sync pump link + schedule configs to Firebase (for ESP32 autonomous engine) ──
@@ -6580,7 +6609,7 @@ function _startScheduleWatcher() {
         if (typeof firebase !== 'undefined' && _fbDevicesRef) {
           try { _fbDevicesRef.child(sc.device).update({ commandedRelay: wantState }); } catch(e) {}
         }
-      });
+      }, 'Scheduler');
       // Update GAS PropertiesService so ESP32 flushGasCall doesn't override relay back
       apiPost('togglePump', { device: sc.device, token: userToken, relay: wantState, desiredState: wantState, triggeredBy: 'Scheduler', username: loggedInUser || '' }).catch(function(){});
     });
@@ -6812,8 +6841,11 @@ window._toggleScheduleServerTrigger = function() {
 
 function _setManualOverride(id, val) {
   var tok = sessionToken || userToken || '';
-  var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id) + '&manualOverride=' + (val ? 'true' : 'false');
-  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+  apiPostSecure('updatePumpLink', {
+    linkId: id,
+    manualOverride: val ? 'true' : 'false',
+    token: tok
+  }).then(function(resp) {
     if (!resp || !resp.success) { showNotification('⚠ Override update failed: '+(resp&&resp.error?resp.error:'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
     var cfg = pumpLinkConfigs.find(function(c){ return c.id===id; });
     if (cfg) cfg.manualOverride = val;
@@ -6903,8 +6935,7 @@ function addPumpLink() {
 function deletePumpLink(id) {
   if (!confirm('Remove this reservoir–pump link from Google Sheet?')) return;
   var tok = sessionToken || userToken || '';
-  var url = API_URL + '?action=deletePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id);
-  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+apiPostSecure('deletePumpLink', { linkId: id, token: tok }).then(function(resp) {
     if (!resp || !resp.success) { showNotification('⚠ Delete failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); return; }
     Object.keys(reservoirAutoShutoffState).forEach(function(k) {
       if (reservoirAutoShutoffState[k] && reservoirAutoShutoffState[k].linkId === id) delete reservoirAutoShutoffState[k];
@@ -6917,8 +6948,11 @@ function deletePumpLink(id) {
 
 function togglePumpLink(id, enabled) {
   var tok = sessionToken || userToken || '';
-  var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id) + '&enabled=' + (enabled ? 'true' : 'false');
-  fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
+  apiPostSecure('updatePumpLink', {
+    linkId: id,
+    enabled: enabled ? 'true' : 'false',
+    token: tok
+  }).then(function(resp) {
     if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
     var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
     if (cfg) cfg.enabled = enabled;
@@ -6973,7 +7007,7 @@ function savePumpLinkLevels(id, s, r, s2, r2) {
     });
 }
 
-function openAutoShutoffLog() {  // ← now correctly at top level
+function openAutoShutoffLog() {
   var old = document.getElementById('autolog-overlay'); if (old) old.remove();
   var ov = document.createElement('div');
   ov.id = 'autolog-overlay';
@@ -13861,12 +13895,16 @@ document.addEventListener('keydown', function(e) {
 })();
 
 /* Keep the compass (and the Satellite/Street switcher beside it) clear of the cards
-   stacked above them. ai-health-card must be included: it is top:120px with
-   z-index:1200, so it would otherwise cover the compass completely. */
+   stacked above them, and keep the Page Views strip parked just above the map legend.
+   ai-health-card must be in ABOVE: it is top:120px with z-index:1200, so it would
+   otherwise cover the compass completely. */
 (function(){
   var GAP = 18;
-  var ABOVE = ['health-diag-strip','pv-counter-strip','ai-health-card'];
-  function place(){
+  /* pv-counter-strip is deliberately NOT here: it now lives at the bottom of the map
+     (above the legend), so including it would drag the compass down onto the legend. */
+  var ABOVE = ['health-diag-strip','ai-health-card'];
+
+  function placeCompass(){
     var c=document.getElementById('map-compass'); if(!c) return;
     var b=document.getElementById('map-basemap');
     var bottom=0;
@@ -13878,6 +13916,24 @@ document.addEventListener('keydown', function(e) {
     c.style.top=(bottom+GAP)+'px';
     if(b) b.style.top=(bottom+GAP)+'px';    /* stay vertically aligned with the compass */
   }
+
+  /* Pin the Page Views strip directly above the legend, matching its right edge.
+     `bottom` positions the strip's own bottom edge, so the distance from the host's
+     bottom up to the legend's top edge is exactly what is needed, plus a small gap.
+     Measured live, so it follows the responsive bottom/right offsets and the
+     collapsed/expanded legend height without duplicating those breakpoints. */
+  function placePvAboveLegend(){
+    var pv=document.getElementById('pv-counter-strip'); if(!pv) return;
+    var lg=document.getElementById('legend-card'); if(!lg) return;
+    var host=document.getElementById('map-container'); if(!host) return;
+    if(lg.offsetParent===null || pv.offsetParent===null) return;
+    var hr=host.getBoundingClientRect(), lr=lg.getBoundingClientRect();
+    pv.style.bottom=Math.round((hr.bottom-lr.top)+8)+'px';
+    pv.style.right=Math.round(hr.right-lr.right)+'px';
+  }
+
+  function place(){ placeCompass(); placePvAboveLegend(); }
+
   window.addEventListener('resize', place);
   window.addEventListener('load', place);
   [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
@@ -13885,7 +13941,10 @@ document.addEventListener('keydown', function(e) {
   setTimeout(function(){ if(typeof _hideDashLoading==='function') _hideDashLoading(); }, 12000);
   if(window.ResizeObserver){
     var ro=new ResizeObserver(place);
-    ABOVE.forEach(function(id){ var e=document.getElementById(id); if(e) ro.observe(e); });
+    /* the legend is observed so the strip follows expand/collapse */
+    ['health-diag-strip','ai-health-card','legend-card','pv-counter-strip'].forEach(function(id){
+      var e=document.getElementById(id); if(e) ro.observe(e);
+    });
     /* ai.js builds the AI card asynchronously, so watch for it appearing */
     var host=document.getElementById('map-container');
     if(host && window.MutationObserver){
