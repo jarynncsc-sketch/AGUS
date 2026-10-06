@@ -2081,6 +2081,7 @@
 <script>
 (function(){
   var el=document.getElementById('pv-count'); if(!el) return;
+  var PV_FLAG='agus_pv_counted';
   function show(n,local){ el.textContent=Number(n).toLocaleString('en-US'); if(local) el.parentNode.title='Page views on this device (shared counter unavailable)'; }
   function localCount(){
     try{
@@ -2089,12 +2090,19 @@
       show(n,true);
     }catch(e){ el.textContent='\u2013'; }
   }
+  /* A reload re-runs this IIFE, so guard the increment with a per-tab-load flag:
+     a reload should count as one page view, not one per script execution. */
+  function alreadyCounted(){
+    try{ if(sessionStorage.getItem(PV_FLAG)) return true; sessionStorage.setItem(PV_FLAG,'1'); }catch(e){ return false; }
+    return false;
+  }
   var tries=0;
   function run(){
     var ok=false; try{ ok=window.firebase&&firebase.apps&&firebase.apps.length&&firebase.database; }catch(e){}
     if(!ok){ if(++tries<12) return setTimeout(run,1000); return localCount(); }
     var ref=firebase.database().ref('stats/pageViews');
     /* every page open counts +1 */
+    if(alreadyCounted()) return;
     ref.transaction(function(v){ return (v||0)+1; }).then(function(r){ return r.snapshot.val()||0; }).then(function(n){ show(n,false); }).catch(function(){ localCount(); });
     ref.on('value',function(sn){ if(sn.val()!=null) show(sn.val(),false); },function(){});
   }
@@ -4593,15 +4601,36 @@ function initDashboard() {
     var s = null;
     try { s = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch(e) {}
     if (!s || !s.token || !s.user) return false;
-    userToken = s.token; sessionToken = s.token; loggedInUser = s.user;
+
+    // The token lives in localStorage so closing the page does not force a
+    // re-login, but the backend expires it after CONFIG.SESSION_EXPIRY_MIN.
+    // Confirm it is still live before trusting it, otherwise the dashboard
+    // renders with a dead token and every authenticated call silently fails.
+    return apiPostSecure('validateSession', { token: s.token })
+      .then(function(r) {
+        if (!r || !r.valid) {
+          try { localStorage.removeItem(SESSION_KEY); } catch(e) {}
+          return false;
+        }
+        return window._activateSession(s.token, r.user || s.user);
+      })
+      .catch(function() {
+        // Network hiccup: fall back to the saved token so a transient failure
+        // does not eject a logged-in user back to the login screen.
+        return window._activateSession(s.token, s.user);
+      });
+  };
+
+  window._activateSession = function(token, user) {
+    userToken = token; sessionToken = token; loggedInUser = user;
     try {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
     } catch(e) { return false; }
-    if (typeof window._secActivatePostLogin === 'function') { try { window._secActivatePostLogin(s.user); } catch(e) {} }
+    if (typeof window._secActivatePostLogin === 'function') { try { window._secActivatePostLogin(user); } catch(e) {} }
     try {
       document.getElementById('welcome-user-topright').innerHTML =
-        '<span id="welcome-username">Welcome, ' + s.user + '</span>' +
+        '<span id="welcome-username">Welcome, ' + user + '</span>' +
         '<div style="display:flex;align-items:center;gap:6px;">' +
         '<span id="conn-indicator" title="Firebase status">●</span>' +
         '<span id="mqtt-conn-indicator" title="Relay path status" style="font-size:10px;">⚡</span>' +
@@ -8735,7 +8764,179 @@ function renderTabModalChart(rows) {
 #ai-mic-btn.listening{background:#dc2626;color:white;border-color:#dc2626;animation:ai-mic-pulse 0.8s ease-in-out infinite;}
 @keyframes ai-mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
 </style>
-<button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
+<button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant (drag to move)" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;touch-action:none;-webkit-user-select:none;user-select:none;">&#129302;</button>
+<script>
+// Draggable AI Assistant button.
+//
+// The FAB keeps its default bottom-right position until the user drags it. Once
+// moved, the pixel offset is stored in localStorage so it stays where they put
+// it across reloads. The chat panel is anchored to the FAB so the two travel
+// together — otherwise the panel would open at a fixed spot detached from the
+// button the user deliberately positioned.
+(function(){
+  'use strict';
+  var FAB_POS_KEY = 'agus_ai_fab_pos';
+  var fab, panel;
+  var dragging = false, moved = false;
+  var startX = 0, startY = 0, startLeft = 0, startTop = 0;
+  var FAB_SIZE = 54, EDGE = 8;
+  var _lastFabRect = null;   // captured while the FAB is still visible
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+
+  function viewport(){
+    return {
+      w: window.innerWidth  || document.documentElement.clientWidth  || 0,
+      h: window.innerHeight || document.documentElement.clientHeight || 0
+    };
+  }
+
+  // Right/bottom offsets are converted to left/top so the drag maths stays simple.
+  function currentBox(){
+    var r = fab.getBoundingClientRect();
+    return { left: r.left, top: r.top };
+  }
+
+  // Opening the panel hides the FAB (toggleAIChat sets display:none), so the
+  // anchor rect has to be captured before the toggle — measuring afterwards
+  // returns 0x0 and the panel would land in the top-left corner.
+  function placePanel(anchorRect){
+    if (!panel) return;
+    var vp = viewport();
+    var w = panel.offsetWidth || 380;
+    var h = panel.offsetHeight || 520;
+    var r = anchorRect || _lastFabRect || fab.getBoundingClientRect();
+    if (!r || !r.width) return;
+    _lastFabRect = r;
+
+    // Prefer opening above-left of the FAB; flip to whichever side has room.
+    var left = r.left + r.width / 2 - w / 2;
+    var top  = r.top - h - 14;
+
+    if (top < EDGE) top = r.bottom + 14;            // no room above → below
+    if (top + h > vp.h - EDGE) top = Math.max(EDGE, vp.h - h - EDGE);
+    if (left < EDGE) left = EDGE;
+    if (left + w > vp.w - EDGE) left = Math.max(EDGE, vp.w - w - EDGE);
+
+    panel.style.left   = clamp(left, EDGE, Math.max(EDGE, vp.w - w - EDGE)) + 'px';
+    panel.style.top    = clamp(top,  EDGE, Math.max(EDGE, vp.h - h - EDGE)) + 'px';
+    panel.style.right  = 'auto';
+    panel.style.bottom = 'auto';
+  }
+
+  function save(){
+    try {
+      var vp = viewport(), b = currentBox();
+      localStorage.setItem(FAB_POS_KEY, JSON.stringify({
+        left: Math.round(b.left), top: Math.round(b.top), vw: vp.w, vh: vp.h
+      }));
+    } catch(e) {}
+  }
+
+  function restore(){
+    var raw = null;
+    try { raw = localStorage.getItem(FAB_POS_KEY); } catch(e) {}
+    if (!raw) return;
+    var p;
+    try { p = JSON.parse(raw); } catch(e) { return; }
+    if (!p || typeof p.left !== 'number' || typeof p.top !== 'number') return;
+
+    var vp = viewport();
+    // A stored position from a much larger viewport (rotated tablet, resized
+    // window) can land the FAB off-screen — clamp instead of trusting it.
+    if (p.vw && Math.abs(p.vw - vp.w) < 40 && p.vh && Math.abs(p.vh - vp.h) < 40) {
+      var left = clamp(p.left, EDGE, Math.max(EDGE, vp.w - FAB_SIZE - EDGE));
+      var top  = clamp(p.top,  EDGE, Math.max(EDGE, vp.h - FAB_SIZE - EDGE));
+fab.style.left = left + 'px';
+      fab.style.top  = top + 'px';
+      fab.style.right  = 'auto';
+      fab.style.bottom = 'auto';
+      _lastFabRect = fab.getBoundingClientRect();
+    }
+  }
+
+  function onDown(e){
+    // Ignore secondary buttons so a right-click does not start a drag.
+    if (e.button !== undefined && e.button !== 0) return;
+    dragging = true; moved = false;
+    var b = currentBox();
+    startX = e.clientX; startY = e.clientY;
+    startLeft = b.left; startTop = b.top;
+    try { fab.setPointerCapture && fab.setPointerCapture(e.pointerId); } catch(err) {}
+  }
+
+  function onMove(e){
+    if (!dragging) return;
+    var dx = e.clientX - startX, dy = e.clientY - startY;
+    if (!moved && (Math.abs(dx) > 3 || Math.abs(dy) > 3)) {
+      // Past the threshold this is a drag, not a click: switch off the CSS
+      // bottom/right anchor and adopt explicit coordinates mid-gesture.
+      moved = true;
+      fab.style.right  = 'auto';
+      fab.style.bottom = 'auto';
+      fab.style.cursor = 'grabbing';
+    }
+    if (!moved) return;
+    e.preventDefault();
+    var vp = viewport();
+fab.style.left = clamp(startLeft + dx, EDGE, Math.max(EDGE, vp.w - FAB_SIZE - EDGE)) + 'px';
+      fab.style.top  = clamp(startTop  + dy, EDGE, Math.max(EDGE, vp.h - FAB_SIZE - EDGE)) + 'px';
+      _lastFabRect = fab.getBoundingClientRect();
+      if (panel && window.getComputedStyle(panel).display !== 'none') placePanel(_lastFabRect);
+  }
+
+  function onUp(){
+    if (!dragging) return;
+    dragging = false;
+    fab.style.cursor = 'pointer';
+    if (moved) {
+      save();
+      _lastFabRect = fab.getBoundingClientRect();
+      placePanel(_lastFabRect);
+      // Swallow the click that ends the drag so it does not open the panel.
+      fab.addEventListener('click', function swallow(e){ e.preventDefault(); e.stopPropagation(); }, { capture:true, once:true });
+    }
+    moved = false;
+  }
+
+  function init(){
+    fab = document.getElementById('ai-chat-fab');
+    panel = document.getElementById('ai-chat-panel');
+    if (!fab) return;
+
+    restore();
+
+    fab.addEventListener('pointerdown', onDown);
+    window.addEventListener('pointermove', onMove, { passive:false });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+
+    // Keep the panel anchored to the FAB. Measure before the toggle, because
+    // opening the panel hides the FAB and its rect collapses to 0x0 after.
+    var origToggle = window.toggleAIChat;
+    if (typeof origToggle === 'function') {
+      window.toggleAIChat = function(){
+        try { _lastFabRect = fab.getBoundingClientRect(); } catch(e) {}
+        var r = origToggle.apply(this, arguments);
+        try { placePanel(_lastFabRect); } catch(e) {}
+        return r;
+      };
+    }
+
+    window.addEventListener('resize', function(){
+      var vp = viewport();
+      var b = currentBox();
+      fab.style.left = clamp(b.left, EDGE, Math.max(EDGE, vp.w - FAB_SIZE - EDGE)) + 'px';
+      fab.style.top  = clamp(b.top,  EDGE, Math.max(EDGE, vp.h - FAB_SIZE - EDGE)) + 'px';
+      save();
+      placePanel();
+    });
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
+</script>
 
 <script src="ai.js"></script>
 
