@@ -3557,8 +3557,26 @@ function buildPumpStationSVG(f, name, status) {
     // Center gear icon
     +'<circle cx="'+(_W/2)+'" cy="'+_cY+'" r="16" fill="'+psC+'" stroke="white" stroke-width="2.5"/>'
     +'<text x="'+(_W/2)+'" y="'+(_cY+5)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="16" fill="white">\u2699</text>'
-    // Device name
-    +'<text x="'+(_W/2)+'" y="'+(_cY+30)+'" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="'+_nameFontSize+'" font-weight="700" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'+_nameD+'</text>'
+    // Device name — wraps onto a second line (moves down) when too long
+    + (function(){
+        var _lines=[_nameD];
+        if (_nameD.length>22){
+          var _w=_nameD.split(' '),_cur='',_out=[];
+          for (var _i=0;_i<_w.length;_i++){
+            var _cand=_cur?(_cur+' '+_w[_i]):_w[_i];
+            if (_cand.length>22&&_cur){_out.push(_cur);_cur=_w[_i];}
+            else {_cur=_cand;}
+          }
+          if (_cur)_out.push(_cur);
+          if (_out.length>2)_out=[_out[0],_out.slice(1).join(' ')];
+          _lines=_out;
+        }
+        var _s='';
+        for (var _j=0;_j<_lines.length;_j++){
+          _s+='<text x="'+(_W/2)+'" y="'+(_cY+30+_j*14)+'" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="'+_nameFontSize+'" font-weight="700" fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'+_lines[_j]+'</text>';
+        }
+        return _s;
+       })()
 
     // Divider lines
     +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
@@ -3805,6 +3823,29 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 
   var _centerY = _tY + _tH / 2;
 
+  // Device name — wraps onto a second line (moves down) when too long
+  var _nbL = [_nd];
+  if (_nd.length > 22) {
+    var _w = _nd.split(' '), _c = '', _o = [];
+    for (var _i = 0; _i < _w.length; _i++) {
+      var _cand = _c ? (_c + ' ' + _w[_i]) : _w[_i];
+      if (_cand.length > 22 && _c) { _o.push(_c); _c = _w[_i]; }
+      else { _c = _cand; }
+    }
+    if (_c) _o.push(_c);
+    if (_o.length > 2) _o = [_o[0], _o.slice(1).join(' ')];
+    _nbL = _o;
+  }
+  _totalH += (_nbL.length - 1) * 14;
+  var _nbBase = _totalH - 6 - (_nbL.length - 1) * 14;
+  var _nameS = '';
+  for (var _j = 0; _j < _nbL.length; _j++) {
+    _nameS += '<text x="' + (_W / 2) + '" y="' + (_nbBase + _j * 14) + '"'
+      + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="' + _nameFontSize + '" font-weight="700"'
+      + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
+      + _nbL[_j] + '</text>';
+  }
+
   var _svg =
       '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '"'
     + ' width="' + _W + '" height="' + _totalH + '"'
@@ -3828,10 +3869,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="20" font-weight="800"'
     + ' fill="#0f172a" stroke="#0f172a" stroke-width="1.4" paint-order="stroke">'
     + _wlt + '</text>'
-    + '<text x="' + (_W / 2) + '" y="' + (_totalH - 6) + '"'
-    + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="' + _nameFontSize + '" font-weight="700"'
-    + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
-    + _nd + '</text>'
+    + _nameS
     + '</svg>';
 
   // ── Hybrid "Reservoir Booster / Pumping Station": show BOTH icons
