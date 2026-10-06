@@ -1309,7 +1309,7 @@
     #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     /* top:120px collided with the AI Health Card (also top:120px, z-index:1200), so the
        Page Views strip sits lower-left of it, on the same row as the compass. */
-    #pv-counter-strip{position:absolute;top:254px;right:86px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    #pv-counter-strip{position:absolute;bottom:64px;right:20px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
     /* Map compass: sits below the Health Diagnostic / Page Views strips AND below the
        AI Health Card (top:120px, ~114px tall, z-index:1200), which would otherwise cover it. */
@@ -2080,25 +2080,60 @@
 </div>
 <script>
 (function(){
-  var el=document.getElementById('pv-count'); if(!el) return;
-  function show(n,local){ el.textContent=Number(n).toLocaleString('en-US'); if(local) el.parentNode.title='Page views on this device (shared counter unavailable)'; }
-  function localCount(){
-    try{
-      var n=(parseInt(localStorage.getItem('agus_pv_local')||'0',10)||0)+1;
-      localStorage.setItem('agus_pv_local',n);
-      show(n,true);
-    }catch(e){ el.textContent='\u2013'; }
+  var el=document.getElementById('pv-count'), strip=document.getElementById('pv-counter-strip');
+  if(!el||!strip) return;
+  var listening=false, tries=0, pending=1; /* 1 = this page load still has to be counted */
+
+  /* ---- keep the strip sitting directly above the Map Legend (same right edge) ---- */
+  function place(){
+    var lg=document.getElementById('legend-card'), mc=document.getElementById('map-container');
+    if(!lg||!mc||lg.offsetParent===null) return;
+    strip.style.top='auto';
+    strip.style.right=getComputedStyle(lg).right;
+    strip.style.bottom=(mc.clientHeight-lg.offsetTop+8)+'px';
   }
-  var tries=0;
+  window._pvPlace=place;
+  window.addEventListener('resize',place);
+  window.addEventListener('load',place);
+  [100,500,1500,4000].forEach(function(t){ setTimeout(place,t); });
+  var lgEl=document.getElementById('legend-card');
+  if(lgEl){
+    if(window.ResizeObserver) new ResizeObserver(place).observe(lgEl);
+    lgEl.addEventListener('click',function(){ setTimeout(place,50); setTimeout(place,350); });
+  }
+  place();
+
+  /* ---- shared counter: AGUS backend (GAS) keeps ONE total for every visitor, phone and browser ---- */
+  var inflight=false;
+  function show(n){ el.textContent=Number(n).toLocaleString('en-US'); strip.title='Total page views \u2014 shared by every visitor and device'; place(); }
+  function fail(msg){ if(window.console) console.warn('[page views]',msg||''); if(el.textContent==='\u2026') el.textContent='\u2013'; strip.title='Shared page-view counter unavailable (deploy the latest AGUS backend)'; }
+  function call(hit){
+    if(inflight||typeof API_URL==='undefined') return Promise.resolve(false);
+    inflight=true;
+    var url=API_URL+'?action=pageView'+(hit?'':'&hit=0');
+    if(hit){ try{ var lg=parseInt(localStorage.getItem('agus_pv_local')||'0',10)||0; if(lg>0) url+='&seed='+lg; }catch(_){} }
+    return fetch(url+'&_='+Date.now())
+      .then(function(r){ return r.json(); })
+      .then(function(j){
+        if(j&&isFinite(j.count)){ show(j.count); if(hit&&j.success){ try{ localStorage.removeItem('agus_pv_local'); }catch(_){} } return !!j.success; }
+        fail(j&&j.error); return false;
+      })
+      .catch(function(e){ fail(e&&e.message); return false; })
+      .then(function(ok){ inflight=false; return ok; });
+  }
   function run(){
-    var ok=false; try{ ok=window.firebase&&firebase.apps&&firebase.apps.length&&firebase.database; }catch(e){}
-    if(!ok){ if(++tries<12) return setTimeout(run,1000); return localCount(); }
-    var ref=firebase.database().ref('stats/pageViews');
-    /* every page open counts +1 */
-    ref.transaction(function(v){ return (v||0)+1; }).then(function(r){ return r.snapshot.val()||0; }).then(function(n){ show(n,false); }).catch(function(){ localCount(); });
-    ref.on('value',function(sn){ if(sn.val()!=null) show(sn.val(),false); },function(){});
+    if(!pending) return;
+    if(typeof API_URL==='undefined'){ if(++tries<40) return setTimeout(run,500); return fail('API_URL missing'); }
+    pending=0;
+    call(true).then(function(ok){ if(!ok&&++retries<3){ pending=0; setTimeout(function(){ inflight=false; call(true); },3000); } });
   }
+  var retries=0;
   run();
+  /* live total: refresh without counting, so other users' and phones' opens show up */
+  setInterval(function(){ if(!document.hidden) call(false); },45000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden) call(false); });
+  /* phone browsers restore pages from the back/forward cache without reloading - count that as an open too */
+  window.addEventListener('pageshow',function(e){ if(e.persisted){ pending=1; tries=0; run(); } });
 })();
 </script>
     <div id="device-details"></div>
@@ -8701,7 +8736,70 @@ function renderTabModalChart(rows) {
 #ai-mic-btn.listening{background:#dc2626;color:white;border-color:#dc2626;animation:ai-mic-pulse 0.8s ease-in-out infinite;}
 @keyframes ai-mic-pulse{0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4)}50%{box-shadow:0 0 0 8px rgba(220,38,38,0)}}
 </style>
-<button id="ai-chat-fab" onclick="toggleAIChat()" title="Open AI Assistant" style="position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
+<button id="ai-chat-fab" title="Open AI Assistant (drag to move)" style="touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none;position:fixed;bottom:24px;right:24px;width:54px;height:54px;border-radius:50%;background:linear-gradient(135deg,#004080,#0066cc);border:none;color:white;font-size:22px;cursor:pointer;box-shadow:0 6px 20px rgba(0,64,128,0.40);z-index:8999;">&#129302;</button>
+
+
+<script>
+/* AGUS AI bot button: draggable. Until it is dragged it is docked just above the map compass
+   (where the Page Views strip used to be); after a drag its position is remembered. Drag it back
+   next to the dock spot to re-dock it. A plain tap/click still opens the chat. */
+(function(){
+  var fab=document.getElementById('ai-chat-fab'); if(!fab) return;
+  var KEY='agus_ai_fab_pos', S=54, M=6, pos=null, d=null;
+  try{ var v=JSON.parse(localStorage.getItem(KEY)||'null'); if(v&&isFinite(v.x)&&isFinite(v.y)) pos=v; }catch(e){}
+  function clamp(x,y){ return {x:Math.min(Math.max(M,x),Math.max(M,innerWidth-S-M)), y:Math.min(Math.max(M,y),Math.max(M,innerHeight-S-M))}; }
+  function apply(x,y){ var c=clamp(x,y); fab.style.left=c.x+'px'; fab.style.top=c.y+'px'; fab.style.right='auto'; fab.style.bottom='auto'; }
+  function dockSpot(){
+    var mc=document.getElementById('map-container');
+    if(!mc||mc.offsetParent===null||window._aiFabSlotTop==null) return null;
+    var r=mc.getBoundingClientRect(); if(!r.width) return null;
+    return {x:r.right-73, y:r.top+window._aiFabSlotTop};   /* centred on the 64px compass (right:14px) */
+  }
+  function layout(){
+    if(pos){ apply(pos.x,pos.y); return; }
+    var s=dockSpot();
+    if(s) apply(s.x,s.y); else { fab.style.left='auto'; fab.style.top='auto'; fab.style.right='24px'; fab.style.bottom='24px'; }
+  }
+  window._aiFabDocked=function(){ return !pos; };
+  window._aiFabLayout=layout;
+  function reflow(){ layout(); if(window._compassPlace) window._compassPlace(); }
+
+  fab.addEventListener('pointerdown',function(e){
+    if(e.button!==undefined&&e.button!==0) return;
+    var r=fab.getBoundingClientRect();
+    d={id:e.pointerId,sx:e.clientX,sy:e.clientY,ox:r.left,oy:r.top,moved:false};
+    try{ fab.setPointerCapture(e.pointerId); }catch(_){}
+  });
+  fab.addEventListener('pointermove',function(e){
+    if(!d||e.pointerId!==d.id) return;
+    var dx=e.clientX-d.sx, dy=e.clientY-d.sy;
+    if(!d.moved && Math.hypot(dx,dy)<6) return;
+    if(!d.moved){ d.moved=true; fab.style.cursor='grabbing'; }
+    var c=clamp(d.ox+dx,d.oy+dy); pos=c; apply(c.x,c.y);
+    e.preventDefault();
+  });
+  function end(e,cancel){
+    if(!d||e.pointerId!==d.id) return;
+    var was=d; d=null; fab.style.cursor='grab';
+    try{ fab.releasePointerCapture(e.pointerId); }catch(_){}
+    if(was.moved){
+      var s=dockSpot();
+      if(s && pos && Math.hypot(pos.x-s.x,pos.y-s.y)<45){ pos=null; try{ localStorage.removeItem(KEY); }catch(_){} }  /* snapped back to dock */
+      else { try{ localStorage.setItem(KEY,JSON.stringify(pos)); }catch(_){} }
+      reflow();
+    } else if(!cancel && typeof window.toggleAIChat==='function'){ window.toggleAIChat(); }
+  }
+  fab.addEventListener('pointerup',function(e){ end(e,false); });
+  fab.addEventListener('pointercancel',function(e){ end(e,true); });
+  /* keyboard activation (Enter / Space fire click with detail 0); mouse & touch are handled above */
+  fab.addEventListener('click',function(e){ if(e.detail===0 && typeof window.toggleAIChat==='function') window.toggleAIChat(); });
+
+  window.addEventListener('resize',reflow);
+  window.addEventListener('scroll',layout,true);
+  [300,1200,3500].forEach(function(t){ setTimeout(reflow,t); });
+  layout();
+})();
+</script>
 
 <script src="ai.js"></script>
 
@@ -13865,7 +13963,7 @@ document.addEventListener('keydown', function(e) {
    z-index:1200, so it would otherwise cover the compass completely. */
 (function(){
   var GAP = 18;
-  var ABOVE = ['health-diag-strip','pv-counter-strip','ai-health-card'];
+  var ABOVE = ['health-diag-strip','ai-health-card'];
   function place(){
     var c=document.getElementById('map-compass'); if(!c) return;
     var b=document.getElementById('map-basemap');
@@ -13875,9 +13973,17 @@ document.addEventListener('keydown', function(e) {
       bottom=Math.max(bottom, e.offsetTop+e.offsetHeight);
     });
     if(!bottom) return;                     /* none of the cards are laid out yet */
-    c.style.top=(bottom+GAP)+'px';
-    if(b) b.style.top=(bottom+GAP)+'px';    /* stay vertically aligned with the compass */
+    var top=bottom+GAP;
+    /* AI bot button sits between the cards and the compass while it is docked */
+    if(window._aiFabDocked && window._aiFabDocked()){
+      window._aiFabSlotTop=bottom+8;
+      top=bottom+8+54+10;
+      if(window._aiFabLayout) window._aiFabLayout();
+    }
+    c.style.top=top+'px';
+    if(b) b.style.top=top+'px';             /* stay vertically aligned with the compass */
   }
+  window._compassPlace=place;
   window.addEventListener('resize', place);
   window.addEventListener('load', place);
   [300,1000,3000].forEach(function(t){ setTimeout(place,t); });
