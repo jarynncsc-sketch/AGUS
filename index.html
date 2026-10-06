@@ -3937,8 +3937,11 @@ if (isPS) {
         + '<line x1="' + _sx + '" y1="' + _sy + '" x2="' + _nx + '" y2="' + _ny + '" stroke="' + _pC + '" stroke-width="3.5" stroke-linecap="round"/>'
         // Center bullseye removed for clean look
         // Center value (blinks + follows anomaly color when out of range)
+        + '<rect x="' + (_cx - (String(_pv || '--').length * 13.2 + 18) / 2) + '" y="' + (_cy - 13)
+        + '" width="' + (String(_pv || '--').length * 13.2 + 18) + '" height="25" rx="12.5" fill="white" opacity="0.92"/>'
         + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="22" font-weight="900" fill="' + _pC + '" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
         // Unit below
+        + '<rect x="' + (_cx - 20) + '" y="' + (_cy + 12) + '" width="40" height="16" rx="8" fill="white" opacity="0.92"/>'
         + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="800" fill="' + _pC + '" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
