@@ -3508,17 +3508,18 @@ function buildPumpStationSVG(f, name, status) {
 
   var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _nameD = _rawName;
-  var _nameFontSize = _rawName.length > 22 ? 9.5 : 11;
+  var _nameFontSize = _rawName.length <= 25 ? 15 : 13;
 
   var _psiC='#1d4ed8';
   if (_psiRaw!=null){var _pn=parseFloat(_psiRaw),_pt=pressureSettingsCache[name]||{minPsi:20,maxPsi:80};if(!isNaN(_pn)){if(_pn<_pt.minPsi)_psiC='#f97316';else if(_pn>_pt.maxPsi)_psiC='#ef4444';}}
 
   // Extend marker width (never shrink/clip the device name) — layout below is _W-relative
   var _nameW = Math.ceil(_nameD.length * _nameFontSize * 0.62) + 22;
-  var _W=Math.max(178,_nameW),_cY=28,_cH=130,_tH=_cY+_cH+8;
+  var _W=Math.max(178,_nameW),_cY=28,_cH=146,_tH=_cY+_cH+8;
   var _bPulse = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
   var _rOp=psAnomaly ? (0.3 + _bPulse * 0.65).toFixed(2) : '0';
-  var _dataOffset=8;
+  // Uniform data-block offset so a wrapped device name never overwrites PRESSURE / FLOW
+  var _dataOffset=22;
   var _pLY=_cY+40+_dataOffset,_pVY=_cY+57+_dataOffset;
   var _fLY=_cY+40+_dataOffset,_fVY=_cY+57+_dataOffset;
   var _vLY=_cY+81+_dataOffset,_vVY=_cY+97+_dataOffset;
@@ -3535,11 +3536,11 @@ function buildPumpStationSVG(f, name, status) {
 
   // Relay indicator with glow
   var _relayDot = _relayOn
-    ? '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#22c55e"/>'
-      + '<circle cx="14" cy="'+(_cY+130)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
-    : '<circle cx="14" cy="'+(_cY+130)+'" r="4" fill="#94a3b8"/>'
-      + '<text x="22" y="'+(_cY+133)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
+    ? '<circle cx="14" cy="'+(_cY+136)+'" r="4" fill="#22c55e"/>'
+      + '<circle cx="14" cy="'+(_cY+136)+'" r="6" fill="none" stroke="#22c55e" stroke-width="1.5" opacity="0.6"/>'
+      + '<text x="22" y="'+(_cY+140)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#22c55e" font-weight="800">ON</text>'
+    : '<circle cx="14" cy="'+(_cY+136)+'" r="4" fill="#94a3b8"/>'
+      + '<text x="22" y="'+(_cY+140)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="800">OFF</text>';
 
   var _svg='<svg viewBox="0 0 '+_W+' '+_tH+'" width="'+_W+'" height="'+_tH+'" xmlns="http://www.w3.org/2000/svg">'
     // Outer anomaly glow ring
