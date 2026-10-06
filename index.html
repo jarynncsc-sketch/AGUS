@@ -3812,6 +3812,8 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + '<rect x="' + _tX + '" y="' + _tY
     + '" width="' + _tW + '" height="' + _tH + '" rx="8"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
+    + '<rect x="' + (_tX + _tW / 2 - (_wlt.length * 6 + 14) / 2) + '" y="' + (_centerY - 13)
+    + '" width="' + (_wlt.length * 6 + 14) + '" height="27" rx="13.5" fill="white" opacity="0.92"/>'
     + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
     + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="18" font-weight="800"'
     + ' fill="#0f172a" stroke="white" stroke-width="4" paint-order="stroke">'
@@ -3942,7 +3944,8 @@ if (isPS) {
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="'+(0.2+_bPulse*0.6).toFixed(2)+'"/>' : '')
         // Device name
-        + '<text x="' + (_W / 2) + '" y="' + (_totalH - 8) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#002b5c" stroke="white" stroke-width="3" paint-order="stroke">' + _nameD + '</text>'
+        + '<rect x="' + (_W / 2 - (_nameD.length * 5.4 + 12) / 2) + '" y="' + (_totalH - 19) + '" width="' + (_nameD.length * 5.4 + 12) + '" height="15" rx="7.5" fill="white" opacity="0.92"/>'
+        + '<text x="' + (_W / 2) + '" y="' + (_totalH - 8) + '" text-anchor="middle" font-family="Arial,sans-serif" font-size="10" font-weight="700" fill="#002b5c">' + _nameD + '</text>'
         + '</svg>';
       return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
     }
