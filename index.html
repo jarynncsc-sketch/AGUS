@@ -3873,45 +3873,23 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + _nameS
     + '</svg>';
 
-  // ── Hybrid "Reservoir Booster / Pumping Station": ONE merged marker ──
-  //    Reservoir on the left half, Pumping Station on the right half, inside
-  //    a single SVG sized EXACTLY like a pure pumping-station pin so the
-  //    booster footprint matches the pure device (no wider pin). The outer
-  //    alarm / fault glow is redrawn FULL-SIZE (unscaled) around the whole
-  //    marker so it matches the standalone reservoir pin's glow.
+  // ── Hybrid "Reservoir Booster / Pumping Station": STACKED marker ──
+  //    Reservoir SVG on top (same dimensions as a standalone reservoir),
+  //    Pumping Station SVG below (same dimensions as a standalone pump),
+  //    both at full natural size, combined into one single icon.
   if (isPS) {
     var _psSvg = buildPumpStationSVG(f, name, status);
-    var _psM = _psSvg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '178', '182'];
-    var _psW = parseFloat(_psM[1]), _psH = parseFloat(_psM[2]);
     var _rsM = _svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '162', '160'];
     var _rsW = parseFloat(_rsM[1]), _rsH = parseFloat(_rsM[2]);
-    var _bPulse2 = (Math.sin(typeof _phase !== 'undefined' ? _phase : 0) + 1) / 2;
-    var _aGlow = false, _aColor = '#22c55e';
-    var _thr2 = reservoirThresholdsCache[name];
-    var _mnL = (_thr2 && _thr2.minLevel != null) ? parseFloat(_thr2.minLevel) : null;
-    var _mxL = (_thr2 && _thr2.maxLevel != null) ? parseFloat(_thr2.maxLevel) : null;
-    var _lv2 = parseFloat(f.get('level'));
-    if (!isNaN(_lv2) && _mnL !== null && _mxL !== null) {
-      if (_lv2 < _mnL) { _aColor = '#f97316'; _aGlow = true; }
-      else if (_lv2 > _mxL) { _aColor = '#ef4444'; _aGlow = true; }
-    }
-    var _glowOuter = _aGlow
-      ? '<rect x="0" y="0" width="' + _psW + '" height="' + _psH + '" rx="12" fill="none" stroke="' + _aColor + '" stroke-width="' + (2 + _bPulse2 * 4).toFixed(1) + '" opacity="' + (0.15 + _bPulse2 * 0.5).toFixed(2) + '"/>'
-      : '';
-    var _faultOuter = f.get('button')
-      ? '<rect x="0" y="0" width="' + _psW + '" height="' + _psH + '" rx="14" fill="none" stroke="#ef4444" stroke-width="' + (2 + _bPulse2 * 4).toFixed(1) + '" opacity="' + (0.12 + _bPulse2 * 0.52).toFixed(2) + '"/>'
-      : '';
-    var _rInner = _svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '')
-      .replace(/<\s*rect[^>]*rx="1[24]"[^>]*fill="none"[^>]*\/>/g, '');
+    var _psM = _psSvg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '178', '182'];
+    var _psW = parseFloat(_psM[1]), _psH = parseFloat(_psM[2]);
+    var _Wm = Math.max(_rsW, _psW), _Hm = _rsH + _psH;
+    var _rInner = _svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
     var _pInner = _psSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
-    var _halfW = Math.max(60, (_psW - 6) / 2);
-    var _rS = Math.min(_halfW / _rsW, (_psH - 6) / _rsH, 1);
-    var _pS = Math.min(_halfW / _psW, (_psH - 6) / _psH, 1);
-    var _rsSvg = '<svg viewBox="0 0 ' + _psW + ' ' + _psH + '" width="' + _psW + '" height="' + _psH
+    var _rsSvg = '<svg viewBox="0 0 ' + _Wm + ' ' + _Hm + '" width="' + _Wm + '" height="' + _Hm
       + '" xmlns="http://www.w3.org/2000/svg">'
-      + _glowOuter + _faultOuter
-      + '<g transform="translate(0,' + _psH + ') scale(' + _rS.toFixed(4) + ') translate(0,' + (-_rsH) + ')">' + _rInner + '</g>'
-      + '<g transform="translate(' + _psW + ',' + _psH + ') scale(' + _pS.toFixed(4) + ') translate(0,' + (-_psH) + ')">' + _pInner + '</g>'
+      + '<g transform="translate(' + Math.round((_Wm - _rsW) / 2) + ',0)">' + _rInner + '</g>'
+      + '<g transform="translate(' + Math.round((_Wm - _psW) / 2) + ',' + _rsH + ')">' + _pInner + '</g>'
       + '</svg>';
     return [new ol.style.Style({
       image: new ol.style.Icon({
