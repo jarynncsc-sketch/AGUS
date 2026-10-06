@@ -3878,10 +3878,22 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   //    instead of a single merged marker ──
   if (isPS) {
     var _psSvg = buildPumpStationSVG(f, name, status);
+    // Scale the reservoir half to the same bounding box as the pump (pure) pin
+    var _psM = _psSvg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '178', '182'];
+    var _psW = parseFloat(_psM[1]), _psH = parseFloat(_psM[2]);
+    var _rsM = _svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '162', '160'];
+    var _rsW = parseFloat(_rsM[1]), _rsH = parseFloat(_rsM[2]);
+    var _rScale = Math.min((_psW - 8) / _rsW, (_psH - 8) / _rsH);
+    var _rInner = _svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
+    var _rrW = Math.round(_rsW * _rScale), _rrH = Math.round(_rsH * _rScale);
+    var _rsSvg = '<svg viewBox="0 0 ' + _psW + ' ' + _psH + '" width="' + _psW + '" height="' + _psH
+      + '" xmlns="http://www.w3.org/2000/svg">'
+      + '<g transform="translate(' + Math.round((_psW - _rrW) / 2) + ',' + Math.round(_psH - _rrH) + ')">'
+      + '<g transform="scale(' + _rScale.toFixed(4) + ')">' + _rInner + '</g></g></svg>';
     return [
       new ol.style.Style({
         image: new ol.style.Icon({
-          src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
+          src: 'data:image/svg+xml,' + encodeURIComponent(_rsSvg),
           scale: 1,
           anchor: [1, 1],
           anchorXUnits: 'fraction',
