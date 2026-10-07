@@ -1884,7 +1884,8 @@
 .rv-drop.rv-d2{animation-delay:.25s;}
 .rv-drop.rv-d3{animation-delay:.45s;}
 @keyframes rvSplash{0%{transform:translate(0,0);opacity:.9;}100%{transform:translate(var(--dx),-14px);opacity:0;}}
-@media (prefers-reduced-motion:reduce){.rv-w1,.rv-w2,.rv-w3,.rv-shine,.rv-flow,.rv-ripple,.rv-drop{animation:none;}}
+/* NOTE: no prefers-reduced-motion override here — the desktop/Windows "Animation effects"
+   (reduced-motion) setting was killing the animated scene on PC. Keep animations always on. */
 .rv-mw1{animation:rvMW 2.4s linear infinite;}
 .rv-mw2{animation:rvMWr 3.6s linear infinite;}
 @keyframes rvMW{from{transform:translateX(0);}to{transform:translateX(-40px);}}
@@ -1895,7 +1896,7 @@
 @keyframes rvMJet{to{stroke-dashoffset:-10;}}
 .rv-mflow.rv-off,.rv-mjet.rv-off{animation-play-state:paused;stroke-dasharray:none;opacity:.15;}
 .rv-ovl{display:block;pointer-events:none;overflow:visible;}
-@media (prefers-reduced-motion:reduce){.rv-mw1,.rv-mw2,.rv-mflow,.rv-mjet{animation:none;}}
+/* (map overlay versions also always animate, same reason as above) */
 </style>
 </head>
 <body>
@@ -3598,14 +3599,20 @@ function _rvAnimHTML(d, r, isBooster) {
   '<rect x="507" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
   // ladder
   '<g stroke="#c4d0d4" stroke-linecap="round"><line x1="538" y1="180" x2="538" y2="288" stroke-width="2"/><line x1="550" y1="180" x2="550" y2="288" stroke-width="2"/><line x1="544" y1="182" x2="544" y2="288" stroke-width="12" stroke-dasharray="2 9" stroke-linecap="butt"/></g>' +
-  // short inlet supply pipe through left wall
-  '<rect x="128" y="190" width="14" height="97" fill="url(#rvConc)" stroke="#4d5c62"/>' +
-  '<rect x="120" y="284" width="30" height="6" rx="1.5" fill="#5d6e75"/>' +
-  '<rect x="118" y="173" width="70" height="18" rx="3" fill="url(#rvPipe)"/>' +
-  '<rect x="118" y="177" width="70" height="10" fill="#071820"/>' +
-  '<path class="rv-flow' + offIn + '" d="M122 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+  // inlet riser running parallel beside the left wall → elbow into the jet
+  '<rect x="102" y="116" width="26" height="10" rx="2" fill="#a5b4b9" stroke="#4d5c62" stroke-width="1"/>' +
+  '<rect x="106" y="120" width="16" height="168" fill="url(#rvPipe)"/>' +
+  '<rect x="106" y="120" width="4" height="168" fill="#9fb3bb" opacity="0.85"/>' +
+  '<rect x="110" y="123" width="8" height="162" fill="#071820"/>' +
+  '<path class="rv-flow' + offIn + '" d="M114 126 V180" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+  '<rect x="102" y="204" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
+  '<rect x="102" y="264" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
+  '<rect x="104" y="283" width="20" height="5" rx="1.5" fill="#3c5560"/>' +
+  '<rect x="110" y="173" width="78" height="18" rx="3" fill="url(#rvPipe)"/>' +
+  '<rect x="110" y="177" width="78" height="10" fill="#071820"/>' +
+  '<path class="rv-flow' + offIn + '" d="M114 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
   '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-  '<path d="M134 175 L142 182 L134 189" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+  '<path d="M138 176 L146 182 L138 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
   // outlet pipe through right wall + gate valve
   '<rect x="528" y="332" width="8" height="36" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
   '<rect x="512" y="340" width="188" height="20" rx="3" fill="url(#rvPipe)"/>' +
@@ -4010,10 +4017,13 @@ var _resDesign = '<defs>'
 // parapet caps
 + '<rect x="' + (_tX - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
 + '<rect x="' + (_tX + _tW - _wl - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
-// short inlet supply pipe through the left wall
-+ '<rect x="' + (_tX - 16) + '" y="' + (_iy - 5) + '" width="' + (16 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
-+ '<rect x="' + (_tX - 16) + '" y="' + (_iy - 2) + '" width="' + (16 + _wl) + '" height="4" fill="#071820"/>'
-+ '<line x1="' + (_tX - 14) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
+// inlet riser running parallel beside the left wall → elbow into the jet
++ '<rect x="' + (_tX - 8) + '" y="' + (_tY - 6) + '" width="8" height="' + (_iy - _tY + 12) + '" rx="1" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
++ '<rect x="' + (_tX - 6) + '" y="' + (_tY - 3) + '" width="4" height="' + (_iy - _tY + 7) + '" fill="#071820"/>'
++ '<line x1="' + (_tX - 4) + '" y1="' + (_tY + 2) + '" x2="' + (_tX - 4) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="1.6" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
++ '<rect x="' + (_tX - 2) + '" y="' + (_iy - 5) + '" width="' + (2 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
++ '<rect x="' + (_tX - 2) + '" y="' + (_iy - 2) + '" width="' + (2 + _wl) + '" height="4" fill="#071820"/>'
++ '<line x1="' + (_tX - 2) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
 + '<rect x="' + (_tX - 4) + '" y="' + (_iy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
 // outlet pipe through the right wall + gate valve
 + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 5) + '" width="' + (_wl + 16) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
@@ -4225,7 +4235,8 @@ function _rvOverlaySVG(g, st, uid) {
     o += '</g>';
   }
   if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
-  o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 14) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
+  o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
+    + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
     + '<line class="rv-mflow' + offOut + '" x1="' + (g.tX + g.tW - 2) + '" y1="' + g.oy + '" x2="' + (g.tX + g.tW + 14) + '" y2="' + g.oy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>';
   o = o.replace(/^(<defs>.*?<\/defs>)(.*)$/, '$1<g mask="url(#' + uid + 'm)">$2</g>');
   var w = st ? st.Wm : g.W, h = st ? st.Hm : g.H;
