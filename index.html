@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cwd-pump-automation-dashboard-default-rtdb.asia-southeast1.firebasedatabase.app" crossorigin>
+  <link rel="preconnect" href="https://script.google.com" crossorigin>
+  <link rel="dns-prefetch" href="https://k196aaef.ala.asia-southeast1.emqxsl.com">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>AGUS – CARCAR WATER DISTRICT Pump Station Dashboard</title>
 
@@ -116,7 +123,7 @@
         'color:#f97316;font-size:13px;');
       return '⛔ Restricted';
     };
-    setInterval(function() {
+    if (window.AGUS_ENABLE_CONSOLE_TRAP === true) setInterval(function() {
       console.log(_consoleTrap);
       console.clear();
     }, 2000);
@@ -234,7 +241,7 @@
         })();
       }, 50);
     }
-    _startDebuggerTrap();
+    if (window.AGUS_ENABLE_DEBUGGER_TRAP === true) _startDebuggerTrap(); /* perf: was a 50ms timer compiling a Function 20x/sec and freezing when DevTools opened */
 
     /* ══════════════════════════════════════════════════════
        10. Iframe Busting — Clickjacking Protection
@@ -410,8 +417,8 @@
   })();
   </script>
   <!-- ═══ END PWA SETUP ═══ -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'"><noscript><link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css"></noscript>
   <style>
   /* ── DARK MODE ── */
   body.dark-mode { filter: invert(1) hue-rotate(180deg); }
@@ -424,10 +431,10 @@
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
-  <script src="https://unpkg.com/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1" defer></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -1897,6 +1904,14 @@
 .rv-mflow.rv-off,.rv-mjet.rv-off{animation-play-state:paused;stroke-dasharray:none;opacity:.15;}
 .rv-ovl{display:block;pointer-events:none;overflow:visible;}
 /* (map overlay versions also always animate, same reason as above) */
+</style>
+<style id="agus-perf-css">
+/* perf: backdrop-filter under 96-98% opaque backgrounds is visually a no-op but re-blurs the live map every frame */
+#top-menu-bar,#welcome-user-topright,#health-diag-strip,#pv-counter-strip,#map-compass,#legend-card,#map-basemap .mb{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+#top-menu-bar,[class*="top-menu"]{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}
+@media (max-width:768px){*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}}
+/* skip layout/paint work for big hidden modal trees until shown */
+#pressure-settings-modal,#reservoir-settings-modal,#ai-settings-modal{contain:layout style}
 </style>
 </head>
 <body>
@@ -3371,11 +3386,14 @@ function drawLinks() {
   }
 }
 var _animFrame = null;
-function animate() {
-  if (_animPaused) { _animFrame = null; return; } // fully release the rAF loop while hidden
+var _lastBgT = 0;
+function _bgShouldRun() { var lp = document.getElementById('loginPage'); return !lp || lp.style.display !== 'none'; }
+function animate(ts) {
+  if (_animPaused || !_bgShouldRun()) { _animFrame = null; return; } // release the rAF loop while hidden / once logged in (canvas is fully covered)
+  if (ts && ts - _lastBgT < 33) { _animFrame = requestAnimationFrame(animate); return; } // cap ~30fps
+  _lastBgT = ts || 0;
   bgCtx.fillStyle = _bgGrad; bgCtx.fillRect(0,0,W,H);
   drawLinks();
-  bgCtx.shadowColor = 'rgba(0,120,200,0.25)'; bgCtx.shadowBlur = 4;
   for (var ni2 = 0; ni2 < nodes.length; ni2++) {
     var n = nodes[ni2];
     n.x += n.vx; n.y += n.vy;
@@ -3384,7 +3402,6 @@ function animate() {
       var dx = n.x-mouse.x, dy = n.y-mouse.y, d = Math.sqrt(dx*dx+dy*dy);
       if (d < 120) { var a = Math.atan2(dy,dx), f = (120-d)*0.008; n.vx += Math.cos(a)*f; n.vy += Math.sin(a)*f; }
     }
-    bgCtx.shadowBlur = n.r > 3 ? 6 : 3;
     bgCtx.fillStyle = 'rgba(0,120,200,0.8)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2); bgCtx.fill();
     bgCtx.fillStyle = 'rgba(180,220,255,0.4)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r*0.4,0,Math.PI*2); bgCtx.fill();
   }
@@ -3425,8 +3442,9 @@ function updateDateTime() {
                        (m < 10 ? '0' + m : m) + ':' +
                        (s < 10 ? '0' + s : s) + ' ' + ampm;
 }
+function _startClock() { if (window._clockTimer) return; window._clockTimer = setInterval(function(){ if (!document.hidden) updateDateTime(); }, 1000); }
 updateDateTime();
-setInterval(updateDateTime, 1000);
+_startClock();
 var _resizeRAF; window.addEventListener('resize', function() { if (_resizeRAF) return; _resizeRAF = requestAnimationFrame(function() { _resizeRAF = null; W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; }); });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
@@ -3459,7 +3477,7 @@ function login() {
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); _startClock(); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -3485,6 +3503,7 @@ function logout() {
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('password').value = '';
+  try { _restartAnim(); } catch(e) {}
 }
 
 function speakAlarm(deviceName, alarmType, isReservoir) {
@@ -4339,7 +4358,7 @@ function _rvSync() {
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
   } catch (e) { /* animation overlay is cosmetic; never break the map */ }
 }
-setInterval(_rvSync, 1000);
+setInterval(function(){ if (!document.hidden) _rvSync(); }, 1000);
 
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -4599,9 +4618,7 @@ loadPipelines(0);
   }
   document.addEventListener('visibilitychange', function() {
     _blinkPaused = document.hidden;
-    if (!_blinkPaused) requestAnimationFrame(_tick);
   });
-  requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
 })();
 /* Map feature refresh — data-driven, throttled to 2500ms, paused while tab hidden.
    Only re-renders a feature when its relevant data actually changed. Previously this
@@ -5045,7 +5062,7 @@ function initDashboard() {
         '<div id="datetime-display"><span id="date-display" class="date-layer"></span>' +
         '<span id="time-display" class="time-layer"></span></div></div>';
     } catch(e) {}
-    updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+    updateDateTime(); _startClock(); fetchWeather();
     initDashboard();
     if (typeof initPressureSettingsFromServer === 'function') initPressureSettingsFromServer();
     if (typeof initReservoirThresholdsFromServer === 'function') initReservoirThresholdsFromServer();
@@ -5376,7 +5393,25 @@ function _firebaseDeviceToArray() {
   return arr;
 }
 
+var _fbRenderLast = 0, _fbRenderTimer = null, _FB_RENDER_MIN_MS = 400;
+/* Coalesce bursts: N ESP32 devices writing every few seconds used to trigger N full re-renders.
+   Leading edge runs immediately when idle (first paint / user actions stay instant); a trailing
+   run picks up the latest cached data. Always reads _firebaseDevicesCache at run time. */
 function _updateDashboardFromFirebase() {
+  var now = Date.now(), wait = _FB_RENDER_MIN_MS - (now - _fbRenderLast);
+  if (wait <= 0) {
+    if (_fbRenderTimer) { clearTimeout(_fbRenderTimer); _fbRenderTimer = null; }
+    _fbRenderLast = now;
+    _updateDashboardFromFirebaseNow();
+    return;
+  }
+  if (_fbRenderTimer) return;
+  _fbRenderTimer = setTimeout(function() {
+    _fbRenderTimer = null; _fbRenderLast = Date.now();
+    _updateDashboardFromFirebaseNow();
+  }, wait);
+}
+function _updateDashboardFromFirebaseNow() {
   if (!_firebaseInitialDataLoaded) return;
   var devices = _firebaseDeviceToArray();
   if (!devices.length) return;
@@ -5459,8 +5494,7 @@ function updateDashboard() {
   });
 }
 function updateMap(devices) {
-  deviceSource.clear(); deviceMarkers = {};
-  if (typeof _refreshSig === 'object') _refreshSig = {}; // reset refresh cache so rebuilt features re-render once
+  var _seen = {}, _structural = false;
   devices.forEach(function(d) {
     if (!d.latitude || !d.longitude) return;
     var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
@@ -5474,9 +5508,25 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
     var isPres = effectiveType === 'pressure';
     var stat = derivePressureStatus(d);
-    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
-    deviceSource.addFeature(f); deviceMarkers[d.device] = f;
+    var _p = {name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null};
+    var f = deviceMarkers[d.device];
+    if (f) {
+      var _g = f.getGeometry().getCoordinates();
+      if (_g[0] !== coord[0] || _g[1] !== coord[1]) f.getGeometry().setCoordinates(coord);
+      var _diff = null;
+      for (var _k in _p) { if (f.get(_k) !== _p[_k]) { (_diff = _diff || {})[_k] = _p[_k]; } }
+      if (_diff) f.setProperties(_diff);
+    } else {
+      _p.geometry = new ol.geom.Point(coord);
+      f = new ol.Feature(_p);
+      deviceSource.addFeature(f); deviceMarkers[d.device] = f; _structural = true;
+    }
+    _seen[d.device] = true;
   });
+  Object.keys(deviceMarkers).forEach(function(k) {
+    if (!_seen[k]) { try { deviceSource.removeFeature(deviceMarkers[k]); } catch(e) {} delete deviceMarkers[k]; _structural = true; }
+  });
+  if (_structural && typeof _refreshSig === 'object') _refreshSig = {}; // new/removed features re-render once
 }
 
 // ★ v3: processOfflineQueue kept as no-op for legacy references.
@@ -14128,7 +14178,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeAssetModule()" title="Close Asset Management" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ASSETS/" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14148,7 +14198,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeEnergyAuditModule()" title="Close Energy Audit" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ENERGY/" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14168,7 +14218,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeSandboxAnalyticsModule()" title="Close AGUS Analytics" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
