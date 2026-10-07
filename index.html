@@ -3523,6 +3523,24 @@ function speakAlarm(deviceName, alarmType, isReservoir) {
 // Animation only (no text). Level = d.level (m³) as a share of the overflow threshold (r.maxLevel).
 // Inlet/outlet flow: pump flow/relay drives the outlet on booster stations; otherwise the
 // last level change (rising = inlet, falling = outlet; flat/unknown = both) is used.
+
+// ── Reservoir mode config ────────────────────────────────────────
+//   'inline'    = flow-in-line reservoir (sits in the pipeline: straight through-pipe,
+//                 both sides flowing at the same height, no riser/jet/draw-valve).
+//   'fill_draw' = default storage reservoir (bottom-feed riser + jet = fill,
+//                 valved draw-off = draw).
+// Device names are matched case-insensitively; any reservoir not listed fills & draws.
+var _resMods = {
+  'kayam': 'fill_draw',
+  'upper lagang': 'inline',
+  'muntipasi': 'inline',
+  'magsipit': 'inline',
+  'mahayahay': 'inline',
+  'dan2x': 'inline'
+};
+function _resMode(name) {
+  return _resMods[String(name || '').trim().toLowerCase()] === 'inline' ? 'inline' : 'fill_draw';
+}
 var _rvPrev = {};
 function _rvFlowState(key, lv, isBooster, flow, relay) {
   var has = isFinite(lv), now = Date.now(), p = _rvPrev[key], trend = 0;
@@ -3547,6 +3565,65 @@ function _rvAnimHTML(d, r, isBooster) {
   var L = Math.sqrt(Math.max(y - IY, 1) / K), x1 = 188 + L;
   var jet = 'M188 ' + IY + ' Q' + (188 + L / 2).toFixed(1) + ' ' + IY + ' ' + x1.toFixed(1) + ' ' + y.toFixed(1);
   var offIn = inOn ? '' : ' rv-off', offOut = outOn ? '' : ' rv-off';
+
+  // flow-in-line reservoirs run the pipeline straight through at one height (no jet / no valve)
+  var isInline = _resMode(d.device || '') === 'inline';
+  if (isInline) { inOn = has; outOn = has; offIn = inOn ? '' : ' rv-off'; offOut = outOn ? '' : ' rv-off'; }
+
+  // fill & draw only: jet leaving the wall inlet + splash ripples at the water surface
+  var splash = isInline ? '' :
+    '<g class="rv-fade' + offIn + '" transform="translate(' + x1.toFixed(1) + ' ' + y.toFixed(1) + ')">' +
+      '<ellipse class="rv-ripple" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
+      '<ellipse class="rv-ripple rv-r2" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
+      '<circle class="rv-drop" r="1.8" fill="#e6fbff" style="--dx:-7px"/>' +
+      '<circle class="rv-drop rv-d2" r="1.5" fill="#e6fbff" style="--dx:6px"/>' +
+      '<circle class="rv-drop rv-d3" r="1.2" fill="#e6fbff" style="--dx:-2px"/>' +
+    '</g>';
+  var jetSvg = isInline ? '' :
+    '<g class="rv-fade' + offIn + '">' +
+      '<path d="' + jet + '" fill="none" stroke="#7fe8ff" stroke-width="9" stroke-linecap="round" opacity=".35"/>' +
+      '<path class="rv-flow' + offIn + '" d="' + jet + '" fill="none" stroke="#bff6ff" stroke-width="4.5" stroke-linecap="round"/>' +
+    '</g>';
+  var pipes;
+  if (isInline) {
+    pipes =
+      // straight through-pipe at the same height on both sides (in-line flow)
+      '<rect x="100" y="173" width="88" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="100" y="177" width="88" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M104 182 H184" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="98" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M148 176 L156 182 L148 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      '<rect x="512" y="173" width="112" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="512" y="177" width="112" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offOut + '" d="M516 182 H618" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="622" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M566 176 L574 182 L566 188" fill="none" stroke="#fff" stroke-width="2.2"/>';
+  } else {
+    pipes =
+      // feed from below the reservoir: buried supply → vertical riser beside the wall → top inlet elbow
+      // (riser emerges from the ground at the tank base and rises to the top inlet nozzle)
+      '<rect x="102" y="282" width="24" height="12" rx="2" fill="#3c5560" stroke="#1f2f36" stroke-width="0.8"/>' +
+      '<rect x="106" y="174" width="16" height="114" fill="url(#rvPipe)"/>' +
+      '<rect x="106" y="174" width="4" height="114" fill="#9fb3bb" opacity="0.85"/>' +
+      '<rect x="110" y="178" width="8" height="106" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M114 282 V180" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="102" y="216" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
+      '<rect x="102" y="250" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
+      '<rect x="110" y="173" width="78" height="18" rx="3" fill="url(#rvPipe)"/>' +
+      '<rect x="110" y="177" width="78" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M114 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M138 176 L146 182 L138 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      // valved draw-off pipe through the right wall
+      '<rect x="528" y="332" width="8" height="36" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<rect x="512" y="340" width="188" height="20" rx="3" fill="url(#rvPipe)"/>' +
+      '<rect x="512" y="344" width="188" height="12" fill="#071820"/>' +
+      '<path class="rv-flow' + offOut + '" d="M516 350 H694" fill="none" stroke="#00c8ff" stroke-width="6" stroke-linecap="round"/>' +
+      '<rect x="588" y="333" width="24" height="34" rx="4" fill="#3c5560" stroke="#1f2f36"/>' +
+      '<line x1="600" y1="333" x2="600" y2="312" stroke="#9fb3bb" stroke-width="3"/>' +
+      '<ellipse cx="600" cy="310" rx="15" ry="4" fill="none" stroke="' + (outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="3"/>' +
+      '<path d="M672 342 L690 350 L672 358" fill="none" stroke="#fff" stroke-width="2.5"/>';
+  }
 
   return '<svg class="rv-scene" viewBox="100 120 600 285" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true">' +
   '<defs>' +
@@ -3577,19 +3654,9 @@ function _rvAnimHTML(d, r, isBooster) {
     '<rect class="rv-w3" x="0" y="' + (y + 3).toFixed(1) + '" width="1000" height="60" fill="url(#rvP1)"/>' +
     '<polygon class="rv-shine" points="200,150 270,150 250,390 180,390" fill="#fff" opacity=".06"/>' +
     '<rect x="188" y="' + (y - 2).toFixed(1) + '" width="324" height="5" fill="#baf7ff" opacity=".5" filter="url(#rvGlow)"/>' +
-    '<g class="rv-fade' + offIn + '" transform="translate(' + x1.toFixed(1) + ' ' + y.toFixed(1) + ')">' +
-      '<ellipse class="rv-ripple" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
-      '<ellipse class="rv-ripple rv-r2" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
-      '<circle class="rv-drop" r="1.8" fill="#e6fbff" style="--dx:-7px"/>' +
-      '<circle class="rv-drop rv-d2" r="1.5" fill="#e6fbff" style="--dx:6px"/>' +
-      '<circle class="rv-drop rv-d3" r="1.2" fill="#e6fbff" style="--dx:-2px"/>' +
-    '</g>' +
+    + splash +
   '</g>' +
-  // jet leaving the wall opening
-  '<g class="rv-fade' + offIn + '">' +
-    '<path d="' + jet + '" fill="none" stroke="#7fe8ff" stroke-width="9" stroke-linecap="round" opacity=".35"/>' +
-    '<path class="rv-flow' + offIn + '" d="' + jet + '" fill="none" stroke="#bff6ff" stroke-width="4.5" stroke-linecap="round"/>' +
-  '</g>' +
+  + jetSvg +
   // level scale ticks
   '<g stroke="#e6fbff" stroke-width="1.2" opacity=".7"><line x1="500" y1="372" x2="512" y2="372"/><line x1="500" y1="330.3" x2="512" y2="330.3"/><line x1="500" y1="288.5" x2="512" y2="288.5"/><line x1="500" y1="246.8" x2="512" y2="246.8"/><line x1="500" y1="205" x2="512" y2="205"/></g>' +
   // concrete walls + floor
@@ -3599,29 +3666,7 @@ function _rvAnimHTML(d, r, isBooster) {
   '<rect x="507" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
   // ladder
   '<g stroke="#c4d0d4" stroke-linecap="round"><line x1="538" y1="180" x2="538" y2="288" stroke-width="2"/><line x1="550" y1="180" x2="550" y2="288" stroke-width="2"/><line x1="544" y1="182" x2="544" y2="288" stroke-width="12" stroke-dasharray="2 9" stroke-linecap="butt"/></g>' +
-  // feed from below the reservoir: buried supply → vertical riser beside the wall → top inlet elbow
-  // (riser emerges from the ground at the tank base and rises to the top inlet nozzle)
-  '<rect x="102" y="282" width="24" height="12" rx="2" fill="#3c5560" stroke="#1f2f36" stroke-width="0.8"/>' +
-  '<rect x="106" y="174" width="16" height="114" fill="url(#rvPipe)"/>' +
-  '<rect x="106" y="174" width="4" height="114" fill="#9fb3bb" opacity="0.85"/>' +
-  '<rect x="110" y="178" width="8" height="106" fill="#071820"/>' +
-  '<path class="rv-flow' + offIn + '" d="M114 282 V180" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-  '<rect x="102" y="216" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
-  '<rect x="102" y="250" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
-  '<rect x="110" y="173" width="78" height="18" rx="3" fill="url(#rvPipe)"/>' +
-  '<rect x="110" y="177" width="78" height="10" fill="#071820"/>' +
-  '<path class="rv-flow' + offIn + '" d="M114 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-  '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-  '<path d="M138 176 L146 182 L138 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
-  // outlet pipe through right wall + gate valve
-  '<rect x="528" y="332" width="8" height="36" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-  '<rect x="512" y="340" width="188" height="20" rx="3" fill="url(#rvPipe)"/>' +
-  '<rect x="512" y="344" width="188" height="12" fill="#071820"/>' +
-  '<path class="rv-flow' + offOut + '" d="M516 350 H694" fill="none" stroke="#00c8ff" stroke-width="6" stroke-linecap="round"/>' +
-  '<rect x="588" y="333" width="24" height="34" rx="4" fill="#3c5560" stroke="#1f2f36"/>' +
-  '<line x1="600" y1="333" x2="600" y2="312" stroke="#9fb3bb" stroke-width="3"/>' +
-  '<ellipse cx="600" cy="310" rx="15" ry="4" fill="none" stroke="' + (outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="3"/>' +
-  '<path d="M672 342 L690 350 L672 358" fill="none" stroke="#fff" stroke-width="2.5"/>' +
+  + pipes +
   '</svg>';
 }
 
@@ -3990,16 +4035,52 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 
 // ─── Rectangular concrete reservoir design: walls, parapet caps, wall-mounted inlet jet, valved outlet ───
 var _rvFs = _rvFlowState(name, lv, isPS, f.get('flow'), f.get('relay'));
+var _inl = _resMode(name) === 'inline';
+if (_inl) { _rvFs.inOn = _rvFs.has; _rvFs.outOn = _rvFs.has; }
 var _cg = _cId + 'c', _pg = _cId + 'p';
 var _iy = _tY + 6;                       // inlet pipe centre (near the top, matching the popup scene)
 var _oy = _tY + _tH - 16;                 // outlet pipe centre
 var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
 var _jet = '';
-if (_surfY > _iy + 8 && _rvFs.inOn) {
+if (!_inl && _surfY > _iy + 8 && _rvFs.inOn) {
 var _jL = Math.min(Math.sqrt((_surfY - _iy) / 0.012), _tW - 2 * _wl - 8);
 var _jx0 = _tX + _wl, _jd = 'M' + _jx0 + ' ' + _iy + ' Q' + (_jx0 + _jL / 2).toFixed(1) + ' ' + _iy + ' ' + (_jx0 + _jL).toFixed(1) + ' ' + _surfY;
 _jet = '<path d="' + _jd + '" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round" opacity="0.55"/>'
 + '<path d="' + _jd + '" fill="none" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round"/>';
+}
+// pipes: flow-in-line = straight through-pipe at the same height on both sides;
+// fill & draw = bottom-feed riser + top nozzle on the left, valved draw-off on the right
+var _inletSvg, _outletSvg;
+if (_inl) {
+  _inletSvg =
+    '<rect x="' + (_tX - 10) + '" y="' + (_iy - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX - 10) + '" y="' + (_iy - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX - 8) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
+  _outletSvg =
+    '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 5) + '" width="' + (_wl + 10) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 2) + '" width="' + (_wl + 10) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX + _tW - _wl) + '" y1="' + _iy + '" x2="' + (_tX + _tW + 8) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>';
+} else {
+  _inletSvg =
+    // feed from the bottom: vertical riser beside the wall rises to the top inlet nozzle
+    '<rect x="' + (_tX - 8) + '" y="' + _iy + '" width="8" height="' + (_tY + _tH - _iy) + '" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX - 8) + '" y="' + _iy + '" width="2.4" height="' + (_tY + _tH - _iy) + '" fill="#9fb3bb" opacity="0.85"/>'
+    + '<rect x="' + (_tX - 6) + '" y="' + (_iy + 2) + '" width="4" height="' + (_tY + _tH - _iy - 4) + '" fill="#071820"/>'
+    + '<line x1="' + (_tX - 4) + '" y1="' + (_tY + _tH - 2) + '" x2="' + (_tX - 4) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="1.6" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
+    + '<rect x="' + (_tX - 7) + '" y="' + (_tY + _tH - 8) + '" width="6" height="4" rx="1" fill="#5d6e75" opacity="0.9"/>'
+    + '<rect x="' + (_tX - 2) + '" y="' + (_iy - 5) + '" width="' + (2 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
+    + '<rect x="' + (_tX - 2) + '" y="' + (_iy - 2) + '" width="' + (2 + _wl) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX - 2) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
+    + '<rect x="' + (_tX - 4) + '" y="' + (_iy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>';
+  _outletSvg =
+    // valved draw-off pipe through the right wall
+    '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 5) + '" width="' + (_wl + 16) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
+    + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 2) + '" width="' + (_wl + 16) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX + _tW - 2) + '" y1="' + _oy + '" x2="' + (_tX + _tW + 14) + '" y2="' + _oy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>'
+    + '<rect x="' + (_tX + _tW) + '" y="' + (_oy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
+    + '<rect x="' + (_tX + _tW + 7) + '" y="' + (_oy - 6) + '" width="7" height="12" rx="1.5" fill="#3c5560" stroke="#1f2f36" stroke-width="0.8"/>'
+    + '<line x1="' + (_tX + _tW + 10.5) + '" y1="' + (_oy - 6) + '" x2="' + (_tX + _tW + 10.5) + '" y2="' + (_oy - 11) + '" stroke="#9fb3bb" stroke-width="1.2"/>'
+    + '<ellipse cx="' + (_tX + _tW + 10.5) + '" cy="' + (_oy - 12) + '" rx="5" ry="1.6" fill="none" stroke="' + (_rvFs.outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="1.4"/>';
 }
 var _resDesign = '<defs>'
 + '<linearGradient id="' + _cg + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8d9ca2"/><stop offset="50%" stop-color="#74848b"/><stop offset="100%" stop-color="#8d9ca2"/></linearGradient>'
@@ -4017,26 +4098,9 @@ var _resDesign = '<defs>'
 // parapet caps
 + '<rect x="' + (_tX - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
 + '<rect x="' + (_tX + _tW - _wl - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
-// feed from the bottom: vertical riser beside the wall rises to the top inlet nozzle
-+ '<rect x="' + (_tX - 8) + '" y="' + _iy + '" width="8" height="' + (_tY + _tH - _iy) + '" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-+ '<rect x="' + (_tX - 8) + '" y="' + _iy + '" width="2.4" height="' + (_tY + _tH - _iy) + '" fill="#9fb3bb" opacity="0.85"/>'
-+ '<rect x="' + (_tX - 6) + '" y="' + (_iy + 2) + '" width="4" height="' + (_tY + _tH - _iy - 4) + '" fill="#071820"/>'
-+ '<line x1="' + (_tX - 4) + '" y1="' + (_tY + _tH - 2) + '" x2="' + (_tX - 4) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="1.6" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
-+ '<rect x="' + (_tX - 7) + '" y="' + (_tY + _tH - 8) + '" width="6" height="4" rx="1" fill="#5d6e75" opacity="0.9"/>'
-+ '<rect x="' + (_tX - 2) + '" y="' + (_iy - 5) + '" width="' + (2 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
-+ '<rect x="' + (_tX - 2) + '" y="' + (_iy - 2) + '" width="' + (2 + _wl) + '" height="4" fill="#071820"/>'
-+ '<line x1="' + (_tX - 2) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
-+ '<rect x="' + (_tX - 4) + '" y="' + (_iy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
-// outlet pipe through the right wall + gate valve
-+ '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 5) + '" width="' + (_wl + 16) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
-+ '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 2) + '" width="' + (_wl + 16) + '" height="4" fill="#071820"/>'
-+ '<line x1="' + (_tX + _tW - 2) + '" y1="' + _oy + '" x2="' + (_tX + _tW + 14) + '" y2="' + _oy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>'
-+ '<rect x="' + (_tX + _tW) + '" y="' + (_oy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
-+ '<rect x="' + (_tX + _tW + 7) + '" y="' + (_oy - 6) + '" width="7" height="12" rx="1.5" fill="#3c5560" stroke="#1f2f36" stroke-width="0.8"/>'
-+ '<line x1="' + (_tX + _tW + 10.5) + '" y1="' + (_oy - 6) + '" x2="' + (_tX + _tW + 10.5) + '" y2="' + (_oy - 11) + '" stroke="#9fb3bb" stroke-width="1.2"/>'
-+ '<ellipse cx="' + (_tX + _tW + 10.5) + '" cy="' + (_oy - 12) + '" rx="5" ry="1.6" fill="none" stroke="' + (_rvFs.outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="1.4"/>';
++ _inletSvg + _outletSvg;
 // geometry for the animated overlay (silent set: no extra redraws)
-f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, hasWater: _fillH > 2, surf: _surfY, iy: _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
+f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, mode: _inl ? 'inline' : '', hasWater: _fillH > 2, surf: _surfY, iy: _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
 f.set('_rvStack', null, true);
 
   var _svg =
@@ -4237,9 +4301,14 @@ function _rvOverlaySVG(g, st, uid) {
     o += '</g>';
   }
   if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
-  o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + g.tH - 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
-    + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
-    + '<line class="rv-mflow' + offOut + '" x1="' + (g.tX + g.tW - 2) + '" y1="' + g.oy + '" x2="' + (g.tX + g.tW + 14) + '" y2="' + g.oy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>';
+  if (g.mode === 'inline') {
+    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
+      + '<line class="rv-mflow' + offOut + '" x1="' + (g.tX + g.tW - g.wl) + '" y1="' + g.iy + '" x2="' + (g.tX + g.tW + 8) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
+  } else {
+    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + g.tH - 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
+      + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
+      + '<line class="rv-mflow' + offOut + '" x1="' + (g.tX + g.tW - 2) + '" y1="' + g.oy + '" x2="' + (g.tX + g.tW + 14) + '" y2="' + g.oy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>';
+  }
   o = o.replace(/^(<defs>.*?<\/defs>)(.*)$/, '$1<g mask="url(#' + uid + 'm)">$2</g>');
   var w = st ? st.Wm : g.W, h = st ? st.Hm : g.H;
   if (st) o = '<g transform="translate(' + st.rx + ',0) scale(' + st.rS.toFixed(4) + ')">' + o + '</g>';
