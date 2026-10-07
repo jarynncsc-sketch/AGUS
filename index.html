@@ -3991,7 +3991,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
 // ─── Rectangular concrete reservoir design: walls, parapet caps, wall-mounted inlet jet, valved outlet ───
 var _rvFs = _rvFlowState(name, lv, isPS, f.get('flow'), f.get('relay'));
 var _cg = _cId + 'c', _pg = _cId + 'p';
-var _iy = _tY + 20;                       // inlet pipe centre
+var _iy = _tY + 6;                       // inlet pipe centre (near the top, matching the popup scene)
 var _oy = _tY + _tH - 16;                 // outlet pipe centre
 var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
 var _jet = '';
