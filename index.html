@@ -1863,6 +1863,40 @@
   #pipe-popup .pp-badge{display:inline-block;padding:1px 8px;border-radius:20px;color:#fff;font-size:10px;font-weight:800;}
 
   </style>
+<style id="rv-anim-css">
+/* Animated reservoir scene (inlet jet, concrete tank, outlet) */
+.rv-scene{display:block;width:100%;max-height:190px;border-radius:10px;margin:0 0 8px;pointer-events:none;}
+.rv-w1{animation:rvWave 3.2s linear infinite;}
+.rv-w2{animation:rvWaveRev 4.8s linear infinite;}
+.rv-w3{animation:rvWave 6s linear infinite;opacity:.3;}
+@keyframes rvWave{from{transform:translateX(0);}to{transform:translateX(-100px);}}
+@keyframes rvWaveRev{from{transform:translateX(-100px);}to{transform:translateX(0);}}
+.rv-shine{animation:rvShine 9s linear infinite;}
+@keyframes rvShine{from{transform:translateX(-120px);}to{transform:translateX(380px);}}
+.rv-flow{stroke-dasharray:12 10;animation:rvFlow 1s linear infinite;}
+@keyframes rvFlow{to{stroke-dashoffset:-44;}}
+.rv-flow.rv-off{animation-play-state:paused;stroke-dasharray:none;opacity:.15;}
+.rv-fade.rv-off{opacity:0;}
+.rv-ripple{transform-box:fill-box;transform-origin:center;animation:rvRipple 1.6s ease-out infinite;}
+.rv-ripple.rv-r2{animation-delay:.8s;}
+@keyframes rvRipple{0%{transform:scale(.3);opacity:.8;}100%{transform:scale(2.2);opacity:0;}}
+.rv-drop{animation:rvSplash .7s ease-out infinite;}
+.rv-drop.rv-d2{animation-delay:.25s;}
+.rv-drop.rv-d3{animation-delay:.45s;}
+@keyframes rvSplash{0%{transform:translate(0,0);opacity:.9;}100%{transform:translate(var(--dx),-14px);opacity:0;}}
+@media (prefers-reduced-motion:reduce){.rv-w1,.rv-w2,.rv-w3,.rv-shine,.rv-flow,.rv-ripple,.rv-drop{animation:none;}}
+.rv-mw1{animation:rvMW 2.4s linear infinite;}
+.rv-mw2{animation:rvMWr 3.6s linear infinite;}
+@keyframes rvMW{from{transform:translateX(0);}to{transform:translateX(-40px);}}
+@keyframes rvMWr{from{transform:translateX(-40px);}to{transform:translateX(0);}}
+.rv-mflow{stroke-dasharray:5 4;animation:rvMFlow .8s linear infinite;}
+@keyframes rvMFlow{to{stroke-dashoffset:-9;}}
+.rv-mjet{stroke-dasharray:6 4;animation:rvMJet .7s linear infinite;}
+@keyframes rvMJet{to{stroke-dashoffset:-10;}}
+.rv-mflow.rv-off,.rv-mjet.rv-off{animation-play-state:paused;stroke-dasharray:none;opacity:.15;}
+.rv-ovl{display:block;pointer-events:none;overflow:visible;}
+@media (prefers-reduced-motion:reduce){.rv-mw1,.rv-mw2,.rv-mflow,.rv-mjet{animation:none;}}
+</style>
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
@@ -3484,6 +3518,106 @@ function speakAlarm(deviceName, alarmType, isReservoir) {
   var c2=0; function sn2(){if(c2<3){window.speechSynthesis.speak(u2);c2++;setTimeout(sn2,1300);}} sn2();
 }
 
+// ── Animated reservoir scene: wall-mounted inlet jet + rectangular concrete tank + valved outlet ──
+// Animation only (no text). Level = d.level (m³) as a share of the overflow threshold (r.maxLevel).
+// Inlet/outlet flow: pump flow/relay drives the outlet on booster stations; otherwise the
+// last level change (rising = inlet, falling = outlet; flat/unknown = both) is used.
+var _rvPrev = {};
+function _rvFlowState(key, lv, isBooster, flow, relay) {
+  var has = isFinite(lv), now = Date.now(), p = _rvPrev[key], trend = 0;
+  if (has) {
+    if (p && Math.abs(lv - p.v) > 0.05) { trend = lv > p.v ? 1 : -1; _rvPrev[key] = { v: lv, t: now, trend: trend }; }
+    else if (p) { trend = (now - p.t < 900000) ? p.trend : 0; }
+    else { _rvPrev[key] = { v: lv, t: now, trend: 0 }; }
+  }
+  var pumpOn = parseFloat(flow) > 0 || relay === true || relay === 1 || /^(on|true|1)$/i.test(String(relay));
+  return { has: has, trend: trend, inOn: has && trend >= 0, outOn: has && (isBooster ? pumpOn : trend <= 0) };
+}
+function _rvAnimHTML(d, r, isBooster) {
+  var lv = parseFloat(d.level), has = isFinite(lv);
+  var maxL = (r && r.maxLevel > 0) ? r.maxLevel : 250;
+  var pct = has ? Math.max(0, Math.min(100, lv / maxL * 100)) : 0;
+  var TOP = 205, BOT = 372, IY = 182, K = 0.01;
+  var y = BOT - pct / 100 * (BOT - TOP);
+
+  var _fs = _rvFlowState(d.device || '', lv, isBooster, d.flow, d.commandedRelay);
+  var inOn = _fs.inOn, outOn = _fs.outOn;
+
+  var L = Math.sqrt(Math.max(y - IY, 1) / K), x1 = 188 + L;
+  var jet = 'M188 ' + IY + ' Q' + (188 + L / 2).toFixed(1) + ' ' + IY + ' ' + x1.toFixed(1) + ' ' + y.toFixed(1);
+  var offIn = inOn ? '' : ' rv-off', offOut = outOn ? '' : ' rv-off';
+
+  return '<svg class="rv-scene" viewBox="100 120 600 285" preserveAspectRatio="xMidYMid meet" role="img" aria-hidden="true">' +
+  '<defs>' +
+    '<linearGradient id="rvSky" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#17343a"/><stop offset="100%" stop-color="#0a232c"/></linearGradient>' +
+    '<linearGradient id="rvSoil" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#4a3b2e"/><stop offset="100%" stop-color="#1c1713"/></linearGradient>' +
+    '<linearGradient id="rvConc" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8d9ca2"/><stop offset="50%" stop-color="#74848b"/><stop offset="100%" stop-color="#8d9ca2"/></linearGradient>' +
+    '<linearGradient id="rvBack" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#1f4753"/><stop offset="100%" stop-color="#0c2530"/></linearGradient>' +
+    '<linearGradient id="rvWater" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#31e3ff" stop-opacity=".85"/><stop offset="35%" stop-color="#009bd5" stop-opacity=".88"/><stop offset="100%" stop-color="#004a78" stop-opacity=".97"/></linearGradient>' +
+    '<linearGradient id="rvPipe" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8fa3ab"/><stop offset="45%" stop-color="#4d636c"/><stop offset="100%" stop-color="#2b3d45"/></linearGradient>' +
+    '<pattern id="rvDots" width="22" height="22" patternUnits="userSpaceOnUse"><circle cx="4" cy="6" r="1.3" fill="#2a2119"/><circle cx="15" cy="14" r="1.6" fill="#6b5a48" opacity=".6"/><circle cx="9" cy="19" r="1" fill="#2a2119"/></pattern>' +
+    '<pattern id="rvP1" width="100" height="12" patternUnits="userSpaceOnUse"><path d="M0 6 Q25 1 50 6 T100 6" fill="none" stroke="#fff" stroke-width="1.8" opacity=".7"/></pattern>' +
+    '<pattern id="rvP2" width="120" height="14" patternUnits="userSpaceOnUse"><path d="M0 7 Q30 2 60 7 T120 7" fill="none" stroke="#b8f4ff" stroke-width="2.2" opacity=".5"/></pattern>' +
+    '<clipPath id="rvCav"><rect x="188" y="150" width="324" height="222"/></clipPath>' +
+    '<filter id="rvGlow"><feGaussianBlur stdDeviation="3"/></filter>' +
+  '</defs>' +
+  // scenery + ground
+  '<rect x="100" y="120" width="600" height="285" fill="url(#rvSky)"/>' +
+  '<path d="M100 250 L180 250 L280 150 L380 245 L470 170 L570 250 L700 190 L700 290 L100 290 Z" fill="#193b36" opacity=".65"/>' +
+  '<rect x="100" y="290" width="600" height="115" fill="url(#rvSoil)"/>' +
+  '<rect x="100" y="290" width="600" height="115" fill="url(#rvDots)"/>' +
+  '<rect x="100" y="287" width="600" height="6" fill="#2f5d3a"/>' +
+  // inside of tank + water
+  '<rect x="188" y="164" width="324" height="208" fill="url(#rvBack)"/>' +
+  '<g clip-path="url(#rvCav)">' +
+    '<rect x="188" y="' + y.toFixed(1) + '" width="324" height="240" fill="url(#rvWater)"/>' +
+    '<rect class="rv-w1" x="0" y="' + (y - 6).toFixed(1) + '" width="1000" height="60" fill="url(#rvP1)"/>' +
+    '<rect class="rv-w2" x="0" y="' + (y - 2).toFixed(1) + '" width="1000" height="60" fill="url(#rvP2)"/>' +
+    '<rect class="rv-w3" x="0" y="' + (y + 3).toFixed(1) + '" width="1000" height="60" fill="url(#rvP1)"/>' +
+    '<polygon class="rv-shine" points="200,150 270,150 250,390 180,390" fill="#fff" opacity=".06"/>' +
+    '<rect x="188" y="' + (y - 2).toFixed(1) + '" width="324" height="5" fill="#baf7ff" opacity=".5" filter="url(#rvGlow)"/>' +
+    '<g class="rv-fade' + offIn + '" transform="translate(' + x1.toFixed(1) + ' ' + y.toFixed(1) + ')">' +
+      '<ellipse class="rv-ripple" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
+      '<ellipse class="rv-ripple rv-r2" rx="9" ry="3" fill="none" stroke="#e6fbff" stroke-width="1.5"/>' +
+      '<circle class="rv-drop" r="1.8" fill="#e6fbff" style="--dx:-7px"/>' +
+      '<circle class="rv-drop rv-d2" r="1.5" fill="#e6fbff" style="--dx:6px"/>' +
+      '<circle class="rv-drop rv-d3" r="1.2" fill="#e6fbff" style="--dx:-2px"/>' +
+    '</g>' +
+  '</g>' +
+  // jet leaving the wall opening
+  '<g class="rv-fade' + offIn + '">' +
+    '<path d="' + jet + '" fill="none" stroke="#7fe8ff" stroke-width="9" stroke-linecap="round" opacity=".35"/>' +
+    '<path class="rv-flow' + offIn + '" d="' + jet + '" fill="none" stroke="#bff6ff" stroke-width="4.5" stroke-linecap="round"/>' +
+  '</g>' +
+  // level scale ticks
+  '<g stroke="#e6fbff" stroke-width="1.2" opacity=".7"><line x1="500" y1="372" x2="512" y2="372"/><line x1="500" y1="330.3" x2="512" y2="330.3"/><line x1="500" y1="288.5" x2="512" y2="288.5"/><line x1="500" y1="246.8" x2="512" y2="246.8"/><line x1="500" y1="205" x2="512" y2="205"/></g>' +
+  // concrete walls + floor
+  '<path d="M170 170 H188 V372 H512 V170 H530 V390 H170 Z" fill="url(#rvConc)" stroke="#4d5c62" stroke-width="1.5"/>' +
+  '<g stroke="#566970" stroke-width="1" opacity=".55"><line x1="170" y1="230" x2="188" y2="230"/><line x1="170" y1="290" x2="188" y2="290"/><line x1="170" y1="340" x2="188" y2="340"/><line x1="512" y1="230" x2="530" y2="230"/><line x1="512" y1="290" x2="530" y2="290"/><line x1="250" y1="372" x2="250" y2="390"/><line x1="350" y1="372" x2="350" y2="390"/><line x1="450" y1="372" x2="450" y2="390"/></g>' +
+  '<rect x="165" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
+  '<rect x="507" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
+  // ladder
+  '<g stroke="#c4d0d4" stroke-linecap="round"><line x1="538" y1="180" x2="538" y2="288" stroke-width="2"/><line x1="550" y1="180" x2="550" y2="288" stroke-width="2"/><line x1="544" y1="182" x2="544" y2="288" stroke-width="12" stroke-dasharray="2 9" stroke-linecap="butt"/></g>' +
+  // short inlet supply pipe through left wall
+  '<rect x="128" y="190" width="14" height="97" fill="url(#rvConc)" stroke="#4d5c62"/>' +
+  '<rect x="120" y="284" width="30" height="6" rx="1.5" fill="#5d6e75"/>' +
+  '<rect x="118" y="173" width="70" height="18" rx="3" fill="url(#rvPipe)"/>' +
+  '<rect x="118" y="177" width="70" height="10" fill="#071820"/>' +
+  '<path class="rv-flow' + offIn + '" d="M122 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+  '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+  '<path d="M134 175 L142 182 L134 189" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+  // outlet pipe through right wall + gate valve
+  '<rect x="528" y="332" width="8" height="36" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+  '<rect x="512" y="340" width="188" height="20" rx="3" fill="url(#rvPipe)"/>' +
+  '<rect x="512" y="344" width="188" height="12" fill="#071820"/>' +
+  '<path class="rv-flow' + offOut + '" d="M516 350 H694" fill="none" stroke="#00c8ff" stroke-width="6" stroke-linecap="round"/>' +
+  '<rect x="588" y="333" width="24" height="34" rx="4" fill="#3c5560" stroke="#1f2f36"/>' +
+  '<line x1="600" y1="333" x2="600" y2="312" stroke="#9fb3bb" stroke-width="3"/>' +
+  '<ellipse cx="600" cy="310" rx="15" ry="4" fill="none" stroke="' + (outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="3"/>' +
+  '<path d="M672 342 L690 350 L672 358" fill="none" stroke="#fff" stroke-width="2.5"/>' +
+  '</svg>';
+}
+
 //Pumping Station SVG builder ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 // (extracted so it can be reused both for standalone Pumping Station markers
 //  and for the paired icon shown beside the Reservoir icon on hybrid
@@ -3713,7 +3847,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
   var _tW = Math.max(126, _wltW);
   var _nameW = Math.ceil(name.length * _nameFontSize * 0.62) + 18;
   var _W = Math.max(162, _nameW, _tW + 36);
-  var _tX = Math.round((_W - _tW) / 2), _tY = 14, _tH = 90;
+  var _tX = Math.round((_W - _tW) / 2), _tY = 14, _tH = 90; var _wl = 7; // concrete wall thickness
   var _topMargin = 4;
   var _innerPadding = 8;
   var _fillableH = _tH - _topMargin;
@@ -3749,18 +3883,18 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
            + '<stop offset="100%" stop-color="' + _wC1 + '" stop-opacity="1"/>'
            + '</linearGradient>'
            + '<clipPath id="' + _cId + '">'
-           + '<rect x="' + _tX + '" y="' + _tY + '" width="' + _tW + '" height="' + _tH + '" rx="8"/>'
+           + '<rect x="' + (_tX + _wl) + '" y="' + _tY + '" width="' + (_tW - 2 * _wl) + '" height="' + (_tH - _wl) + '"/>'
            + '</clipPath>'
            + '</defs>'
            + '<path d="' + _wpath + '" fill="url(#' + _gId + ')" clip-path="url(#' + _cId + ')"/>'
            // Water surface shimmer (lighter band at top of water)
            + (_fillH > 6 ? '<path d="' + _wpath + '" fill="' + _wC3 + '" clip-path="url(#' + _cId + ')" opacity="0.4"/>' : '');
   } else {
-    _wfill = '<defs><clipPath id="' + _cId + '"><rect x="' + _tX + '" y="' + _tY + '" width="' + _tW + '" height="' + _tH + '" rx="8"/></clipPath></defs>';
+    _wfill = '<defs><clipPath id="' + _cId + '"><rect x="' + (_tX + _wl) + '" y="' + _tY + '" width="' + (_tW - 2 * _wl) + '" height="' + (_tH - _wl) + '"/></clipPath></defs>';
   }
 
   // ─── Grid lines (enhanced with subtle glow) ────────────────
-  var _grid = '';
+  var _grid = ''; var _rvTxt = [];
   if (_hasThresh && _maxLvl >= 10) {
     var rawStep = _maxLvl / 5;
     var magnitude = Math.pow(10, Math.floor(Math.log10(rawStep)));
@@ -3776,7 +3910,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
       var pct = Math.min(100, Math.max(0, (vol / _maxLvl) * 100));
       var gy = Math.round(gridTopY + gridHeight * (1 - pct / 100));
       gy = Math.max(gridTopY, Math.min(gridBottomY, gy));
-      var textY = gy <= gridTopY + 8 ? gy + 10 : gy >= gridBottomY - 8 ? gy - 8 : gy - 4;
+      var textY = gy <= gridTopY + 8 ? gy + 10 : gy >= gridBottomY - 8 ? gy - 8 : gy - 4; _rvTxt.push({ x: _tX + 8, y: textY - 10, w: String(vol).length * 7 + 4, h: 13 });
       return '<line x1="' + _tX + '" y1="' + gy + '" x2="' + (_tX + _tW) + '" y2="' + gy
            + '" stroke="rgba(100,180,220,0.3)" stroke-width="1.5" stroke-dasharray="4,3"/>'
            + '<text x="' + (_tX + 8) + '" y="' + textY
@@ -3847,6 +3981,52 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
       + _nbL[_j] + '</text>';
   }
 
+// ─── Rectangular concrete reservoir design: walls, parapet caps, wall-mounted inlet jet, valved outlet ───
+var _rvFs = _rvFlowState(name, lv, isPS, f.get('flow'), f.get('relay'));
+var _cg = _cId + 'c', _pg = _cId + 'p';
+var _iy = _tY + 20;                       // inlet pipe centre
+var _oy = _tY + _tH - 16;                 // outlet pipe centre
+var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
+var _jet = '';
+if (_surfY > _iy + 8 && _rvFs.inOn) {
+var _jL = Math.min(Math.sqrt((_surfY - _iy) / 0.012), _tW - 2 * _wl - 8);
+var _jx0 = _tX + _wl, _jd = 'M' + _jx0 + ' ' + _iy + ' Q' + (_jx0 + _jL / 2).toFixed(1) + ' ' + _iy + ' ' + (_jx0 + _jL).toFixed(1) + ' ' + _surfY;
+_jet = '<path d="' + _jd + '" fill="none" stroke="#0ea5e9" stroke-width="6" stroke-linecap="round" opacity="0.55"/>'
++ '<path d="' + _jd + '" fill="none" stroke="#38bdf8" stroke-width="2.6" stroke-linecap="round"/>';
+}
+var _resDesign = '<defs>'
++ '<linearGradient id="' + _cg + '" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#8d9ca2"/><stop offset="50%" stop-color="#74848b"/><stop offset="100%" stop-color="#8d9ca2"/></linearGradient>'
++ '<linearGradient id="' + _pg + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#8fa3ab"/><stop offset="45%" stop-color="#4d636c"/><stop offset="100%" stop-color="#2b3d45"/></linearGradient>'
++ '</defs>'
++ _jet
+// concrete U-section (left wall, floor, right wall)
++ '<path d="M' + _tX + ' ' + _tY + ' h' + _wl + ' v' + (_tH - _wl) + ' h' + (_tW - 2 * _wl) + ' v-' + (_tH - _wl) + ' h' + _wl + ' v' + _tH + ' h-' + _tW + ' Z" fill="url(#' + _cg + ')" stroke="#4d5c62" stroke-width="1"/>'
++ '<g stroke="#566970" stroke-width="1" opacity="0.55">'
++ '<line x1="' + _tX + '" y1="' + (_tY + 30) + '" x2="' + (_tX + _wl) + '" y2="' + (_tY + 30) + '"/>'
++ '<line x1="' + _tX + '" y1="' + (_tY + 60) + '" x2="' + (_tX + _wl) + '" y2="' + (_tY + 60) + '"/>'
++ '<line x1="' + (_tX + _tW - _wl) + '" y1="' + (_tY + 30) + '" x2="' + (_tX + _tW) + '" y2="' + (_tY + 30) + '"/>'
++ '<line x1="' + (_tX + _tW - _wl) + '" y1="' + (_tY + 60) + '" x2="' + (_tX + _tW) + '" y2="' + (_tY + 60) + '"/>'
++ '<line x1="' + (_tX + _tW / 2) + '" y1="' + (_tY + _tH - _wl) + '" x2="' + (_tX + _tW / 2) + '" y2="' + (_tY + _tH) + '"/></g>'
+// parapet caps
++ '<rect x="' + (_tX - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
++ '<rect x="' + (_tX + _tW - _wl - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
+// short inlet supply pipe through the left wall
++ '<rect x="' + (_tX - 16) + '" y="' + (_iy - 5) + '" width="' + (16 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
++ '<rect x="' + (_tX - 16) + '" y="' + (_iy - 2) + '" width="' + (16 + _wl) + '" height="4" fill="#071820"/>'
++ '<line x1="' + (_tX - 14) + '" y1="' + _iy + '" x2="' + (_tX + _wl - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>'
++ '<rect x="' + (_tX - 4) + '" y="' + (_iy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
+// outlet pipe through the right wall + gate valve
++ '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 5) + '" width="' + (_wl + 16) + '" height="10" rx="2" fill="url(#' + _pg + ')"/>'
++ '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_oy - 2) + '" width="' + (_wl + 16) + '" height="4" fill="#071820"/>'
++ '<line x1="' + (_tX + _tW - 2) + '" y1="' + _oy + '" x2="' + (_tX + _tW + 14) + '" y2="' + _oy + '" stroke="#00c8ff" stroke-width="2.4" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>'
++ '<rect x="' + (_tX + _tW) + '" y="' + (_oy - 8) + '" width="4" height="16" rx="1" fill="#6b808a" stroke="#2b3d45" stroke-width="0.8"/>'
++ '<rect x="' + (_tX + _tW + 7) + '" y="' + (_oy - 6) + '" width="7" height="12" rx="1.5" fill="#3c5560" stroke="#1f2f36" stroke-width="0.8"/>'
++ '<line x1="' + (_tX + _tW + 10.5) + '" y1="' + (_oy - 6) + '" x2="' + (_tX + _tW + 10.5) + '" y2="' + (_oy - 11) + '" stroke="#9fb3bb" stroke-width="1.2"/>'
++ '<ellipse cx="' + (_tX + _tW + 10.5) + '" cy="' + (_oy - 12) + '" rx="5" ry="1.6" fill="none" stroke="' + (_rvFs.outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="1.4"/>';
+// geometry for the animated overlay (silent set: no extra redraws)
+f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, hasWater: _fillH > 2, surf: _surfY, iy: _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
+f.set('_rvStack', null, true);
+
   var _svg =
       '<svg viewBox="0 0 ' + _W + ' ' + _totalH + '"'
     + ' width="' + _W + '" height="' + _totalH + '"'
@@ -3860,9 +4040,9 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     + '<rect x="' + _tX + '" y="' + _tY
     + '" width="' + _tW + '" height="' + _tH + '" rx="8" fill="#f8fafc" opacity="0.0"/>'
     + _grid
-    + _wline
+    + _wline + _resDesign
     + '<rect x="' + _tX + '" y="' + _tY
-    + '" width="' + _tW + '" height="' + _tH + '" rx="8"'
+    + '" width="' + _tW + '" height="' + _tH + '" rx="2"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
     + '<rect x="' + (_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2) + '" y="' + (_centerY - 15)
     + '" width="' + (_wlt.length * 11.5 + 20) + '" height="31" rx="15.5" fill="white" opacity="0.94"/>'
@@ -3890,6 +4070,7 @@ var clusterLayer = new ol.layer.Vector({ source:clusterSource, style:function(fe
     var _rHr = Math.round(_rsH * _rS);
     var _rx = Math.round((_Wm - _rsW * _rS) / 2);
     var _Hm = _rHr + _psH;
+    f.set('_rvStack', { Wm: _Wm, Hm: _Hm, rx: _rx, rS: _rS }, true);
     var _rInner = _svg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
     var _pInner = _psSvg.replace(/^<svg[^>]*>/, '').replace(/<\/svg>$/, '');
     var _rsSvg = '<svg viewBox="0 0 ' + _Wm + ' ' + _Hm + '" width="' + _Wm + '" height="' + _Hm
@@ -4016,6 +4197,69 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
+/* Animated overlay for reservoir map markers. The map icon is a still image, so the moving
+   parts (waves, jet, pipe flow, ripples) are a CSS-animated SVG overlay aligned to the icon
+   (same size, bottom-centre anchored at the device coordinate). No per-frame icon redraws. */
+var _rvOvl = {}, _rvUid = 0;
+function _rvOverlaySVG(g, st, uid) {
+  var cx = g.tX + g.wl, cw = g.tW - 2 * g.wl, ch = g.tH - g.wl;
+  var offIn = g.inOn ? '' : ' rv-off', offOut = g.outOn ? '' : ' rv-off';
+  var mk = '<mask id="' + uid + 'm" maskUnits="userSpaceOnUse" x="-100" y="-100" width="1000" height="1000"><rect x="-100" y="-100" width="1000" height="1000" fill="#fff"/>';
+  (g.mask || []).forEach(function(r) { mk += '<rect x="' + r.x + '" y="' + r.y + '" width="' + r.w + '" height="' + r.h + '" fill="#000"/>'; });
+  mk += '</mask>';
+  var o = '<defs>' + mk + '<clipPath id="' + uid + 'c"><rect x="' + cx + '" y="' + g.tY + '" width="' + cw + '" height="' + ch + '"/></clipPath>'
+    + '<pattern id="' + uid + 'p" width="40" height="8" patternUnits="userSpaceOnUse"><path d="M0 4 Q10 1 20 4 T40 4" fill="none" stroke="#fff" stroke-width="1.3" opacity=".85"/></pattern></defs>';
+  if (g.hasWater) {
+    o += '<g clip-path="url(#' + uid + 'c)">'
+      + '<g transform="translate(0 ' + (g.surf - 4) + ')">'
+      + '<rect class="rv-mw1" x="' + (cx - 40) + '" y="0" width="' + (cw + 80) + '" height="8" fill="url(#' + uid + 'p)"/>'
+      + '<rect class="rv-mw2" x="' + (cx - 40) + '" y="5" width="' + (cw + 80) + '" height="8" fill="url(#' + uid + 'p)" opacity=".45"/>'
+      + '</g>';
+    if (g.jet) {
+      o += '<g class="rv-fade' + offIn + '" transform="translate(' + g.jx.toFixed(1) + ' ' + g.surf + ')">'
+        + '<ellipse class="rv-ripple" rx="7" ry="2" fill="none" stroke="#e6fbff" stroke-width="1.2"/>'
+        + '<ellipse class="rv-ripple rv-r2" rx="7" ry="2" fill="none" stroke="#e6fbff" stroke-width="1.2"/>'
+        + '<circle class="rv-drop" r="1.4" fill="#e6fbff" style="--dx:-5px"/>'
+        + '<circle class="rv-drop rv-d2" r="1.2" fill="#e6fbff" style="--dx:5px"/></g>';
+    }
+    o += '</g>';
+  }
+  if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
+  o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 14) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
+    + '<line class="rv-mflow' + offOut + '" x1="' + (g.tX + g.tW - 2) + '" y1="' + g.oy + '" x2="' + (g.tX + g.tW + 14) + '" y2="' + g.oy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>';
+  o = o.replace(/^(<defs>.*?<\/defs>)(.*)$/, '$1<g mask="url(#' + uid + 'm)">$2</g>');
+  var w = st ? st.Wm : g.W, h = st ? st.Hm : g.H;
+  if (st) o = '<g transform="translate(' + st.rx + ',0) scale(' + st.rS.toFixed(4) + ')">' + o + '</g>';
+  return '<svg class="rv-ovl" xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' + o + '</svg>';
+}
+function _rvSync() {
+  if (document.hidden) return;
+  try {
+    var seen = {};
+    clusterLayer.getSource().getFeatures().forEach(function(cf) {
+      var inner = cf.get('features');
+      if (!inner || inner.length !== 1) return;
+      var f = inner[0], g = f.get('_rvGeom');
+      if (!g) return;
+      var nm = f.get('name'), st = f.get('_rvStack') || null;
+      seen[nm] = true;
+      var o = _rvOvl[nm];
+      if (!o) {
+        var el = document.createElement('div');
+        el.style.pointerEvents = 'none';
+        o = _rvOvl[nm] = { uid: 'rvm' + (++_rvUid), el: el, sig: '', ov: new ol.Overlay({ element: el, positioning: 'bottom-center', stopEvent: false }) };
+        map.addOverlay(o.ov);
+      }
+      var sig = JSON.stringify([g, st]);
+      if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid); }
+      o.ov.setPosition(f.getGeometry().getCoordinates());
+    });
+    Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
+  } catch (e) { /* animation overlay is cosmetic; never break the map */ }
+}
+setInterval(_rvSync, 1000);
+
+
 /* ════════════════════════════════════════════════════════════════════════════
    PIPELINE NETWORK — material / size colouring, filter chips and click details.
    Parity with the Leak Detection module: colour-by material or size, per-material
@@ -4507,6 +4751,8 @@ if (!isNaN(llvl)) {
           '</div>' +
         '</div>';
 
+    det.insertAdjacentHTML('afterbegin', _rvAnimHTML(d, r, true));
+
     // ── RESERVOIR ────────────────────────────────────────────────
     } else if (isRes) {
       var wv = (d.level !== undefined && d.level !== null && d.level !== '')
@@ -4538,6 +4784,8 @@ if (!isNaN(llvl)) {
           '</div>' +
         '</div>';
  
+    det.insertAdjacentHTML('afterbegin', _rvAnimHTML(d, r, false));
+
     // ── PRESSURE SENSOR ──────────────────────────────────────────
     } else if (isPres) {
       det.innerHTML =
