@@ -3479,15 +3479,23 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
+      var _mapD0 = selectedDevice;
       _resetZoomedMarker();
       var _detEl = document.getElementById('device-details');
       if (_detEl) _detEl.style.display = 'none';
       if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
       selectedDevice = null;
       _deviceDetailsDismissed = true;
+      if (_mapD0 && _rvOvl[_mapD0] && _rvOvl[_mapD0].el) _rvOvl[_mapD0].el.style.display = 'none';
       var e = deviceSource.getExtent();
       if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
+      map.once('moveend', function() {
+        requestAnimationFrame(function(){
+          try { _rvSync(); } catch(e) {}
+          if (_mapD0 && _rvOvl[_mapD0] && _rvOvl[_mapD0].el && !_zoomScaledName) _rvOvl[_mapD0].el.style.display = '';
+        });
+      });
     }
     if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[card.dataset.tab]) openTabModal(card.dataset.tab);
   });
@@ -4760,6 +4768,14 @@ function selectDevice(device, zoomToDevice) {
       var view = map.getView();
       var zoom = view.getZoomForResolution(footprintMeters / targetPx);
       map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:zoom,duration:700});
+      if (_rvOvl[device] && _rvOvl[device].el) _rvOvl[device].el.style.display = 'none';
+      var _d0 = device;
+      map.once('moveend', function() {
+        requestAnimationFrame(function(){
+          try { _rvSync(); } catch(e) {}
+          if (_d0 === selectedDevice && _rvOvl[_d0] && _rvOvl[_d0].el) _rvOvl[_d0].el.style.display = '';
+        });
+      });
       _resetZoomedMarker();
       _zoomScaledName = device;
       f.set('_zSize', targetPx);
