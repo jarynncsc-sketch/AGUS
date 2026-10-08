@@ -4762,8 +4762,9 @@ function selectDevice(device, zoomToDevice) {
       map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:zoom,duration:700});
       _resetZoomedMarker();
       _zoomScaledName = device;
-      f.set('_zSize', targetPx, true);
-      try { _rvSync(); } catch(e) {}
+      f.set('_zSize', targetPx);
+      f.changed();
+      requestAnimationFrame(function(){ try { _rvSync(); } catch(e) {} });
     }
     f.changed();
   }
