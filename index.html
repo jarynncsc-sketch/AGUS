@@ -4731,7 +4731,7 @@ function selectDevice(device, zoomToDevice) {
       var size = map.getSize();
       var vw = (size && size[0]) ? size[0] : 1200;
       var vh = (size && size[1]) ? size[1] : 800;
-      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.20));
+      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.30));
       var footprintMeters = 150;
       var view = map.getView();
       var zoom = view.getZoomForResolution(footprintMeters / targetPx);
