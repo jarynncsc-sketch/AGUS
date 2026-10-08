@@ -4227,7 +4227,7 @@ f.set('_rvStack', null, true);
     return [new ol.style.Style({
       image: new ol.style.Icon({
         src: 'data:image/svg+xml,' + encodeURIComponent(_rsSvg),
-        scale: 1,
+        scale: _selZoomScale(f, _Hm),
         anchor: [0.5, 1],
         anchorXUnits: 'fraction',
         anchorYUnits: 'fraction'
@@ -4237,7 +4237,7 @@ f.set('_rvStack', null, true);
   return [new ol.style.Style({
     image: new ol.style.Icon({
       src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
-      scale: 1,
+      scale: _selZoomScale(f, _totalH),
       anchor: [0.5, 1],
       anchorXUnits: 'fraction',
       anchorYUnits: 'fraction'
@@ -4247,7 +4247,8 @@ f.set('_rvStack', null, true);
 //Pumping Station map icon ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 if (isPS) {
   var _svg = buildPumpStationSVG(f, name, status);
-  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+  var _psH = parseFloat((_svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '178', '182'])[2]) || 182;
+  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:_selZoomScale(f, _psH),anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
     if (type === 'pressure') {
@@ -4337,7 +4338,7 @@ if (isPS) {
         + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
         + _nameD + '</text>'
         + '</svg>';
-      return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+      return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:_selZoomScale(f, _totalH),anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
     }
     if (status==='Fault'){fc='red';sc='rgba(220,38,38,'+(0.3+_bPulse*0.7).toFixed(2)+')';sw=3;text=name;} else if(status==='Offline'){fc='orange';text=name;} else {fc='green';text=name;}
   }
@@ -4709,6 +4710,19 @@ map.on('pointermove', function(evt) {
 var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,12],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
+var _zoomScaledName = null;
+function _selZoomScale(f, natH) {
+  var _z = (f && f.get) ? f.get('_zSize') : null;
+  if (_z && natH > 0) { var _s = _z / natH; return _s > 1 ? _s : 1; }
+  return 1;
+}
+function _resetZoomedMarker() {
+  if (_zoomScaledName && deviceMarkers[_zoomScaledName]) {
+    try { deviceMarkers[_zoomScaledName].set('_zSize', 0); } catch(e) {}
+  }
+  _zoomScaledName = null;
+}
+
 function derivePressureStatus(d) {
   if (d.button) return 'Fault';
   var raw = d.lastTimestamp || d.lastSeen || d.timestamp || null;
@@ -4731,11 +4745,14 @@ function selectDevice(device, zoomToDevice) {
       var size = map.getSize();
       var vw = (size && size[0]) ? size[0] : 1200;
       var vh = (size && size[1]) ? size[1] : 800;
-      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.30));
+      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.35));
       var footprintMeters = 150;
       var view = map.getView();
       var zoom = view.getZoomForResolution(footprintMeters / targetPx);
       map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:zoom,duration:700});
+      _resetZoomedMarker();
+      _zoomScaledName = device;
+      f.set('_zSize', targetPx, true);
     }
     f.changed();
   }
@@ -5013,6 +5030,7 @@ if (!isNaN(llvl)) {
       _cb.onclick = function(){
         _d.style.display = 'none';
         if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
+        _resetZoomedMarker();
         selectedDevice = null;
         _deviceDetailsDismissed = true;
       };
