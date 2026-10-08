@@ -4730,6 +4730,7 @@ function _resetZoomedMarker() {
     try { deviceMarkers[_zoomScaledName].set('_zSize', 0); } catch(e) {}
   }
   _zoomScaledName = null;
+  try { _rvSync(); } catch(e) {}
 }
 
 function derivePressureStatus(d) {
@@ -4762,6 +4763,7 @@ function selectDevice(device, zoomToDevice) {
       _resetZoomedMarker();
       _zoomScaledName = device;
       f.set('_zSize', targetPx, true);
+      try { _rvSync(); } catch(e) {}
     }
     f.changed();
   }
