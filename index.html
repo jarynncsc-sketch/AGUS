@@ -4706,7 +4706,7 @@ map.on('singleclick', function(evt) {
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
-var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,-10],stopEvent:false});
+var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,8],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
 function derivePressureStatus(d) {
@@ -4722,11 +4722,23 @@ function derivePressureStatus(d) {
   }
   return d.status || 'Offline';
 }
-function selectDevice(device) {
+function selectDevice(device, zoomToDevice) {
   _deviceDetailsDismissed = false;
   selectedDevice = device;
   var f = deviceMarkers[device];
-  if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
+  if (f) {
+    if (zoomToDevice) {
+      var size = map.getSize();
+      var vw = (size && size[0]) ? size[0] : 1200;
+      var vh = (size && size[1]) ? size[1] : 800;
+      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.20));
+      var footprintMeters = 150;
+      var view = map.getView();
+      var zoom = view.getZoomForResolution(footprintMeters / targetPx);
+      map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:zoom,duration:700});
+    }
+    f.changed();
+  }
   showDeviceDetails(device);
   document.querySelectorAll('#device-list li.selected').forEach(function(el){el.classList.remove('selected');});
   document.querySelectorAll('#device-list li').forEach(function(el){
@@ -6069,11 +6081,11 @@ if (isResBooster) {
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
-  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
+  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
 }
     else {
         li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
-        li.addEventListener('click', function(){selectDevice(d.device);});
+        li.addEventListener('click', function(){selectDevice(d.device, true);});
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
@@ -6081,7 +6093,7 @@ if (isResBooster) {
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
-      li.addEventListener('click', function(){selectDevice(d.device);});
+      li.addEventListener('click', function(){selectDevice(d.device, true);});
     } else {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
       //        relay = what Smart Device actually has (sheet)
@@ -6112,7 +6124,7 @@ if (isResBooster) {
         + '</div>';
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -6188,7 +6200,7 @@ if (isResBooster) {
           }
         });
       });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
       // ══════════════════════════════════════════════════════════════
       // COMPREHENSIVE ALARM DETECTION — Pumping Stations
       // Covers: offline, fault, low/high pressure, low/high voltage,
