@@ -4348,7 +4348,7 @@ if (isPS) {
    parts (waves, jet, pipe flow, ripples) are a CSS-animated SVG overlay aligned to the icon
    (same size, bottom-centre anchored at the device coordinate). No per-frame icon redraws. */
 var _rvOvl = {}, _rvUid = 0;
-function _rvOverlaySVG(g, st, uid) {
+function _rvOverlaySVG(g, st, uid, s) {
   var cx = g.tX + g.wl, cw = g.tW - 2 * g.wl, ch = g.tH - g.wl;
   var offIn = g.inOn ? '' : ' rv-off', offOut = g.outOn ? '' : ' rv-off';
   var mk = '<mask id="' + uid + 'm" maskUnits="userSpaceOnUse" x="-100" y="-100" width="1000" height="1000"><rect x="-100" y="-100" width="1000" height="1000" fill="#fff"/>';
@@ -4382,7 +4382,9 @@ function _rvOverlaySVG(g, st, uid) {
   o = o.replace(/^(<defs>.*?<\/defs>)(.*)$/, '$1<g mask="url(#' + uid + 'm)">$2</g>');
   var w = st ? st.Wm : g.W, h = st ? st.Hm : g.H;
   if (st) o = '<g transform="translate(' + st.rx + ',0) scale(' + st.rS.toFixed(4) + ')">' + o + '</g>';
-  return '<svg class="rv-ovl" xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' + o + '</svg>';
+  var wS = w, hS = h;
+  if (s && s > 1) { wS = Math.round(w * s); hS = Math.round(h * s); }
+  return '<svg class="rv-ovl" xmlns="http://www.w3.org/2000/svg" width="' + wS + '" height="' + hS + '" viewBox="0 0 ' + w + ' ' + h + '">' + o + '</svg>';
 }
 function _rvSync() {
   if (document.hidden) return;
@@ -4394,6 +4396,7 @@ function _rvSync() {
       var f = inner[0], g = f.get('_rvGeom');
       if (!g) return;
       var nm = f.get('name'), st = f.get('_rvStack') || null;
+      var s = _selZoomScale(f, st ? st.Hm : g.H);
       seen[nm] = true;
       var o = _rvOvl[nm];
       if (!o) {
@@ -4402,8 +4405,8 @@ function _rvSync() {
         o = _rvOvl[nm] = { uid: 'rvm' + (++_rvUid), el: el, sig: '', ov: new ol.Overlay({ element: el, positioning: 'bottom-center', stopEvent: false }) };
         map.addOverlay(o.ov);
       }
-      var sig = JSON.stringify([g, st]);
-      if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid); }
+      var sig = JSON.stringify([g, st, s]);
+      if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid, s); }
       o.ov.setPosition(f.getGeometry().getCoordinates());
     });
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
