@@ -3479,6 +3479,12 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
+      _resetZoomedMarker();
+      var _detEl = document.getElementById('device-details');
+      if (_detEl) _detEl.style.display = 'none';
+      if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
+      selectedDevice = null;
+      _deviceDetailsDismissed = true;
       var e = deviceSource.getExtent();
       if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
