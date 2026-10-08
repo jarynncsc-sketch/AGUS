@@ -116,10 +116,14 @@
         'color:#f97316;font-size:13px;');
       return '⛔ Restricted';
     };
-    setInterval(function() {
-      console.log(_consoleTrap);
-      console.clear();
-    }, 2000);
+    // Console trap is OFF by default. Set window.AGUS_ENABLE_CONSOLE_TRAP = true to
+    // re-enable: the 2 s log/clear timer spammed output and wasted battery.
+    if (window.AGUS_ENABLE_CONSOLE_TRAP) {
+      setInterval(function() {
+        console.log(_consoleTrap);
+        console.clear();
+      }, 2000);
+    }
 
     /* ── 5. Disable Text Selection ── */
     document.addEventListener('selectstart', function(e) {
@@ -225,9 +229,12 @@
     /* ══════════════════════════════════════════════════════
        9. Debugger Trap — halts execution when DevTools open
        ══════════════════════════════════════════════════════ */
+    // Debugger trap is OFF by default. Set window.AGUS_ENABLE_DEBUGGER_TRAP = true
+    // to re-enable: it compiled a new function every 50 ms and froze the page
+    // whenever DevTools was open.
     var _dbgInterval = null;
     function _startDebuggerTrap() {
-      if (_dbgInterval) return;
+      if (_dbgInterval || !window.AGUS_ENABLE_DEBUGGER_TRAP) return;
       _dbgInterval = setInterval(function() {
         (function() {
           try { (function(c){if(('' + c / c).length !== 1 || c % 20 === 0) { (function(){}).constructor('debugger')(); } else { (function(){}).constructor('debugger')(); }})(1); } catch(e) {}
@@ -410,8 +417,15 @@
   })();
   </script>
   <!-- ═══ END PWA SETUP ═══ -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+  <!-- Preconnects: warm up the CDN, Firebase and Apps Script hosts before they're needed -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://script.google.com">
+  <!-- Fonts & icons load async so they don't block first paint -->
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" media="print" onload="this.media='all'">
   <style>
   /* ── DARK MODE ── */
   body.dark-mode { filter: invert(1) hue-rotate(180deg); }
@@ -424,10 +438,11 @@
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
-  <script src="https://unpkg.com/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1"></script>
+  <!-- MQTT is jsDelivr + deferred; only used after login by _initMQTT() -->
+  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1" defer></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -1180,7 +1195,7 @@
     #dashboard{display:none;flex-direction:row;gap:1rem;padding:1rem;height:100vh;overflow:hidden;position:relative;z-index:5;color:var(--text-primary);background:var(--bg-primary);transition:background-color 0.3s ease,color 0.3s ease;}
 
     /* ── TOP MENU BAR: grouped strip ── */
-    #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
+    #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
     .nav-group-sep{width:1px;background:rgba(0,64,128,0.12);align-self:stretch;margin:0 3px;border-radius:1px;}
     .nav-group-wrap{display:flex;flex-direction:column;gap:2px;}
     .nav-group-label{font-size:9px;font-weight:600;color:#8aa5af;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:0 2px;}
@@ -1308,15 +1323,15 @@
     #map-container{position:relative;flex:3;}
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
-    #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
-    #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
+    #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);}
+    #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     /* top:120px collided with the AI Health Card (also top:120px, z-index:1200), so the
        Page Views strip sits lower-left of it, on the same row as the compass. */
-    #pv-counter-strip{position:absolute;bottom:64px;right:20px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    #pv-counter-strip{position:absolute;bottom:64px;right:20px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
     /* Map compass: sits below the Health Diagnostic / Page Views strips AND below the
        AI Health Card (top:120px, ~114px tall, z-index:1200), which would otherwise cover it. */
-    #map-compass{position:absolute;top:246px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    #map-compass{position:absolute;top:246px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
     #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
     #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
     #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
@@ -1343,7 +1358,7 @@
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
     #conn-indicator{font-size:14px;cursor:pointer;pointer-events:auto;transition:color 0.3s;}
-    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:calc(100% - 40px);max-height:calc(100% - 40px);overflow:hidden;}
+    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:calc(100% - 40px);max-height:calc(100% - 40px);overflow:hidden;}
     #legend-card #legend-content{display:flex;flex-wrap:wrap;gap:16px;}
     /* Legend starts collapsed on every screen size (matches Leak Detection); "Show" expands it. */
     #legend-card .legend-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;}
@@ -1834,7 +1849,7 @@
      Right side, vertically aligned with the map compass (top:246px, 64px wide at
      right:14px), which sits below the AI Health Card. */
   #map-basemap{position:absolute;right:86px;top:246px;z-index:1100;pointer-events:auto;display:flex;flex-direction:column;gap:4px;background:transparent;}
-  #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
+  #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
   #map-basemap .mb:hover{background:#004080;color:#fff;border-color:#004080;}
   #map-basemap .mb.active{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;border-color:#002b5c;box-shadow:0 3px 10px rgba(0,60,140,.35);}
   @media (max-width:768px){#map-basemap .mb span{display:none;}#map-basemap .mb{padding:7px 8px;}}
@@ -2267,11 +2282,14 @@
   @media (max-width: 700px) {
     #legend-card {
       padding: 9px 13px;
-      backdrop-filter: blur(4px);
     }
     #legend-card > div {
       min-width: 90px !important;
     }
+  }
+  /* Mobile: backdrop blur is costly on low-end GPUs — kill it everywhere */
+  @media (max-width: 767px) {
+    * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   }
   .filter-pill{padding:4px 11px;border-radius:20px;border:1px solid rgba(0,64,128,0.18);background:white;color:#4a6572;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:.15s;white-space:nowrap;}
 .filter-pill.active{background:#185FA5;color:white;border-color:#185FA5;}
@@ -2815,7 +2833,7 @@ try {
       _lastKnownRelayInitialized = true;
     }
     _updateConnStatus();
-    _updateDashboardFromFirebase();
+    _scheduleFbRender();
   }, function(err) {
     _firebaseConnected = false;
     _updateConnStatus();
@@ -2825,6 +2843,29 @@ try {
   _firebaseConnected = false;
   _updateConnStatus();
   console.warn('[FB] Init error:', e);
+}
+
+// ── Firebase render coalescer ────────────────────────────────────────────
+// ESP32 devices write to Firebase in bursts (relay + readings + commandedRelay
+// often within the same second). Each write fired a full rebuild of the device
+// list AND cleared/recreated every map marker. Coalesce: a burst costs one
+// render, spaced at least 400 ms apart; the first write after idle renders
+// immediately so the first paint and toggle feedback stay instant.
+var _fbRenderPending = false, _fbRenderTimer = null, _fbLastRender = 0;
+var _FB_RENDER_MIN_INTERVAL = 400;
+function _scheduleFbRender() {
+  if (_fbRenderPending) return; // an earlier schedule is already coalescing this burst
+  var wait = _fbLastRender ? Math.max(0, _fbLastRender + _FB_RENDER_MIN_INTERVAL - Date.now()) : 0;
+  if (wait > 0) {
+    _fbRenderPending = true;
+    _fbRenderTimer = setTimeout(function() {
+      _fbRenderTimer = null; _fbRenderPending = false; _fbLastRender = Date.now();
+      _updateDashboardFromFirebase();
+    }, wait);
+  } else {
+    _fbLastRender = Date.now();
+    _updateDashboardFromFirebase();
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3057,7 +3098,7 @@ function apiCached(action, params) {
   });
 }
 
-var deviceMarkers = {}, myChart = null, blinkOn = true;
+var deviceMarkers = {}, myChart = null;
 
 // Keep the graph modal's chart perfectly fit to its container at any
 // browser zoom level — mirrors the same fix used in AGUS Analytics so
@@ -3370,12 +3411,14 @@ function drawLinks() {
     }
   }
 }
-var _animFrame = null;
+var _animFrame = null, _frameSkp = 0;
+window._bgLoginOnly = true; // canvas only animates on the login screen
 function animate() {
   if (_animPaused) { _animFrame = null; return; } // fully release the rAF loop while hidden
+  _frameSkp++;
+  if (_frameSkp & 1) { _animFrame = requestAnimationFrame(animate); return; } // ~30 fps instead of 60
   bgCtx.fillStyle = _bgGrad; bgCtx.fillRect(0,0,W,H);
   drawLinks();
-  bgCtx.shadowColor = 'rgba(0,120,200,0.25)'; bgCtx.shadowBlur = 4;
   for (var ni2 = 0; ni2 < nodes.length; ni2++) {
     var n = nodes[ni2];
     n.x += n.vx; n.y += n.vy;
@@ -3384,14 +3427,13 @@ function animate() {
       var dx = n.x-mouse.x, dy = n.y-mouse.y, d = Math.sqrt(dx*dx+dy*dy);
       if (d < 120) { var a = Math.atan2(dy,dx), f = (120-d)*0.008; n.vx += Math.cos(a)*f; n.vy += Math.sin(a)*f; }
     }
-    bgCtx.shadowBlur = n.r > 3 ? 6 : 3;
     bgCtx.fillStyle = 'rgba(0,120,200,0.8)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2); bgCtx.fill();
     bgCtx.fillStyle = 'rgba(180,220,255,0.4)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r*0.4,0,Math.PI*2); bgCtx.fill();
   }
-  bgCtx.shadowBlur = 0; bgCtx.shadowColor = 'transparent';
   _animFrame = requestAnimationFrame(animate);
 }
 function _restartAnim() {
+  if (window._bgLoginOnly === false) { _animPaused = true; _animFrame = null; return; } // dashboard covers it — stop entirely
   _animPaused = document.hidden;
   if (!_animPaused) {
     _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff');
@@ -3402,6 +3444,7 @@ animate();
 document.addEventListener('visibilitychange', _restartAnim);
 window.addEventListener('resize', function() { W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff'); });
 function updateDateTime() {
+    if (document.hidden) return; // pause clock work in background tabs
     var elContainer = document.getElementById('datetime-display');
     if (!elContainer) return;
     var dateEl = document.getElementById('date-display');
@@ -3427,6 +3470,7 @@ function updateDateTime() {
 }
 updateDateTime();
 setInterval(updateDateTime, 1000);
+document.addEventListener('visibilitychange', function() { if (!document.hidden) updateDateTime(); });
 var _resizeRAF; window.addEventListener('resize', function() { if (_resizeRAF) return; _resizeRAF = requestAnimationFrame(function() { _resizeRAF = null; W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; }); });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
@@ -3458,8 +3502,9 @@ function login() {
       try { localStorage.setItem('agus_session', JSON.stringify({ token: token, user: user, at: Date.now() })); } catch(e) {}
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
+      window._bgLoginOnly = false; _animPaused = true; // stop background canvas animation (covered by dashboard)
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -3483,6 +3528,7 @@ function logout() {
   userToken = null; loggedInUser = ''; selectedDevice = null; _deviceDetailsDismissed = false;
   try { localStorage.removeItem('agus_session'); } catch(e) {}
   document.getElementById('dashboard').style.display = 'none';
+  window._bgLoginOnly = true; _animPaused = false; // restart background canvas animation
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('password').value = '';
 }
@@ -3604,6 +3650,8 @@ function _rvAnimHTML(d, r, isBooster) {
       '<rect x="188" y="173" width="324" height="18" rx="2" fill="url(#rvPipe)"/>' +
       '<rect x="188" y="177" width="324" height="10" fill="#071820"/>' +
       '<path class="rv-flow' + offIn + '" d="M188 182 H512" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<path d="M336 176 L344 182 L336 188" fill="none" stroke="#fff" stroke-width="2"/>' +
+      '<path d="M384 176 L392 182 L384 188" fill="none" stroke="#fff" stroke-width="2"/>' +
       '<rect x="512" y="173" width="112" height="18" rx="2" fill="url(#rvPipe)"/>' +
       '<rect x="512" y="177" width="112" height="10" fill="#071820"/>' +
       '<path class="rv-flow' + offOut + '" d="M516 182 H618" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
@@ -3618,6 +3666,9 @@ function _rvAnimHTML(d, r, isBooster) {
       '<rect x="106" y="174" width="4" height="114" fill="#9fb3bb" opacity="0.85"/>' +
       '<rect x="110" y="178" width="8" height="106" fill="#071820"/>' +
       '<path class="rv-flow' + offIn + '" d="M114 282 V180" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      // upward arrowheads on the riser — makes the FILL direction obvious
+      '<path d="M110 236 L114 228 L118 236" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      '<path d="M110 262 L114 254 L118 262" fill="none" stroke="#fff" stroke-width="2.2"/>' +
       '<rect x="102" y="216" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
       '<rect x="102" y="250" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
       '<rect x="110" y="173" width="78" height="18" rx="3" fill="url(#rvPipe)"/>' +
@@ -3625,11 +3676,15 @@ function _rvAnimHTML(d, r, isBooster) {
       '<path class="rv-flow' + offIn + '" d="M114 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
       '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
       '<path d="M138 176 L146 182 L138 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      // layering emphasis: inlet-nozzle port ring (hidden when pump off)
+      '<circle cx="186" cy="182" r="4.5" fill="none" stroke="#e6fbff" stroke-width="2" opacity=".9" class="rv-fade' + offIn + '"/>' +
       // bottom draw-off pipe through the right wall at the tank floor
       '<rect x="528" y="356" width="8" height="16" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
       '<rect x="512" y="356" width="188" height="16" rx="3" fill="url(#rvPipe)"/>' +
       '<rect x="512" y="359" width="188" height="10" fill="#071820"/>' +
       '<path class="rv-flow' + offOut + '" d="M516 364 H694" fill="none" stroke="#00c8ff" stroke-width="6" stroke-linecap="round"/>' +
+      // layering emphasis: draw-off port ring (hidden when pump off)
+      '<circle cx="512" cy="364" r="4.5" fill="none" stroke="#e6fbff" stroke-width="2" opacity=".9" class="rv-fade' + offOut + '"/>' +
       '<rect x="588" y="345" width="24" height="27" rx="4" fill="#3c5560" stroke="#1f2f36"/>' +
       '<line x1="600" y1="345" x2="600" y2="325" stroke="#9fb3bb" stroke-width="3"/>' +
       '<ellipse cx="600" cy="323" rx="15" ry="4" fill="none" stroke="' + (outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="3"/>' +
@@ -4603,27 +4658,6 @@ window.applyPipeFilter = applyPipeFilter;
   for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === saved);
 })();
 loadPipelines(0);
-/* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
-(function() {
-  var _phase = 0;
-  var _lastT = 0;
-  var _blinkPaused = false;
-  function _tick(ts) {
-    if (_blinkPaused) { _phase = 0; _lastT = ts; return; }
-    var dt = ts - _lastT; _lastT = ts;
-    _phase += dt * 0.0022; // ~1.4s full cycle
-    if (_phase > Math.PI * 2) _phase -= Math.PI * 2;
-    // blinkOn: true when sine > 0 (upper half-cycle), false when < 0
-    // This keeps the same boolean API but transitions are smooth via CSS animation
-    blinkOn = Math.sin(_phase) > 0;
-    requestAnimationFrame(_tick);
-  }
-  document.addEventListener('visibilitychange', function() {
-    _blinkPaused = document.hidden;
-    if (!_blinkPaused) requestAnimationFrame(_tick);
-  });
-  requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
-})();
 /* Map feature refresh — data-driven, throttled to 2500ms, paused while tab hidden.
    Only re-renders a feature when its relevant data actually changed. Previously this
    loop called f.changed() on EVERY feature every 700ms for the whole session, which
@@ -5066,7 +5100,7 @@ function initDashboard() {
         '<div id="datetime-display"><span id="date-display" class="date-layer"></span>' +
         '<span id="time-display" class="time-layer"></span></div></div>';
     } catch(e) {}
-    updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
+    updateDateTime(); fetchWeather();
     initDashboard();
     if (typeof initPressureSettingsFromServer === 'function') initPressureSettingsFromServer();
     if (typeof initReservoirThresholdsFromServer === 'function') initReservoirThresholdsFromServer();
@@ -5480,8 +5514,7 @@ function updateDashboard() {
   });
 }
 function updateMap(devices) {
-  deviceSource.clear(); deviceMarkers = {};
-  if (typeof _refreshSig === 'object') _refreshSig = {}; // reset refresh cache so rebuilt features re-render once
+  var seen = {};
   devices.forEach(function(d) {
     if (!d.latitude || !d.longitude) return;
     var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
@@ -5493,10 +5526,41 @@ if (effectiveType==='pressure'  && !activeFilters.has('pressure'))  return;
 if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.has('pumping')) return;
     if (rawType !== 'pressure' && deviceName.includes('pressure')) effectiveType = 'pressure';
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
-    var isPres = effectiveType === 'pressure';
     var stat = derivePressureStatus(d);
-    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
+    var f = deviceMarkers[d.device];
+    if (f) {
+      // In place: only touch fields that actually changed so OL redraws this
+      // one feature instead of clearing + recreating every marker.
+      seen[d.device] = 1;
+      var _g = f.getGeometry();
+      if (!_g || _g.getCoordinates()[0] !== coord[0] || _g.getCoordinates()[1] !== coord[1]) {
+        f.setGeometry(new ol.geom.Point(coord));
+      }
+      var _vals = { status: stat, name: d.device, type: effectiveType,
+        pressure: d.pressure!=null?d.pressure:null,
+        flow: d.flow!=null?d.flow:null,
+        relay: d.relay!=null?d.relay:null,
+        button: d.button!=null?d.button:null,
+        voltage: d.voltage!=null?d.voltage:null,
+        current: d.current!=null?d.current:null,
+        power: d.power!=null?d.power:null,
+        energy: d.energy!=null?d.energy:null,
+        level: d.level!=null?d.level:null,
+        firmware: d.firmware!=null?d.firmware:null,
+        lastToggledBy: d.lastToggledBy!=null?d.lastToggledBy:null };
+      Object.keys(_vals).forEach(function(k) { if (f.get(k) !== _vals[k]) f.set(k, _vals[k]); });
+      return;
+    }
+    f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
+    seen[d.device] = 1;
     deviceSource.addFeature(f); deviceMarkers[d.device] = f;
+  });
+  // Remove markers whose device disappeared (or is now filtered out)
+  Object.keys(deviceMarkers).forEach(function(name) {
+    if (!seen[name]) {
+      try { deviceSource.removeFeature(deviceMarkers[name]); } catch(e) {}
+      delete deviceMarkers[name];
+    }
   });
 }
 
@@ -14149,7 +14213,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeAssetModule()" title="Close Asset Management" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ASSETS/" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14169,7 +14233,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeEnergyAuditModule()" title="Close Energy Audit" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ENERGY/" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14189,7 +14253,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeSandboxAnalyticsModule()" title="Close AGUS Analytics" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="about:blank" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
