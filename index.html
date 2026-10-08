@@ -3640,23 +3640,18 @@ function _rvAnimHTML(d, r, isBooster) {
   var pipes;
   if (isInline) {
     pipes =
-      // straight through-pipe at the same height on both sides (in-line flow)
-      '<rect x="100" y="173" width="88" height="18" rx="2" fill="url(#rvPipe)"/>' +
-      '<rect x="100" y="177" width="88" height="10" fill="#071820"/>' +
-      '<path class="rv-flow' + offIn + '" d="M104 182 H184" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      '<rect x="98" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-      '<path d="M148 176 L156 182 L148 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
-      // pipe continues straight through the tank at the same height (in-line flow)
-      '<rect x="188" y="173" width="324" height="18" rx="2" fill="url(#rvPipe)"/>' +
-      '<rect x="188" y="177" width="324" height="10" fill="#071820"/>' +
-      '<path class="rv-flow' + offIn + '" d="M188 182 H512" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      '<path d="M336 176 L344 182 L336 188" fill="none" stroke="#fff" stroke-width="2"/>' +
-      '<path d="M384 176 L392 182 L384 188" fill="none" stroke="#fff" stroke-width="2"/>' +
-      '<rect x="512" y="173" width="112" height="18" rx="2" fill="url(#rvPipe)"/>' +
-      '<rect x="512" y="177" width="112" height="10" fill="#071820"/>' +
-      '<path class="rv-flow' + offOut + '" d="M516 182 H618" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      '<rect x="622" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-      '<path d="M566 176 L574 182 L566 188" fill="none" stroke="#fff" stroke-width="2.2"/>';
+      // flow enters at the tank floor on the left — opposite the draw pipe on the right
+      '<rect x="100" y="356" width="88" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="100" y="360" width="88" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M104 364 H184" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="98" y="352" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M148 358 L156 364 L148 370" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      // arm runs into the tank floor toward the middle (in-line flow)
+      '<rect x="188" y="356" width="162" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="188" y="360" width="162" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M188 364 H350" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<path d="M260 358 L268 364 L260 370" fill="none" stroke="#fff" stroke-width="2"/>' +
+      '<path d="M310 358 L318 364 L310 370" fill="none" stroke="#fff" stroke-width="2"/>';
   } else {
     pipes =
       // feed from below the reservoir: buried supply → vertical riser beside the wall → top inlet elbow
@@ -3720,9 +3715,9 @@ function _rvAnimHTML(d, r, isBooster) {
     '<rect class="rv-w3" x="0" y="' + (y + 3).toFixed(1) + '" width="1000" height="60" fill="url(#rvP1)"/>' +
     '<polygon class="rv-shine" points="200,150 270,150 250,390 180,390" fill="#fff" opacity=".06"/>' +
     '<rect x="188" y="' + (y - 2).toFixed(1) + '" width="324" height="5" fill="#baf7ff" opacity=".5" filter="url(#rvGlow)"/>' +
-    + splash +
+    splash +
   '</g>' +
-  + jetSvg +
+  jetSvg +
   // level scale ticks
   '<g stroke="#e6fbff" stroke-width="1.2" opacity=".7"><line x1="500" y1="372" x2="512" y2="372"/><line x1="500" y1="330.3" x2="512" y2="330.3"/><line x1="500" y1="288.5" x2="512" y2="288.5"/><line x1="500" y1="246.8" x2="512" y2="246.8"/><line x1="500" y1="205" x2="512" y2="205"/></g>' +
   // concrete walls + floor
@@ -3732,7 +3727,7 @@ function _rvAnimHTML(d, r, isBooster) {
   '<rect x="507" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
   // ladder
   '<g stroke="#c4d0d4" stroke-linecap="round"><line x1="538" y1="180" x2="538" y2="288" stroke-width="2"/><line x1="550" y1="180" x2="550" y2="288" stroke-width="2"/><line x1="544" y1="182" x2="544" y2="288" stroke-width="12" stroke-dasharray="2 9" stroke-linecap="butt"/></g>' +
-  + pipes +
+  pipes +
   '</svg>';
 }
 
@@ -4114,6 +4109,7 @@ if (_inl) { _rvFs.inOn = _rvFs.has; _rvFs.outOn = _rvFs.has; }
 var _cg = _cId + 'c', _pg = _cId + 'p';
 var _iy = _tY + 6;                       // inlet pipe centre (near the top, matching the popup scene)
 var _oy = _tY + _tH - 6;                   // outlet pipe centre (draw pipe at the tank floor)
+var _py = _inl ? _oy : _iy;                // in-line through-pipe runs along the tank floor
 var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
 var _jet = '';
 if (!_inl && _surfY > _iy + 8 && _rvFs.inOn) {
@@ -4127,16 +4123,13 @@ _jet = '<path d="' + _jd + '" fill="none" stroke="#0ea5e9" stroke-width="6" stro
 var _inletSvg, _outletSvg;
 if (_inl) {
   _inletSvg =
-    '<rect x="' + (_tX - 10) + '" y="' + (_iy - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + (_tX - 10) + '" y="' + (_iy - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
-    // pipe travels straight through the tank at the same height (in-line flow)
-    + '<rect x="' + _tX + '" y="' + (_iy - 5) + '" width="' + _tW + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + _tX + '" y="' + (_iy - 2) + '" width="' + _tW + '" height="4" fill="#071820"/>'
-    + '<line x1="' + (_tX - 8) + '" y1="' + _iy + '" x2="' + (_tX + _tW - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
-  _outletSvg =
-    '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 5) + '" width="' + (_wl + 10) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 2) + '" width="' + (_wl + 10) + '" height="4" fill="#071820"/>'
-    + '<line x1="' + (_tX + _tW - _wl) + '" y1="' + _iy + '" x2="' + (_tX + _tW + 8) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>';
+    '<rect x="' + (_tX - 10) + '" y="' + (_py - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX - 10) + '" y="' + (_py - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
+    // flow enters at the tank floor on the left — opposite the draw pipe on the right
+    + '<rect x="' + _tX + '" y="' + (_py - 5) + '" width="' + Math.floor(_tW / 2) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + _tX + '" y="' + (_py - 2) + '" width="' + Math.floor(_tW / 2) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX - 8) + '" y1="' + _py + '" x2="' + (_tX + Math.floor(_tW / 2)) + '" y2="' + _py + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
+  _outletSvg = '';
 } else {
   _inletSvg =
     // feed from the bottom: vertical riser beside the wall rises to the top inlet nozzle
@@ -4177,7 +4170,7 @@ var _resDesign = '<defs>'
 + '<rect x="' + (_tX + _tW - _wl - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
 + _inletSvg + _outletSvg;
 // geometry for the animated overlay (silent set: no extra redraws)
-f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, mode: _inl ? 'inline' : '', hasWater: _fillH > 2, surf: _surfY, iy: _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
+f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, mode: _inl ? 'inline' : '', hasWater: _fillH > 2, surf: _surfY, iy: _inl ? _py : _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
 f.set('_rvStack', null, true);
 
   var _svg =
@@ -4379,7 +4372,7 @@ function _rvOverlaySVG(g, st, uid) {
   }
   if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
   if (g.mode === 'inline') {
-    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + g.tW + 8) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
+    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + Math.floor(g.tW / 2)) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
   } else {
     o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + g.tH - 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
       + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
