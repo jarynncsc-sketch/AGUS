@@ -4706,7 +4706,7 @@ map.on('singleclick', function(evt) {
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
-var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,4],stopEvent:false});
+var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,12],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
 function derivePressureStatus(d) {
