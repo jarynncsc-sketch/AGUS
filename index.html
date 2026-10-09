@@ -14534,5 +14534,330 @@ document.addEventListener('keydown', function(e) {
 })();
 </script>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     RAIN FORECAST — Open-Meteo 7-day outlook for the whole of Carcar City.
+     • Card sits directly above the Page Views strip / Map Legend (follows them when they move)
+     • Rain colours are painted on the map as a smooth heat-layer (OpenLayers ImageCanvas)
+     • One request returns a 5×5 grid of points covering Carcar + every device marker
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+  #rain-card{position:absolute;right:20px;bottom:120px;z-index:1100;width:272px;max-width:calc(100% - 28px);box-sizing:border-box;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.09);border-radius:12px;box-shadow:0 4px 18px rgba(0,40,100,0.12);padding:9px 11px;font-family:'DM Sans',Arial,sans-serif;font-size:12px;color:#1a2e35;pointer-events:auto;}
+  #rain-card .rc-head{display:flex;align-items:center;gap:7px;}
+  #rain-card .rc-title{font-weight:800;font-size:11px;letter-spacing:.7px;text-transform:uppercase;color:#31456f;white-space:nowrap;}
+  #rain-card .rc-sub{font-size:10px;color:#7a8fa6;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  #rain-card .rc-btns{margin-left:auto;display:flex;gap:5px;}
+  #rain-card .rc-btn{border:1px solid rgba(0,64,128,0.18);border-radius:8px;background:#edf3ff;color:#1742a5;padding:4px 9px;font:800 10px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;}
+  #rain-card .rc-btn:hover{background:#dbe8ff;}
+  #rain-card .rc-btn.off{background:#f1f5f9;color:#64748b;}
+  #rain-card .rc-btn:focus-visible,#rain-card input:focus-visible{outline:2px solid #2563eb;outline-offset:2px;}
+  #rain-card .rc-sum{display:flex;align-items:center;gap:9px;margin-top:8px;}
+  #rain-card .rc-dot{width:26px;height:26px;border-radius:50%;flex:none;background:#cbd5e1;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,64,128,.18);}
+  #rain-card .rc-chance{font-size:15px;font-weight:800;line-height:1.1;color:#0f2a4a;}
+  #rain-card .rc-when{font-size:10.5px;color:#5b7083;margin-top:1px;}
+  #rain-card .rc-meta{margin-left:auto;text-align:right;font-size:10.5px;color:#334155;line-height:1.35;white-space:nowrap;}
+  #rain-card .rc-where{margin-top:6px;font-size:11px;color:#31456f;font-weight:600;}
+  #rain-card.rc-collapsed #rc-extra{display:none;}
+  #rain-card #rc-range{width:100%;margin:9px 0 0;accent-color:#3b82f6;cursor:pointer;}
+  #rain-card .rc-scale{display:flex;justify-content:space-between;font-size:9.5px;color:#7a8fa6;margin-top:-2px;}
+  #rain-card .rc-days{display:flex;gap:3px;margin-top:8px;}
+  #rain-card .rc-day{flex:1 1 0;min-width:0;border:1px solid rgba(0,64,128,.12);border-radius:8px;padding:3px 0 4px;text-align:center;cursor:pointer;background:#f8fbff;font-family:inherit;color:#1a2e35;}
+  #rain-card .rc-day span{display:block;font-size:9px;font-weight:700;color:#5b7083;}
+  #rain-card .rc-day b{display:block;font-size:10.5px;font-weight:800;}
+  #rain-card .rc-day i{display:block;height:4px;border-radius:2px;margin:3px 5px 0;}
+  #rain-card .rc-day.sel{border-color:#1742a5;box-shadow:0 0 0 1px #1742a5 inset;background:#edf3ff;}
+  #rain-card .rc-leg{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:9px;}
+  #rain-card .rc-leg div{display:flex;align-items:center;gap:6px;font-size:10.5px;}
+  #rain-card .rc-leg i{width:14px;height:10px;border-radius:3px;display:inline-block;flex:none;}
+  #rain-card .rc-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:9.5px;color:#7a8fa6;}
+  #rain-card .rc-err{color:#b91c1c;font-weight:600;}
+  @media (max-width:700px){ #rain-card{width:236px;padding:8px 10px;} #rain-card .rc-sub{display:none;} }
+</style>
+<script>
+(function(){
+  'use strict';
+  var API  = 'https://api.open-meteo.com/v1/forecast';
+  /* Whole of Carcar City (padded). Grown automatically to include every device marker. */
+  var DEF  = {minLat:9.98, maxLat:10.22, minLon:123.50, maxLon:123.76};
+  var COLS = 5, ROWS = 5, TTL = 30*60*1000;
+  var K_CACHE='agus_rain_v1', K_ON='agus_rain_overlay', K_COL='agus_rain_collapsed';
+
+  var st = {g:null, sel:0, on:true, collapsed:(window.innerWidth<=700), loading:false, booting:true, err:'', updated:0};
+  try{ if(localStorage.getItem(K_ON)==='0') st.on=false; var c=localStorage.getItem(K_COL); if(c==='1') st.collapsed=true; else if(c==='0') st.collapsed=false; }catch(e){}
+
+  var host = document.getElementById('map-container');
+  if(!host) return;
+  function $(id){ return document.getElementById(id); }
+
+  /* ── colour scale: score 0‥100 → rgba (score = rain chance, raised by forecast mm/h) ── */
+  var STOPS=[[0,[125,211,252,0]],[12,[125,211,252,0]],[22,[125,211,252,.28]],[40,[59,130,246,.40]],
+             [60,[124,58,237,.48]],[80,[192,38,211,.56]],[100,[134,25,143,.64]]];
+  function colorAt(s){
+    if(!(s>0)) return STOPS[0][1];
+    for(var i=1;i<STOPS.length;i++){
+      if(s<=STOPS[i][0]){
+        var a=STOPS[i-1], b=STOPS[i], t=(s-a[0])/(b[0]-a[0]), r=[];
+        for(var k=0;k<4;k++) r.push(a[1][k]+(b[1][k]-a[1][k])*t);
+        return r;
+      }
+    }
+    return STOPS[STOPS.length-1][1];
+  }
+  function cssAt(s){ if(s<20) return '#cbd5e1'; var c=colorAt(s); return 'rgb('+Math.round(c[0])+','+Math.round(c[1])+','+Math.round(c[2])+')'; }
+  function score(p,mm){
+    mm = mm>0 ? mm : 0;
+    var e = mm>=0.1 ? Math.min(100,20+mm*25) : 0;
+    if(p==null || isNaN(p)) return mm>0 ? Math.min(100,30+mm*30) : 0;
+    return Math.max(p,e);
+  }
+  function band(s){ return s<20?'No rain expected':s<40?'Slight chance':s<60?'Moderate chance':s<80?'High chance':'Very high chance'; }
+
+  /* ── bounds / grid ── */
+  function devCount(){ try{ return (typeof deviceSource!=='undefined' && deviceSource) ? deviceSource.getFeatures().length : 0; }catch(e){ return 0; } }
+  function getBounds(){
+    var b={minLat:DEF.minLat,maxLat:DEF.maxLat,minLon:DEF.minLon,maxLon:DEF.maxLon};
+    try{
+      if(devCount()>0 && window.ol){
+        var e=deviceSource.getExtent();
+        if(e && isFinite(e[0]) && isFinite(e[2])){
+          var sw=ol.proj.toLonLat([e[0],e[1]]), ne=ol.proj.toLonLat([e[2],e[3]]), pad=0.02;
+          b.minLon=Math.min(b.minLon,sw[0]-pad); b.maxLon=Math.max(b.maxLon,ne[0]+pad);
+          b.minLat=Math.min(b.minLat,sw[1]-pad); b.maxLat=Math.max(b.maxLat,ne[1]+pad);
+        }
+      }
+    }catch(e){}
+    if(b.maxLat-b.minLat>0.6){ var cl=(b.maxLat+b.minLat)/2; b.minLat=cl-0.3; b.maxLat=cl+0.3; }
+    if(b.maxLon-b.minLon>0.6){ var co=(b.maxLon+b.minLon)/2; b.minLon=co-0.3; b.maxLon=co+0.3; }
+    return b;
+  }
+  function sig(b){ return [b.minLat,b.maxLat,b.minLon,b.maxLon].map(function(v){return v.toFixed(2);}).join(','); }
+  function points(b){
+    var pts=[];
+    for(var r=0;r<ROWS;r++) for(var c=0;c<COLS;c++)
+      pts.push({lat:+(b.minLat+r*(b.maxLat-b.minLat)/(ROWS-1)).toFixed(4), lon:+(b.minLon+c*(b.maxLon-b.minLon)/(COLS-1)).toFixed(4)});
+    return pts;
+  }
+  function url(pts){
+    return API+'?latitude='+pts.map(function(p){return p.lat;}).join(',')
+      +'&longitude='+pts.map(function(p){return p.lon;}).join(',')
+      +'&hourly=precipitation,precipitation_probability,temperature_2m,wind_speed_10m'
+      +'&timezone=Asia%2FManila&forecast_days=7';
+  }
+
+  /* ── time helpers (Manila wall-clock strings) ── */
+  function nowStr(){
+    var p={}; new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Manila',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',hour12:false})
+      .formatToParts(new Date()).forEach(function(x){ p[x.type]=x.value; });
+    var h=p.hour==='24'?'00':p.hour;
+    return p.year+'-'+p.month+'-'+p.day+'T'+h+':00';
+  }
+  function idx0(){
+    if(!st.g) return 0; var t=st.g.time, n=nowStr(), i=t.indexOf(n);
+    if(i>=0) return i;
+    for(i=0;i<t.length;i++) if(t[i]>=n) return i;
+    return 0;
+  }
+  function fmt(s,opts){ return new Date(s+':00Z').toLocaleString('en-US',Object.assign({timeZone:'UTC'},opts)); }
+
+  /* ── data ── */
+  function readCache(){ try{ return JSON.parse(localStorage.getItem(K_CACHE)||'null'); }catch(e){ return null; } }
+  function applyData(arr,b,t){
+    var pts=points(b);
+    if(!arr || arr.length!==pts.length) throw new Error('Unexpected forecast response');
+    var g={b:b,key:sig(b),time:arr[0].hourly.time,prob:[],prec:[],temp:[],wind:[]};
+    arr.forEach(function(o){ var h=o.hourly; g.prob.push(h.precipitation_probability||[]); g.prec.push(h.precipitation||[]); g.temp.push(h.temperature_2m||[]); g.wind.push(h.wind_speed_10m||[]); });
+    var p0=window.ol?ol.proj.fromLonLat([b.minLon,b.minLat]):[0,0], p1=window.ol?ol.proj.fromLonLat([b.maxLon,b.maxLat]):[1,1];
+    g.x0=p0[0]; g.y0=p0[1]; g.x1=p1[0]; g.y1=p1[1];
+    st.g=g; st.updated=t; st.err='';
+    var max=Math.max(0,g.time.length-idx0()-1); if(st.sel>max) st.sel=max;
+    if(src) src.changed();
+  }
+  function load(force){
+    if(st.loading) return;
+    var b=getBounds(), key=sig(b), c=readCache();
+    if(!force && c && c.key===key && Date.now()-c.t<TTL){
+      try{ applyData(c.data,b,c.t); st.booting=false; render(); return; }catch(e){}
+    }
+    if(!force && st.g && st.g.key===key && Date.now()-st.updated<TTL){ render(); return; }
+    st.loading=true; st.booting=false; render();
+    fetch(url(points(b)))
+      .then(function(r){ if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); })
+      .then(function(j){
+        var arr=Array.isArray(j)?j:[j];
+        applyData(arr,b,Date.now());
+        try{ localStorage.setItem(K_CACHE,JSON.stringify({t:st.updated,key:key,data:arr})); }catch(e){}
+      })
+      .catch(function(e){ st.err=(e&&e.message)||'Network error'; })
+      .then(function(){ st.loading=false; render(); });
+  }
+
+  /* ── per-hour grid maths ── */
+  function scoreGrid(i){
+    var g=st.g, sc=[];
+    for(var r=0;r<ROWS;r++){ var row=[]; for(var c=0;c<COLS;c++){ var n=r*COLS+c; row.push(score(g.prob[n][i],g.prec[n][i])); } sc.push(row); }
+    return sc;
+  }
+  function bil(sc,fx,fy){
+    var x0=Math.min(COLS-2,Math.max(0,Math.floor(fx))), y0=Math.min(ROWS-2,Math.max(0,Math.floor(fy))), tx=fx-x0, ty=fy-y0;
+    var a=sc[y0][x0], b=sc[y0][x0+1], c=sc[y0+1][x0], d=sc[y0+1][x0+1];
+    return (a*(1-tx)+b*tx)*(1-ty)+(c*(1-tx)+d*tx)*ty;
+  }
+  function dirName(r,c){
+    var dx=c-(COLS-1)/2, dy=r-(ROWS-1)/2;
+    if(Math.abs(dx)<0.75 && Math.abs(dy)<0.75) return 'central area';
+    var a=Math.atan2(dy,dx)*180/Math.PI;
+    return ['E','NE','N','NW','W','SW','S','SE'][Math.round(((a+360)%360)/45)%8]+' part';
+  }
+  function stats(i){
+    var g=st.g, sc=scoreGrid(i), best=-1, br=0, bc=0, maxP=0, maxMM=0, tS=0, wS=0, n=ROWS*COLS, havP=false;
+    for(var r=0;r<ROWS;r++) for(var c=0;c<COLS;c++){
+      var k=r*COLS+c, s=sc[r][c], p=g.prob[k][i], mm=g.prec[k][i]||0;
+      if(s>best){ best=s; br=r; bc=c; }
+      if(p!=null){ havP=true; if(p>maxP) maxP=p; }
+      if(mm>maxMM) maxMM=mm;
+      tS+=g.temp[k][i]||0; wS+=g.wind[k][i]||0;
+    }
+    return {score:best, chance:havP?maxP:best, mm:maxMM, temp:tS/n, wind:wS/n, dir:dirName(br,bc)};
+  }
+
+  /* ── OpenLayers heat layer ── */
+  var src=null, layer=null;
+  function draw(extent,res,pr,size){
+    var W=Math.max(1,Math.round(size[0])), H=Math.max(1,Math.round(size[1]));
+    var cv=document.createElement('canvas'); cv.width=W; cv.height=H;
+    var g=st.g; if(!g||!st.on) return cv;
+    var S=4, w=Math.max(2,Math.ceil(W/S)), h=Math.max(2,Math.ceil(H/S));
+    var off=document.createElement('canvas'); off.width=w; off.height=h;
+    var octx=off.getContext('2d'); if(!octx) return cv;
+    var img=octx.createImageData(w,h), d=img.data, sc=scoreGrid(idx0()+st.sel);
+    var ew=extent[2]-extent[0], eh=extent[3]-extent[1], gw=g.x1-g.x0, gh=g.y1-g.y0;
+    for(var py=0;py<h;py++){
+      var y=extent[3]-(py+.5)/h*eh, v=(y-g.y0)/gh;
+      for(var px=0;px<w;px++){
+        var x=extent[0]+(px+.5)/w*ew, u=(x-g.x0)/gw;
+        var dIn=Math.min(u,1-u,v,1-v);                 /* feather the outer edge so there is no hard box */
+        if(dIn<-0.04) continue;
+        var f=Math.min(1,(dIn+0.04)/0.16);
+        var s=bil(sc,Math.min(1,Math.max(0,u))*(COLS-1),Math.min(1,Math.max(0,v))*(ROWS-1));
+        var c=colorAt(s); if(c[3]<=0) continue;
+        var o=(py*w+px)*4; d[o]=c[0]; d[o+1]=c[1]; d[o+2]=c[2]; d[o+3]=Math.round(c[3]*f*255);
+      }
+    }
+    octx.putImageData(img,0,0);
+    var ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=true; try{ ctx.imageSmoothingQuality='high'; }catch(e){}
+    ctx.drawImage(off,0,0,W,H);
+    return cv;
+  }
+  function addLayer(){
+    var m=window.agusMap||(typeof map!=='undefined'?map:null);
+    if(!m||!window.ol||!ol.source||!ol.source.ImageCanvas||!ol.layer||!ol.layer.Image) return false;
+    src=new ol.source.ImageCanvas({canvasFunction:draw});
+    layer=new ol.layer.Image({source:src,visible:st.on});
+    layer.set('title','Rain forecast');
+    var L=m.getLayers(); L.insertAt(Math.min(2,L.getLength()),layer);   /* above the basemaps, below markers */
+    return true;
+  }
+
+  /* ── card ── */
+  var card=document.createElement('div');
+  card.id='rain-card';
+  card.setAttribute('role','region'); card.setAttribute('aria-label','Rain forecast');
+  card.innerHTML=
+    '<div class="rc-head">'
+    +'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round"><path d="M17 16a4 4 0 0 0 0-8 5.5 5.5 0 0 0-10.7 1.5A3.5 3.5 0 0 0 7 16"/><path d="M8 19v2M12 18v3M16 19v2"/></svg>'
+    +'<span class="rc-title">Rain Forecast</span><span class="rc-sub">Carcar City</span>'
+    +'<span class="rc-btns"><button type="button" class="rc-btn" id="rc-map" title="Show or hide the rain colours on the map">Map: On</button>'
+    +'<button type="button" class="rc-btn" id="rc-tog" aria-expanded="true">Hide</button></span></div>'
+    +'<div class="rc-sum"><span class="rc-dot" id="rc-dot"></span>'
+    +'<div><div class="rc-chance" id="rc-chance">Loading…</div><div class="rc-when" id="rc-when"></div></div>'
+    +'<div class="rc-meta" id="rc-meta"></div></div>'
+    +'<div class="rc-where" id="rc-where"></div>'
+    +'<div id="rc-extra">'
+    +'<input type="range" id="rc-range" min="0" max="0" value="0" step="1" aria-label="Forecast hour">'
+    +'<div class="rc-scale"><span>Now</span><span>+7 days</span></div>'
+    +'<div class="rc-days" id="rc-days"></div>'
+    +'<div class="rc-leg">'
+    +'<div><i style="background:'+cssAt(30)+'"></i>Slight 20–39%</div><div><i style="background:'+cssAt(50)+'"></i>Moderate 40–59%</div>'
+    +'<div><i style="background:'+cssAt(70)+'"></i>High 60–79%</div><div><i style="background:'+cssAt(92)+'"></i>Very high 80%+</div></div>'
+    +'<div class="rc-foot"><span>Open-Meteo · <span id="rc-upd">—</span></span><button type="button" class="rc-btn" id="rc-ref" title="Reload forecast">Refresh</button></div>'
+    +'</div>';
+  host.appendChild(card);
+
+  function render(){
+    var chance=$('rc-chance'), when=$('rc-when'), meta=$('rc-meta'), where=$('rc-where'), dot=$('rc-dot'), rng=$('rc-range'), days=$('rc-days');
+    card.classList.toggle('rc-collapsed',st.collapsed);
+    $('rc-tog').textContent=st.collapsed?'Show':'Hide'; $('rc-tog').setAttribute('aria-expanded',String(!st.collapsed));
+    var mb=$('rc-map'); mb.textContent='Map: '+(st.on?'On':'Off'); mb.classList.toggle('off',!st.on);
+    $('rc-ref').disabled=st.loading;
+    if(!st.g){
+      dot.style.background='#cbd5e1'; meta.textContent=''; days.innerHTML='';
+      if(st.loading||st.booting){ chance.textContent='Loading…'; when.textContent='Fetching forecast'; where.textContent=''; }
+      else { chance.innerHTML='<span class="rc-err">Forecast unavailable</span>'; when.textContent=st.err||''; where.textContent=''; }
+      return;
+    }
+    var g=st.g, i0=idx0(), n=g.time.length-i0;
+    rng.max=Math.max(0,n-1); rng.value=st.sel;
+    var i=i0+st.sel, s=stats(i);
+    dot.style.background=cssAt(s.score);
+    chance.textContent=s.score<20 ? 'No rain expected' : band(s.score)+' · up to '+Math.round(s.chance)+'%';
+    when.textContent=(st.sel===0?'Now · ':'')+fmt(g.time[i],{weekday:'short',month:'short',day:'numeric',hour:'numeric'});
+    meta.innerHTML=(s.mm>0?s.mm.toFixed(1):'0')+' mm/h max<br>'+s.temp.toFixed(0)+'°C · '+s.wind.toFixed(0)+' km/h';
+    where.textContent=s.score>=20 ? 'Heaviest in the '+s.dir+' of the area' : (st.err?'Showing last saved forecast':'Dry across Carcar City');
+    $('rc-upd').textContent=st.updated?new Date(st.updated).toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'}):'—';
+    /* day chips */
+    var byDay={}, order=[];
+    for(var k=i0;k<g.time.length;k++){
+      var day=g.time[k].slice(0,10), best=0;
+      for(var q=0;q<ROWS*COLS;q++){ var sc=score(g.prob[q][k],g.prec[q][k]); if(sc>best) best=sc; }
+      if(!byDay[day]){ byDay[day]={peak:-1,pk:k,first:k}; order.push(day); }
+      if(best>byDay[day].peak){ byDay[day].peak=best; byDay[day].pk=k; }
+    }
+    var selDay=g.time[i].slice(0,10), html='';
+    order.slice(0,7).forEach(function(day,ix){
+      var o=byDay[day], lab=ix===0?'Today':fmt(day+'T00:00',{weekday:'short'}), pk=Math.max(0,o.peak);
+      html+='<button type="button" class="rc-day'+(day===selDay?' sel':'')+'" data-day="'+day+'" title="Peak rain chance on '+day+'"><span>'+lab+'</span><b>'+Math.round(pk)+'%</b><i style="background:'+cssAt(pk)+'"></i></button>';
+    });
+    days.innerHTML=html; days._by=byDay;
+    if(src) src.changed();
+    place();
+  }
+
+  /* ── events ── */
+  function setSel(k){ st.sel=k; render(); }
+  $('rc-range').addEventListener('input',function(){ setSel(parseInt(this.value,10)||0); });
+  $('rc-days').addEventListener('click',function(e){
+    var b=e.target.closest?e.target.closest('.rc-day'):null; if(!b||!st.g) return;
+    var o=this._by&&this._by[b.getAttribute('data-day')]; if(!o) return;
+    var i0=idx0(), idx=(o.peak>=20)?o.pk:Math.min(st.g.time.length-1,Math.max(o.first,i0)+(b.getAttribute('data-day')===st.g.time[i0].slice(0,10)?0:12));
+    setSel(Math.max(0,idx-i0));
+  });
+  $('rc-tog').addEventListener('click',function(){ st.collapsed=!st.collapsed; try{ localStorage.setItem(K_COL,st.collapsed?'1':'0'); }catch(e){} render(); });
+  $('rc-map').addEventListener('click',function(){ st.on=!st.on; try{ localStorage.setItem(K_ON,st.on?'1':'0'); }catch(e){} if(layer) layer.setVisible(st.on); if(src) src.changed(); render(); });
+  $('rc-ref').addEventListener('click',function(){ load(true); });
+
+  /* ── keep the card stacked directly above Page Views / Map Legend ── */
+  function place(){
+    var strip=$('pv-counter-strip'), lg=$('legend-card');
+    var ref=(strip&&strip.offsetParent)?strip:((lg&&lg.offsetParent)?lg:null);
+    if(!ref){ card.style.bottom='110px'; return; }
+    card.style.right=getComputedStyle(ref).right;
+    card.style.bottom=(host.clientHeight-ref.offsetTop+8)+'px';
+  }
+  window.addEventListener('resize',place);
+  window.addEventListener('load',place);
+  [100,500,1500,4000].forEach(function(t){ setTimeout(place,t); });
+  setInterval(place,2000);
+  if(window.ResizeObserver){ var ro=new ResizeObserver(place); ['legend-card','pv-counter-strip'].forEach(function(id){ var e=$(id); if(e) ro.observe(e); }); }
+  var lgEl=$('legend-card'); if(lgEl) lgEl.addEventListener('click',function(){ setTimeout(place,80); setTimeout(place,400); });
+
+  /* ── start ── */
+  var mt=0; (function mapWait(){ if(addLayer()||++mt>50) return; setTimeout(mapWait,200); })();
+  render();
+  var bt=0; (function boot(){ if(devCount()>0||++bt>16) load(false); else setTimeout(boot,500); })();
+  setInterval(function(){ load(false); render(); },10*60*1000);
+  document.addEventListener('visibilitychange',function(){ if(!document.hidden){ load(false); render(); } });
+  window.agusRain={refresh:function(){ load(true); },setHour:setSel};
+})();
+</script>
+
 </body>
 </html>
