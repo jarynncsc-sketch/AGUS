@@ -3730,7 +3730,12 @@ function buildPumpStationSVG(f, name, status) {
   var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
   var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
-  var _relayOn = _relayRaw == 1 || _relayRaw === '1' || _relayRaw === true;
+  // Instant relay icon: prefer the ORDER (commandedRelay) over the confirmed
+  // actual state, so a PumpLink / schedule / dashboard toggle flips the map
+  // icon immediately on the Firebase realtime push — no wait for ESP32 confirm.
+  var _cmdRaw = f.get('commandedRelay');
+  var _useRelay = (_cmdRaw != null) ? _cmdRaw : _relayRaw;
+  var _relayOn = _useRelay == 1 || _useRelay === '1' || _useRelay === true;
 
   var _rawName = name.replace(/&/g,'&amp;').replace(/</g,'&lt;');
   var _nameD = _rawName;
@@ -5540,7 +5545,7 @@ if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
     var isPres = effectiveType === 'pressure';
     var stat = derivePressureStatus(d);
-    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
+    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,commandedRelay:(d.commandedRelay!=null?d.commandedRelay:(d.relay!=null?d.relay:null)),button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
     deviceSource.addFeature(f); deviceMarkers[d.device] = f;
   });
 }
