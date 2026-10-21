@@ -5899,10 +5899,19 @@ window.dashboardTogglePump = function(deviceName, newStateInt, cb) {
   }, 500);
 };
 
-// Rebrand legacy toggle-source labels: the ESP32 used to report `MQTT` as the
-// toggle source; AGUS now shows it as `AGUS` (matching the system name).
+// Resolve a toggle-source value to a display label.
+// The ESP32 only reports HOW the relay changed ("MQTT" = a dashboard/MQTT command,
+// "System"/"Schedule"/"PumpLink" = automation). GAS stamps the real operator name onto
+// the sheet row, and the toggling dashboard writes the real user to Firebase, so the
+// value is normally already the username — pass it through unchanged. A legacy/unknown
+// raw source is shown as "N/A" rather than being mis-attributed to a fake "AGUS" user.
 function _togByLabel(x) {
-  return (x && String(x).toUpperCase() === 'MQTT') ? 'AGUS' : x;
+  if (x == null) return x;
+  var s = String(x).trim();
+  if (!s) return '';
+  var up = s.toUpperCase();
+  if (up === 'MQTT' || up === 'GAS' || up === 'DASHBOARD' || up === 'SYSTEM' || up === 'UNKNOWN' || up === 'NONE') return '';
+  return s;
 }
 // True if the relay value states ON (any type the ESP32/GAS might send)
 function _relayTrue(x) {
