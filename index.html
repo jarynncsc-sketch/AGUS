@@ -4964,9 +4964,20 @@ if (!isNaN(llvl)) {
             'Power: '    + (d.power    || 0) + ' W<br>' +
             'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
             // ★ v3: show commanded (dashboard) vs actual (Smart Device)
-            'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
-              +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
-            +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
+            // Popup must agree with the pump list slider: use the CONFIRMED relay
+            // (actual) unless THIS tab has an optimistic toggle still in flight.
+            // Otherwise a stale/mismatched commandedRelay would show "OFF" and
+            // "confirming…" forever even while the slider — and the device — are ON.
+            (function(){
+              var _pendingLocal = (_localTogglePending[d.device] !== undefined) ||
+                (_relayPendingUntil[d.device] && Date.now() < _relayPendingUntil[d.device]);
+              var _relayActual = _relayKnown(d.relay) ? _relayTrue(d.relay) : (d.commandedRelay ? true : false);
+              var _relayShown = _pendingLocal ? (d.commandedRelay ? true : false) : _relayActual;
+              var _showConfirm = _pendingLocal && (d.commandedRelay ? 1 : 0) !== (_relayKnown(d.relay) ? (_relayTrue(d.relay) ? 1 : 0) : -1);
+              return 'Relay: <b style="color:'+(_relayShown?'#22c55e':'#ef4444')+';">'+(_relayShown?'● ON':'● OFF')+'</b>'
+                +(_showConfirm?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>';
+            })() +
+            'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
             'Last toggle by: <b>' + (_togByLabel(d.lastToggledBy) || 'N/A') + '</b><br>' +
             _effBadge + '<br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
@@ -5412,7 +5423,12 @@ function _firebaseDeviceToArray() {
       energy: fb.energy != null ? fb.energy : null,
       relay: relay,
       commandedRelay: cmd,
-      relayPending: (_relayPendingUntil[name] && now < _relayPendingUntil[name]) || (fbCmd !== null && fbCmd !== relay),
+      // "Smart Device confirming…" only while a mismatch could still be resolved:
+      // either we just sent a command (local pending timer) or the ESP32's copied
+      // commandedRelay differs from its actual relay AND the device data is fresh.
+      // Guarding on freshness stops a stale/offline device (or an out-of-sync
+      // commanded value) from hanging on "confirming" forever.
+      relayPending: (_relayPendingUntil[name] && now < _relayPendingUntil[name]) || (fbCmd !== null && fbCmd !== relay && !stale),
       button: button,
       firmware: fb.firmware || null,
       latitude: fb.latitude || null,
