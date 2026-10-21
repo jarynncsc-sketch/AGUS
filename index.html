@@ -116,14 +116,10 @@
         'color:#f97316;font-size:13px;');
       return '⛔ Restricted';
     };
-    // Console trap is OFF by default. Set window.AGUS_ENABLE_CONSOLE_TRAP = true to
-    // re-enable: the 2 s log/clear timer spammed output and wasted battery.
-    if (window.AGUS_ENABLE_CONSOLE_TRAP) {
-      setInterval(function() {
-        console.log(_consoleTrap);
-        console.clear();
-      }, 2000);
-    }
+    setInterval(function() {
+      console.log(_consoleTrap);
+      console.clear();
+    }, 2000);
 
     /* ── 5. Disable Text Selection ── */
     document.addEventListener('selectstart', function(e) {
@@ -229,12 +225,9 @@
     /* ══════════════════════════════════════════════════════
        9. Debugger Trap — halts execution when DevTools open
        ══════════════════════════════════════════════════════ */
-    // Debugger trap is OFF by default. Set window.AGUS_ENABLE_DEBUGGER_TRAP = true
-    // to re-enable: it compiled a new function every 50 ms and froze the page
-    // whenever DevTools was open.
     var _dbgInterval = null;
     function _startDebuggerTrap() {
-      if (_dbgInterval || !window.AGUS_ENABLE_DEBUGGER_TRAP) return;
+      if (_dbgInterval) return;
       _dbgInterval = setInterval(function() {
         (function() {
           try { (function(c){if(('' + c / c).length !== 1 || c % 20 === 0) { (function(){}).constructor('debugger')(); } else { (function(){}).constructor('debugger')(); }})(1); } catch(e) {}
@@ -417,15 +410,8 @@
   })();
   </script>
   <!-- ═══ END PWA SETUP ═══ -->
-  <!-- Preconnects: warm up the CDN, Firebase and Apps Script hosts before they're needed -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-  <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://script.google.com">
-  <!-- Fonts & icons load async so they don't block first paint -->
-  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css" media="print" onload="this.media='all'">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
   <style>
   /* ── DARK MODE ── */
   body.dark-mode { filter: invert(1) hue-rotate(180deg); }
@@ -438,11 +424,10 @@
   body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1" data-agus-trusted="1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js" data-agus-trusted="1"></script>
   <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js" data-agus-trusted="1"></script>
-  <!-- MQTT is jsDelivr + deferred; only used after login by _initMQTT() -->
-  <script src="https://cdn.jsdelivr.net/npm/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1" defer></script>
+  <script src="https://unpkg.com/mqtt@5.3.0/dist/mqtt.min.js" data-agus-trusted="1"></script>
   <style>
     @media screen and (max-width: 900px) {
  
@@ -1195,7 +1180,7 @@
     #dashboard{display:none;flex-direction:row;gap:1rem;padding:1rem;height:100vh;overflow:hidden;position:relative;z-index:5;color:var(--text-primary);background:var(--bg-primary);transition:background-color 0.3s ease,color 0.3s ease;}
 
     /* ── TOP MENU BAR: grouped strip ── */
-    #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
+    #top-menu-bar{position:absolute;top:10px;left:14px;display:flex;align-items:flex-end;gap:4px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);padding:6px 10px;border-radius:14px;box-shadow:0 4px 18px rgba(0,40,100,0.13);border:1px solid rgba(0,64,128,0.10);}
     .nav-group-sep{width:1px;background:rgba(0,64,128,0.12);align-self:stretch;margin:0 3px;border-radius:1px;}
     .nav-group-wrap{display:flex;flex-direction:column;gap:2px;}
     .nav-group-label{font-size:9px;font-weight:600;color:#8aa5af;text-transform:uppercase;letter-spacing:.06em;text-align:center;padding:0 2px;}
@@ -1219,13 +1204,6 @@
     .top-card.grp-sys:hover,.top-card.grp-sys.active{background:#f1f5f9;border-color:#cbd5e1;}
     .top-card.grp-sys:hover span,.top-card.grp-sys.active span{color:#334155;}
     .top-card svg{transition:stroke .15s;}
-    /* Inside icon + label colour match the square (top-card) border colour = white */
-    .top-card svg, .top-card svg *{stroke:#ffffff !important;}
-    .top-card span{color:#ffffff !important;}
-    .top-card{border-color:#ffffff !important;}
-    /* On hover: icon + text turn teal blue */
-    .top-card:hover svg, .top-card:hover svg *{stroke:var(--teal-1) !important;}
-    .top-card:hover span{color:var(--teal-1) !important;}
 
     /* ── DEVICE LIST: clean white panel ── */
     .device-list{width:auto;min-width:290px;max-width:calc(290px * 1.40);max-height:100%;border-radius:14px;background:rgba(255,255,255,0.97);padding:0;box-shadow:0 6px 24px rgba(0,40,100,0.14);display:flex;flex-direction:column;overflow:hidden;color:#1a2e35;font-family:'DM Sans','Segoe UI',sans-serif;border:1px solid rgba(0,64,128,0.08);}
@@ -1330,15 +1308,15 @@
     #map-container{position:relative;flex:3;}
     #map{width:100%;height:100%;border-radius:12px;}
     #device-details{position:absolute;z-index:1000;background:white;padding:0.8rem;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,0.3);min-width:220px;font-size:13px;pointer-events:none;display:none;}
-    #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);}
-    #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
+    #welcome-user-topright{position:absolute;top:10px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:8px 14px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);text-align:right;pointer-events:none;border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);}
+    #health-diag-strip{position:absolute;top:80px;right:14px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:6px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);cursor:pointer;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;transition:box-shadow 0.2s;pointer-events:auto;}
     /* top:120px collided with the AI Health Card (also top:120px, z-index:1200), so the
        Page Views strip sits lower-left of it, on the same row as the compass. */
-    #pv-counter-strip{position:absolute;bottom:64px;right:20px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
+    #pv-counter-strip{position:absolute;bottom:64px;right:20px;z-index:1100;font-family:'DM Sans',sans-serif;background:rgba(255,255,255,0.97);padding:5px 12px;border-radius:10px;box-shadow:0 4px 16px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);backdrop-filter:blur(10px);display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:#334155;pointer-events:auto;}
     #pv-counter-strip svg{flex-shrink:0;}
     /* Map compass: sits below the Health Diagnostic / Page Views strips AND below the
        AI Health Card (top:120px, ~114px tall, z-index:1200), which would otherwise cover it. */
-    #map-compass{position:absolute;top:246px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
+    #map-compass{position:absolute;top:246px;right:14px;z-index:1100;width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.97);border:1px solid rgba(0,64,128,0.15);box-shadow:0 4px 16px rgba(0,40,100,0.18);backdrop-filter:blur(10px);user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;}
     #map-compass .mc-ring{position:absolute;inset:0;transition:none;}
     #map-compass .mc-btn{position:absolute;width:20px;height:20px;line-height:20px;text-align:center;font:800 12px 'DM Sans',Arial,sans-serif;color:#004080;cursor:pointer;border-radius:50%;}
     #map-compass .mc-btn:hover{background:rgba(0,64,128,0.12);}
@@ -1365,7 +1343,7 @@
     #datetime-display{font-size:11px;font-weight:500;color:#5575a0;margin-top:0;letter-spacing:0.2px;line-height:1.5;}
     #weather-display{font-size:11px;font-weight:600;color:#1e3a5f;}
     #conn-indicator{font-size:14px;cursor:pointer;pointer-events:auto;transition:color 0.3s;}
-    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:calc(100% - 40px);max-height:calc(100% - 40px);overflow:hidden;}
+    #legend-card{position:absolute;bottom:20px;right:20px;z-index:1000;background:rgba(255,255,255,0.97);backdrop-filter:blur(12px);padding:12px 16px;border-radius:12px;font-size:13px;box-shadow:0 4px 18px rgba(0,40,100,0.12);border:1px solid rgba(0,64,128,0.09);max-width:calc(100% - 40px);max-height:calc(100% - 40px);overflow:hidden;}
     #legend-card #legend-content{display:flex;flex-wrap:wrap;gap:16px;}
     /* Legend starts collapsed on every screen size (matches Leak Detection); "Show" expands it. */
     #legend-card .legend-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;}
@@ -1856,7 +1834,7 @@
      Right side, vertically aligned with the map compass (top:246px, 64px wide at
      right:14px), which sits below the AI Health Card. */
   #map-basemap{position:absolute;right:86px;top:246px;z-index:1100;pointer-events:auto;display:flex;flex-direction:column;gap:4px;background:transparent;}
-  #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
+  #map-basemap .mb{display:flex;align-items:center;gap:6px;padding:7px 11px;border:1px solid rgba(0,64,128,.18);border-radius:9px;background:rgba(255,255,255,.96);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);box-shadow:0 2px 8px rgba(0,40,100,.16);color:#334155;font:700 11px 'DM Sans',Arial,sans-serif;cursor:pointer;white-space:nowrap;line-height:1;}
   #map-basemap .mb:hover{background:#004080;color:#fff;border-color:#004080;}
   #map-basemap .mb.active{background:linear-gradient(135deg,#004080,#1d4ed8);color:#fff;border-color:#002b5c;box-shadow:0 3px 10px rgba(0,60,140,.35);}
   @media (max-width:768px){#map-basemap .mb span{display:none;}#map-basemap .mb{padding:7px 8px;}}
@@ -2289,14 +2267,11 @@
   @media (max-width: 700px) {
     #legend-card {
       padding: 9px 13px;
+      backdrop-filter: blur(4px);
     }
     #legend-card > div {
       min-width: 90px !important;
     }
-  }
-  /* Mobile: backdrop blur is costly on low-end GPUs — kill it everywhere */
-  @media (max-width: 767px) {
-    * { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
   }
   .filter-pill{padding:4px 11px;border-radius:20px;border:1px solid rgba(0,64,128,0.18);background:white;color:#4a6572;font-size:11px;font-weight:600;font-family:'DM Sans',sans-serif;cursor:pointer;transition:.15s;white-space:nowrap;}
 .filter-pill.active{background:#185FA5;color:white;border-color:#185FA5;}
@@ -2332,66 +2307,26 @@
   syncForScreen();
 })();
 </script>
-<!-- Graph modal: title +5%, single-line toolbar (date range / 24H-90D / CSV | LIVE bar on the right), single-line Current/Min/Max/Average, auto-fit on every screen -->
-<style>
-/* Device name + "Historical Data" title: +5% over previous size at each breakpoint */
-#graph-modal #graph-modal-inner h2#graph-title{font-size:1.4175rem!important;}
-@media screen and (max-width:900px){#graph-modal #graph-modal-inner h2#graph-title{font-size:1.1025rem!important;}}
-@media screen and (min-width:1401px){#graph-modal #graph-modal-inner h2#graph-title{font-size:1.47rem!important;}}
-
-/* Title row: "Historical Data" title with the LIVE bar beside it, outside the date-range card */
-#graph-modal #graph-title-row{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:calc(12px*var(--gm-s,1));margin:0 0 6px 0;padding-right:44px;min-width:0;font-size:calc(12px*var(--gm-s,1));}
-#graph-modal #graph-title-row h2#graph-title{flex:0 1 auto;min-width:0;margin:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-#graph-modal #graph-title-row #graph-live-bar{margin:0!important;}
-/* Toolbar: ONE line. date range + 24H..90D + CSV. */
-#graph-modal #graph-meta{flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-start!important;gap:calc(10px*var(--gm-s,1))!important;padding:4px calc(10px*var(--gm-s,1))!important;overflow:hidden!important;font-size:calc(12px*var(--gm-s,1));}
-#graph-modal #graph-meta > div:first-child{flex:0 1 auto!important;min-width:0!important;flex-wrap:nowrap!important;overflow:visible!important;gap:calc(10px*var(--gm-s,1))!important;}
-#graph-modal #graph-meta .range-btn-group{flex-wrap:nowrap!important;gap:calc(5px*var(--gm-s,1))!important;}
-#graph-modal #graph-meta .range-btn,#graph-modal #graph-meta #graph-download-btn{white-space:nowrap!important;flex:0 0 auto!important;min-height:0!important;padding:calc(5px*var(--gm-s,1)) calc(12px*var(--gm-s,1))!important;font-size:calc(12.5px*var(--gm-s,1))!important;}
-#graph-modal #graph-meta #date-range-label{white-space:nowrap!important;font-size:calc(13px*var(--gm-s,1))!important;}
-#graph-modal #graph-title-row #graph-live-bar{flex:0 0 auto!important;width:auto!important;flex-wrap:nowrap!important;margin:0!important;padding:calc(3px*var(--gm-s,1)) calc(8px*var(--gm-s,1))!important;gap:calc(10px*var(--gm-s,1))!important;font-size:calc(12px*var(--gm-s,1))!important;white-space:nowrap!important;}
-#graph-modal #graph-title-row #graph-live-left,#graph-modal #graph-title-row #graph-live-right{flex-wrap:nowrap!important;white-space:nowrap!important;gap:calc(7px*var(--gm-s,1))!important;}
-#graph-modal #graph-title-row #live-label,#graph-modal #graph-title-row #live-updated,#graph-modal #graph-title-row #live-interval-select,#graph-modal #graph-title-row #live-pause-btn,#graph-modal #graph-title-row #live-new-badge,#graph-modal #graph-title-row #graph-live-right > span{font-size:calc(11px*var(--gm-s,1))!important;}
-/* progressive compaction when even the scaled row would not fit */
-#graph-modal #graph-title-row.gm-c1 #graph-live-right > span:first-child{display:none!important;}
-#graph-modal #graph-title-row.gm-c2 #live-interval-select{display:none!important;}
-#graph-modal #graph-title-row.gm-c3 #live-pause-btn{font-size:0!important;padding:0!important;border:0!important;background:none!important;}
-#graph-modal #graph-title-row.gm-c3 #live-pause-btn::before{content:'\23F8';font-size:calc(13px*var(--gm-s,1));}
-#graph-modal #graph-title-row.gm-c3 #live-pause-btn.paused::before{content:'\25B6';}
-#graph-modal #graph-title-row.gm-c4 #live-updated{display:none!important;}
-#graph-modal #graph-meta.gm-c5 #date-range-label{display:none!important;}
-
-/* ONE combined card: date range + 24H-90D + CSV + Current / Min / Max / Average, all on a single line */
-#graph-modal #graph-meta{min-height:0!important;}
-#graph-modal #graph-meta.gm-scroll{overflow-x:auto!important;-webkit-overflow-scrolling:touch;}
-#graph-modal #graph-meta #graph-stats-row{margin:0!important;flex:0 1 auto;min-width:0;align-items:stretch;flex-wrap:nowrap;gap:calc(6px*var(--gm-s,1))!important;padding-left:calc(10px*var(--gm-s,1));border-left:1px solid var(--border-color);}
-#graph-modal #graph-meta #graph-stats-row:not(.stats-hidden){display:flex!important;}
-#graph-modal #graph-meta #graph-stats-row.stats-hidden{display:none!important;}
-#graph-modal #graph-meta .stat-card{flex:0 0 auto!important;align-items:center!important;padding:calc(3px*var(--gm-s,1)) calc(8px*var(--gm-s,1))!important;gap:calc(6px*var(--gm-s,1))!important;border-radius:8px!important;}
-#graph-modal #graph-meta .stat-card-icon{width:calc(22px*var(--gm-s,1))!important;height:calc(22px*var(--gm-s,1))!important;font-size:calc(11px*var(--gm-s,1))!important;}
-#graph-modal #graph-meta .stat-card-body{gap:0!important;}
-#graph-modal #graph-meta .stat-card-label{font-size:calc(9px*var(--gm-s,1))!important;line-height:1.2;white-space:nowrap;}
-#graph-modal #graph-meta .stat-card-value{font-size:calc(14px*var(--gm-s,1))!important;line-height:1.2!important;overflow:visible!important;text-overflow:clip!important;}
-#graph-modal #graph-meta .stat-card-time{font-size:calc(8.5px*var(--gm-s,1))!important;line-height:1.2;overflow:visible!important;text-overflow:clip!important;}
-/* small screens: Current / Min / Max / Average drop BELOW the date-range row, filling the full width */
-#graph-modal #graph-meta.gm-wrap{flex-wrap:wrap!important;row-gap:calc(6px*var(--gm-s,1))!important;}
-#graph-modal #graph-meta.gm-wrap > div:first-child{flex:1 1 100%!important;}
-#graph-modal #graph-meta.gm-wrap #graph-stats-row:not(.stats-hidden){display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr));flex:1 1 100%!important;width:100%;border-left:0!important;padding-left:0!important;border-top:1px solid var(--border-color);padding-top:calc(6px*var(--gm-s,1));}
-#graph-modal #graph-meta.gm-wrap .stat-card{min-width:0!important;}
-/* the old "match heights to stat cards" script no longer applies to this single-line card */
-#graph-modal #graph-meta .range-btn{height:auto!important;}
-#graph-modal #graph-title{height:auto!important;}
-/* progressive compaction (only if the scaled card still does not fit) */
-#graph-modal #graph-meta.gm-c1 .stat-card-time{display:none!important;}
-#graph-modal #graph-meta.gm-c2 .stat-card-icon{display:none!important;}
-#graph-modal #graph-meta.gm-c3 #date-range-label{display:none!important;}
-</style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
   <div id="graph-modal-inner">
     <button id="graph-close-btn" onclick="closeGraph()">&#10005;</button>
-    <div id="graph-title-row">
     <h2 id="graph-title">Historical Data</h2>
+    <div id="graph-debug-bar"></div>
+    <div id="graph-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#f0f8ff;padding:4px 12px;border-radius:6px;border:1px solid #c0e0ff;min-height:36px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span id="graph-battery"></span>
+        <span id="date-range-label"></span>
+        <div class="range-btn-group">
+          <button class="range-btn" data-range="24" data-unit="h">24H</button>
+          <button class="range-btn" data-range="3">3D</button>
+          <button class="range-btn" data-range="7">7D</button>
+          <button class="range-btn active" data-range="14">14D</button>
+          <button class="range-btn" data-range="30">30D</button>
+          <button class="range-btn" data-range="90">90D</button>
+        </div>
+        <button id="graph-download-btn" onclick="downloadCSV()">⬇ CSV</button>
+      </div>
       <div id="graph-live-bar">
         <div id="graph-live-left">
           <div class="live-dot" id="live-dot"></div>
@@ -2415,58 +2350,42 @@
         </div>
       </div>
     </div>
-    <div id="graph-debug-bar"></div>
-    <div id="graph-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#f0f8ff;padding:4px 12px;border-radius:6px;border:1px solid #c0e0ff;min-height:36px;margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span id="graph-battery"></span>
-        <span id="date-range-label"></span>
-        <div class="range-btn-group">
-          <button class="range-btn" data-range="24" data-unit="h">24H</button>
-          <button class="range-btn" data-range="3">3D</button>
-          <button class="range-btn" data-range="7">7D</button>
-          <button class="range-btn active" data-range="14">14D</button>
-          <button class="range-btn" data-range="30">30D</button>
-          <button class="range-btn" data-range="90">90D</button>
-        </div>
-        <button id="graph-download-btn" onclick="downloadCSV()">⬇ CSV</button>
-      </div>
-      <div id="graph-stats-row" class="stats-hidden">
-        <div class="stat-card stat-current">
-          <div class="stat-card-icon">💧</div>
-          <div class="stat-card-body">
-            <div class="stat-card-label">Current</div>
-            <div class="stat-card-value" id="stat-current-value">–</div>
-            <div class="stat-card-time" id="stat-current-time">–</div>
-          </div>
-        </div>
-        <div class="stat-card stat-min">
-          <div class="stat-card-icon">▼</div>
-          <div class="stat-card-body">
-            <div class="stat-card-label">Min</div>
-            <div class="stat-card-value" id="stat-min-value">–</div>
-            <div class="stat-card-time" id="stat-min-time">–</div>
-          </div>
-        </div>
-        <div class="stat-card stat-max">
-          <div class="stat-card-icon">▲</div>
-          <div class="stat-card-body">
-            <div class="stat-card-label">Max</div>
-            <div class="stat-card-value" id="stat-max-value">–</div>
-            <div class="stat-card-time" id="stat-max-time">–</div>
-          </div>
-        </div>
-        <div class="stat-card stat-avg">
-          <div class="stat-card-icon">Σ</div>
-          <div class="stat-card-body">
-            <div class="stat-card-label">Average</div>
-            <div class="stat-card-value" id="stat-avg-value">–</div>
-            <div class="stat-card-time" id="stat-avg-time">Over selected range</div>
-          </div>
-        </div>
-      </div>
-    </div>
     <div id="param-selector-wrap">
       <div id="param-pill-grid"></div>
+    </div>
+    <div id="graph-stats-row" class="stats-hidden">
+      <div class="stat-card stat-current">
+        <div class="stat-card-icon">💧</div>
+        <div class="stat-card-body">
+          <div class="stat-card-label">Current</div>
+          <div class="stat-card-value" id="stat-current-value">–</div>
+          <div class="stat-card-time" id="stat-current-time">–</div>
+        </div>
+      </div>
+      <div class="stat-card stat-min">
+        <div class="stat-card-icon">▼</div>
+        <div class="stat-card-body">
+          <div class="stat-card-label">Min</div>
+          <div class="stat-card-value" id="stat-min-value">–</div>
+          <div class="stat-card-time" id="stat-min-time">–</div>
+        </div>
+      </div>
+      <div class="stat-card stat-max">
+        <div class="stat-card-icon">▲</div>
+        <div class="stat-card-body">
+          <div class="stat-card-label">Max</div>
+          <div class="stat-card-value" id="stat-max-value">–</div>
+          <div class="stat-card-time" id="stat-max-time">–</div>
+        </div>
+      </div>
+      <div class="stat-card stat-avg">
+        <div class="stat-card-icon">Σ</div>
+        <div class="stat-card-body">
+          <div class="stat-card-label">Average</div>
+          <div class="stat-card-value" id="stat-avg-value">–</div>
+          <div class="stat-card-time" id="stat-avg-time">Over selected range</div>
+        </div>
+      </div>
     </div>
     <div id="graph-chart-wrap">
       <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span><span id="graph-loading-sub" style="font-size:11px;color:#7a9bb5;font-weight:500;margin-top:2px;display:block;text-align:center;"></span></div>
@@ -2478,64 +2397,6 @@
     <div id="last-toggled-badge" style="display:none;align-items:center;flex-wrap:wrap;gap:4px;margin-top:6px;padding:7px 14px;border-radius:8px;border:1.5px solid rgba(34,197,94,0.5);background:rgba(34,197,94,0.10);font-size:12.5px;"></div>
   </div>
 </div>
-<script>
-/* Fit the graph toolbar (date range, 24H-90D, CSV, LIVE bar) on ONE line at any screen size */
-(function(){
-  var meta=document.getElementById('graph-meta'), trow=document.getElementById('graph-title-row');
-  if(!meta||!trow) return;
-  var busy=false, raf=0;
-  function shrink(el,over,min){
-    var s=1; el.style.setProperty('--gm-s',s);
-    while(over() && s>min){ s=Math.round((s-0.04)*100)/100; el.style.setProperty('--gm-s',s); }
-  }
-  function fitOne(el){            /* title row: title + LIVE bar */
-    function over(){ return el.scrollWidth>el.clientWidth+1; }
-    el.className=el.className.replace(/\bgm-c\d\b/g,'').trim();
-    shrink(el,over,0.62);
-    var tier=0;
-    while(over() && tier<5){ tier++; el.classList.add('gm-c'+tier); shrink(el,over,0.62); }
-  }
-  function fitMeta(el){           /* date range + 24H-90D + CSV + Current/Min/Max/Average */
-    function overLine(){ return el.scrollWidth>el.clientWidth+1; }
-    function overAll(){
-      if(overLine()) return true;
-      var cards=el.querySelectorAll('#graph-stats-row:not(.stats-hidden) .stat-card');
-      for(var i=0;i<cards.length;i++){ if(cards[i].scrollWidth>cards[i].clientWidth+1) return true; }
-      return false;
-    }
-    el.className=el.className.replace(/\bgm-(c\d|wrap|scroll)\b/g,'').trim();
-    shrink(el,overLine,0.85);                 /* 1) one line if it fits at a comfortable size */
-    if(!overLine()) return;
-    el.classList.add('gm-wrap');              /* 2) small screen: stats drop BELOW the date-range line */
-    shrink(el,overAll,0.62);
-    var tier=0;
-    while(overAll() && tier<3){ tier++; el.classList.add('gm-c'+tier); shrink(el,overAll,0.62); }
-    if(overLine()) el.classList.add('gm-scroll');
-  }
-  function fit(){
-    if(busy) return; busy=true;
-    try{ if(meta.offsetWidth===0) return; fitMeta(meta); fitOne(trow); }finally{ busy=false; }
-  }
-  function schedule(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(fit); }
-  window.addEventListener('resize',schedule);
-  window.addEventListener('orientationchange',function(){setTimeout(schedule,200);});
-  if(window.visualViewport) window.visualViewport.addEventListener('resize',schedule);
-  if(window.ResizeObserver){ var ro=new ResizeObserver(schedule); ro.observe(meta); ro.observe(trow); }
-  if(window.MutationObserver){
-    var mo=new MutationObserver(schedule);
-    ['date-range-label','live-updated','live-pause-btn','live-new-badge','graph-title'].forEach(function(id){
-      var el=document.getElementById(id); if(el) mo.observe(el,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['class']});
-    });
-    var sr=document.getElementById('graph-stats-row');
-    if(sr) mo.observe(sr,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['class']});
-    var gm=document.getElementById('graph-modal');
-    if(gm) new MutationObserver(schedule).observe(gm,{attributes:true,attributeFilter:['style','class']});
-  }
-  document.querySelectorAll('#graph-meta .range-btn').forEach(function(b){b.addEventListener('click',function(){setTimeout(schedule,50);});});
-  setTimeout(schedule,300);
-})();
-</script>
-
 
 <!-- PRESSURE SETTINGS MODAL -->
 <div id="pressure-settings-modal">
@@ -2954,7 +2815,7 @@ try {
       _lastKnownRelayInitialized = true;
     }
     _updateConnStatus();
-    _scheduleFbRender();
+    _updateDashboardFromFirebase();
   }, function(err) {
     _firebaseConnected = false;
     _updateConnStatus();
@@ -2964,29 +2825,6 @@ try {
   _firebaseConnected = false;
   _updateConnStatus();
   console.warn('[FB] Init error:', e);
-}
-
-// ── Firebase render coalescer ────────────────────────────────────────────
-// ESP32 devices write to Firebase in bursts (relay + readings + commandedRelay
-// often within the same second). Each write fired a full rebuild of the device
-// list AND cleared/recreated every map marker. Coalesce: a burst costs one
-// render, spaced at least 400 ms apart; the first write after idle renders
-// immediately so the first paint and toggle feedback stay instant.
-var _fbRenderPending = false, _fbRenderTimer = null, _fbLastRender = 0;
-var _FB_RENDER_MIN_INTERVAL = 400;
-function _scheduleFbRender() {
-  if (_fbRenderPending) return; // an earlier schedule is already coalescing this burst
-  var wait = _fbLastRender ? Math.max(0, _fbLastRender + _FB_RENDER_MIN_INTERVAL - Date.now()) : 0;
-  if (wait > 0) {
-    _fbRenderPending = true;
-    _fbRenderTimer = setTimeout(function() {
-      _fbRenderTimer = null; _fbRenderPending = false; _fbLastRender = Date.now();
-      _updateDashboardFromFirebase();
-    }, wait);
-  } else {
-    _fbLastRender = Date.now();
-    _updateDashboardFromFirebase();
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -3219,7 +3057,36 @@ function apiCached(action, params) {
   });
 }
 
-var deviceMarkers = {}, myChart = null;
+// ── Persistent dashboard cache ──────────────────────────────────────────────
+// getDashboardData() is the only BULK GAS read the page makes. Caching it in
+// localStorage lets the dashboard render instantly on open (no spinner wait)
+// and skips the GAS round-trip entirely while the cache is fresh. The live
+// Firebase listener and the instant MQTT relay toggle are NOT touched — this
+// only memoizes the settings/coordinates snapshot from GAS.
+var _DASH_CACHE_KEY = 'agus_dashboard_cache_v1';
+var _DASH_CACHE_TTL = 600000; // 10 minutes — how long a cached snapshot is trusted
+
+function _readDashCache() {
+  try {
+    var raw = localStorage.getItem(_DASH_CACHE_KEY);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (!obj || !obj.data || !obj.ts) return null;
+    obj.fresh = (Date.now() - obj.ts) < _DASH_CACHE_TTL;
+    return obj;
+  } catch (_) { return null; }
+}
+function _writeDashCache(data) {
+  try { localStorage.setItem(_DASH_CACHE_KEY, JSON.stringify({ data: data, ts: Date.now() })); } catch (_) {}
+}
+// Returns cached dashboard data immediately if fresh, otherwise null so the
+// caller hits GAS.
+function _getFreshDashCache() {
+  var c = _readDashCache();
+  return (c && c.fresh) ? c.data : null;
+}
+
+var deviceMarkers = {}, myChart = null, blinkOn = true;
 
 // Keep the graph modal's chart perfectly fit to its container at any
 // browser zoom level — mirrors the same fix used in AGUS Analytics so
@@ -3532,14 +3399,12 @@ function drawLinks() {
     }
   }
 }
-var _animFrame = null, _frameSkp = 0;
-window._bgLoginOnly = true; // canvas only animates on the login screen
+var _animFrame = null;
 function animate() {
   if (_animPaused) { _animFrame = null; return; } // fully release the rAF loop while hidden
-  _frameSkp++;
-  if (_frameSkp & 1) { _animFrame = requestAnimationFrame(animate); return; } // ~30 fps instead of 60
   bgCtx.fillStyle = _bgGrad; bgCtx.fillRect(0,0,W,H);
   drawLinks();
+  bgCtx.shadowColor = 'rgba(0,120,200,0.25)'; bgCtx.shadowBlur = 4;
   for (var ni2 = 0; ni2 < nodes.length; ni2++) {
     var n = nodes[ni2];
     n.x += n.vx; n.y += n.vy;
@@ -3548,13 +3413,14 @@ function animate() {
       var dx = n.x-mouse.x, dy = n.y-mouse.y, d = Math.sqrt(dx*dx+dy*dy);
       if (d < 120) { var a = Math.atan2(dy,dx), f = (120-d)*0.008; n.vx += Math.cos(a)*f; n.vy += Math.sin(a)*f; }
     }
+    bgCtx.shadowBlur = n.r > 3 ? 6 : 3;
     bgCtx.fillStyle = 'rgba(0,120,200,0.8)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r,0,Math.PI*2); bgCtx.fill();
     bgCtx.fillStyle = 'rgba(180,220,255,0.4)'; bgCtx.beginPath(); bgCtx.arc(n.x,n.y,n.r*0.4,0,Math.PI*2); bgCtx.fill();
   }
+  bgCtx.shadowBlur = 0; bgCtx.shadowColor = 'transparent';
   _animFrame = requestAnimationFrame(animate);
 }
 function _restartAnim() {
-  if (window._bgLoginOnly === false) { _animPaused = true; _animFrame = null; return; } // dashboard covers it — stop entirely
   _animPaused = document.hidden;
   if (!_animPaused) {
     _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff');
@@ -3565,7 +3431,6 @@ animate();
 document.addEventListener('visibilitychange', _restartAnim);
 window.addEventListener('resize', function() { W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; _bgGrad = bgCtx.createLinearGradient(0,0,W,H); _bgGrad.addColorStop(0,'#f0f8ff'); _bgGrad.addColorStop(1,'#d0eaff'); });
 function updateDateTime() {
-    if (document.hidden) return; // pause clock work in background tabs
     var elContainer = document.getElementById('datetime-display');
     if (!elContainer) return;
     var dateEl = document.getElementById('date-display');
@@ -3591,7 +3456,6 @@ function updateDateTime() {
 }
 updateDateTime();
 setInterval(updateDateTime, 1000);
-document.addEventListener('visibilitychange', function() { if (!document.hidden) updateDateTime(); });
 var _resizeRAF; window.addEventListener('resize', function() { if (_resizeRAF) return; _resizeRAF = requestAnimationFrame(function() { _resizeRAF = null; W = bgC.width = window.innerWidth; H = bgC.height = window.innerHeight; }); });
 
 document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
@@ -3600,23 +3464,9 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
-      var _mapD0 = selectedDevice;
-      _resetZoomedMarker();
-      var _detEl = document.getElementById('device-details');
-      if (_detEl) _detEl.style.display = 'none';
-      if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
-      selectedDevice = null;
-      _deviceDetailsDismissed = true;
-      if (_mapD0 && _rvOvl[_mapD0] && _rvOvl[_mapD0].el) _rvOvl[_mapD0].el.style.display = 'none';
       var e = deviceSource.getExtent();
       if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
-      map.once('moveend', function() {
-        requestAnimationFrame(function(){
-          try { _rvSync(); } catch(e) {}
-          if (_mapD0 && _rvOvl[_mapD0] && _rvOvl[_mapD0].el && !_zoomScaledName) _rvOvl[_mapD0].el.style.display = '';
-        });
-      });
     }
     if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[card.dataset.tab]) openTabModal(card.dataset.tab);
   });
@@ -3637,9 +3487,8 @@ function login() {
       try { localStorage.setItem('agus_session', JSON.stringify({ token: token, user: user, at: Date.now() })); } catch(e) {}
       document.getElementById('loginPage').style.display = 'none';
       document.getElementById('dashboard').style.display = 'flex';
-      window._bgLoginOnly = false; _animPaused = true; // stop background canvas animation (covered by dashboard)
       if (typeof window._secActivatePostLogin === 'function') { window._secActivatePostLogin(user); }
-      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); fetchWeather();
+      document.getElementById('welcome-user-topright').innerHTML = '<span id="welcome-username">Welcome, ' + user + '</span><div style="display:flex;align-items:center;gap:6px;"><span id="conn-indicator" title="Firebase status">●</span><span id="mqtt-conn-indicator" title="EMQX MQTT status" style="font-size:10px;">⚡</span><span id="weather-display"></span><div id="datetime-display">     <span id="date-display" class="date-layer"></span>     <span id="time-display" class="time-layer"></span> </div></div>'; updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
       initDashboard();
       initPressureSettingsFromServer();
       initReservoirThresholdsFromServer();
@@ -3663,7 +3512,6 @@ function logout() {
   userToken = null; loggedInUser = ''; selectedDevice = null; _deviceDetailsDismissed = false;
   try { localStorage.removeItem('agus_session'); } catch(e) {}
   document.getElementById('dashboard').style.display = 'none';
-  window._bgLoginOnly = true; _animPaused = false; // restart background canvas animation
   document.getElementById('loginPage').style.display = 'flex';
   document.getElementById('password').value = '';
 }
@@ -3775,18 +3623,21 @@ function _rvAnimHTML(d, r, isBooster) {
   var pipes;
   if (isInline) {
     pipes =
-      // flow enters at the tank floor on the left — opposite the draw pipe on the right
-      '<rect x="100" y="356" width="88" height="18" rx="2" fill="url(#rvPipe)"/>' +
-      '<rect x="100" y="360" width="88" height="10" fill="#071820"/>' +
-      '<path class="rv-flow' + offIn + '" d="M104 364 H184" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      '<rect x="98" y="352" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
-      '<path d="M148 358 L156 364 L148 370" fill="none" stroke="#fff" stroke-width="2.2"/>' +
-      // arm runs into the tank floor toward the middle (in-line flow)
-      '<rect x="188" y="356" width="162" height="18" rx="2" fill="url(#rvPipe)"/>' +
-      '<rect x="188" y="360" width="162" height="10" fill="#071820"/>' +
-      '<path class="rv-flow' + offIn + '" d="M188 364 H350" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      '<path d="M260 358 L268 364 L260 370" fill="none" stroke="#fff" stroke-width="2"/>' +
-      '<path d="M310 358 L318 364 L310 370" fill="none" stroke="#fff" stroke-width="2"/>';
+      // straight through-pipe at the same height on both sides (in-line flow)
+      '<rect x="100" y="173" width="88" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="100" y="177" width="88" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M104 182 H184" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="98" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M148 176 L156 182 L148 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
+      // pipe continues straight through the tank at the same height (in-line flow)
+      '<rect x="188" y="173" width="324" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="188" y="177" width="324" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offIn + '" d="M188 182 H512" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="512" y="173" width="112" height="18" rx="2" fill="url(#rvPipe)"/>' +
+      '<rect x="512" y="177" width="112" height="10" fill="#071820"/>' +
+      '<path class="rv-flow' + offOut + '" d="M516 182 H618" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
+      '<rect x="622" y="169" width="8" height="26" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
+      '<path d="M566 176 L574 182 L566 188" fill="none" stroke="#fff" stroke-width="2.2"/>';
   } else {
     pipes =
       // feed from below the reservoir: buried supply → vertical riser beside the wall → top inlet elbow
@@ -3796,9 +3647,6 @@ function _rvAnimHTML(d, r, isBooster) {
       '<rect x="106" y="174" width="4" height="114" fill="#9fb3bb" opacity="0.85"/>' +
       '<rect x="110" y="178" width="8" height="106" fill="#071820"/>' +
       '<path class="rv-flow' + offIn + '" d="M114 282 V180" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
-      // upward arrowheads on the riser — makes the FILL direction obvious
-      '<path d="M110 236 L114 228 L118 236" fill="none" stroke="#fff" stroke-width="2.2"/>' +
-      '<path d="M110 262 L114 254 L118 262" fill="none" stroke="#fff" stroke-width="2.2"/>' +
       '<rect x="102" y="216" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
       '<rect x="102" y="250" width="24" height="6" rx="2" fill="#5d6e75" opacity="0.9"/>' +
       '<rect x="110" y="173" width="78" height="18" rx="3" fill="url(#rvPipe)"/>' +
@@ -3806,15 +3654,11 @@ function _rvAnimHTML(d, r, isBooster) {
       '<path class="rv-flow' + offIn + '" d="M114 182 H186" fill="none" stroke="#00c8ff" stroke-width="5" stroke-linecap="round"/>' +
       '<rect x="162" y="167" width="8" height="30" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
       '<path d="M138 176 L146 182 L138 188" fill="none" stroke="#fff" stroke-width="2.2"/>' +
-      // layering emphasis: inlet-nozzle port ring (hidden when pump off)
-      '<circle cx="186" cy="182" r="4.5" fill="none" stroke="#e6fbff" stroke-width="2" opacity=".9" class="rv-fade' + offIn + '"/>' +
       // bottom draw-off pipe through the right wall at the tank floor
       '<rect x="528" y="356" width="8" height="16" rx="1.5" fill="#6b808a" stroke="#2b3d45"/>' +
       '<rect x="512" y="356" width="188" height="16" rx="3" fill="url(#rvPipe)"/>' +
       '<rect x="512" y="359" width="188" height="10" fill="#071820"/>' +
       '<path class="rv-flow' + offOut + '" d="M516 364 H694" fill="none" stroke="#00c8ff" stroke-width="6" stroke-linecap="round"/>' +
-      // layering emphasis: draw-off port ring (hidden when pump off)
-      '<circle cx="512" cy="364" r="4.5" fill="none" stroke="#e6fbff" stroke-width="2" opacity=".9" class="rv-fade' + offOut + '"/>' +
       '<rect x="588" y="345" width="24" height="27" rx="4" fill="#3c5560" stroke="#1f2f36"/>' +
       '<line x1="600" y1="345" x2="600" y2="325" stroke="#9fb3bb" stroke-width="3"/>' +
       '<ellipse cx="600" cy="323" rx="15" ry="4" fill="none" stroke="' + (outOn ? '#00e6a0' : '#e5484d') + '" stroke-width="3"/>' +
@@ -3850,9 +3694,9 @@ function _rvAnimHTML(d, r, isBooster) {
     '<rect class="rv-w3" x="0" y="' + (y + 3).toFixed(1) + '" width="1000" height="60" fill="url(#rvP1)"/>' +
     '<polygon class="rv-shine" points="200,150 270,150 250,390 180,390" fill="#fff" opacity=".06"/>' +
     '<rect x="188" y="' + (y - 2).toFixed(1) + '" width="324" height="5" fill="#baf7ff" opacity=".5" filter="url(#rvGlow)"/>' +
-    splash +
+    + splash +
   '</g>' +
-  jetSvg +
+  + jetSvg +
   // level scale ticks
   '<g stroke="#e6fbff" stroke-width="1.2" opacity=".7"><line x1="500" y1="372" x2="512" y2="372"/><line x1="500" y1="330.3" x2="512" y2="330.3"/><line x1="500" y1="288.5" x2="512" y2="288.5"/><line x1="500" y1="246.8" x2="512" y2="246.8"/><line x1="500" y1="205" x2="512" y2="205"/></g>' +
   // concrete walls + floor
@@ -3862,7 +3706,7 @@ function _rvAnimHTML(d, r, isBooster) {
   '<rect x="507" y="163" width="28" height="9" rx="1.5" fill="#a5b4b9" stroke="#4d5c62"/>' +
   // ladder
   '<g stroke="#c4d0d4" stroke-linecap="round"><line x1="538" y1="180" x2="538" y2="288" stroke-width="2"/><line x1="550" y1="180" x2="550" y2="288" stroke-width="2"/><line x1="544" y1="182" x2="544" y2="288" stroke-width="12" stroke-dasharray="2 9" stroke-linecap="butt"/></g>' +
-  pipes +
+  + pipes +
   '</svg>';
 }
 
@@ -4244,7 +4088,6 @@ if (_inl) { _rvFs.inOn = _rvFs.has; _rvFs.outOn = _rvFs.has; }
 var _cg = _cId + 'c', _pg = _cId + 'p';
 var _iy = _tY + 6;                       // inlet pipe centre (near the top, matching the popup scene)
 var _oy = _tY + _tH - 6;                   // outlet pipe centre (draw pipe at the tank floor)
-var _py = _inl ? _oy : _iy;                // in-line through-pipe runs along the tank floor
 var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
 var _jet = '';
 if (!_inl && _surfY > _iy + 8 && _rvFs.inOn) {
@@ -4258,13 +4101,16 @@ _jet = '<path d="' + _jd + '" fill="none" stroke="#0ea5e9" stroke-width="6" stro
 var _inletSvg, _outletSvg;
 if (_inl) {
   _inletSvg =
-    '<rect x="' + (_tX - 10) + '" y="' + (_py - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + (_tX - 10) + '" y="' + (_py - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
-    // flow enters at the tank floor on the left — opposite the draw pipe on the right
-    + '<rect x="' + _tX + '" y="' + (_py - 5) + '" width="' + Math.floor(_tW / 2) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + _tX + '" y="' + (_py - 2) + '" width="' + Math.floor(_tW / 2) + '" height="4" fill="#071820"/>'
-    + '<line x1="' + (_tX - 8) + '" y1="' + _py + '" x2="' + (_tX + Math.floor(_tW / 2)) + '" y2="' + _py + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
-  _outletSvg = '';
+    '<rect x="' + (_tX - 10) + '" y="' + (_iy - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX - 10) + '" y="' + (_iy - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
+    // pipe travels straight through the tank at the same height (in-line flow)
+    + '<rect x="' + _tX + '" y="' + (_iy - 5) + '" width="' + _tW + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + _tX + '" y="' + (_iy - 2) + '" width="' + _tW + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX - 8) + '" y1="' + _iy + '" x2="' + (_tX + _tW - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
+  _outletSvg =
+    '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 5) + '" width="' + (_wl + 10) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 2) + '" width="' + (_wl + 10) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX + _tW - _wl) + '" y1="' + _iy + '" x2="' + (_tX + _tW + 8) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>';
 } else {
   _inletSvg =
     // feed from the bottom: vertical riser beside the wall rises to the top inlet nozzle
@@ -4305,7 +4151,7 @@ var _resDesign = '<defs>'
 + '<rect x="' + (_tX + _tW - _wl - 3) + '" y="' + (_tY - 4) + '" width="' + (_wl + 6) + '" height="5" rx="1" fill="#a5b4b9" stroke="#4d5c62" stroke-width="0.8"/>'
 + _inletSvg + _outletSvg;
 // geometry for the animated overlay (silent set: no extra redraws)
-f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, mode: _inl ? 'inline' : '', hasWater: _fillH > 2, surf: _surfY, iy: _inl ? _py : _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
+f.set('_rvGeom', { W: _W, H: _totalH, tX: _tX, tY: _tY, tW: _tW, tH: _tH, wl: _wl, mode: _inl ? 'inline' : '', hasWater: _fillH > 2, surf: _surfY, iy: _iy, oy: _oy, jet: _jet ? _jd : '', jx: _jet ? (_jx0 + _jL) : 0, inOn: _rvFs.inOn, outOn: _rvFs.outOn, mask: _rvTxt.concat([{ x: Math.round(_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2), y: _centerY - 15, w: Math.round(_wlt.length * 11.5 + 20), h: 31 }]) }, true);
 f.set('_rvStack', null, true);
 
   var _svg =
@@ -4326,10 +4172,10 @@ f.set('_rvStack', null, true);
     + '" width="' + _tW + '" height="' + _tH + '" rx="2"'
     + ' fill="none" stroke="' + statusColor + '" stroke-width="' + _bw + '"/>'
     + '<rect x="' + (_tX + _tW / 2 - (_wlt.length * 11.5 + 20) / 2) + '" y="' + (_centerY - 15)
-    + '" width="' + (_wlt.length * 11.5 + 20) + '" height="31" rx="15.5" fill="white" opacity="0.94" stroke="#cbd5e1" stroke-width="1"/>'
+    + '" width="' + (_wlt.length * 11.5 + 20) + '" height="31" rx="15.5" fill="white" opacity="0.94"/>'
     + '<text x="' + (_tX + _tW / 2) + '" y="' + (_centerY + 6) + '"'
-    + ' text-anchor="middle" font-family="\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif" font-size="20" font-weight="500" letter-spacing="-0.5"'
-    + ' fill="#0f172a">'
+    + ' text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="20" font-weight="800"'
+    + ' fill="#0f172a" stroke="#0f172a" stroke-width="1.4" paint-order="stroke">'
     + _wlt + '</text>'
     + _nameS
     + '</svg>';
@@ -4362,7 +4208,7 @@ f.set('_rvStack', null, true);
     return [new ol.style.Style({
       image: new ol.style.Icon({
         src: 'data:image/svg+xml,' + encodeURIComponent(_rsSvg),
-        scale: _selZoomScale(f, _Hm),
+        scale: 1,
         anchor: [0.5, 1],
         anchorXUnits: 'fraction',
         anchorYUnits: 'fraction'
@@ -4372,7 +4218,7 @@ f.set('_rvStack', null, true);
   return [new ol.style.Style({
     image: new ol.style.Icon({
       src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
-      scale: _selZoomScale(f, _totalH),
+      scale: 1,
       anchor: [0.5, 1],
       anchorXUnits: 'fraction',
       anchorYUnits: 'fraction'
@@ -4382,8 +4228,7 @@ f.set('_rvStack', null, true);
 //Pumping Station map icon ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 if (isPS) {
   var _svg = buildPumpStationSVG(f, name, status);
-  var _psH = parseFloat((_svg.match(/viewBox="0 0 ([0-9.]+) ([0-9.]+)"/) || [null, '178', '182'])[2]) || 182;
-  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:_selZoomScale(f, _psH),anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
     if (type === 'pressure') {
@@ -4459,11 +4304,11 @@ if (isPS) {
         // Center bullseye removed for clean look
         // Center value (blinks + follows anomaly color when out of range)
         + '<rect x="' + (_cx - (String(_pv || '--').length * 11.5 + 20) / 2) + '" y="' + (_cy - 15)
-        + '" width="' + (String(_pv || '--').length * 11.5 + 20) + '" height="31" rx="15.5" fill="white" opacity="0.94" stroke="#cbd5e1" stroke-width="1"/>'
-        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif" font-size="20" font-weight="500" letter-spacing="-0.5" fill="#0f172a" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
+        + '" width="' + (String(_pv || '--').length * 11.5 + 20) + '" height="31" rx="15.5" fill="white" opacity="0.94"/>'
+        + '<text x="' + _cx + '" y="' + (_cy + 6) + '" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="20" font-weight="800" fill="#0f172a" stroke="#0f172a" stroke-width="1.4" paint-order="stroke" opacity="' + (_pA ? (0.35 + _bPulse*0.65).toFixed(2) : '1') + '">' + (_pv || '--') + '</text>'
         // Unit below
-        + '<rect x="' + (_cx - 24) + '" y="' + (_cy + 10) + '" width="48" height="19" rx="9.5" fill="white" opacity="0.94" stroke="#cbd5e1" stroke-width="1"/>'
-        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="\'Segoe UI\',Roboto,Helvetica,Arial,sans-serif" font-size="14" font-weight="500" fill="#0f172a" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
+        + '<rect x="' + (_cx - 24) + '" y="' + (_cy + 10) + '" width="48" height="19" rx="9.5" fill="white" opacity="0.94"/>'
+        + '<text x="' + _cx + '" y="' + (_cy + 24) + '" text-anchor="middle" font-family="\'DM Sans\',sans-serif" font-size="14" font-weight="800" fill="#0f172a" stroke="#0f172a" stroke-width="1.2" paint-order="stroke" opacity="' + (_pA ? (0.3 + _bPulse*0.55).toFixed(2) : '0.8') + '">psi</text>'
         // Status indicator dot
         + '<circle cx="' + (_W - 18) + '" cy="16" r="5" fill="' + _pC + '"/>'
         + (_pA ? '<circle cx="' + (_W - 18) + '" cy="16" r="8" fill="none" stroke="' + _pC + '" stroke-width="2" opacity="'+(0.2+_bPulse*0.6).toFixed(2)+'"/>' : '')
@@ -4473,7 +4318,7 @@ if (isPS) {
         + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
         + _nameD + '</text>'
         + '</svg>';
-      return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:_selZoomScale(f, _totalH),anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+      return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
     }
     if (status==='Fault'){fc='red';sc='rgba(220,38,38,'+(0.3+_bPulse*0.7).toFixed(2)+')';sw=3;text=name;} else if(status==='Offline'){fc='orange';text=name;} else {fc='green';text=name;}
   }
@@ -4483,7 +4328,7 @@ if (isPS) {
    parts (waves, jet, pipe flow, ripples) are a CSS-animated SVG overlay aligned to the icon
    (same size, bottom-centre anchored at the device coordinate). No per-frame icon redraws. */
 var _rvOvl = {}, _rvUid = 0;
-function _rvOverlaySVG(g, st, uid, s) {
+function _rvOverlaySVG(g, st, uid) {
   var cx = g.tX + g.wl, cw = g.tW - 2 * g.wl, ch = g.tH - g.wl;
   var offIn = g.inOn ? '' : ' rv-off', offOut = g.outOn ? '' : ' rv-off';
   var mk = '<mask id="' + uid + 'm" maskUnits="userSpaceOnUse" x="-100" y="-100" width="1000" height="1000"><rect x="-100" y="-100" width="1000" height="1000" fill="#fff"/>';
@@ -4508,7 +4353,7 @@ function _rvOverlaySVG(g, st, uid, s) {
   }
   if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
   if (g.mode === 'inline') {
-    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + Math.floor(g.tW / 2)) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
+    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + g.tW + 8) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
   } else {
     o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + g.tH - 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
       + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
@@ -4517,9 +4362,7 @@ function _rvOverlaySVG(g, st, uid, s) {
   o = o.replace(/^(<defs>.*?<\/defs>)(.*)$/, '$1<g mask="url(#' + uid + 'm)">$2</g>');
   var w = st ? st.Wm : g.W, h = st ? st.Hm : g.H;
   if (st) o = '<g transform="translate(' + st.rx + ',0) scale(' + st.rS.toFixed(4) + ')">' + o + '</g>';
-  var wS = w, hS = h;
-  if (s && s > 1) { wS = Math.round(w * s); hS = Math.round(h * s); }
-  return '<svg class="rv-ovl" xmlns="http://www.w3.org/2000/svg" width="' + wS + '" height="' + hS + '" viewBox="0 0 ' + w + ' ' + h + '">' + o + '</svg>';
+  return '<svg class="rv-ovl" xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' + o + '</svg>';
 }
 function _rvSync() {
   if (document.hidden) return;
@@ -4531,7 +4374,6 @@ function _rvSync() {
       var f = inner[0], g = f.get('_rvGeom');
       if (!g) return;
       var nm = f.get('name'), st = f.get('_rvStack') || null;
-      var s = _selZoomScale(f, st ? st.Hm : g.H);
       seen[nm] = true;
       var o = _rvOvl[nm];
       if (!o) {
@@ -4540,8 +4382,8 @@ function _rvSync() {
         o = _rvOvl[nm] = { uid: 'rvm' + (++_rvUid), el: el, sig: '', ov: new ol.Overlay({ element: el, positioning: 'bottom-center', stopEvent: false }) };
         map.addOverlay(o.ov);
       }
-      var sig = JSON.stringify([g, st, s]);
-      if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid, s); }
+      var sig = JSON.stringify([g, st]);
+      if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid); }
       o.ov.setPosition(f.getGeometry().getCoordinates());
     });
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
@@ -4790,6 +4632,27 @@ window.applyPipeFilter = applyPipeFilter;
   for (var i = 0; i < radios.length; i++) radios[i].checked = (radios[i].value === saved);
 })();
 loadPipelines(0);
+/* Smooth sinusoidal blinkOn — replaces hard 500ms toggle to eliminate SVG glitch */
+(function() {
+  var _phase = 0;
+  var _lastT = 0;
+  var _blinkPaused = false;
+  function _tick(ts) {
+    if (_blinkPaused) { _phase = 0; _lastT = ts; return; }
+    var dt = ts - _lastT; _lastT = ts;
+    _phase += dt * 0.0022; // ~1.4s full cycle
+    if (_phase > Math.PI * 2) _phase -= Math.PI * 2;
+    // blinkOn: true when sine > 0 (upper half-cycle), false when < 0
+    // This keeps the same boolean API but transitions are smooth via CSS animation
+    blinkOn = Math.sin(_phase) > 0;
+    requestAnimationFrame(_tick);
+  }
+  document.addEventListener('visibilitychange', function() {
+    _blinkPaused = document.hidden;
+    if (!_blinkPaused) requestAnimationFrame(_tick);
+  });
+  requestAnimationFrame(function(ts){ _lastT = ts; requestAnimationFrame(_tick); });
+})();
 /* Map feature refresh — data-driven, throttled to 2500ms, paused while tab hidden.
    Only re-renders a feature when its relevant data actually changed. Previously this
    loop called f.changed() on EVERY feature every 700ms for the whole session, which
@@ -4845,22 +4708,8 @@ map.on('singleclick', function(evt) {
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
-var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,12],stopEvent:false});
+var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,-10],stopEvent:false});
 map.addOverlay(detailsOverlay);
-
-var _zoomScaledName = null;
-function _selZoomScale(f, natH) {
-  var _z = (f && f.get) ? f.get('_zSize') : null;
-  if (_z && natH > 0) { var _s = _z / natH; return _s > 1 ? _s : 1; }
-  return 1;
-}
-function _resetZoomedMarker() {
-  if (_zoomScaledName && deviceMarkers[_zoomScaledName]) {
-    try { deviceMarkers[_zoomScaledName].set('_zSize', 0); } catch(e) {}
-  }
-  _zoomScaledName = null;
-  try { _rvSync(); } catch(e) {}
-}
 
 function derivePressureStatus(d) {
   if (d.button) return 'Fault';
@@ -4875,36 +4724,11 @@ function derivePressureStatus(d) {
   }
   return d.status || 'Offline';
 }
-function selectDevice(device, zoomToDevice) {
+function selectDevice(device) {
   _deviceDetailsDismissed = false;
   selectedDevice = device;
   var f = deviceMarkers[device];
-  if (f) {
-    if (zoomToDevice) {
-      var size = map.getSize();
-      var vw = (size && size[0]) ? size[0] : 1200;
-      var vh = (size && size[1]) ? size[1] : 800;
-      var targetPx = Math.max(60, Math.round(Math.min(vw, vh) * 0.35));
-      var footprintMeters = 150;
-      var view = map.getView();
-      var zoom = view.getZoomForResolution(footprintMeters / targetPx);
-      map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:zoom,duration:700});
-      if (_rvOvl[device] && _rvOvl[device].el) _rvOvl[device].el.style.display = 'none';
-      var _d0 = device;
-      map.once('moveend', function() {
-        requestAnimationFrame(function(){
-          try { _rvSync(); } catch(e) {}
-          if (_d0 === selectedDevice && _rvOvl[_d0] && _rvOvl[_d0].el) _rvOvl[_d0].el.style.display = '';
-        });
-      });
-      _resetZoomedMarker();
-      _zoomScaledName = device;
-      f.set('_zSize', targetPx);
-      f.changed();
-      requestAnimationFrame(function(){ try { _rvSync(); } catch(e) {} });
-    }
-    f.changed();
-  }
+  if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
   showDeviceDetails(device);
   document.querySelectorAll('#device-list li.selected').forEach(function(el){el.classList.remove('selected');});
   document.querySelectorAll('#device-list li').forEach(function(el){
@@ -5179,7 +5003,6 @@ if (!isNaN(llvl)) {
       _cb.onclick = function(){
         _d.style.display = 'none';
         if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
-        _resetZoomedMarker();
         selectedDevice = null;
         _deviceDetailsDismissed = true;
       };
@@ -5272,7 +5095,7 @@ function initDashboard() {
         '<div id="datetime-display"><span id="date-display" class="date-layer"></span>' +
         '<span id="time-display" class="time-layer"></span></div></div>';
     } catch(e) {}
-    updateDateTime(); fetchWeather();
+    updateDateTime(); setInterval(updateDateTime, 1000); fetchWeather();
     initDashboard();
     if (typeof initPressureSettingsFromServer === 'function') initPressureSettingsFromServer();
     if (typeof initReservoirThresholdsFromServer === 'function') initReservoirThresholdsFromServer();
@@ -5666,27 +5489,44 @@ function updateDashboard() {
     _updateDashboardFromFirebase();
   }
   if (_skipGAS) return;
+  // Serve from the persistent cache first so the page renders instantly on
+  // open without waiting on a GAS round-trip. The cache is only consulted here;
+  // Firebase live data and the instant MQTT toggle path are untouched.
+  var _cachedDevices = _getFreshDashCache();
+  if (_cachedDevices) { _applyDashboardData(_cachedDevices); return; }
   apiGet('getDashboardData').then(function(devices) {
-    devices.forEach(function(d) {
-      if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
-      if (d.minLevel||d.maxLevel) reservoirThresholdsCache[d.device]={minLevel:d.minLevel||20,maxLevel:d.maxLevel||250,updatedBy:d.reservoirUpdatedBy||null,updatedAt:d.reservoirUpdatedAt||null};
-      // ── Cache coordinates so togglePump rows are never blank ──────────────
-      if (d.device && d.latitude && d.longitude) {
-        deviceCoordinatesCache[d.device] = { latitude: d.latitude, longitude: d.longitude };
-      }
-    });
-    window._lastDevices = devices;
-    updateDeviceList(devices); updateMap(devices);
-    autoShutoffPumps(devices);
-    if (selectedDevice) showDeviceDetails(selectedDevice);
-    _hideDashLoading();
+    _writeDashCache(devices);
+    _applyDashboardData(devices);
   }).catch(function(err) {
     console.error('updateDashboard error:', err);
+    // GAS failed — fall back to a stale snapshot so the map is never blank.
+    var _stale = _readDashCache();
+    if (_stale && _stale.data) { _applyDashboardData(_stale.data); return; }
     _hideDashLoading();   /* never leave the full-map loading veil stuck on screen */
   });
 }
+
+// Applies a getDashboardData array (from GAS or cache) to the UI + settings
+// caches. Kept separate so cached and freshly-fetched data share one path.
+function _applyDashboardData(devices) {
+  if (!devices || !devices.forEach) return;
+  devices.forEach(function(d) {
+    if (d.minPsi||d.normalPsi||d.maxPsi) pressureSettingsCache[d.device]={minPsi:d.minPsi||20,normalPsi:d.normalPsi||50,maxPsi:d.maxPsi||80,updatedBy:d.settingsUpdatedBy||null,updatedAt:d.settingsUpdatedAt||null};
+    if (d.minLevel||d.maxLevel) reservoirThresholdsCache[d.device]={minLevel:d.minLevel||20,maxLevel:d.maxLevel||250,updatedBy:d.reservoirUpdatedBy||null,updatedAt:d.reservoirUpdatedAt||null};
+    // ── Cache coordinates so togglePump rows are never blank ──────────────
+    if (d.device && d.latitude && d.longitude) {
+      deviceCoordinatesCache[d.device] = { latitude: d.latitude, longitude: d.longitude };
+    }
+  });
+  window._lastDevices = devices;
+  updateDeviceList(devices); updateMap(devices);
+  autoShutoffPumps(devices);
+  if (selectedDevice) showDeviceDetails(selectedDevice);
+  _hideDashLoading();
+}
 function updateMap(devices) {
-  var seen = {};
+  deviceSource.clear(); deviceMarkers = {};
+  if (typeof _refreshSig === 'object') _refreshSig = {}; // reset refresh cache so rebuilt features re-render once
   devices.forEach(function(d) {
     if (!d.latitude || !d.longitude) return;
     var coord = ol.proj.fromLonLat([parseFloat(d.longitude), parseFloat(d.latitude)]);
@@ -5698,41 +5538,10 @@ if (effectiveType==='pressure'  && !activeFilters.has('pressure'))  return;
 if (effectiveType!=='reservoir' && effectiveType!=='pressure' && !activeFilters.has('pumping')) return;
     if (rawType !== 'pressure' && deviceName.includes('pressure')) effectiveType = 'pressure';
     else if (rawType !== 'reservoir' && deviceName.includes('reservoir')) effectiveType = 'reservoir';
+    var isPres = effectiveType === 'pressure';
     var stat = derivePressureStatus(d);
-    var f = deviceMarkers[d.device];
-    if (f) {
-      // In place: only touch fields that actually changed so OL redraws this
-      // one feature instead of clearing + recreating every marker.
-      seen[d.device] = 1;
-      var _g = f.getGeometry();
-      if (!_g || _g.getCoordinates()[0] !== coord[0] || _g.getCoordinates()[1] !== coord[1]) {
-        f.setGeometry(new ol.geom.Point(coord));
-      }
-      var _vals = { status: stat, name: d.device, type: effectiveType,
-        pressure: d.pressure!=null?d.pressure:null,
-        flow: d.flow!=null?d.flow:null,
-        relay: d.relay!=null?d.relay:null,
-        button: d.button!=null?d.button:null,
-        voltage: d.voltage!=null?d.voltage:null,
-        current: d.current!=null?d.current:null,
-        power: d.power!=null?d.power:null,
-        energy: d.energy!=null?d.energy:null,
-        level: d.level!=null?d.level:null,
-        firmware: d.firmware!=null?d.firmware:null,
-        lastToggledBy: d.lastToggledBy!=null?d.lastToggledBy:null };
-      Object.keys(_vals).forEach(function(k) { if (f.get(k) !== _vals[k]) f.set(k, _vals[k]); });
-      return;
-    }
-    f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
-    seen[d.device] = 1;
+    var f = new ol.Feature({geometry:new ol.geom.Point(coord),name:d.device,status:stat,type:effectiveType,pressure:d.pressure!=null?d.pressure:null,flow:d.flow!=null?d.flow:null,relay:d.relay!=null?d.relay:null,button:d.button!=null?d.button:null,voltage:d.voltage!=null?d.voltage:null,current:d.current!=null?d.current:null,power:d.power!=null?d.power:null,energy:d.energy!=null?d.energy:null,level:d.level!=null?d.level:null,firmware:d.firmware!=null?d.firmware:null,lastToggledBy:d.lastToggledBy!=null?d.lastToggledBy:null});
     deviceSource.addFeature(f); deviceMarkers[d.device] = f;
-  });
-  // Remove markers whose device disappeared (or is now filtered out)
-  Object.keys(deviceMarkers).forEach(function(name) {
-    if (!seen[name]) {
-      try { deviceSource.removeFeature(deviceMarkers[name]); } catch(e) {}
-      delete deviceMarkers[name];
-    }
   });
 }
 
@@ -6248,11 +6057,11 @@ if (isResBooster) {
   });
   var resClearBtn = li.querySelector('.clear-override-btn');
   if (resClearBtn) resClearBtn.addEventListener('click', function(e) { e.stopPropagation(); clearManualOverride(d.device); });
-  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
+  li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
 }
     else {
         li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="waterlevel-value '+wc+' '+bc+'">'+wv+'</span></div>';
-        li.addEventListener('click', function(){selectDevice(d.device, true);});
+        li.addEventListener('click', function(){selectDevice(d.device);});
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
@@ -6260,7 +6069,7 @@ if (isResBooster) {
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
-      li.addEventListener('click', function(){selectDevice(d.device, true);});
+      li.addEventListener('click', function(){selectDevice(d.device);});
     } else {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
       //        relay = what Smart Device actually has (sheet)
@@ -6291,7 +6100,7 @@ if (isResBooster) {
         + '</div>';
       var schedBtn = li.querySelector('.sched-shortcut-btn');
       if (schedBtn) schedBtn.addEventListener('click', function(e) { e.stopPropagation(); openScheduleSettings(d.device); });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
       var cb = li.querySelector('input[type="checkbox"]');
       cb.addEventListener('change', function() {
         var newStateInt = cb.checked ? 1 : 0;
@@ -6367,7 +6176,7 @@ if (isResBooster) {
           }
         });
       });
-      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device, true); });
+      li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() !== 'input' && e.target.tagName.toLowerCase() !== 'button') selectDevice(d.device); });
       // ══════════════════════════════════════════════════════════════
       // COMPREHENSIVE ALARM DETECTION — Pumping Stations
       // Covers: offline, fault, low/high pressure, low/high voltage,
@@ -7997,29 +7806,9 @@ function updateGraphStatsFromValues(values, data, unitLabel) {
   document.getElementById('stat-min-value').innerText=minE.v.toFixed(1)+u;
   document.getElementById('stat-min-time').innerText=fmtTime(minE.row);
   document.getElementById('stat-avg-value').innerText=avg.toFixed(1)+u;
-  syncGraphHeaderHeights();
   return {maxE:maxE,minE:minE,curE:curE,unitLabel:unitLabel||''};
 }
-// Match the graph title + range selector height to the stat cards (Current/Min/Max/Avg)
-function syncGraphHeaderHeights(){
-  var row=document.getElementById('graph-stats-row');
-  var card=row?row.querySelector('.stat-card'):null;
-  if(!card||!row||row.classList.contains('stats-hidden'))return;
-  var h=card.offsetHeight;
-  if(!h||h<20)return;
-  var title=document.getElementById('graph-title');
-  if(title){title.style.height=h+'px';title.style.display='flex';title.style.alignItems='center';title.style.margin='0 0 6px 0';}
-  document.querySelectorAll('#graph-meta .range-btn').forEach(function(b){b.style.height=h+'px';b.style.boxSizing='border-box';});
-}
-if(!window._graphHeightSyncBound){
-  window._graphHeightSyncBound=true;
-  window.addEventListener('resize',function(){setTimeout(syncGraphHeaderHeights,150);});
-}
-function hideGraphStats(){
-  var row=document.getElementById('graph-stats-row'); if(row) row.classList.add('stats-hidden');
-  var title=document.getElementById('graph-title'); if(title){title.style.height='';}
-  document.querySelectorAll('#graph-meta .range-btn').forEach(function(b){b.style.height='';});
-}
+function hideGraphStats(){ var row=document.getElementById('graph-stats-row'); if(row) row.classList.add('stats-hidden'); }
 
 // Builds small floating chart.js-plugin-annotation callouts (a dot + label)
 // marking the MAX, MIN and CURRENT points directly on the plotted line —
@@ -8170,8 +7959,8 @@ function buildChartOptions(labels,axisDefs,annotations,filteredData) {
     }catch(e){}
     return pick;
   })();
-  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:'#000000',font:{size:14,weight:'700'},padding:10},grid:{color:'rgba(125,211,252,0.12)',lineWidth:1},border:{color:'rgba(125,211,252,0.35)',width:1.5}}};
-  axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#000000',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#000000',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
+  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:_xTickColor,font:{size:14,weight:'700'},padding:10},grid:{color:'rgba(125,211,252,0.12)',lineWidth:1},border:{color:'rgba(125,211,252,0.35)',width:1.5}}};
+  axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#8ea9c9',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#7dd3fc',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
   return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:_selTipFill,titleColor:'#ffffff',bodyColor:'#ffffff',borderColor:'rgba(255,255,255,0.45)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
@@ -14405,7 +14194,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeAssetModule()" title="Close Asset Management" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="about:blank" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ASSETS/" title="AGUS Asset Management" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14425,7 +14214,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeEnergyAuditModule()" title="Close Energy Audit" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="about:blank" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="https://jarynncsc-sketch.github.io/AGUS-CWD-ENERGY/" title="AGUS CWD Energy Audit" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
@@ -14445,7 +14234,7 @@ document.addEventListener('visibilitychange', function() {
     </div>
     <button onclick="event.stopPropagation();closeSandboxAnalyticsModule()" title="Close AGUS Analytics" style="flex-shrink:0;background:rgba(255,255,255,0.1);border:1px solid rgba(93,213,192,0.35);color:#e6f5f1;border-radius:9px;padding:7px 13px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
   </div>
-  <iframe src="about:blank" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
+  <iframe src="https://jarynncsc-sketch.github.io/SANDBOX-ANALYTICS/" title="AGUS Analytics" style="flex:1;width:100%;border:none;background:#fff;">
   </iframe>
 </div>
 
