@@ -4912,7 +4912,7 @@ map.on('singleclick', function(evt) {
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
-var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'bottom-center',offset:[0,-10],stopEvent:false});
+var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,14],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
 function derivePressureStatus(d) {
@@ -4952,32 +4952,28 @@ window._agusPinHeightPx = function(device) {
     return best || fallback;
   } catch (e) { return fallback; }
 };
-window._agusBottomMargin = function(size) {
-  if (window.innerWidth <= 900) {            /* phones: device list drawer covers the bottom of the map */
-    var dl = document.querySelector('.device-list');
-    return (dl ? dl.offsetHeight : 200) + 30;
-  }
-  return Math.round(Math.min(70, size[1] * 0.08));
+window._agusAnchorY = function(size, ph) {   /* screen y where the pin base sits after a list click */
+  if (window.innerWidth <= 900) return Math.min(size[1] / 2, ph + 20);   /* phones: pin high, drawer covers the bottom */
+  return size[1] / 2;                                                     /* desktop: pin at map centre */
 };
 window._agusPlaceDetails = function(device, det) {
   var size = map.getSize(); if (!size) return;
-  var ph = window._agusPinHeightPx(device), gap = 18;
-  var oy = -Math.round(ph + gap);
+  var gap = 14, ph = window._agusPinHeightPx(device);
   var o = detailsOverlay.getOffset();
-  if (!o || o[1] !== oy) detailsOverlay.setOffset([0, oy]);
-  var topSafe = window.innerWidth <= 900 ? 12 : 96;   /* keep clear of the top card bar */
-  var avail = size[1] - window._agusBottomMargin(size) - ph - gap - topSafe;
-  avail = Math.max(220, avail);
+  if (!o || o[1] !== gap) detailsOverlay.setOffset([0, gap]);        /* card hangs BELOW the pin base (device name stays visible) */
+  var drawer = window.innerWidth <= 900 ? ((document.querySelector('.device-list') || {}).offsetHeight || 200) : 0;
+  var avail = size[1] - window._agusAnchorY(size, ph) - gap - drawer - 16;
+  avail = Math.max(200, avail);
   var svg = det.querySelector('.rv-scene');
   var svgH = svg ? svg.getBoundingClientRect().height + 8 : 0;
-  det.style.setProperty('--dd-inner-maxh', Math.max(160, Math.round(avail - svgH - 36)) + 'px');
+  det.style.setProperty('--dd-inner-maxh', Math.max(140, Math.round(avail - svgH - 36)) + 'px');
 };
 window._agusFlyToDevice = function(f) {
   var view = map.getView(), size = map.getSize(), coord = f.getGeometry().getCoordinates(), target = coord, zoom = 18;
   try {
     if (size && size[0] && size[1]) {
       var tmp = new ol.View({ projection: view.getProjection(), center: coord, resolution: view.getResolutionForZoom(zoom), rotation: view.getRotation() });
-      tmp.centerOn(coord, size, [size[0] / 2, size[1] - window._agusBottomMargin(size)]);  /* pin low, card above it */
+      tmp.centerOn(coord, size, [size[0] / 2, window._agusAnchorY(size, window._agusPinHeightPx(f.get('name')))]);
       target = tmp.getCenter();
     }
   } catch (e) { target = coord; }
