@@ -2307,26 +2307,66 @@
   syncForScreen();
 })();
 </script>
+<!-- Graph modal: title +5%, single-line toolbar (date range / 24H-90D / CSV | LIVE bar on the right), single-line Current/Min/Max/Average, auto-fit on every screen -->
+<style>
+/* Device name + "Historical Data" title: +5% over previous size at each breakpoint */
+#graph-modal #graph-modal-inner h2#graph-title{font-size:1.386rem!important;}
+@media screen and (max-width:900px){#graph-modal #graph-modal-inner h2#graph-title{font-size:1.21275rem!important;}}
+@media screen and (min-width:1401px){#graph-modal #graph-modal-inner h2#graph-title{font-size:1.617rem!important;}}
+
+/* Title row: "Historical Data" title with the LIVE bar beside it, outside the date-range card */
+#graph-modal #graph-title-row{display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-start;gap:calc(12px*var(--gm-s,1));margin:0 0 6px 0;padding-right:44px;min-width:0;font-size:calc(12px*var(--gm-s,1));}
+#graph-modal #graph-title-row h2#graph-title{flex:0 1 auto;min-width:0;margin:0!important;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+#graph-modal #graph-title-row #graph-live-bar{margin:0!important;}
+/* Toolbar: ONE line. date range + 24H..90D + CSV. */
+#graph-modal #graph-meta{flex-direction:row!important;flex-wrap:nowrap!important;align-items:center!important;justify-content:flex-start!important;gap:calc(10px*var(--gm-s,1))!important;padding:4px calc(10px*var(--gm-s,1))!important;overflow:hidden!important;font-size:calc(12px*var(--gm-s,1));}
+#graph-modal #graph-meta > div:first-child{flex:0 1 auto!important;min-width:0!important;flex-wrap:nowrap!important;overflow:visible!important;gap:calc(10px*var(--gm-s,1))!important;}
+#graph-modal #graph-meta .range-btn-group{flex-wrap:nowrap!important;gap:calc(5px*var(--gm-s,1))!important;}
+#graph-modal #graph-meta .range-btn,#graph-modal #graph-meta #graph-download-btn{white-space:nowrap!important;flex:0 0 auto!important;min-height:0!important;padding:calc(5px*var(--gm-s,1)) calc(12px*var(--gm-s,1))!important;font-size:calc(12.5px*var(--gm-s,1))!important;}
+#graph-modal #graph-meta #date-range-label{white-space:nowrap!important;font-size:calc(13px*var(--gm-s,1))!important;}
+#graph-modal #graph-title-row #graph-live-bar{flex:0 0 auto!important;width:auto!important;flex-wrap:nowrap!important;margin:0!important;padding:calc(3px*var(--gm-s,1)) calc(8px*var(--gm-s,1))!important;gap:calc(10px*var(--gm-s,1))!important;font-size:calc(12px*var(--gm-s,1))!important;white-space:nowrap!important;}
+#graph-modal #graph-title-row #graph-live-left,#graph-modal #graph-title-row #graph-live-right{flex-wrap:nowrap!important;white-space:nowrap!important;gap:calc(7px*var(--gm-s,1))!important;}
+#graph-modal #graph-title-row #live-label,#graph-modal #graph-title-row #live-updated,#graph-modal #graph-title-row #live-interval-select,#graph-modal #graph-title-row #live-pause-btn,#graph-modal #graph-title-row #live-new-badge,#graph-modal #graph-title-row #graph-live-right > span{font-size:calc(11px*var(--gm-s,1))!important;}
+/* progressive compaction when even the scaled row would not fit */
+#graph-modal #graph-title-row.gm-c1 #graph-live-right > span:first-child{display:none!important;}
+#graph-modal #graph-title-row.gm-c2 #live-interval-select{display:none!important;}
+#graph-modal #graph-title-row.gm-c3 #live-pause-btn{font-size:0!important;padding:0!important;border:0!important;background:none!important;}
+#graph-modal #graph-title-row.gm-c3 #live-pause-btn::before{content:'\23F8';font-size:calc(13px*var(--gm-s,1));}
+#graph-modal #graph-title-row.gm-c3 #live-pause-btn.paused::before{content:'\25B6';}
+#graph-modal #graph-title-row.gm-c4 #live-updated{display:none!important;}
+#graph-modal #graph-meta.gm-c5 #date-range-label{display:none!important;}
+
+/* ONE combined card: date range + 24H-90D + CSV + Current / Min / Max / Average, all on a single line */
+#graph-modal #graph-meta{min-height:0!important;}
+#graph-modal #graph-meta.gm-scroll{overflow-x:auto!important;-webkit-overflow-scrolling:touch;}
+#graph-modal #graph-meta #graph-stats-row{margin:0!important;flex:0 1 auto;min-width:0;align-items:stretch;flex-wrap:nowrap;gap:calc(6px*var(--gm-s,1))!important;padding-left:calc(10px*var(--gm-s,1));border-left:1px solid var(--border-color);}
+#graph-modal #graph-meta #graph-stats-row:not(.stats-hidden){display:flex!important;}
+#graph-modal #graph-meta #graph-stats-row.stats-hidden{display:none!important;}
+#graph-modal #graph-meta .stat-card{flex:0 0 auto!important;align-items:center!important;padding:calc(3px*var(--gm-s,1)) calc(8px*var(--gm-s,1))!important;gap:calc(6px*var(--gm-s,1))!important;border-radius:8px!important;}
+#graph-modal #graph-meta .stat-card-icon{width:calc(22px*var(--gm-s,1))!important;height:calc(22px*var(--gm-s,1))!important;font-size:calc(11px*var(--gm-s,1))!important;}
+#graph-modal #graph-meta .stat-card-body{gap:0!important;}
+#graph-modal #graph-meta .stat-card-label{font-size:calc(9px*var(--gm-s,1))!important;line-height:1.2;white-space:nowrap;}
+#graph-modal #graph-meta .stat-card-value{font-size:calc(14px*var(--gm-s,1))!important;line-height:1.2!important;overflow:visible!important;text-overflow:clip!important;}
+#graph-modal #graph-meta .stat-card-time{font-size:calc(8.5px*var(--gm-s,1))!important;line-height:1.2;overflow:visible!important;text-overflow:clip!important;}
+/* small screens: Current / Min / Max / Average drop BELOW the date-range row, filling the full width */
+#graph-modal #graph-meta.gm-wrap{flex-wrap:wrap!important;row-gap:calc(6px*var(--gm-s,1))!important;}
+#graph-modal #graph-meta.gm-wrap > div:first-child{flex:1 1 100%!important;}
+#graph-modal #graph-meta.gm-wrap #graph-stats-row:not(.stats-hidden){display:grid!important;grid-template-columns:repeat(4,minmax(0,1fr))!important;flex:1 1 100%!important;width:100%;border-left:0!important;padding-left:0!important;border-top:1px solid var(--border-color);padding-top:calc(6px*var(--gm-s,1));}
+#graph-modal #graph-meta.gm-wrap .stat-card{min-width:0!important;}
+/* the old "match heights to stat cards" script no longer applies to this single-line card */
+#graph-modal #graph-meta .range-btn{height:auto!important;}
+#graph-modal #graph-title{height:auto!important;}
+/* progressive compaction (only if the scaled card still does not fit) */
+#graph-modal #graph-meta.gm-c1 .stat-card-time{display:none!important;}
+#graph-modal #graph-meta.gm-c2 .stat-card-icon{display:none!important;}
+#graph-modal #graph-meta.gm-c3 #date-range-label{display:none!important;}
+</style>
 <!-- GRAPH MODAL -->
 <div id="graph-modal">
   <div id="graph-modal-inner">
     <button id="graph-close-btn" onclick="closeGraph()">&#10005;</button>
+    <div id="graph-title-row">
     <h2 id="graph-title">Historical Data</h2>
-    <div id="graph-debug-bar"></div>
-    <div id="graph-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#f0f8ff;padding:4px 12px;border-radius:6px;border:1px solid #c0e0ff;min-height:36px;margin-bottom:6px;">
-      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-        <span id="graph-battery"></span>
-        <span id="date-range-label"></span>
-        <div class="range-btn-group">
-          <button class="range-btn" data-range="24" data-unit="h">24H</button>
-          <button class="range-btn" data-range="3">3D</button>
-          <button class="range-btn" data-range="7">7D</button>
-          <button class="range-btn active" data-range="14">14D</button>
-          <button class="range-btn" data-range="30">30D</button>
-          <button class="range-btn" data-range="90">90D</button>
-        </div>
-        <button id="graph-download-btn" onclick="downloadCSV()">⬇ CSV</button>
-      </div>
       <div id="graph-live-bar">
         <div id="graph-live-left">
           <div class="live-dot" id="live-dot"></div>
@@ -2350,9 +2390,21 @@
         </div>
       </div>
     </div>
-    <div id="param-selector-wrap">
-      <div id="param-pill-grid"></div>
-    </div>
+    <div id="graph-debug-bar"></div>
+    <div id="graph-meta" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;background:#f0f8ff;padding:4px 12px;border-radius:6px;border:1px solid #c0e0ff;min-height:36px;margin-bottom:6px;">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+        <span id="graph-battery"></span>
+        <span id="date-range-label"></span>
+        <div class="range-btn-group">
+          <button class="range-btn" data-range="24" data-unit="h">24H</button>
+          <button class="range-btn" data-range="3">3D</button>
+          <button class="range-btn" data-range="7">7D</button>
+          <button class="range-btn active" data-range="14">14D</button>
+          <button class="range-btn" data-range="30">30D</button>
+          <button class="range-btn" data-range="90">90D</button>
+        </div>
+        <button id="graph-download-btn" onclick="downloadCSV()">⬇ CSV</button>
+      </div>
     <div id="graph-stats-row" class="stats-hidden">
       <div class="stat-card stat-current">
         <div class="stat-card-icon">💧</div>
@@ -2387,6 +2439,10 @@
         </div>
       </div>
     </div>
+    </div>
+    <div id="param-selector-wrap">
+      <div id="param-pill-grid"></div>
+    </div>
     <div id="graph-chart-wrap">
       <div id="graph-loading"><div class="spinner"></div><span>Loading data…</span><span id="graph-loading-sub" style="font-size:11px;color:#7a9bb5;font-weight:500;margin-top:2px;display:block;text-align:center;"></span></div>
       <div id="graph-no-data"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1"/></svg><span>No data in selected range</span></div>
@@ -2397,6 +2453,64 @@
     <div id="last-toggled-badge" style="display:none;align-items:center;flex-wrap:wrap;gap:4px;margin-top:6px;padding:7px 14px;border-radius:8px;border:1.5px solid rgba(34,197,94,0.5);background:rgba(34,197,94,0.10);font-size:12.5px;"></div>
   </div>
 </div>
+<script>
+/* Fit the graph toolbar (date range, 24H-90D, CSV, LIVE bar) on ONE line at any screen size */
+(function(){
+  var meta=document.getElementById('graph-meta'), trow=document.getElementById('graph-title-row');
+  if(!meta||!trow) return;
+  var busy=false, raf=0;
+  function shrink(el,over,min){
+    var s=1; el.style.setProperty('--gm-s',s);
+    while(over() && s>min){ s=Math.round((s-0.04)*100)/100; el.style.setProperty('--gm-s',s); }
+  }
+  function fitOne(el){            /* title row: title + LIVE bar */
+    function over(){ return el.scrollWidth>el.clientWidth+1; }
+    el.className=el.className.replace(/\bgm-c\d\b/g,'').trim();
+    shrink(el,over,0.62);
+    var tier=0;
+    while(over() && tier<5){ tier++; el.classList.add('gm-c'+tier); shrink(el,over,0.62); }
+  }
+  function fitMeta(el){           /* date range + 24H-90D + CSV + Current/Min/Max/Average */
+    function overLine(){ return el.scrollWidth>el.clientWidth+1; }
+    function overAll(){
+      if(overLine()) return true;
+      var cards=el.querySelectorAll('#graph-stats-row:not(.stats-hidden) .stat-card');
+      for(var i=0;i<cards.length;i++){ if(cards[i].scrollWidth>cards[i].clientWidth+1) return true; }
+      return false;
+    }
+    el.className=el.className.replace(/\bgm-(c\d|wrap|scroll)\b/g,'').trim();
+    shrink(el,overLine,0.85);                 /* 1) one line if it fits at a comfortable size */
+    if(!overLine()) return;
+    el.classList.add('gm-wrap');              /* 2) small screen: stats drop BELOW the date-range line */
+    shrink(el,overAll,0.62);
+    var tier=0;
+    while(overAll() && tier<3){ tier++; el.classList.add('gm-c'+tier); shrink(el,overAll,0.62); }
+    if(overLine()) el.classList.add('gm-scroll');
+  }
+  function fit(){
+    if(busy) return; busy=true;
+    try{ if(meta.offsetWidth===0) return; fitMeta(meta); fitOne(trow); }finally{ busy=false; }
+  }
+  function schedule(){ cancelAnimationFrame(raf); raf=requestAnimationFrame(fit); }
+  window.addEventListener('resize',schedule);
+  window.addEventListener('orientationchange',function(){setTimeout(schedule,200);});
+  if(window.visualViewport) window.visualViewport.addEventListener('resize',schedule);
+  if(window.ResizeObserver){ var ro=new ResizeObserver(schedule); ro.observe(meta); ro.observe(trow); }
+  if(window.MutationObserver){
+    var mo=new MutationObserver(schedule);
+    ['date-range-label','live-updated','live-pause-btn','live-new-badge','graph-title'].forEach(function(id){
+      var el=document.getElementById(id); if(el) mo.observe(el,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['class']});
+    });
+    var sr=document.getElementById('graph-stats-row');
+    if(sr) mo.observe(sr,{childList:true,characterData:true,subtree:true,attributes:true,attributeFilter:['class']});
+    var gm=document.getElementById('graph-modal');
+    if(gm) new MutationObserver(schedule).observe(gm,{attributes:true,attributeFilter:['style','class']});
+  }
+  document.querySelectorAll('#graph-meta .range-btn').forEach(function(b){b.addEventListener('click',function(){setTimeout(schedule,50);});});
+  setTimeout(schedule,300);
+})();
+</script>
+
 
 <!-- PRESSURE SETTINGS MODAL -->
 <div id="pressure-settings-modal">
@@ -7996,7 +8110,7 @@ function updateLastToggledBadge(data) {
 function buildChartOptions(labels,axisDefs,annotations,filteredData) {
   annotations=annotations||{}; filteredData=filteredData||[];
   var _xTickColor=(function(){
-    var LIGHT='#f8fafc',DARK='#0b1220',pick=LIGHT;
+    var LIGHT='#f8fafc',DARK='#000000',pick=LIGHT;
     try{
       var el=document.getElementById('graph-chart-wrap');
       while(el){var m=getComputedStyle(el).backgroundColor.match(/rgba?\(([^)]+)\)/);
@@ -8009,9 +8123,9 @@ function buildChartOptions(labels,axisDefs,annotations,filteredData) {
     }catch(e){}
     return pick;
   })();
-  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:_xTickColor,font:{size:14,weight:'700'},padding:10},grid:{color:'rgba(125,211,252,0.12)',lineWidth:1},border:{color:'rgba(125,211,252,0.35)',width:1.5}}};
-  axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:'#8ea9c9',font:{size:13,weight:'500'},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:'#7dd3fc',font:{size:13,weight:'700'},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
-  return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,2),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:_selTipFill,titleColor:'#ffffff',bodyColor:'#ffffff',borderColor:'rgba(255,255,255,0.45)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
+  var scales={x:{ticks:{maxTicksLimit:10,maxRotation:0,color:_xTickColor,font:{size:14.7,weight:'700',family:"'DM Sans',sans-serif"},padding:10},grid:{color:'rgba(125,211,252,0.12)',lineWidth:1},border:{color:'rgba(125,211,252,0.35)',width:1.5}}};
+  axisDefs.forEach(function(ax){scales[ax.id]={type:'linear',position:ax.pos,display:true,min:0,suggestedMax:ax.max,afterBuildTicks:function(axis){if(axis.ticks)axis.ticks=axis.ticks.filter(function(t){return t.value>=0;});},ticks:{color:_xTickColor,font:{size:13.65,weight:'700',family:"'DM Sans',sans-serif"},padding:8,callback:function(v){return Math.abs(v)>=1000?(v/1000).toFixed(1)+'k':v.toFixed(1);}},title:{display:true,text:ax.label,color:_xTickColor,font:{size:13.65,weight:'800',family:"'DM Sans',sans-serif"},padding:{bottom:4}},grid:{color:function(ctx){return ctx.tick.value===0?'rgba(255,255,255,0.35)':(ax.pos==='left'?'rgba(125,211,252,0.09)':'rgba(0,0,0,0)');},lineWidth:function(ctx){return ctx.tick.value===0?2.5:1;}},border:{color:'rgba(125,211,252,0.15)'}};});
+  return {responsive:true,maintainAspectRatio:false,animation:{duration:900,easing:'easeInOutQuart'},devicePixelRatio:Math.max(window.devicePixelRatio||1,3),interaction:{mode:'index',intersect:false},scales:scales,plugins:{legend:{display:false},tooltip:{enabled:true,backgroundColor:_selTipFill,titleColor:'#ffffff',bodyColor:'#ffffff',borderColor:'rgba(255,255,255,0.45)',borderWidth:1,padding:14,cornerRadius:9,displayColors:true,callbacks:{title:function(items){return items[0]?items[0].label:'';},labelColor:function(ctx){var c=ctx.dataset.pointBackgroundColor||ctx.dataset.borderColor;return{borderColor:'#fff',backgroundColor:c,borderWidth:1.5,borderRadius:6};},label:function(item){var v=item.parsed.y,l=item.dataset.label||'';return v!==null?'  '+l+':  '+v.toFixed(2):'  '+l+':  N/A';},afterBody:function(items){if(!items.length||!window._toggleKey||!filteredData.length)return[];var idx=items[0].dataIndex,row=filteredData[idx];if(!row)return[];var who=String(row[window._toggleKey]||'').trim();if(!who)return[];var rv=window._relayKey?parseInt(row[window._relayKey]):-1,act=rv===1?'▲ Turned ON':(rv===0?'▼ Turned OFF':'⚡ Toggled');return['','  👤 '+who+'  —  '+act];}}},annotation:{clip:false,annotations:annotations}}};
 }
 
 document.querySelectorAll('.range-btn').forEach(function(btn){
