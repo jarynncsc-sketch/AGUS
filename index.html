@@ -4452,6 +4452,26 @@ if (isPS) {
   }
   return [new ol.style.Style({image:new ol.style.Circle({radius:Math.max(8,Math.min(20,sz*4)),fill:new ol.style.Fill({color:fc}),stroke:new ol.style.Stroke({color:sc,width:sw})})}),new ol.style.Style({text:new ol.style.Text({text:text,font:'bold 12px sans-serif',offsetY:-25,fill:new ol.style.Fill({color:'#000'}),stroke:new ol.style.Stroke({color:'#fff',width:3})})})];
 }});
+/* Selected device (clicked in the device list or on the map): its map pin is drawn 30% larger */
+(function(){
+  var _baseStyle = clusterLayer.getStyleFunction(), SEL_PIN_SCALE = 1.3;
+  clusterLayer.setStyle(function(feature, res){
+    var st = _baseStyle(feature, res);
+    try {
+      var fs = feature.get('features');
+      if (selectedDevice && fs && fs.length === 1 && fs[0].get('name') === selectedDevice && st) {
+        (Array.isArray(st) ? st : [st]).forEach(function(s){
+          var im = s && s.getImage && s.getImage();
+          if (im && im.setScale) {
+            var sc = im.getScale();
+            im.setScale(Array.isArray(sc) ? [sc[0]*SEL_PIN_SCALE, sc[1]*SEL_PIN_SCALE] : sc*SEL_PIN_SCALE);
+          }
+        });
+      }
+    } catch(e) {}
+    return st;
+  });
+})();
 /* Animated overlay for reservoir map markers. The map icon is a still image, so the moving
    parts (waves, jet, pipe flow, ripples) are a CSS-animated SVG overlay aligned to the icon
    (same size, bottom-centre anchored at the device coordinate). No per-frame icon redraws. */
@@ -4513,11 +4533,17 @@ function _rvSync() {
       var sig = JSON.stringify([g, st]);
       if (o.sig !== sig) { o.sig = sig; o.el.innerHTML = _rvOverlaySVG(g, st, o.uid); }
       o.ov.setPosition(f.getGeometry().getCoordinates());
+      o.el.style.transformOrigin = '50% 100%';
+      o.el.style.transition = 'none';
+      o.el.style.transform = (nm === selectedDevice) ? 'scale(1.3)' : 'none';
     });
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
   } catch (e) { /* animation overlay is cosmetic; never break the map */ }
 }
 setInterval(_rvSync, 1000);
+var _rvRaf = 0;
+function _rvSoon() { if (_rvRaf) return; _rvRaf = requestAnimationFrame(function(){ _rvRaf = 0; _rvSync(); }); }
+try { map.on('moveend', _rvSoon); clusterSource.on('change', _rvSoon); } catch (e) {}
 
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -4857,6 +4883,8 @@ function selectDevice(device) {
   selectedDevice = device;
   var f = deviceMarkers[device];
   if (f) { map.getView().animate({center:f.getGeometry().getCoordinates(),zoom:18,duration:700}); f.changed(); }
+  try { clusterLayer.changed(); _rvSync(); } catch(e) {}
+  (function(){ var _n = 0, _t = setInterval(function(){ try { _rvSync(); } catch(e) {} if (++_n >= 14) clearInterval(_t); }, 100); })();
   showDeviceDetails(device);
   document.querySelectorAll('#device-list li.selected').forEach(function(el){el.classList.remove('selected');});
   document.querySelectorAll('#device-list li').forEach(function(el){
@@ -5144,6 +5172,7 @@ if (!isNaN(llvl)) {
         if (typeof detailsOverlay !== 'undefined') detailsOverlay.setPosition(undefined);
         selectedDevice = null;
         _deviceDetailsDismissed = true;
+        try { clusterLayer.changed(); _rvSync(); } catch(e) {}
       };
       _inner.appendChild(_cb);
     })();
