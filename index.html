@@ -3296,6 +3296,12 @@ var _autoShutoffCommandSent    = {}; // { "pump:reservoir": timestamp }
 var _AUTO_SHUTOFF_COOLDOWN     = 60000; // ms before same-direction command can be re-sent
 
 // ── Normalise GAS link object → internal format ───────────────────────────
+function _plBool(v, dflt) {
+  if (v === undefined || v === null || v === '') return dflt;
+  if (typeof v === 'string') return /^(true|1|yes|on)$/i.test(v.trim());
+  return !!v;
+}
+var _plPending = {}; // { linkId: { enabled: bool, until: ms } } — local toggle wins over stale GAS reads
 function _normLink(l) {
   return {
     id:             l.linkId || l.id || '',
@@ -3305,8 +3311,8 @@ function _normLink(l) {
     shutoffLevel2:  parseFloat(l.shutoffLevel2) || 0,
     resumeLevel:    parseFloat(l.resume   || l.resumeLevel)   || 0,
     resumeLevel2:   parseFloat(l.resumeLevel2) || 0,
-    enabled:        l.enabled    !== false,
-    manualOverride: !!l.manualOverride,
+    enabled:        _plBool(l.enabled, true),
+    manualOverride: _plBool(l.manualOverride, false),
     createdBy:      l.createdBy  || '',
     updatedAt:      l.updatedAt  || '',
     lastTriggered:  l.lastTriggered || null,
@@ -3320,6 +3326,12 @@ function loadPumpLinksFromGAS(cb) {
   _pumpLinksLoading = true;
   apiGet('getPumpLinks').then(function(data) {
     pumpLinkConfigs  = (Array.isArray(data) ? data : []).map(_normLink);
+    pumpLinkConfigs.forEach(function(c) {
+      var pd = _plPending[c.id];
+      if (!pd) return;
+      if (Date.now() > pd.until || c.enabled === pd.enabled) { delete _plPending[c.id]; return; }
+      c.enabled = pd.enabled; // GAS still returning the old value — don't let it flip the toggle back
+    });
     _pumpLinksLoaded = true;
     _pumpLinksLoading = false;
     _syncConfigsToFirebase();
@@ -4091,7 +4103,7 @@ var _rvFs = _rvFlowState(name, lv, isPS, f.get('flow'), f.get('relay'));
 var _inl = _resMode(name) === 'inline';
 if (_inl) { _rvFs.inOn = _rvFs.has; _rvFs.outOn = _rvFs.has; }
 var _cg = _cId + 'c', _pg = _cId + 'p';
-var _iy = _tY + 6;                       // inlet pipe centre (near the top, matching the popup scene)
+var _iy = _inl ? (_tY + _tH - 6) : (_tY + 6);   // inlet pipe centre: flow-in-line sits at the tank floor (below); fill & draw keeps the top nozzle
 var _oy = _tY + _tH - 6;                   // outlet pipe centre (draw pipe at the tank floor)
 var _surfY = _fillH > 2 ? _fillY : (_tY + _tH - _wl);
 var _jet = '';
@@ -5429,6 +5441,12 @@ function _firebaseDeviceToArray() {
       // Guarding on freshness stops a stale/offline device (or an out-of-sync
       // commanded value) from hanging on "confirming" forever.
       relayPending: (_relayPendingUntil[name] && now < _relayPendingUntil[name]) || (fbCmd !== null && fbCmd !== relay && !stale),
+      // ★ CROSS-DEVICE SYNC: when a command is in flight (pending & fresh), display the
+      // ORDERED state so OTHER phones/accounts flip the toggle immediately — not just the
+      // tab that clicked it. Once the ESP32 confirms (relay === cmd) or the pending window
+      // expires, relayDisplay falls back to the actual relay, so it snaps back if the
+      // device never confirms. This is what makes operator B see the change as fast as A.
+      relayDisplay: ((_relayPendingUntil[name] && now < _relayPendingUntil[name]) || (fbCmd !== null && fbCmd !== relay && !stale)) ? cmd : relay,
       button: button,
       firmware: fb.firmware || null,
       latitude: fb.latitude || null,
@@ -5985,11 +6003,12 @@ if (isResBooster) {
     commandedRelayCacheTimestamps[d.device] = Date.now();
   }
   var resCommanded = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-  // ★ FIX: slider = CONFIRMED relay state, not the ordered state. Only the local
-  // optimistic window (pending toggle < 2 min) shows the commanded state so the
-  // indicator snaps back to OFF if the ESP32 is actually off / never confirms.
-  var resSwitchIsOn = _resPendingLocal ? (resCommanded === 1 || resCommanded === true)
-    : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (resCommanded === 1 || resCommanded === true));
+  // ★ CROSS-DEVICE: show ordered (commanded) immediately while pending; else confirmed actual.
+  // Uses d.relayDisplay when present (set in _firebaseDeviceToArray) so other phones flip
+  // in lockstep; still snaps back to actual if the device never confirms.
+  var resSwitchIsOn = d.relayDisplay !== undefined ? (d.relayDisplay === 1 || d.relayDisplay === true)
+    : (_resPendingLocal ? (resCommanded === 1 || resCommanded === true)
+      : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (resCommanded === 1 || resCommanded === true)));
 
   // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = ''
@@ -6116,11 +6135,12 @@ if (isResBooster) {
         commandedRelayCacheTimestamps[d.device] = Date.now();
       }
       var commanded  = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
-      // ★ FIX: slider = CONFIRMED relay state, not the ordered state. Only the local
-      // optimistic window (pending toggle < 2 min) shows the commanded state so the
-      // indicator snaps back to OFF if the ESP32 is actually off / never confirms.
-      var switchIsOn = _pumpPendingLocal ? (commanded === 1 || commanded === true)
-        : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (commanded === 1 || commanded === true));
+      // ★ CROSS-DEVICE: show ordered (commanded) immediately while pending; else confirmed actual.
+      // Uses d.relayDisplay when present so other phones flip in lockstep; still snaps back
+      // to actual if the device never confirms.
+      var switchIsOn = d.relayDisplay !== undefined ? (d.relayDisplay === 1 || d.relayDisplay === true)
+        : (_pumpPendingLocal ? (commanded === 1 || commanded === true)
+          : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (commanded === 1 || commanded === true)));
       li.innerHTML = '<span>'+d.device+'</span>'
         + '<div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span>'
         + '<label class="toggle-switch" title="Toggle pump ON/OFF">'
@@ -7444,14 +7464,17 @@ function deletePumpLink(id) {
 
 function togglePumpLink(id, enabled) {
   var tok = sessionToken || userToken || '';
+  _plPending[id] = { enabled: !!enabled, until: Date.now() + 45000 };
   var url = API_URL + '?action=updatePumpLink&token=' + encodeURIComponent(tok) + '&linkId=' + encodeURIComponent(id) + '&enabled=' + (enabled ? 'true' : 'false');
   fetch(url).then(function(r){ return r.json(); }).then(function(resp) {
-    if (!resp || !resp.success) { showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
+    if (!resp || !resp.success) { delete _plPending[id]; showNotification('⚠ Update failed: ' + (resp && resp.error ? resp.error : 'Unknown'), 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); return; }
     var cfg = pumpLinkConfigs.find(function(c) { return c.id === id; });
     if (cfg) cfg.enabled = enabled;
     _renderLinkCards();
+    try { _syncConfigsToFirebase(); } catch(e) {}
+    if (typeof window._sendPumpLinksToSW === 'function') window._sendPumpLinksToSW();
     showNotification((enabled ? '✅ Link enabled in Sheet.' : '⏸ Link disabled in Sheet.'), 'info');
-  }).catch(function() { showNotification('⚠ Network error toggling link.', 'warning'); });
+  }).catch(function() { delete _plPending[id]; showNotification('⚠ Network error toggling link.', 'warning'); loadPumpLinksFromGAS(function(){ _renderLinkCards(); }); });
 }
 
 function editPumpLink(id) {
