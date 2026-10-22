@@ -4121,13 +4121,10 @@ if (_inl) {
     '<rect x="' + (_tX - 10) + '" y="' + (_iy - 5) + '" width="' + (10 + _wl) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
     + '<rect x="' + (_tX - 10) + '" y="' + (_iy - 2) + '" width="' + (10 + _wl) + '" height="4" fill="#071820"/>'
     // pipe travels straight through the tank at the same height (in-line flow)
-    + '<rect x="' + _tX + '" y="' + (_iy - 5) + '" width="' + _tW + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + _tX + '" y="' + (_iy - 2) + '" width="' + _tW + '" height="4" fill="#071820"/>'
-    + '<line x1="' + (_tX - 8) + '" y1="' + _iy + '" x2="' + (_tX + _tW - 1) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn ? 1 : 0.2) + '"/>';
-  _outletSvg =
-    '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 5) + '" width="' + (_wl + 10) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
-    + '<rect x="' + (_tX + _tW - _wl) + '" y="' + (_iy - 2) + '" width="' + (_wl + 10) + '" height="4" fill="#071820"/>'
-    + '<line x1="' + (_tX + _tW - _wl) + '" y1="' + _iy + '" x2="' + (_tX + _tW + 8) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.outOn ? 1 : 0.2) + '"/>';
+    + '<rect x="' + _tX + '" y="' + (_iy - 5) + '" width="' + Math.round(_tW / 2 - 4) + '" height="10" rx="2" fill="url(#' + _pg + ')" stroke="#1f2f36" stroke-width="0.6"/>'
+    + '<rect x="' + _tX + '" y="' + (_iy - 2) + '" width="' + Math.round(_tW / 2 - 4) + '" height="4" fill="#071820"/>'
+    + '<line x1="' + (_tX - 8) + '" y1="' + _iy + '" x2="' + (_tX + Math.round(_tW / 2) - 6) + '" y2="' + _iy + '" stroke="#00c8ff" stroke-width="2" stroke-linecap="round" opacity="' + (_rvFs.inOn || _rvFs.outOn ? 1 : 0.2) + '"/>';
+  _outletSvg = ''; // same single pipe carries both inflow and outflow
 } else {
   _inletSvg =
     // feed from the bottom: vertical riser beside the wall rises to the top inlet nozzle
@@ -4370,7 +4367,7 @@ function _rvOverlaySVG(g, st, uid) {
   }
   if (g.jet) o += '<path class="rv-mjet' + offIn + '" d="' + g.jet + '" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/>';
   if (g.mode === 'inline') {
-    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + g.tW + 8) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
+    o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 10) + '" y1="' + g.iy + '" x2="' + (g.tX + Math.round(g.tW / 2) - 6) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>';
   } else {
     o += '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 4) + '" y1="' + (g.tY + g.tH - 2) + '" x2="' + (g.tX - 4) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2" stroke-linecap="round"/>'
       + '<line class="rv-mflow' + offIn + '" x1="' + (g.tX - 2) + '" y1="' + g.iy + '" x2="' + (g.tX + g.wl - 1) + '" y2="' + g.iy + '" stroke="#e6fbff" stroke-width="2.2" stroke-linecap="round"/>'
