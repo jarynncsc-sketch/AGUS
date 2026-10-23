@@ -1948,9 +1948,9 @@
 }
 
 /* ===== Device details card: never let content spill outside the white card (all screen sizes) ===== */
-#device-details{box-sizing:border-box !important;width:min(340px,calc(100% - 24px)) !important;min-width:0 !important;max-width:calc(100% - 24px) !important;overflow:visible;}
+#device-details{box-sizing:border-box !important;width:340px !important;min-width:min(340px,calc(100vw - 40px)) !important;max-width:calc(100vw - 40px) !important;overflow:visible;}
 #device-details .dd-row{display:flex !important;flex-direction:column !important;gap:12px !important;min-width:0 !important;width:100% !important;box-sizing:border-box;}
-#device-details .dd-col{flex:none !important;min-width:0 !important;width:100% !important;box-sizing:border-box;overflow-wrap:anywhere;}
+#device-details .dd-col{flex:none !important;min-width:0 !important;width:100% !important;box-sizing:border-box;overflow-wrap:break-word;word-break:normal;}
 #device-details .dd-col-r{border-left:none !important;border-top:1.5px solid #e5eef9 !important;padding-left:0 !important;padding-top:10px !important;}
 #device-details .pressure-thresholds-badge{flex-wrap:wrap;}
 #device-details .rs-gear-btn,#device-details .ps-gear-btn{box-sizing:border-box;max-width:100%;}
