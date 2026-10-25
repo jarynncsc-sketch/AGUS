@@ -3648,9 +3648,17 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
-      var e = deviceSource.getExtent();
+      /* frame the pipeline network end to end (plus every device) so the map uses all the available space */
+      var e = ol.extent.createEmpty(), de = deviceSource.getExtent();
+      if (de && isFinite(de[0]) && ol.extent.getWidth(de) > 0) ol.extent.extend(e, de);
+      try {
+        if (typeof pipelineSource !== 'undefined' && pipelineSource.getFeatures().length) {
+          var pe = pipelineSource.getExtent();
+          if (pe && isFinite(pe[0]) && ol.extent.getWidth(pe) > 0) ol.extent.extend(e, pe);
+        }
+      } catch (x) {}
       if (window.agusSpread) window.agusSpread(true);   /* show every pin, none overlapping */
-      if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[240,110,60,110], maxZoom:15});
+      if (isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[240,110,60,110], maxZoom:19});
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
     }
     if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[card.dataset.tab]) openTabModal(card.dataset.tab);
@@ -4054,7 +4062,7 @@ var streetLayer = new ol.layer.Tile({
 var map = new ol.Map({
   target: 'map',
   layers: [satelliteLayer, streetLayer],
-  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12 })
+  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12, rotation: -Math.PI / 2 })   /* default orientation: East at the top (compass: E) */
 });
 window.agusMap = map;
 
@@ -4533,18 +4541,29 @@ if (isPS) {
   });
 })();
 /* ════════════════════════════════════════════════════════════════════════════
-   FIT-PINS MODE - show EVERY device pin on its true location, none overlapping.
-   Turned on by the Map top card (window.agusSpread(true)). Pins are never moved:
-   any pin that would sit on top of another is drawn smaller (icon, text and the
-   reservoir animation scale together) until they no longer overlap. Pins that have
-   room stay full size, and everything returns to normal size as you zoom in.
-   Recomputed on every pan / zoom / data refresh.
-   Set AGUS_SPREAD_DEFAULT = true to use it all the time. MIN_SCALE (0.6) is the smallest
-   a pin may shrink to - below that the device name text becomes unreadable.
+   FIT-PINS MODE - every device is shown on its true location and NOTHING overlaps.
+   Turned on by the Map top card (window.agusSpread(true)). Pins are never moved.
+   Each device gets the largest form that fits, trying in this order:
+     1. full pin, drawn smaller where needed (down to MIN_SCALE = readable text);
+     2. compact pill with the live value (119 m3 / 20 psi / ON) in the status colour
+        and the device name beside it - below, above, right or left, whichever is free;
+     3. the pill alone (name hidden - hover it, or tap it to open the device);
+     4. a small status-colour dot, then a tiny one (devices practically on the same spot).
+   The worst offender is reduced first, then any device that can be bigger again is
+   restored, so only as many pins as necessary are reduced. Everything returns to
+   a full pin as you zoom in. Recomputed on every pan / zoom / data refresh.
+   AGUS_SPREAD_DEFAULT = true applies it all the time.
    ════════════════════════════════════════════════════════════════════════════ */
 var AGUS_SPREAD_DEFAULT = false;
 (function () {
-  var S = { on: false }, scaleCache = {}, sizeCache = {}, GAP = 4, MIN_SCALE = 0.6, STEP = 0.93, _raf = 0;
+  var S = { on: false }, cache = {}, sizeCache = {}, GAP = 4, _raf = 0;
+  var PILL_H = 22, DOT_R = 6.5, LAB_H = 14, KS = [1, 0.92, 0.84, 0.76, 0.68, 0.6];
+  var STATES = [];                                           /* best -> worst */
+  KS.forEach(function (k) { STATES.push({ c: 0, k: k }); });
+  [0, 1, 2, 3].forEach(function (side) { STATES.push({ c: 1, l: side }); });   /* label: 0 below 1 above 2 right 3 left */
+  STATES.push({ c: 1, l: -1 });
+  STATES.push({ c: 2 });
+  STATES.push({ c: 3 });                                     /* tiny dot: devices practically on the same spot */
 
   function keyOf(fs) {
     if (fs.length === 1) return fs[0].get('name');
@@ -4552,14 +4571,52 @@ var AGUS_SPREAD_DEFAULT = false;
   }
   function layoutSoon() { if (_raf) return; _raf = requestAnimationFrame(function () { _raf = 0; layout(); }); }
 
-  /* wrap the existing style: record each pin's real size and apply the fit scale */
+  /* live value + status colour for the compact forms */
+  function compactInfo(f) {
+    var name = f.get('name') || '', lname = name.toLowerCase(), type = (f.get('type') || '').toLowerCase().trim(), status = f.get('status');
+    var col = status === 'Online' ? '#22c55e' : status === 'Offline' ? '#f97316' : '#ef4444', val;
+    if (type === 'reservoir' || lname.indexOf('reservoir') >= 0) { var lv = parseFloat(f.get('level')); val = isNaN(lv) ? '--' : Math.round(lv) + ' m\u00B3'; }
+    else if (type === 'pressure' || lname.indexOf('pressure') >= 0) { var pr = parseFloat(f.get('pressure')); val = isNaN(pr) ? '--' : Math.round(pr) + ' psi'; }
+    else { var c = f.get('commandedRelay'); if (c == null) c = f.get('relay'); val = (c == 1 || c === '1' || c === true) ? 'ON' : (c == null ? '--' : 'OFF'); }
+    return { name: name, col: col, val: val, w: Math.max(42, val.length * 7 + 18), lw: name.length * 5.8 + 6 };
+  }
+  function compactStyle(f, side) {
+    var ci = compactInfo(f), w = ci.w;
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + PILL_H + '" viewBox="0 0 ' + w + ' ' + PILL_H + '">'
+      + '<rect x="1.5" y="1.5" width="' + (w - 3) + '" height="' + (PILL_H - 3) + '" rx="' + (PILL_H / 2 - 1.5) + '" fill="#ffffff" stroke="' + ci.col + '" stroke-width="3"/>'
+      + '<text x="' + (w / 2) + '" y="15" text-anchor="middle" font-family="DM Sans, Arial, sans-serif" font-size="11.5" font-weight="700" fill="#0f172a">'
+      + ci.val.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</text></svg>';
+    var out = [new ol.style.Style({ image: new ol.style.Icon({ src: 'data:image/svg+xml,' + encodeURIComponent(svg), anchor: [0.5, 0.5], anchorXUnits: 'fraction', anchorYUnits: 'fraction' }) })];
+    if (side >= 0) {
+      var o = { text: ci.name, font: 'bold 10px sans-serif', fill: new ol.style.Fill({ color: '#0f172a' }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 3 }) };
+      if (side === 0) { o.offsetY = 19; }
+      else if (side === 1) { o.offsetY = -19; }
+      else if (side === 2) { o.textAlign = 'left'; o.offsetX = w / 2 + 4; o.offsetY = 1; }
+      else { o.textAlign = 'right'; o.offsetX = -(w / 2 + 4); o.offsetY = 1; }
+      out.push(new ol.style.Style({ text: new ol.style.Text(o) }));
+    }
+    return out;
+  }
+  function dotStyle(f, r) {
+    var ci = compactInfo(f);
+    return [new ol.style.Style({ image: new ol.style.Circle({ radius: r || DOT_R, fill: new ol.style.Fill({ color: ci.col }), stroke: new ol.style.Stroke({ color: '#ffffff', width: 2 }) }) })];
+  }
+
+  /* wrap the existing style: record pin sizes, apply shrink scale / compact forms */
   var _prev = clusterLayer.getStyleFunction();
   clusterLayer.setStyle(function (feature, res) {
+    try {
+      var fs = feature.get('features');
+      if (fs && fs.length) {
+        var key = keyOf(fs), e = S.on ? cache[key] : null;
+        if (e && e.c && !(fs.length === 1 && fs[0].get('name') === selectedDevice)) return e.c === 3 ? dotStyle(fs[0], 3.5) : e.c === 2 ? dotStyle(fs[0]) : compactStyle(fs[0], e.l);
+      }
+    } catch (e1) {}
     var st = _prev(feature, res);
     try {
-      var fs = feature.get('features'); if (!fs || !fs.length) return st;
-      var arr = Array.isArray(st) ? st : [st], key = keyOf(fs);
-      if (fs.length === 1) {
+      var fs2 = feature.get('features'); if (!fs2 || !fs2.length) return st;
+      var arr = Array.isArray(st) ? st : [st], key2 = keyOf(fs2);
+      if (fs2.length === 1) {
         var w = 0, h = 0;
         arr.forEach(function (s) {
           var im = s && s.getImage && s.getImage(); if (!im || !im.getSrc) return;
@@ -4568,11 +4625,11 @@ var AGUS_SPREAD_DEFAULT = false;
           else { var sz = im.getSize && im.getSize(); if (sz) { w = sz[0]; h = sz[1]; } }
         });
         if (w && h) {
-          var o = sizeCache[key];
-          if (!o || Math.abs(o[0] - w) > 1 || Math.abs(o[1] - h) > 1) { sizeCache[key] = [w, h]; if (S.on) layoutSoon(); }
+          var o = sizeCache[key2];
+          if (!o || Math.abs(o[0] - w) > 1 || Math.abs(o[1] - h) > 1) { sizeCache[key2] = [w, h]; if (S.on) layoutSoon(); }
         }
       }
-      var k = S.on ? scaleCache[key] : null;
+      var ce = S.on ? cache[key2] : null, k = ce && ce.k;
       if (k && k < 1) {
         arr.forEach(function (s) {
           var im = s && s.getImage && s.getImage();
@@ -4583,8 +4640,32 @@ var AGUS_SPREAD_DEFAULT = false;
         });
       }
       return arr;
-    } catch (e) { return st; }
+    } catch (e2) { return st; }
   });
+
+  /* screen-space boxes (pixels) a device occupies in a given state */
+  function boxesOf(it, st) {
+    if (it.fixed) return [{ l: it.x - 22, r: it.x + 22, t: it.y - 48, b: it.y + 22 }];          /* cluster bubble */
+    if (st.c === 0) {
+      var w = it.w * st.k, h = it.h * st.k;
+      return [{ l: it.x - w / 2 - GAP / 2, r: it.x + w / 2 + GAP / 2, t: it.y - h - GAP / 2, b: it.y + GAP / 2 }];   /* pin: anchored bottom-centre */
+    }
+    if (st.c === 2) return [{ l: it.x - DOT_R - 1, r: it.x + DOT_R + 1, t: it.y - DOT_R - 1, b: it.y + DOT_R + 1 }];
+    if (st.c === 3) return [{ l: it.x - 4.5, r: it.x + 4.5, t: it.y - 4.5, b: it.y + 4.5 }];
+    var pw = it.ci.w, lw = it.ci.lw, out = [{ l: it.x - pw / 2, r: it.x + pw / 2, t: it.y - PILL_H / 2, b: it.y + PILL_H / 2 }];
+    if (st.l === 0) out.push({ l: it.x - lw / 2, r: it.x + lw / 2, t: it.y + PILL_H / 2, b: it.y + PILL_H / 2 + LAB_H });
+    else if (st.l === 1) out.push({ l: it.x - lw / 2, r: it.x + lw / 2, t: it.y - PILL_H / 2 - LAB_H, b: it.y - PILL_H / 2 });
+    else if (st.l === 2) out.push({ l: it.x + pw / 2 + 2, r: it.x + pw / 2 + 2 + lw, t: it.y - LAB_H / 2, b: it.y + LAB_H / 2 });
+    else if (st.l === 3) out.push({ l: it.x - pw / 2 - 2 - lw, r: it.x - pw / 2 - 2, t: it.y - LAB_H / 2, b: it.y + LAB_H / 2 });
+    return out;
+  }
+  function hit2(A, B) {
+    for (var i = 0; i < A.length; i++) for (var j = 0; j < B.length; j++) {
+      var a = A[i], b = B[j];
+      if (a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t) return true;
+    }
+    return false;
+  }
 
   function layout() {
     var sz = map.getSize();
@@ -4593,37 +4674,58 @@ var AGUS_SPREAD_DEFAULT = false;
     clusterSource.getFeatures().forEach(function (cf) {
       var fs = cf.get('features'); if (!fs || !fs.length) return;
       var p = map.getPixelFromCoordinate(cf.getGeometry().getCoordinates()); if (!p) return;
-      var key = keyOf(fs), single = fs.length === 1, w, h, bot, base = 1;
+      var key = keyOf(fs), single = fs.length === 1, w, h, base = 1, ci = null;
       if (single) {
         var s = sizeCache[key] || [178, 190];
         if (fs[0].get('name') === selectedDevice) base = (window.SEL_PIN_SCALE || 1);
-        w = s[0] * base; h = s[1] * base; bot = 0;        /* pin: anchored bottom-centre on its point */
-      } else { w = 44; h = 48; bot = 22; }                /* cluster bubble (fixed size) */
-      if (p[0] + w / 2 < 0 || p[0] - w / 2 > sz[0] || p[1] + bot < 0 || p[1] - h > sz[1]) return;   /* off-screen */
-      items.push({ key: key, x: p[0], y: p[1], w: w, h: h, bot: bot, base: base, fixed: !single, sel: base !== 1, k: 1 });
+        w = s[0] * base; h = s[1] * base; ci = compactInfo(fs[0]);
+      } else { w = 44; h = 48; }
+      if (p[0] + w / 2 < 0 || p[0] - w / 2 > sz[0] || p[1] < 0 || p[1] - h > sz[1]) return;   /* off-screen: leave alone */
+      items.push({ key: key, x: p[0], y: p[1], w: w, h: h, fixed: !single, sel: base !== 1, ci: ci, si: 0, bx: null });
     });
-    function box(it) { return { l: it.x - it.w * it.k / 2 - GAP / 2, r: it.x + it.w * it.k / 2 + GAP / 2, t: it.y - it.h * it.k - GAP / 2, b: it.y + it.bot + GAP / 2 }; }
-    function hit(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
-    for (var iter = 0; iter < 200; iter++) {
-      var changed = false;
-      for (var i = 0; i < items.length; i++) {
-        for (var j = i + 1; j < items.length; j++) {
-          var A = items[i], B = items[j];
-          if (!hit(box(A), box(B))) continue;
-          /* practically the same spot: even the smallest size overlaps, so go straight to the smallest */
-          var ka = A.k, kb = B.k; A.k = A.fixed ? A.k : MIN_SCALE; B.k = B.fixed ? B.k : MIN_SCALE;
-          if (hit(box(A), box(B))) { if (A.k !== ka || B.k !== kb) changed = true; continue; }
-          A.k = ka; B.k = kb;
-          if (!A.fixed && A.k > MIN_SCALE) { A.k = Math.max(MIN_SCALE, A.k * STEP); changed = true; }
-          if (!B.fixed && B.k > MIN_SCALE) { B.k = Math.max(MIN_SCALE, B.k * STEP); changed = true; }
-        }
+    items.sort(function (a, b) { return (b.y - a.y) || (a.key < b.key ? -1 : 1); });
+    function refresh(it) { it.bx = boxesOf(it, STATES[it.si]); }
+    items.forEach(refresh);
+    function movable(it) { return !it.fixed && !it.sel; }
+    function clashesWith(i, bx) { for (var j = 0; j < items.length; j++) if (j !== i && hit2(bx, items[j].bx)) return true; return false; }
+    function area(it) { var a = 0; it.bx.forEach(function (b) { a += (b.r - b.l) * (b.b - b.t); }); return a; }
+
+    /* A. while anything overlaps, reduce the worst offender one step (biggest footprint first on a tie) */
+    for (var g = 0, lim = items.length * STATES.length + 10; g < lim; g++) {
+      var cnt = [], any = false, i, j;
+      for (i = 0; i < items.length; i++) cnt.push(0);
+      for (i = 0; i < items.length; i++) for (j = i + 1; j < items.length; j++)
+        if (hit2(items[i].bx, items[j].bx)) { cnt[i]++; cnt[j]++; any = true; }
+      if (!any) break;
+      var best = -1;
+      for (i = 0; i < items.length; i++) {
+        if (!movable(items[i]) || cnt[i] === 0 || items[i].si >= STATES.length - 1) continue;
+        if (best < 0 || cnt[i] > cnt[best] || (cnt[i] === cnt[best] && area(items[i]) > area(items[best]))) best = i;
       }
-      if (!changed) break;
+      if (best < 0) break;                                    /* nothing left to reduce: practically the same spot */
+      items[best].si++; refresh(items[best]);
     }
+    /* B. give space back: restore anything that can be bigger without touching a neighbour */
+    for (var round = 0; round < 2; round++) {
+      var upgraded = false;
+      items.forEach(function (it, idx) {
+        if (!movable(it) || it.si === 0) return;
+        for (var st = 0; st < it.si; st++) {
+          var bx = boxesOf(it, STATES[st]);
+          if (!clashesWith(idx, bx)) { it.si = st; it.bx = bx; upgraded = true; return; }
+        }
+      });
+      if (!upgraded) break;
+    }
+
     var next = {};
-    items.forEach(function (it) { if (!it.fixed && it.k < 1) next[it.key] = Math.round(it.k * 100) / 100; });
-    if (JSON.stringify(next) !== JSON.stringify(scaleCache)) {
-      scaleCache = next;
+    items.forEach(function (it) {
+      if (it.fixed || it.si === 0) return;
+      var st = STATES[it.si];
+      next[it.key] = st.c === 0 ? { k: st.k } : st.c >= 2 ? { c: st.c } : { c: 1, l: st.l };
+    });
+    if (JSON.stringify(next) !== JSON.stringify(cache)) {
+      cache = next;
       try { clusterLayer.changed(); _rvSync(); } catch (e) {}
     }
   }
@@ -4631,13 +4733,26 @@ var AGUS_SPREAD_DEFAULT = false;
   window.agusSpread = function (on) {
     S.on = !!on;
     clusterSource.setDistance(S.on ? 5 : 15);               /* fit mode: no grouping into bubbles */
-    if (!S.on) scaleCache = {};
+    if (!S.on) cache = {};
     try { clusterLayer.changed(); _rvSync(); } catch (e) {}
     if (S.on) layoutSoon();
   };
-  window.agusSpreadScale = function (name) { var k = S.on && scaleCache[name]; return k || 1; };
+  /* 1 = full size, <1 = shrunk, 0 = compact marker / dot (the animated overlay is hidden) */
+  window.agusSpreadScale = function (name) { var e = S.on && cache[name]; return e ? (e.c ? 0 : (e.k || 1)) : 1; };
   map.on('moveend', function () { if (S.on) layoutSoon(); });
   clusterSource.on('change', function () { if (S.on) layoutSoon(); });
+  /* hovering a compact marker shows the device name (also when its name is hidden) */
+  map.on('pointermove', function (evt) {
+    if (!S.on || evt.dragging) return;
+    var t = '';
+    try {
+      map.forEachFeatureAtPixel(evt.pixel, function (f) {
+        var fs = f.get('features');
+        if (fs && fs.length === 1 && cache[fs[0].get('name')] && cache[fs[0].get('name')].c) { t = fs[0].get('name'); return true; }
+      }, { hitTolerance: 4 });
+    } catch (e) {}
+    var el = map.getTargetElement(); if (el && el.title !== t) el.title = t;
+  });
   if (AGUS_SPREAD_DEFAULT) window.agusSpread(true);
 })();
 /* Animated overlay for reservoir map markers. The map icon is a still image, so the moving
@@ -4703,7 +4818,9 @@ function _rvSync() {
       o.ov.setPosition(f.getGeometry().getCoordinates());
       o.el.style.transformOrigin = '50% 100%';
       o.el.style.transition = 'none';
-      var _sc = ((nm === selectedDevice) ? window.SEL_PIN_SCALE : 1) * (window.agusSpreadScale ? window.agusSpreadScale(nm) : 1);
+      var _ss = window.agusSpreadScale ? window.agusSpreadScale(nm) : 1;
+      if (_ss === 0 && nm !== selectedDevice) { o.ov.setPosition(undefined); return; }   /* compact marker: no animated overlay */
+      var _sc = ((nm === selectedDevice) ? window.SEL_PIN_SCALE : 1) * (_ss || 1);
       o.el.style.transform = (_sc !== 1) ? 'scale(' + _sc + ')' : 'none';
     });
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
