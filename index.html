@@ -3647,18 +3647,10 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     if (card.getAttribute('onclick')) return;
     document.querySelectorAll('.top-card').forEach(function(c) { c.classList.remove('active'); });
     card.classList.add('active');
+    window._agusMapMode = (card.dataset.tab === 'map');
     if (card.dataset.tab === 'map') {
-      /* frame the pipeline network end to end (plus every device) so the map uses all the available space */
-      var e = ol.extent.createEmpty(), de = deviceSource.getExtent();
-      if (de && isFinite(de[0]) && ol.extent.getWidth(de) > 0) ol.extent.extend(e, de);
-      try {
-        if (typeof pipelineSource !== 'undefined' && pipelineSource.getFeatures().length) {
-          var pe = pipelineSource.getExtent();
-          if (pe && isFinite(pe[0]) && ol.extent.getWidth(pe) > 0) ol.extent.extend(e, pe);
-        }
-      } catch (x) {}
-      if (window.agusSpread) window.agusSpread(true);   /* show every pin, none overlapping */
-      if (isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[240,110,60,110], maxZoom:19});
+      window._agusUserMoved = false;
+      if (window.agusFitAll) window.agusFitAll();
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
     }
     if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[card.dataset.tab]) openTabModal(card.dataset.tab);
@@ -4062,7 +4054,7 @@ var streetLayer = new ol.layer.Tile({
 var map = new ol.Map({
   target: 'map',
   layers: [satelliteLayer, streetLayer],
-  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12, rotation: -Math.PI / 2 })   /* default orientation: East at the top (compass: E) */
+  view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12, rotation: Math.PI / 2 })   /* default orientation: West at the top (compass: W) */
 });
 window.agusMap = map;
 
@@ -4544,11 +4536,13 @@ if (isPS) {
    FIT-PINS MODE - every device is shown on its true location and NOTHING overlaps.
    Turned on by the Map top card (window.agusSpread(true)). Pins are never moved.
    Each device gets the largest form that fits, trying in this order:
-     1. full pin, drawn smaller where needed (down to MIN_SCALE = readable text);
-     2. compact pill with the live value (119 m3 / 20 psi / ON) in the status colour
+     1. full pin, drawn smaller where needed (down to 76% so the text stays readable);
+     2. detail card: name + status + ALL readings (pressure / flow / voltage / current /
+        ON-OFF / level) in a small readable card;
+     3. compact pill with the live value (119 m3 / 20 psi / ON) in the status colour
         and the device name beside it - below, above, right or left, whichever is free;
-     3. the pill alone (name hidden - hover it, or tap it to open the device);
-     4. a small status-colour dot, then a tiny one (devices practically on the same spot).
+     4. the pill alone, then a small status-colour dot (devices practically on the same spot).
+   Hover any reduced marker to pop up its full pin (tap it to open the device).
    The worst offender is reduced first, then any device that can be bigger again is
    restored, so only as many pins as necessary are reduced. Everything returns to
    a full pin as you zoom in. Recomputed on every pan / zoom / data refresh.
@@ -4556,10 +4550,11 @@ if (isPS) {
    ════════════════════════════════════════════════════════════════════════════ */
 var AGUS_SPREAD_DEFAULT = false;
 (function () {
-  var S = { on: false }, cache = {}, sizeCache = {}, GAP = 4, _raf = 0;
-  var PILL_H = 22, DOT_R = 6.5, LAB_H = 14, KS = [1, 0.92, 0.84, 0.76, 0.68, 0.6];
+  var S = { on: false }, cache = {}, sizeCache = {}, hoverKey = null, hoverBox = {}, GAP = 4, _raf = 0;
+  var PILL_H = 22, DOT_R = 6.5, LAB_H = 14, KS = [1, 0.92, 0.84, 0.76];
   var STATES = [];                                           /* best -> worst */
   KS.forEach(function (k) { STATES.push({ c: 0, k: k }); });
+  STATES.push({ c: 4 });                                     /* detail card: name, status and every reading */
   [0, 1, 2, 3].forEach(function (side) { STATES.push({ c: 1, l: side }); });   /* label: 0 below 1 above 2 right 3 left */
   STATES.push({ c: 1, l: -1 });
   STATES.push({ c: 2 });
@@ -4578,7 +4573,44 @@ var AGUS_SPREAD_DEFAULT = false;
     if (type === 'reservoir' || lname.indexOf('reservoir') >= 0) { var lv = parseFloat(f.get('level')); val = isNaN(lv) ? '--' : Math.round(lv) + ' m\u00B3'; }
     else if (type === 'pressure' || lname.indexOf('pressure') >= 0) { var pr = parseFloat(f.get('pressure')); val = isNaN(pr) ? '--' : Math.round(pr) + ' psi'; }
     else { var c = f.get('commandedRelay'); if (c == null) c = f.get('relay'); val = (c == 1 || c === '1' || c === true) ? 'ON' : (c == null ? '--' : 'OFF'); }
-    return { name: name, col: col, val: val, w: Math.max(42, val.length * 7 + 18), lw: name.length * 5.8 + 6 };
+    var ci = { name: name, col: col, val: val, w: Math.max(42, val.length * 7 + 18), lw: name.length * 5.8 + 6 };
+    ci.det = detailInfo(f, ci);
+    return ci;
+  }
+  /* complete details for the detail-card form */
+  function fmt(v, d) { var n = parseFloat(v); return isNaN(n) ? null : n.toFixed(d); }
+  function detailInfo(f, ci) {
+    var tk = [], t, lv = fmt(f.get('level'), 0), pr = fmt(f.get('pressure'), 1), fl = fmt(f.get('flow'), 2), vo = fmt(f.get('voltage'), 1), cu = fmt(f.get('current'), 2);
+    if (lv !== null) tk.push({ t: lv + ' m\u00B3', c: '#0369a1' });
+    if (pr !== null) tk.push({ t: pr + ' psi', c: '#2563eb' });
+    if (fl !== null) tk.push({ t: fl + ' lps', c: '#0891b2' });
+    if (vo !== null) tk.push({ t: vo + ' V', c: '#16a34a' });
+    if (cu !== null) tk.push({ t: cu + ' A', c: '#ea580c' });
+    var rl = f.get('commandedRelay'); if (rl == null) rl = f.get('relay');
+    if (rl != null) tk.push((rl == 1 || rl === '1' || rl === true) ? { t: 'ON', c: '#16a34a' } : { t: 'OFF', c: '#64748b' });
+    if (!tk.length) tk.push({ t: '--', c: '#64748b' });
+    var rows = []; for (var i = 0; i < tk.length; i += 3) rows.push(tk.slice(i, i + 3));
+    var nm = ci.name.length > 34 ? ci.name.slice(0, 33) + '\u2026' : ci.name;
+    var st = f.get('status'), stTxt = st === 'Online' ? 'Online' : st === 'Offline' ? 'Offline' : 'Fault';
+    var w = nm.length * 5.7 + 38 + stTxt.length * 4.6;
+    rows.forEach(function (r) { var rw = 16 + (r.length - 1) * 9; r.forEach(function (x) { rw += x.t.length * 5.3; }); if (rw > w) w = rw; });
+    return { rows: rows, nm: nm, stTxt: stTxt, w: Math.min(250, Math.max(112, Math.ceil(w))), h: 22 + rows.length * 13 + 3 };
+  }
+  function xml(t) { return String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function chipStyle(f) {
+    var ci = compactInfo(f), d = ci.det, w = d.w, h = d.h;
+    var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">'
+      + '<rect x="1.5" y="1.5" width="' + (w - 3) + '" height="' + (h - 3) + '" rx="7" fill="#ffffff" stroke="' + ci.col + '" stroke-width="2.5"/>'
+      + '<circle cx="10" cy="12" r="3.6" fill="' + ci.col + '"/>'
+      + '<text x="17" y="15.5" font-family="Arial, sans-serif" font-size="10" font-weight="800" fill="#0f172a">' + xml(d.nm) + '</text>'
+      + '<text x="' + (w - 7) + '" y="15" text-anchor="end" font-family="Arial, sans-serif" font-size="8" font-weight="800" fill="' + ci.col + '">' + d.stTxt + '</text>';
+    d.rows.forEach(function (r, i) {
+      svg += '<text x="8" y="' + (30 + i * 13) + '" font-family="Arial, sans-serif" font-size="9.5" font-weight="700">';
+      r.forEach(function (x, j) { svg += '<tspan fill="' + x.c + '"' + (j ? ' dx="9"' : '') + '>' + xml(x.t) + '</tspan>'; });
+      svg += '</text>';
+    });
+    svg += '</svg>';
+    return [new ol.style.Style({ image: new ol.style.Icon({ src: 'data:image/svg+xml,' + encodeURIComponent(svg), anchor: [0.5, 0.5], anchorXUnits: 'fraction', anchorYUnits: 'fraction' }) })];
   }
   function compactStyle(f, side) {
     var ci = compactInfo(f), w = ci.w;
@@ -4608,8 +4640,8 @@ var AGUS_SPREAD_DEFAULT = false;
     try {
       var fs = feature.get('features');
       if (fs && fs.length) {
-        var key = keyOf(fs), e = S.on ? cache[key] : null;
-        if (e && e.c && !(fs.length === 1 && fs[0].get('name') === selectedDevice)) return e.c === 3 ? dotStyle(fs[0], 3.5) : e.c === 2 ? dotStyle(fs[0]) : compactStyle(fs[0], e.l);
+        var key = keyOf(fs), e = (S.on && key !== hoverKey) ? cache[key] : null;
+        if (e && e.c && !(fs.length === 1 && fs[0].get('name') === selectedDevice)) return e.c === 4 ? chipStyle(fs[0]) : e.c === 3 ? dotStyle(fs[0], 3.5) : e.c === 2 ? dotStyle(fs[0]) : compactStyle(fs[0], e.l);
       }
     } catch (e1) {}
     var st = _prev(feature, res);
@@ -4629,7 +4661,8 @@ var AGUS_SPREAD_DEFAULT = false;
           if (!o || Math.abs(o[0] - w) > 1 || Math.abs(o[1] - h) > 1) { sizeCache[key2] = [w, h]; if (S.on) layoutSoon(); }
         }
       }
-      var ce = S.on ? cache[key2] : null, k = ce && ce.k;
+      var hovered = (key2 === hoverKey), ce = (S.on && !hovered) ? cache[key2] : null, k = ce && ce.k;
+      if (hovered) arr.forEach(function (s) { if (s && s.setZIndex) s.setZIndex(1000); });   /* pop the full pin above its neighbours */
       if (k && k < 1) {
         arr.forEach(function (s) {
           var im = s && s.getImage && s.getImage();
@@ -4650,6 +4683,7 @@ var AGUS_SPREAD_DEFAULT = false;
       var w = it.w * st.k, h = it.h * st.k;
       return [{ l: it.x - w / 2 - GAP / 2, r: it.x + w / 2 + GAP / 2, t: it.y - h - GAP / 2, b: it.y + GAP / 2 }];   /* pin: anchored bottom-centre */
     }
+    if (st.c === 4) { var dw = it.ci.det.w, dh = it.ci.det.h; return [{ l: it.x - dw / 2, r: it.x + dw / 2, t: it.y - dh / 2, b: it.y + dh / 2 }]; }
     if (st.c === 2) return [{ l: it.x - DOT_R - 1, r: it.x + DOT_R + 1, t: it.y - DOT_R - 1, b: it.y + DOT_R + 1 }];
     if (st.c === 3) return [{ l: it.x - 4.5, r: it.x + 4.5, t: it.y - 4.5, b: it.y + 4.5 }];
     var pw = it.ci.w, lw = it.ci.lw, out = [{ l: it.x - pw / 2, r: it.x + pw / 2, t: it.y - PILL_H / 2, b: it.y + PILL_H / 2 }];
@@ -4667,10 +4701,24 @@ var AGUS_SPREAD_DEFAULT = false;
     return false;
   }
 
+  /* on-screen controls that sit over the map (toolbar cards, compass, widgets): pins must not hide under them */
+  var UI_SELECTORS = '.top-card, #map-compass, #welcome-user-topright, #health-diag-strip, #legend-card, #ai-chat-fab';
+  function uiObstacles() {
+    var out = [];
+    try {
+      var mr = map.getTargetElement().getBoundingClientRect();
+      document.querySelectorAll(UI_SELECTORS).forEach(function (el) {
+        var r = el.getBoundingClientRect(); if (!r.width || !r.height) return;
+        out.push({ l: r.left - mr.left - 2, r: r.right - mr.left + 2, t: r.top - mr.top - 2, b: r.bottom - mr.top + 2 });
+      });
+    } catch (e) {}
+    return out;
+  }
+
   function layout() {
     var sz = map.getSize();
     if (!S.on || !sz || !sz[0]) return;
-    var items = [];
+    var items = [], obst = uiObstacles();
     clusterSource.getFeatures().forEach(function (cf) {
       var fs = cf.get('features'); if (!fs || !fs.length) return;
       var p = map.getPixelFromCoordinate(cf.getGeometry().getCoordinates()); if (!p) return;
@@ -4687,7 +4735,7 @@ var AGUS_SPREAD_DEFAULT = false;
     function refresh(it) { it.bx = boxesOf(it, STATES[it.si]); }
     items.forEach(refresh);
     function movable(it) { return !it.fixed && !it.sel; }
-    function clashesWith(i, bx) { for (var j = 0; j < items.length; j++) if (j !== i && hit2(bx, items[j].bx)) return true; return false; }
+    function clashesWith(i, bx) { if (hit2(bx, obst)) return true; for (var j = 0; j < items.length; j++) if (j !== i && hit2(bx, items[j].bx)) return true; return false; }
     function area(it) { var a = 0; it.bx.forEach(function (b) { a += (b.r - b.l) * (b.b - b.t); }); return a; }
 
     /* A. while anything overlaps, reduce the worst offender one step (biggest footprint first on a tie) */
@@ -4696,6 +4744,7 @@ var AGUS_SPREAD_DEFAULT = false;
       for (i = 0; i < items.length; i++) cnt.push(0);
       for (i = 0; i < items.length; i++) for (j = i + 1; j < items.length; j++)
         if (hit2(items[i].bx, items[j].bx)) { cnt[i]++; cnt[j]++; any = true; }
+      for (i = 0; i < items.length; i++) if (movable(items[i]) && hit2(items[i].bx, obst)) { cnt[i]++; any = true; }   /* hidden under a control */
       if (!any) break;
       var best = -1;
       for (i = 0; i < items.length; i++) {
@@ -4719,8 +4768,10 @@ var AGUS_SPREAD_DEFAULT = false;
     }
 
     var next = {};
+    hoverBox = {};
     items.forEach(function (it) {
       if (it.fixed || it.si === 0) return;
+      hoverBox[it.key] = [{ l: it.x - it.w / 2 - 6, r: it.x + it.w / 2 + 6, t: it.y - it.h - 6, b: it.y + 6 }].concat(it.bx.map(function (b) { return { l: b.l - 6, r: b.r + 6, t: b.t - 6, b: b.b + 6 }; }));
       var st = STATES[it.si];
       next[it.key] = st.c === 0 ? { k: st.k } : st.c >= 2 ? { c: st.c } : { c: 1, l: st.l };
     });
@@ -4741,16 +4792,21 @@ var AGUS_SPREAD_DEFAULT = false;
   window.agusSpreadScale = function (name) { var e = S.on && cache[name]; return e ? (e.c ? 0 : (e.k || 1)) : 1; };
   map.on('moveend', function () { if (S.on) layoutSoon(); });
   clusterSource.on('change', function () { if (S.on) layoutSoon(); });
-  /* hovering a compact marker shows the device name (also when its name is hidden) */
+  /* hovering a reduced marker pops up its full pin (with every detail); the name also shows as a tooltip */
   map.on('pointermove', function (evt) {
     if (!S.on || evt.dragging) return;
-    var t = '';
-    try {
-      map.forEachFeatureAtPixel(evt.pixel, function (f) {
-        var fs = f.get('features');
-        if (fs && fs.length === 1 && cache[fs[0].get('name')] && cache[fs[0].get('name')].c) { t = fs[0].get('name'); return true; }
-      }, { hitTolerance: 4 });
-    } catch (e) {}
+    var px = evt.pixel, hk = null, t = '';
+    if (hoverKey && hoverBox[hoverKey] && hoverBox[hoverKey].some(function (b) { return px[0] >= b.l && px[0] <= b.r && px[1] >= b.t && px[1] <= b.b; })) hk = hoverKey;   /* stay open while the pointer is on it */
+    else {
+      try {
+        map.forEachFeatureAtPixel(px, function (f) {
+          var fs = f.get('features');
+          if (fs && fs.length === 1 && cache[fs[0].get('name')]) { hk = fs[0].get('name'); return true; }
+        }, { hitTolerance: 4 });
+      } catch (e) {}
+    }
+    if (hk) t = hk;
+    if (hk !== hoverKey) { hoverKey = hk; try { clusterLayer.changed(); } catch (e) {} }
     var el = map.getTargetElement(); if (el && el.title !== t) el.title = t;
   });
   if (AGUS_SPREAD_DEFAULT) window.agusSpread(true);
@@ -4891,6 +4947,42 @@ var pipelineLayer = new ol.layer.Vector({ source: pipelineSource, style: functio
 }});
 window.pipelineLayer = pipelineLayer;
 map.addLayer(pipelineLayer);
+
+/* Fit the whole pipeline network (plus every device) inside the VISIBLE map area - clear of the toolbar cards,
+   compass and side widgets - and turn on overlap-free pins. Used by the Map top card; it also re-fits once if the
+   pipeline lines finish loading after the click (until you move the map yourself). */
+window.agusFitAll = function () {
+  var e = ol.extent.createEmpty(), de = deviceSource.getExtent();
+  if (de && isFinite(de[0]) && ol.extent.getWidth(de) > 0) ol.extent.extend(e, de);
+  try {
+    if (pipelineLayer.getVisible() && pipelineSource.getFeatures().length) {
+      var pe = pipelineSource.getExtent();
+      if (pe && isFinite(pe[0]) && ol.extent.getWidth(pe) > 0) ol.extent.extend(e, pe);
+    }
+  } catch (x) {}
+  if (window.agusSpread) window.agusSpread(true);
+  var topPad = 240, mapPad = 60;
+  try {
+    var mr = map.getTargetElement().getBoundingClientRect(), mb = 0;
+    document.querySelectorAll('.top-card').forEach(function (c) { var r = c.getBoundingClientRect(); if (r.width) mb = Math.max(mb, r.bottom - mr.top); });
+    if (mb > 0) topPad = Math.min(mb + 36, mr.height * 0.45);
+  } catch (x) {}
+  var view = map.getView();
+  if (isFinite(e[0]) && ol.extent.getWidth(e) > 0) view.fit(e, { duration: 700, padding: [topPad, 110, mapPad, 110], maxZoom: 19 });
+  else view.animate({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12, duration: 700 });
+};
+(function () {
+  var t = null;
+  function moved() { window._agusUserMoved = true; }
+  map.on('pointerdrag', moved);
+  map.getViewport().addEventListener('wheel', moved, { passive: true });
+  map.getViewport().addEventListener('touchmove', moved, { passive: true });
+  map.getTargetElement().addEventListener('click', function (ev) { if (ev.target.closest && ev.target.closest('.ol-zoom')) moved(); });
+  pipelineSource.on('change', function () {
+    if (!window._agusMapMode || window._agusUserMoved) return;
+    clearTimeout(t); t = setTimeout(function () { if (window._agusMapMode && !window._agusUserMoved) window.agusFitAll(); }, 600);
+  });
+})();
 map.addLayer(clusterLayer);
 
 /* -- pipeline click popup -- */
