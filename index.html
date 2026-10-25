@@ -3649,7 +3649,8 @@ document.querySelectorAll('.top-card[data-tab]').forEach(function(card) {
     card.classList.add('active');
     if (card.dataset.tab === 'map') {
       var e = deviceSource.getExtent();
-      if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[100,60,60,60], maxZoom:15});
+      if (window.agusSpread) window.agusSpread(true);   /* show every pin, none overlapping */
+      if (e && isFinite(e[0]) && ol.extent.getWidth(e) > 0) map.getView().fit(e, {duration:700, padding:[240,110,60,110], maxZoom:15});
       else map.getView().animate({center: ol.proj.fromLonLat([123.6740,10.1129]), zoom:12, duration:700});
     }
     if (typeof TAB_CONFIGS !== 'undefined' && TAB_CONFIGS[card.dataset.tab]) openTabModal(card.dataset.tab);
@@ -4531,6 +4532,114 @@ if (isPS) {
     return st;
   });
 })();
+/* ════════════════════════════════════════════════════════════════════════════
+   FIT-PINS MODE - show EVERY device pin on its true location, none overlapping.
+   Turned on by the Map top card (window.agusSpread(true)). Pins are never moved:
+   any pin that would sit on top of another is drawn smaller (icon, text and the
+   reservoir animation scale together) until they no longer overlap. Pins that have
+   room stay full size, and everything returns to normal size as you zoom in.
+   Recomputed on every pan / zoom / data refresh.
+   Set AGUS_SPREAD_DEFAULT = true to use it all the time. MIN_SCALE (0.6) is the smallest
+   a pin may shrink to - below that the device name text becomes unreadable.
+   ════════════════════════════════════════════════════════════════════════════ */
+var AGUS_SPREAD_DEFAULT = false;
+(function () {
+  var S = { on: false }, scaleCache = {}, sizeCache = {}, GAP = 4, MIN_SCALE = 0.6, STEP = 0.93, _raf = 0;
+
+  function keyOf(fs) {
+    if (fs.length === 1) return fs[0].get('name');
+    return fs.map(function (x) { return x.get('name'); }).sort().join('|');
+  }
+  function layoutSoon() { if (_raf) return; _raf = requestAnimationFrame(function () { _raf = 0; layout(); }); }
+
+  /* wrap the existing style: record each pin's real size and apply the fit scale */
+  var _prev = clusterLayer.getStyleFunction();
+  clusterLayer.setStyle(function (feature, res) {
+    var st = _prev(feature, res);
+    try {
+      var fs = feature.get('features'); if (!fs || !fs.length) return st;
+      var arr = Array.isArray(st) ? st : [st], key = keyOf(fs);
+      if (fs.length === 1) {
+        var w = 0, h = 0;
+        arr.forEach(function (s) {
+          var im = s && s.getImage && s.getImage(); if (!im || !im.getSrc) return;
+          var m = /viewBox%3D%220%200%20([0-9.]+)%20([0-9.]+)%22/.exec(String(im.getSrc()));
+          if (m) { w = parseFloat(m[1]); h = parseFloat(m[2]); }
+          else { var sz = im.getSize && im.getSize(); if (sz) { w = sz[0]; h = sz[1]; } }
+        });
+        if (w && h) {
+          var o = sizeCache[key];
+          if (!o || Math.abs(o[0] - w) > 1 || Math.abs(o[1] - h) > 1) { sizeCache[key] = [w, h]; if (S.on) layoutSoon(); }
+        }
+      }
+      var k = S.on ? scaleCache[key] : null;
+      if (k && k < 1) {
+        arr.forEach(function (s) {
+          var im = s && s.getImage && s.getImage();
+          if (im && im.setScale) {
+            var sc = im.getScale();
+            im.setScale(Array.isArray(sc) ? [sc[0] * k, sc[1] * k] : sc * k);
+          }
+        });
+      }
+      return arr;
+    } catch (e) { return st; }
+  });
+
+  function layout() {
+    var sz = map.getSize();
+    if (!S.on || !sz || !sz[0]) return;
+    var items = [];
+    clusterSource.getFeatures().forEach(function (cf) {
+      var fs = cf.get('features'); if (!fs || !fs.length) return;
+      var p = map.getPixelFromCoordinate(cf.getGeometry().getCoordinates()); if (!p) return;
+      var key = keyOf(fs), single = fs.length === 1, w, h, bot, base = 1;
+      if (single) {
+        var s = sizeCache[key] || [178, 190];
+        if (fs[0].get('name') === selectedDevice) base = (window.SEL_PIN_SCALE || 1);
+        w = s[0] * base; h = s[1] * base; bot = 0;        /* pin: anchored bottom-centre on its point */
+      } else { w = 44; h = 48; bot = 22; }                /* cluster bubble (fixed size) */
+      if (p[0] + w / 2 < 0 || p[0] - w / 2 > sz[0] || p[1] + bot < 0 || p[1] - h > sz[1]) return;   /* off-screen */
+      items.push({ key: key, x: p[0], y: p[1], w: w, h: h, bot: bot, base: base, fixed: !single, sel: base !== 1, k: 1 });
+    });
+    function box(it) { return { l: it.x - it.w * it.k / 2 - GAP / 2, r: it.x + it.w * it.k / 2 + GAP / 2, t: it.y - it.h * it.k - GAP / 2, b: it.y + it.bot + GAP / 2 }; }
+    function hit(a, b) { return a.l < b.r && a.r > b.l && a.t < b.b && a.b > b.t; }
+    for (var iter = 0; iter < 200; iter++) {
+      var changed = false;
+      for (var i = 0; i < items.length; i++) {
+        for (var j = i + 1; j < items.length; j++) {
+          var A = items[i], B = items[j];
+          if (!hit(box(A), box(B))) continue;
+          /* practically the same spot: even the smallest size overlaps, so go straight to the smallest */
+          var ka = A.k, kb = B.k; A.k = A.fixed ? A.k : MIN_SCALE; B.k = B.fixed ? B.k : MIN_SCALE;
+          if (hit(box(A), box(B))) { if (A.k !== ka || B.k !== kb) changed = true; continue; }
+          A.k = ka; B.k = kb;
+          if (!A.fixed && A.k > MIN_SCALE) { A.k = Math.max(MIN_SCALE, A.k * STEP); changed = true; }
+          if (!B.fixed && B.k > MIN_SCALE) { B.k = Math.max(MIN_SCALE, B.k * STEP); changed = true; }
+        }
+      }
+      if (!changed) break;
+    }
+    var next = {};
+    items.forEach(function (it) { if (!it.fixed && it.k < 1) next[it.key] = Math.round(it.k * 100) / 100; });
+    if (JSON.stringify(next) !== JSON.stringify(scaleCache)) {
+      scaleCache = next;
+      try { clusterLayer.changed(); _rvSync(); } catch (e) {}
+    }
+  }
+
+  window.agusSpread = function (on) {
+    S.on = !!on;
+    clusterSource.setDistance(S.on ? 5 : 15);               /* fit mode: no grouping into bubbles */
+    if (!S.on) scaleCache = {};
+    try { clusterLayer.changed(); _rvSync(); } catch (e) {}
+    if (S.on) layoutSoon();
+  };
+  window.agusSpreadScale = function (name) { var k = S.on && scaleCache[name]; return k || 1; };
+  map.on('moveend', function () { if (S.on) layoutSoon(); });
+  clusterSource.on('change', function () { if (S.on) layoutSoon(); });
+  if (AGUS_SPREAD_DEFAULT) window.agusSpread(true);
+})();
 /* Animated overlay for reservoir map markers. The map icon is a still image, so the moving
    parts (waves, jet, pipe flow, ripples) are a CSS-animated SVG overlay aligned to the icon
    (same size, bottom-centre anchored at the device coordinate). No per-frame icon redraws. */
@@ -4594,7 +4703,8 @@ function _rvSync() {
       o.ov.setPosition(f.getGeometry().getCoordinates());
       o.el.style.transformOrigin = '50% 100%';
       o.el.style.transition = 'none';
-      o.el.style.transform = (nm === selectedDevice) ? 'scale(' + window.SEL_PIN_SCALE + ')' : 'none';
+      var _sc = ((nm === selectedDevice) ? window.SEL_PIN_SCALE : 1) * (window.agusSpreadScale ? window.agusSpreadScale(nm) : 1);
+      o.el.style.transform = (_sc !== 1) ? 'scale(' + _sc + ')' : 'none';
     });
     Object.keys(_rvOvl).forEach(function(k) { if (!seen[k]) _rvOvl[k].ov.setPosition(undefined); });
   } catch (e) { /* animation overlay is cosmetic; never break the map */ }
