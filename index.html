@@ -1955,6 +1955,24 @@
 #device-details .pressure-thresholds-badge{flex-wrap:wrap;}
 #device-details .rs-gear-btn,#device-details .ps-gear-btn{box-sizing:border-box;max-width:100%;}
 #device-details .rv-scene,#device-details svg{max-width:100%;height:auto;}
+
+/* ===== HD / CRISP TEXT: map pin overlays, device details card, graphs ===== */
+#device-details, #device-details *, .rv-ovl, #graph-modal, #graph-modal *, #tab-modal-overlay, #tab-modal-overlay * {
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+  text-rendering: geometricPrecision !important;
+}
+/* a permanent GPU layer rasterizes text at 1x and blurs it, so drop it once the card is open */
+#device-details, #device-details.dd-visible, #graph-modal-inner, #tab-modal-overlay > div, #pressure-settings-inner, #reservoir-settings-inner {
+  will-change: auto !important;
+  backface-visibility: visible !important;
+  -webkit-backface-visibility: visible !important;
+}
+#device-details.dd-visible, #graph-modal-inner { transform: none !important; }
+#device-details svg, #device-details .rv-scene, .rv-ovl { shape-rendering: geometricPrecision; text-rendering: geometricPrecision; }
+#device-details { font-weight: 500; }
+#graph-chart-wrap canvas, #tab-modal-canvas, #fc-canvas, #pressureChart { image-rendering: auto; }
+#map canvas { image-rendering: auto; }
 </style>
 </head>
 <body>
@@ -2780,6 +2798,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/ol@7.5.0/dist/ol.js" data-agus-trusted="1"></script>
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js" data-agus-trusted="1"></script>
+<script>try{Chart.defaults.devicePixelRatio=Math.max(window.devicePixelRatio||1,3);Chart.defaults.font.family="'DM Sans',sans-serif";}catch(e){}</script>
 <script>
   var activeFilters = new Set(['pressure','reservoir','pumping']);
 function toggleFilter(type){
@@ -4050,7 +4069,34 @@ var streetLayer = new ol.layer.Tile({
   visible: false,
   source: new ol.source.OSM({ attributions: '&copy; OpenStreetMap contributors' })
 });
+
+/* ── HD CRISP RENDERING ─────────────────────────────────────────
+   Map pins are SVG data-URI icons. OpenLayers rasterizes them at their
+   1x size and then stretches them for retina / zoomed screens, which makes
+   every label soft. We render each pin SVG at HD_K times its size and draw
+   it at scale 1/HD_K, so the on-screen size is identical but the pixels
+   are HD_K times denser. */
+var AGUS_HD_K = 3;
+function _agusHdIcon(svg) {
+  var K = Math.max(AGUS_HD_K, Math.ceil(window.devicePixelRatio || 1));
+  svg = String(svg).replace(/<svg\b[^>]*>/, function (tag) {
+    var w = (tag.match(/\swidth="([\d.]+)"/) || [])[1];
+    var h = (tag.match(/\sheight="([\d.]+)"/) || [])[1];
+    var vb = tag.match(/viewBox="[\d.\-]+[ ,]+[\d.\-]+[ ,]+([\d.]+)[ ,]+([\d.]+)"/);
+    if (!w && vb) w = vb[1];
+    if (!h && vb) h = vb[2];
+    if (!w || !h) return tag;
+    tag = tag.replace(/\swidth="[^"]*"/, '').replace(/\sheight="[^"]*"/, '');
+    return tag.replace(/<svg\b/, '<svg width="' + (w * K) + '" height="' + (h * K) + '" text-rendering="geometricPrecision" shape-rendering="geometricPrecision"');
+  });
+  return new ol.style.Icon({
+    src: 'data:image/svg+xml,' + encodeURIComponent(svg),
+    scale: 1 / K,
+    anchor: [0.5, 1], anchorXUnits: 'fraction', anchorYUnits: 'fraction'
+  });
+}
 var map = new ol.Map({
+  pixelRatio: Math.max(window.devicePixelRatio || 1, 2),
   target: 'map',
   layers: [satelliteLayer, streetLayer],
   view: new ol.View({ center: ol.proj.fromLonLat([123.6740, 10.1129]), zoom: 12 })
@@ -4392,29 +4438,17 @@ f.set('_rvStack', null, true);
       + '<g transform="translate(0,' + _rHr + ')">' + _pInner + '</g>'
       + '</svg>';
     return [new ol.style.Style({
-      image: new ol.style.Icon({
-        src: 'data:image/svg+xml,' + encodeURIComponent(_rsSvg),
-        scale: 1,
-        anchor: [0.5, 1],
-        anchorXUnits: 'fraction',
-        anchorYUnits: 'fraction'
-      })
+      image: _agusHdIcon(_rsSvg)
     })];
   }
   return [new ol.style.Style({
-    image: new ol.style.Icon({
-      src: 'data:image/svg+xml,' + encodeURIComponent(_svg),
-      scale: 1,
-      anchor: [0.5, 1],
-      anchorXUnits: 'fraction',
-      anchorYUnits: 'fraction'
-    })
+    image: _agusHdIcon(_svg)
   })];
 }
 //Pumping Station map icon ── ENHANCED WITH GLOW & DATA HIERARCHY ──
 if (isPS) {
   var _svg = buildPumpStationSVG(f, name, status);
-  return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+  return [new ol.style.Style({image:_agusHdIcon(_svg)})];
 }
 //Pressure map icon ── ENHANCED GAUGE WITH THRESHOLD ARCS ──
     if (type === 'pressure') {
@@ -4504,7 +4538,7 @@ if (isPS) {
         + ' fill="#0f172a" stroke="white" stroke-width="3" paint-order="stroke">'
         + _nameD + '</text>'
         + '</svg>';
-      return [new ol.style.Style({image:new ol.style.Icon({src:'data:image/svg+xml,'+encodeURIComponent(_svg),scale:1,anchor:[0.5,1],anchorXUnits:'fraction',anchorYUnits:'fraction'})})];
+      return [new ol.style.Style({image:_agusHdIcon(_svg)})];
     }
     if (status==='Fault'){fc='red';sc='rgba(220,38,38,'+(0.3+_bPulse*0.7).toFixed(2)+')';sw=3;text=name;} else if(status==='Offline'){fc='orange';text=name;} else {fc='green';text=name;}
   }
