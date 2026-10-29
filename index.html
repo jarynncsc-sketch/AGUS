@@ -4041,18 +4041,18 @@ function buildPumpStationSVG(f, name, status) {
     +'<line x1="'+(_W/2)+'" y1="'+(_cY+52)+'" x2="'+(_W/2)+'" y2="'+(_l2Y+_rowH)+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
     +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
+    +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
     +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">FLOW</text>'
     +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
+    +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
     +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">CURRENT</text>'
     +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
     +'<line x1="8" y1="'+(_l2Y+_rowH)+'" x2="'+(_W-8)+'" y2="'+(_l2Y+_rowH)+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<text x="10" y="'+(_vLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">POWER</text>'
+    +'<text x="10" y="'+(_vLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">POWER</text>'
     +'<text x="10" y="'+(_vVY+_rowH)+'" font-family="Arial,sans-serif" font-size="13" fill="#7e22ce" font-weight="800">'+_powStr+'</text>'
-    +'<text x="'+(_W/2+6)+'" y="'+(_cLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">ENERGY</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+(_cLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#000000" font-weight="700" letter-spacing="0.5">ENERGY</text>'
     +'<text x="'+(_W/2+6)+'" y="'+(_cVY+_rowH)+'" font-family="Arial,sans-serif" font-size="12" fill="#0f766e" font-weight="800">'+_enStr+'</text>'
     +'</g></g>'
     +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
@@ -4957,10 +4957,14 @@ map.on('singleclick', function(evt) {
     var pres = type === 'pressure' || low.indexOf('pressure') >= 0;
     if (pureRes || pres || !(hyb || type === 'pumping station' || low.indexOf('pump') >= 0 || low.indexOf('booster') >= 0)) return;
     var fp = map.getPixelFromCoordinate(f.getGeometry().getCoordinates()); if (!fp) return;
-    var dx = evt.pixel[0] - fp[0], dy = evt.pixel[1] - fp[1];          /* pin is anchored bottom-centre */
+    var _k = (typeof selectedDevice !== 'undefined' && selectedDevice === nm && window.SEL_PIN_SCALE) ? window.SEL_PIN_SCALE : 1;   /* the selected pin is drawn larger */
+    var dx = (evt.pixel[0] - fp[0]) / _k, dy = (evt.pixel[1] - fp[1]) / _k;   /* pin is anchored bottom-centre; normalised to 1x */
     var down = !(window._psPinScroll && window._psPinScroll[nm]);
     var ay = down ? -31 : -92;                                          /* arrow height above the pin base */
-    if (Math.abs(dx - 80) <= 18 && Math.abs(dy - ay) <= 14) { _arrowHit = nm; return true; }
+    var _coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    /* touch screens: a tap anywhere on the readings area (not the name/header) flips the page; arrow hit area is also larger */
+    var inReadings = false;
+    if (inReadings || (Math.abs(dx - 80) <= 28 && Math.abs(dy - ay) <= 22)) { _arrowHit = nm; return true; }
   }, { hitTolerance: 4 });
   if (_arrowHit) {
     window._psPinScroll = window._psPinScroll || {};
@@ -5015,6 +5019,48 @@ map.getViewport().addEventListener('wheel', function (e) {
   var want = e.deltaY > 0 ? 1 : 0;
   if ((window._psPinScroll[hitName] ? 1 : 0) !== want) { window._psPinScroll[hitName] = want; try { clusterLayer.changed(); } catch (er) {} }
 }, { capture: true, passive: false });
+
+/* Touch: swipe up/down on the readings area of a pump pin to scroll it (the map does not pan from there) */
+(function () {
+  var vp = map.getViewport(), st = null;
+  function readingsHit(px) {
+    var found = null;
+    map.forEachFeatureAtPixel(px, function (feature) {
+      var fs = feature.get('features'); if (!fs || fs.length !== 1) return;
+      var f = fs[0], nm = f.get('name') || '', low = nm.toLowerCase(), type = (f.get('type') || '').toLowerCase().trim();
+      var hyb = (typeof isReservoirPumpHybrid === 'function') && isReservoirPumpHybrid(nm);
+      var pureRes = (type === 'reservoir' || low.indexOf('reservoir') >= 0) && !hyb;
+      var pres = type === 'pressure' || low.indexOf('pressure') >= 0;
+      if (pureRes || pres || !(hyb || type === 'pumping station' || low.indexOf('pump') >= 0 || low.indexOf('booster') >= 0)) return;
+      var fp = map.getPixelFromCoordinate(f.getGeometry().getCoordinates()); if (!fp) return;
+      var k = (typeof selectedDevice !== 'undefined' && selectedDevice === nm && window.SEL_PIN_SCALE) ? window.SEL_PIN_SCALE : 1;
+      var dx = (px[0] - fp[0]) / k, dy = (px[1] - fp[1]) / k;
+      if (Math.abs(dx) <= 87 && dy >= -102 && dy <= -27) { found = nm; return true; }
+    }, { hitTolerance: 2 });
+    return found;
+  }
+  vp.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'touch') return;
+    var nm = readingsHit(map.getEventPixel(e));
+    if (!nm) { st = null; return; }
+    st = { nm: nm, id: e.pointerId, x: e.clientX, y: e.clientY };
+    e.stopPropagation();                       /* keep the map from starting a pan */
+  }, { capture: true });
+  vp.addEventListener('pointermove', function (e) {
+    if (!st || e.pointerId !== st.id) return;
+    e.stopPropagation();
+    var dy = e.clientY - st.y, dx = e.clientX - st.x;
+    if (Math.abs(dy) >= 12 && Math.abs(dy) > Math.abs(dx)) {
+      window._psPinScroll = window._psPinScroll || {};
+      var want = dy < 0 ? 1 : 0;               /* swipe up -> Power/Energy, swipe down -> back */
+      if ((window._psPinScroll[st.nm] ? 1 : 0) !== want) { window._psPinScroll[st.nm] = want; try { clusterLayer.changed(); } catch (er) {} }
+      st.y = e.clientY; st.x = e.clientX;
+    }
+  }, { capture: true });
+  function end(e) { if (st && e.pointerId === st.id) { e.stopPropagation(); st = null; } }
+  vp.addEventListener('pointerup', end, { capture: true });
+  vp.addEventListener('pointercancel', end, { capture: true });
+})();
 var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,14],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
