@@ -1973,6 +1973,19 @@
 #device-details { font-weight: 500; }
 #graph-chart-wrap canvas, #tab-modal-canvas, #fc-canvas, #pressureChart { image-rendering: auto; }
 #map canvas { image-rendering: auto; }
+
+/* ===== Device details: clear black labels, nothing truncated (data numbers keep their own colours) ===== */
+#device-details .dd-lbl{color:#000 !important;font-weight:700;opacity:1;white-space:nowrap;}
+#device-details table td:first-child{color:#000 !important;font-weight:700;white-space:nowrap;font-size:12px !important;padding:3px 6px 3px 2px !important;opacity:1;}
+#device-details table td:last-child{white-space:nowrap;font-size:12px !important;padding:3px 2px 3px 6px !important;}
+#device-details table{table-layout:auto;width:100% !important;font-size:12px !important;}
+#device-details .dd-col{white-space:normal;overflow-wrap:anywhere;line-height:1.7;font-size:13px;}
+#device-details .dd-col b{overflow-wrap:anywhere;}
+#device-details span[style*="inline-flex"]{max-width:100%;flex-wrap:wrap;white-space:normal;}
+#device-details > div[style*="display:flex"], #device-details .dd-row{overflow-x:visible !important;}
+@media (min-width:901px){
+  #device-details{width:400px !important;min-width:400px !important;}
+}
 </style>
 </head>
 <body>
@@ -3932,6 +3945,10 @@ function buildPumpStationSVG(f, name, status) {
   var _lpsStr=(_lpsRaw!=null)?parseFloat(_lpsRaw).toFixed(2)+' lps':'-- lps';
   var _voltStr=(_voltRaw!=null)?parseFloat(_voltRaw).toFixed(1)+' V':'-- V';
   var _ampStr=(_ampRaw!=null)?parseFloat(_ampRaw).toFixed(2)+' A':'-- A';
+  var _powRaw=f.get('power'),_enRaw=f.get('energy');
+  var _powStr=(_powRaw!=null&&_powRaw!==''&&!isNaN(parseFloat(_powRaw)))?parseFloat(_powRaw).toFixed(0)+' W':'-- W';
+  var _enStr=(_enRaw!=null&&_enRaw!==''&&!isNaN(parseFloat(_enRaw)))?parseFloat(_enRaw).toFixed(1)+' kWh':'-- kWh';
+  var _pinSc=(window._psPinScroll&&window._psPinScroll[name])?1:0, _rowH=41, _shift=_pinSc*_rowH;
   var _togStr=(_togRaw?String(_togRaw).slice(0,10):'None').replace(/&/g,'&amp;').replace(/</g,'&lt;');
   // Instant relay icon: prefer the ORDER (commandedRelay) over the confirmed
   // actual state, so a PumpLink / schedule / dashboard toggle flips the map
@@ -4018,27 +4035,29 @@ function buildPumpStationSVG(f, name, status) {
         return _s;
        })()
 
-    // Divider lines
+    // ── Scrollable data window: wheel over the pin scrolls PRESSURE/FLOW/VOLTAGE/CURRENT -> POWER/ENERGY ──
+    +'<defs><clipPath id="psw"><rect x="2" y="'+(_cY+52)+'" width="'+(_W-4)+'" height="'+(_l2Y-(_cY+52))+'"/></clipPath></defs>'
+    +'<g clip-path="url(#psw)"><g transform="translate(0,'+(-_shift)+')">'
+    +'<line x1="'+(_W/2)+'" y1="'+(_cY+52)+'" x2="'+(_W/2)+'" y2="'+(_l2Y+_rowH)+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="8" y1="'+_l1Y+'" x2="'+(_W-8)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+(_cY+24)+'" x2="'+(_W/2)+'" y2="'+_l1Y+'" stroke="#e2e8f0" stroke-width="1"/>'
     +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
-    +'<line x1="'+(_W/2)+'" y1="'+_l1Y+'" x2="'+(_W/2)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1"/>'
-
-    // PRESSURE (left column top)
     +'<text x="10" y="'+_pLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">PRESSURE</text>'
     +'<text x="10" y="'+_pVY+'" font-family="Arial,sans-serif" font-size="13" fill="'+_psiC+'" font-weight="800">'+_psiStr+'</text>'
-
-    // FLOW (right column top)
     +'<text x="'+(_W/2+6)+'" y="'+_fLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">FLOW</text>'
     +'<text x="'+(_W/2+6)+'" y="'+_fVY+'" font-family="Arial,sans-serif" font-size="13" fill="#0ea5e9" font-weight="800">'+_lpsStr+'</text>'
-
-    // VOLTAGE (left column bottom)
     +'<text x="10" y="'+_vLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">VOLTAGE</text>'
     +'<text x="10" y="'+_vVY+'" font-family="Arial,sans-serif" font-size="13" fill="#16a34a" font-weight="800">'+_voltStr+'</text>'
-
-    // CURRENT (right column bottom)
     +'<text x="'+(_W/2+6)+'" y="'+_cLY+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">CURRENT</text>'
     +'<text x="'+(_W/2+6)+'" y="'+_cVY+'" font-family="Arial,sans-serif" font-size="13" fill="#ea580c" font-weight="800">'+_ampStr+'</text>'
+    +'<line x1="8" y1="'+(_l2Y+_rowH)+'" x2="'+(_W-8)+'" y2="'+(_l2Y+_rowH)+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +'<text x="10" y="'+(_vLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">POWER</text>'
+    +'<text x="10" y="'+(_vVY+_rowH)+'" font-family="Arial,sans-serif" font-size="13" fill="#7e22ce" font-weight="800">'+_powStr+'</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+(_cLY+_rowH)+'" font-family="Arial,sans-serif" font-size="7.5" fill="#94a3b8" font-weight="700" letter-spacing="0.5">ENERGY</text>'
+    +'<text x="'+(_W/2+6)+'" y="'+(_cVY+_rowH)+'" font-family="Arial,sans-serif" font-size="12" fill="#0f766e" font-weight="800">'+_enStr+'</text>'
+    +'</g></g>'
+    +'<line x1="8" y1="'+_l2Y+'" x2="'+(_W-8)+'" y2="'+_l2Y+'" stroke="#e2e8f0" stroke-width="1.2"/>'
+    +(_pinSc ? '<text x="'+(_W-9)+'" y="'+(_cY+62)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#64748b">\u25B2</text>'
+             : '<text x="'+(_W-9)+'" y="'+(_l2Y-4)+'" text-anchor="middle" font-family="Arial,sans-serif" font-size="9" fill="#64748b">\u25BC</text>')
 
     // Relay + Toggle info at bottom
     +_relayDot
@@ -4089,11 +4108,13 @@ function _agusHdIcon(svg) {
     tag = tag.replace(/\swidth="[^"]*"/, '').replace(/\sheight="[^"]*"/, '');
     return tag.replace(/<svg\b/, '<svg width="' + (w * K) + '" height="' + (h * K) + '" text-rendering="geometricPrecision" shape-rendering="geometricPrecision"');
   });
-  return new ol.style.Icon({
+  var _ic = new ol.style.Icon({
     src: 'data:image/svg+xml,' + encodeURIComponent(svg),
     scale: 1 / K,
     anchor: [0.5, 1], anchorXUnits: 'fraction', anchorYUnits: 'fraction'
   });
+  _ic._agusHd = K;
+  return _ic;
 }
 var map = new ol.Map({
   pixelRatio: Math.max(window.devicePixelRatio || 1, 2),
@@ -4926,6 +4947,27 @@ setInterval(function() {
   });
 }, 2500);
 map.on('singleclick', function(evt) {
+  /* Tap/click the small ▲/▼ arrow on a pump pin to scroll its readings (touch + no-wheel friendly) */
+  var _arrowHit = null;
+  map.forEachFeatureAtPixel(evt.pixel, function (feature) {
+    var fs = feature.get('features'); if (!fs || fs.length !== 1) return;
+    var f = fs[0], nm = f.get('name') || '', low = nm.toLowerCase(), type = (f.get('type') || '').toLowerCase().trim();
+    var hyb = (typeof isReservoirPumpHybrid === 'function') && isReservoirPumpHybrid(nm);
+    var pureRes = (type === 'reservoir' || low.indexOf('reservoir') >= 0) && !hyb;
+    var pres = type === 'pressure' || low.indexOf('pressure') >= 0;
+    if (pureRes || pres || !(hyb || type === 'pumping station' || low.indexOf('pump') >= 0 || low.indexOf('booster') >= 0)) return;
+    var fp = map.getPixelFromCoordinate(f.getGeometry().getCoordinates()); if (!fp) return;
+    var dx = evt.pixel[0] - fp[0], dy = evt.pixel[1] - fp[1];          /* pin is anchored bottom-centre */
+    var down = !(window._psPinScroll && window._psPinScroll[nm]);
+    var ay = down ? -31 : -92;                                          /* arrow height above the pin base */
+    if (Math.abs(dx - 80) <= 18 && Math.abs(dy - ay) <= 14) { _arrowHit = nm; return true; }
+  }, { hitTolerance: 4 });
+  if (_arrowHit) {
+    window._psPinScroll = window._psPinScroll || {};
+    window._psPinScroll[_arrowHit] = window._psPinScroll[_arrowHit] ? 0 : 1;
+    try { clusterLayer.changed(); } catch (er) {}
+    return;
+  }
   var pipelineHit = null;
   map.forEachFeatureAtPixel(evt.pixel, function(feature) {
     if (feature.get('isPipeline')) { pipelineHit = feature; return true; }
@@ -4955,6 +4997,24 @@ map.on('singleclick', function(evt) {
 map.on('pointermove', function(evt) {
   map.getTargetElement().style.cursor = map.hasFeatureAtPixel(evt.pixel, {hitTolerance:6}) ? 'pointer' : '';
 });
+
+/* Wheel over a Pumping Station / Booster pin scrolls its readings (Pressure/Flow/Voltage/Current <-> Power/Energy) */
+window._psPinScroll = window._psPinScroll || {};
+map.getViewport().addEventListener('wheel', function (e) {
+  var px = map.getEventPixel(e), hitName = null;
+  map.forEachFeatureAtPixel(px, function (feature) {
+    var fs = feature.get('features'); if (!fs || fs.length !== 1) return;
+    var f = fs[0], nm = f.get('name') || '', low = nm.toLowerCase(), type = (f.get('type') || '').toLowerCase().trim();
+    var hyb = (typeof isReservoirPumpHybrid === 'function') && isReservoirPumpHybrid(nm);
+    var pureRes = (type === 'reservoir' || low.indexOf('reservoir') >= 0) && !hyb;
+    var pres = type === 'pressure' || low.indexOf('pressure') >= 0;
+    if (!pureRes && !pres && (hyb || type === 'pumping station' || low.indexOf('pump') >= 0 || low.indexOf('booster') >= 0)) { hitName = nm; return true; }
+  }, { hitTolerance: 4 });
+  if (!hitName) return;
+  e.preventDefault(); e.stopPropagation();
+  var want = e.deltaY > 0 ? 1 : 0;
+  if ((window._psPinScroll[hitName] ? 1 : 0) !== want) { window._psPinScroll[hitName] = want; try { clusterLayer.changed(); } catch (er) {} }
+}, { capture: true, passive: false });
 var detailsOverlay = new ol.Overlay({element:document.getElementById('device-details'),positioning:'top-center',offset:[0,14],stopEvent:false});
 map.addOverlay(detailsOverlay);
 
@@ -4990,6 +5050,7 @@ window._agusPinHeightPx = function(device) {
       }
       if (!h && im.getRadius) h = im.getRadius() * 2;
       var sc = im.getScale ? im.getScale() : 1; sc = Array.isArray(sc) ? sc[1] : sc;
+      sc = (sc || 1) * (im._agusHd || 1);   /* HD icons are drawn at 1/K of their raster size */
       best = Math.max(best, h * (sc || 1));
     });
     return best || fallback;
@@ -5146,24 +5207,6 @@ if (!isNaN(llvl)) {
       det.innerHTML =
         '<div class="dd-row" style="display:flex;gap:12px;min-width:0;">' +
           '<div class="dd-col" style="flex:1;min-width:0;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:4px;">🏭 RESERVOIR</span> ' +
-            '<span style="display:inline-block;background:#004080;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">⚙️ PUMPING STATION</span><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
-            '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
-            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
-            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
-            'Current: '  + (d.current  || 0) + ' A<br>' +
-            'Power: '    + (d.power    || 0) + ' W<br>' +
-            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
-            'Relay: <b style="color:'+(d.commandedRelay?'#22c55e':'#ef4444')+';">'+(d.commandedRelay?'● ON':'● OFF')+'</b>'
-              +(d.relayPending?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>'
-            +'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + (_togByLabel(d.lastToggledBy) || 'N/A') + '</b><br>' +
-            _effBadge + '<br>' +
             '<div style="display:flex;gap:6px;margin-top:7px;">' +
               '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="flex:1;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Level Graph</button>' +
               '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="flex:1;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:11.5px;font-weight:600;">📊 Pump Graph</button>' +
@@ -5212,8 +5255,8 @@ if (!isNaN(llvl)) {
           '<div class="dd-col" style="flex:1;min-width:0;">' +
             '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
             '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">🏭 RESERVOIR</span><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Water Level: <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
+            '<span class=\"dd-lbl\">Status:</span> ' + effSt + ' ' + fb + '<br>' +
+            '<span class=\"dd-lbl\">Water Level:</span> <b style="color:' + lC + ';">' + (d.level || '0') + ' m³</b> ' +
             '<span class="' + lB + '" style="background:' + lC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + lT + '</span><br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'reservoir\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -5238,8 +5281,8 @@ if (!isNaN(llvl)) {
           '<div class="dd-col" style="flex:1;min-width:0;">' +
             '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
             '<span style="display:inline-block;background:#4ade80;color:white;padding:2px 8px;border-radius:12px;font-size:11px;margin-bottom:8px;">📊 PRESSURE DEVICE</span><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
+            '<span class=\"dd-lbl\">Status:</span> ' + effSt + ' ' + fb + '<br>' +
+            '<span class=\"dd-lbl\">Pressure:</span> <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
             '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
@@ -5262,32 +5305,6 @@ if (!isNaN(llvl)) {
       det.innerHTML =
         '<div class="dd-row" style="display:flex;gap:12px;min-width:0;">' +
           '<div class="dd-col" style="flex:1;min-width:0;">' +
-            '<b style="font-size:14px;color:#002b5c;">' + d.device + '</b><br>' +
-            'Status: ' + effSt + ' ' + fb + '<br>' +
-            'Flow: '     + (d.flow     || 0) + ' L/s<br>' +
-            'Pressure: <b style="color:' + pC + ';">' + (d.pressure || 0) + ' psi</b> ' +
-            '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
-            'Voltage: '  + (d.voltage  || 0) + ' V<br>' +
-            'Current: '  + (d.current  || 0) + ' A<br>' +
-            'Power: '    + (d.power    || 0) + ' W<br>' +
-            'Energy: '   + (d.energy   || 0) + ' kWh<br>' +
-            // ★ v3: show commanded (dashboard) vs actual (Smart Device)
-            // Popup must agree with the pump list slider: use the CONFIRMED relay
-            // (actual) unless THIS tab has an optimistic toggle still in flight.
-            // Otherwise a stale/mismatched commandedRelay would show "OFF" and
-            // "confirming…" forever even while the slider — and the device — are ON.
-            (function(){
-              var _pendingLocal = (_localTogglePending[d.device] !== undefined) ||
-                (_relayPendingUntil[d.device] && Date.now() < _relayPendingUntil[d.device]);
-              var _relayActual = _relayKnown(d.relay) ? _relayTrue(d.relay) : (d.commandedRelay ? true : false);
-              var _relayShown = _pendingLocal ? (d.commandedRelay ? true : false) : _relayActual;
-              var _showConfirm = _pendingLocal && (d.commandedRelay ? 1 : 0) !== (_relayKnown(d.relay) ? (_relayTrue(d.relay) ? 1 : 0) : -1);
-              return 'Relay: <b style="color:'+(_relayShown?'#22c55e':'#ef4444')+';">'+(_relayShown?'● ON':'● OFF')+'</b>'
-                +(_showConfirm?' <span style="font-size:10px;color:#d97706;">⏳ Smart Device confirming…</span>':' <span style="font-size:10px;color:#94a3b8;">✓ Confirmed</span>')+'<br>';
-            })() +
-            'Smart Device actual: <span style="color:#94a3b8;font-size:11px;">'+(d.relay?'ON':'OFF')+'</span><br>' +
-            'Last toggle by: <b>' + (_togByLabel(d.lastToggledBy) || 'N/A') + '</b><br>' +
-            _effBadge + '<br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pump\')" style="margin-top:7px;width:100%;padding:5px 0;background:#004080;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
           '</div>' +
           '<div class="dd-col dd-col-r" style="flex:1;min-width:0;border-left:2px solid #e5eef9;padding-left:14px;">' +
