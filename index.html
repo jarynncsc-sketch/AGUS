@@ -3419,6 +3419,7 @@ var PUMP_PARAMS = [
   // ─── Efficiency (computed on-the-fly) ───
   {id:'pumpeff', label:'Pump & Motor Efficiency', unit:'%', computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
   // ─── Control ───
+  {id:'waterlevel', label:'Reservoir Level', unit:'', pattern:/^$/, color:'#06b6d4', yAxis:'yLevel', group:'waterlevel'},
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
   {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
   // ─── Water Level intentionally omitted from Pump Graph: it's already
@@ -3428,6 +3429,7 @@ var PARAM_GROUPS = [
   {id:'hydraulic',  label:'💧 Hydraulic'},
   {id:'electrical', label:'⚡ Electrical'},
   {id:'efficiency', label:'🔧 Efficiency'},
+  {id:'waterlevel', label:'🏭 Reservoir'},
   {id:'control',    label:'🎛️ Control'}
 ];
 var pumpParamKeys = {}, activePumpParams = new Set(['pressure']);
@@ -8067,6 +8069,7 @@ function detectPumpParamKeys(rows) {
       return;
     }
     if (p.isEvent){pumpParamKeys[p.id]=window._toggleKey||null;return;}
+    if (p.id==='waterlevel'){var lk=window._levelKey;if(lk&&keys.indexOf(lk)>=0&&!/pressure|psi|flow|voltage|current|power|energy|discharge|relay/i.test(lk))pumpParamKeys[p.id]=lk;return;}
     var f=keys.find(function(k){return p.pattern.test(k.trim());});if(f)pumpParamKeys[p.id]=f;
   });
 }
@@ -8267,6 +8270,44 @@ function _selTipFill(ctx){
     g.addColorStop(0,a); g.addColorStop(1,b); return g;
   }catch(e){ return '#0d9488'; }
 }
+// ── Max-threshold dashed lines ─────────────────────────────────────────────
+// Resolves a device's MAX threshold the same way the alert system does:
+// per-device custom value → pressure/reservoir settings → built-in default.
+function getDeviceMaxThr(device, key) {
+  var DEF = {maxPsi:80, maxLevel:250, maxVolt:240, maxCurrent:30, maxFlow:50, maxPower:15000};
+  var ps = {}, rs = {}, cus = {};
+  try { ps = (pressureSettingsCache || {})[device] || {}; } catch(e) {}
+  try { rs = (reservoirThresholdsCache || {})[device] || {}; } catch(e) {}
+  try {
+    var all = window._customThr || JSON.parse(localStorage.getItem('agus_sensor_thr') || '{}');
+    cus = all[device] || {};
+  } catch(e) {}
+  var v = cus[key];
+  if (v == null || v === '') v = (key === 'maxPsi') ? ps.maxPsi : (key === 'maxLevel') ? rs.maxLevel : null;
+  if (v == null || v === '') v = DEF[key];
+  v = parseFloat(v);
+  return isNaN(v) ? null : v;
+}
+// items: [{id, value, color, text, axis}] → chart.js-plugin-annotation dashed horizontal lines
+function buildMaxThrAnnotations(items) {
+  var ann = {};
+  (items || []).forEach(function(it, i) {
+    if (it.value == null) return;
+    ann['_thrMax_' + it.id] = {
+      type: 'line', scaleID: it.axis || 'yLeft', value: it.value,
+      borderColor: it.color, borderWidth: 2, borderDash: [8, 5], drawTime: 'afterDatasetsDraw', z: 50,
+      label: {
+        display: true, content: it.text, position: i % 2 === 0 ? 'start' : 'end',
+        backgroundColor: 'rgba(10,22,48,0.92)', color: it.color, borderColor: it.color, borderWidth: 1.5,
+        borderRadius: 6, padding: {top: 3, bottom: 3, left: 7, right: 7},
+        font: {size: 10.5, weight: '700'}, yAdjust: -12
+      }
+    };
+  });
+  return ann;
+}
+function _fmtThr(v) { return Math.abs(v) >= 1000 ? (v / 1000).toFixed(1) + 'k' : (Math.round(v * 100) / 100).toString(); }
+
 function renderRangeChart() {
   var raw=getFilteredData();
   var nd=document.getElementById('graph-no-data');
@@ -8296,7 +8337,7 @@ function renderRangeChart() {
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
     var resStats=updateGraphStatsFromValues(lv, data, '');
-    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:mx+pad,pos:'left'}],buildStatCalloutAnnotations(resStats),data), canvas);
+    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], (function(){var t=getDeviceMaxThr(currentDevice,'maxLevel');var th=t==null?[]:[{id:'level',value:t,color:'#f87171',text:'Max '+_fmtThr(t),axis:'yLeft'}];return buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:Math.max(mx+pad,t!=null?t*1.08:0),pos:'left'}],mergeAnn(buildMaxThrAnnotations(th),buildStatCalloutAnnotations(resStats)),data);})(), canvas);
     return;
   }
   if (currentDeviceType !== 'pump') {
@@ -8306,10 +8347,11 @@ function renderRangeChart() {
     var pmn=Math.min.apply(null,vp),pmx=Math.max.apply(null,vp),ppad=Math.max((pmx-pmn)*0.18,2);
     var gf2=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf2.addColorStop(0,'rgba(8,145,178,0.28)');gf2.addColorStop(0.6,'rgba(8,145,178,0.07)');gf2.addColorStop(1,'rgba(8,145,178,0.00)');
     var presStats=updateGraphStatsFromValues(pv, data, 'psi');
-    myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:pmx+ppad,pos:'left'}],mergeAnn(buildToggleAnnotations(data),buildStatCalloutAnnotations(presStats)),data), canvas);
+    myChart=_morphChart(myChart,_gSig,'pressure|yLeft', 'line', labels, [{label:'Pressure (psi)',data:pv,borderColor:'#4ade80',backgroundColor:gf2,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#4ade80',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], (function(){var t=getDeviceMaxThr(currentDevice,'maxPsi');var th=t==null?[]:[{id:'psi',value:t,color:'#f87171',text:'Max '+_fmtThr(t)+' psi',axis:'yLeft'}];return buildChartOptions(labels,[{id:'yLeft',label:'Pressure (psi)',min:pmn-ppad,max:Math.max(pmx+ppad,t!=null?t*1.08:0),pos:'left'}],mergeAnn(mergeAnn(buildMaxThrAnnotations(th),buildToggleAnnotations(data)),buildStatCalloutAnnotations(presStats)),data);})(), canvas);
     return;
   }
-  var datasets=[],leftP=[],rightP=[],statVals=null,statUnit='',statLabel='';
+  var datasets=[],leftP=[],rightP=[],statVals=null,statUnit='',statLabel='',thrItems=[],levelP=[];
+  var _PUMP_THR_KEY={waterlevel:'maxLevel',pressure:'maxPsi',flowrate:'maxFlow',voltage:'maxVolt',current:'maxCurrent',power:'maxPower'};
   var _dKeys=[]; try{ _dKeys=data.length?Object.keys(data[0]||{}):[]; }catch(e){}
   PUMP_PARAMS.forEach(function(p){
     if (!activePumpParams.has(p.id)||p.isEvent) return;
@@ -8322,16 +8364,21 @@ function renderRangeChart() {
     if (datasets.length===0){var gf3=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf3.addColorStop(0,hexToRgba(p.color,0.22));gf3.addColorStop(1,hexToRgba(p.color,0.01));bg=gf3;fill=true;}
     if (statVals===null){statVals=vals;statUnit=p.unit||'';statLabel=p.label||'';}
     datasets.push({label:p.label+(p.unit?'('+p.unit+')':''),data:vals,borderColor:p.color,backgroundColor:bg,borderWidth:2.2,pointRadius:data.length>150?0:3,pointHoverRadius:6,pointBackgroundColor:p.color,pointBorderColor:'#fff',pointBorderWidth:1.5,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:1.5,tension:0.35,fill:fill,spanGaps:true,yAxisID:p.yAxis});
+    var _tk=_PUMP_THR_KEY[p.id],_tv=_tk?getDeviceMaxThr(currentDevice,_tk):null;
+    if(_tv!=null)thrItems.push({id:p.id,value:_tv,color:p.color,text:'Max '+p.label+' '+_fmtThr(_tv)+(p.unit?' '+p.unit:''),axis:p.yAxis});
     var vv=vals.filter(function(v){return v!==null;}),vmn=vv.length?Math.min.apply(null,vv):0,vmx=vv.length?Math.max.apply(null,vv):10,vpd=Math.max((vmx-vmn)*0.18,1);
-    if(p.yAxis==='yLeft')leftP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
+    if(p.yAxis==='yLevel')levelP.push({min:vmn-vpd,max:vmx+vpd,label:p.label});
+    else if(p.yAxis==='yLeft')leftP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
     else rightP.push({min:vmn-vpd,max:vmx+vpd,label:p.label+(p.unit?' ('+p.unit+')':'')});
   });
   function merge(arr){if(!arr.length)return{min:0,max:10,label:''};return{min:Math.min.apply(null,arr.map(function(a){return a.min;})),max:Math.max.apply(null,arr.map(function(a){return a.max;})),label:arr.map(function(a){return a.label;}).join(' / ')};}
-  var lr=merge(leftP),rr=merge(rightP);
+  var lr=merge(leftP),rr=merge(rightP),lvr=merge(levelP);
+  thrItems.forEach(function(t){var m=t.value*1.08;if(t.axis==='yLeft'){if(m>lr.max)lr.max=m;}else if(t.axis==='yLevel'){if(m>lvr.max)lvr.max=m;}else if(rightP.length){if(m>rr.max)rr.max=m;}});
   var axDefs=[{id:'yLeft',label:lr.label,min:lr.min,max:lr.max,pos:'left'}];
   if(rightP.length)axDefs.push({id:'yRight',label:rr.label,min:rr.min,max:rr.max,pos:'right'});
+  if(levelP.length)axDefs.push({id:'yLevel',label:lvr.label,min:lvr.min,max:lvr.max,pos:'right'});
   var pumpStats = statVals ? updateGraphStatsFromValues(statVals, data, statUnit) : (hideGraphStats(),null);
-  myChart=_morphChart(myChart,_gSig,'pump|'+axDefs.map(function(a){return a.id;}).join(',')+'|'+datasets.length, 'line', labels, datasets, buildChartOptions(labels,axDefs,mergeAnn(buildToggleAnnotations(data),buildStatCalloutAnnotations(pumpStats)),data), canvas);
+  myChart=_morphChart(myChart,_gSig,'pump|'+axDefs.map(function(a){return a.id;}).join(',')+'|'+datasets.length, 'line', labels, datasets, buildChartOptions(labels,axDefs,mergeAnn(mergeAnn(buildMaxThrAnnotations(thrItems),buildToggleAnnotations(data)),buildStatCalloutAnnotations(pumpStats)),data), canvas);
   document.getElementById('stat-avg-time').innerText = statLabel ? ('Over selected range · '+statLabel) : 'Over selected range';
 }
 
