@@ -3419,7 +3419,7 @@ var PUMP_PARAMS = [
   // ─── Efficiency (computed on-the-fly) ───
   {id:'pumpeff', label:'Pump & Motor Efficiency', unit:'%', computed:true, color:'#f59e0b', yAxis:'yRight', group:'efficiency'},
   // ─── Control ───
-  {id:'waterlevel', label:'Reservoir Level', unit:'', pattern:/^$/, color:'#06b6d4', yAxis:'yLevel', group:'waterlevel'},
+  {id:'waterlevel', label:'Reservoir Level', unit:'m³', pattern:/^$/, color:'#06b6d4', yAxis:'yLevel', group:'waterlevel'},
   {id:'relay',      label:'Relay State',     unit:'',    pattern:/^relay$/i,                                                        color:'#64748b', yAxis:'yRight', group:'control'},
   {id:'lasttoggled',label:'Toggled By',      unit:'',    pattern:/lasttoggledby|toggled.*by/i,                                      color:'#ec4899', yAxis:null,      group:'control', isEvent:true}
   // ─── Water Level intentionally omitted from Pump Graph: it's already
@@ -8274,17 +8274,20 @@ function _selTipFill(ctx){
 // Resolves a device's MAX threshold the same way the alert system does:
 // per-device custom value → pressure/reservoir settings → built-in default.
 function getDeviceMaxThr(device, key) {
-  var DEF = {maxPsi:80, maxLevel:250, maxVolt:240, maxCurrent:30, maxFlow:50, maxPower:15000};
-  var ps = {}, rs = {}, cus = {};
+  // Only thresholds that were actually SET are used (no built-in defaults):
+  // per-device value → pressure/reservoir settings → "Global defaults" from the threshold modal.
+  var ps = {}, rs = {}, cus = {}, glb = {};
   try { ps = (pressureSettingsCache || {})[device] || {}; } catch(e) {}
   try { rs = (reservoirThresholdsCache || {})[device] || {}; } catch(e) {}
   try {
     var all = window._customThr || JSON.parse(localStorage.getItem('agus_sensor_thr') || '{}');
     cus = all[device] || {};
+    glb = all['__global__'] || {};
   } catch(e) {}
   var v = cus[key];
   if (v == null || v === '') v = (key === 'maxPsi') ? ps.maxPsi : (key === 'maxLevel') ? rs.maxLevel : null;
-  if (v == null || v === '') v = DEF[key];
+  if (v == null || v === '') v = glb[key];
+  if (v == null || v === '') return null;
   v = parseFloat(v);
   return isNaN(v) ? null : v;
 }
@@ -8293,7 +8296,7 @@ function buildMaxThrAnnotations(items) {
   var ann = {};
   (items || []).forEach(function(it, i) {
     if (it.value == null) return;
-    ann['_thrMax_' + it.id] = {
+    ann['thrMax_' + it.id] = {
       type: 'line', scaleID: it.axis || 'yLeft', value: it.value,
       borderColor: it.color, borderWidth: 2, borderDash: [8, 5], drawTime: 'afterDatasetsDraw', z: 50,
       label: {
@@ -8336,8 +8339,8 @@ function renderRangeChart() {
     if (!vl.length) { document.getElementById('graph-no-data').classList.add('visible'); hideGraphStats(); return; }
     var mn=Math.min.apply(null,vl),mx=Math.max.apply(null,vl),pad=Math.max((mx-mn)*0.18,10);
     var gf=ctx.createLinearGradient(0,0,0,canvas.offsetHeight||300);gf.addColorStop(0,'rgba(6,182,212,0.28)');gf.addColorStop(0.6,'rgba(6,182,212,0.07)');gf.addColorStop(1,'rgba(6,182,212,0.00)');
-    var resStats=updateGraphStatsFromValues(lv, data, '');
-    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], (function(){var t=getDeviceMaxThr(currentDevice,'maxLevel');var th=t==null?[]:[{id:'level',value:t,color:'#f87171',text:'Max '+_fmtThr(t),axis:'yLeft'}];return buildChartOptions(labels,[{id:'yLeft',label:resLabel,min:mn-pad,max:Math.max(mx+pad,t!=null?t*1.08:0),pos:'left'}],mergeAnn(buildMaxThrAnnotations(th),buildStatCalloutAnnotations(resStats)),data);})(), canvas);
+    var resStats=updateGraphStatsFromValues(lv, data, 'm³');
+    myChart=_morphChart(myChart,_gSig,'reservoir|yLeft', 'line', labels, [{label:resLabel,data:lv,borderColor:'#06b6d4',backgroundColor:gf,borderWidth:2.5,pointRadius:data.length>150?0:4,pointHoverRadius:7,pointBackgroundColor:'#06b6d4',pointBorderColor:'#fff',pointBorderWidth:2,pointHoverBackgroundColor:_selHoverFill,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,tension:0.35,fill:true,spanGaps:true,yAxisID:'yLeft'}], (function(){var t=getDeviceMaxThr(currentDevice,'maxLevel');var th=t==null?[]:[{id:'level',value:t,color:'#f87171',text:'Max '+_fmtThr(t)+' m³',axis:'yLeft'}];return buildChartOptions(labels,[{id:'yLeft',label:resLabel+' (m³)',min:mn-pad,max:Math.max(mx+pad,t!=null?t*1.08:0),pos:'left'}],mergeAnn(buildMaxThrAnnotations(th),buildStatCalloutAnnotations(resStats)),data);})(), canvas);
     return;
   }
   if (currentDeviceType !== 'pump') {
