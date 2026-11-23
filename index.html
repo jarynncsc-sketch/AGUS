@@ -3242,6 +3242,68 @@ function isReservoirPumpHybrid(deviceName) {
   var n = (deviceName || '').trim().toLowerCase();
   return n.includes('reservoir') && (n.includes('pump') || n.includes('booster'));
 }
+// ── Suction Booster (pressure logger + booster pump relay) ─────────────────
+// Pressure device that also has a relay. Low pressure (<= Min psi) auto-switches the
+// relay OFF; recovery (>= Normal psi) switches it back ON (GAS engine, "Pressure Auto").
+function isSuctionBooster(deviceName) {
+  var n = (deviceName || '').toLowerCase();
+  return n.includes('suction') && n.includes('booster');
+}
+var _pressureAutoState = {};    // device -> auto-protect enabled (default ON)
+var _pressureLockedState = {};  // device -> currently held OFF by low pressure
+function sbRelayState(d) {
+  var pend = (_localTogglePending[d.device] !== undefined) || (_relayPendingUntil[d.device] && Date.now() < _relayPendingUntil[d.device]);
+  if (d.commandedRelay !== undefined && !pend) {
+    commandedRelayCache[d.device] = d.commandedRelay;
+    commandedRelayCacheTimestamps[d.device] = Date.now();
+  }
+  var cmd = commandedRelayCache.hasOwnProperty(d.device) ? commandedRelayCache[d.device] : (d.commandedRelay != null ? d.commandedRelay : (d.relay || 0));
+  if (d.relayDisplay !== undefined) return d.relayDisplay === 1 || d.relayDisplay === true;
+  if (pend) return cmd === 1 || cmd === true;
+  return _relayKnown(d.relay) ? _relayTrue(d.relay) : (cmd === 1 || cmd === true);
+}
+function sbToggleRelay(name, newState, setChecked) {
+  var devs = window._lastDevices || [];
+  var self = devs.filter(function(x){ return x.device === name; })[0] || {};
+  if (newState === 1) {
+    var hb = null;
+    (pumpLinkConfigs || []).forEach(function(pl) {
+      if (pl.pump !== name || !pl.enabled || hb) return;
+      var rd = devs.filter(function(x){ return x.device === pl.reservoir; })[0];
+      if (!rd) return;
+      var lv = parseFloat(rd.level);
+      if (!isNaN(lv) && lv >= pl.shutoffLevel) hb = { reservoir: pl.reservoir, level: lv, shutoffLevel: pl.shutoffLevel, resumeLevel: pl.resumeLevel };
+    });
+    if (hb) {
+      setChecked(false);
+      showNotification('⛔ Cannot turn ON ' + name + ': ' + hb.reservoir + ' is at ' + hb.level.toFixed(0) + ' m³ (shutoff: ' + hb.shutoffLevel + ' m³). Wait for level to drop below resume (' + hb.resumeLevel + ' m³).', 'warning');
+      return;
+    }
+    var s = pressureSettingsCache[name] || { minPsi: 20 };
+    var psi = parseFloat(self.pressure);
+    var _held = _pressureLockedState[name] === true;
+    if ((!isNaN(psi) && psi <= s.minPsi) || (_held && (isNaN(psi) || psi < (s.normalPsi || 50)))) {
+      setChecked(false);
+      showNotification('⛔ Cannot turn ON ' + name + ': low suction pressure (' + (isNaN(psi) ? '--' : psi.toFixed(1)) + ' psi; cutoff ' + s.minPsi + ' psi, resumes at ' + (s.normalPsi || 50) + ' psi). Dry-run protection is active.', 'warning');
+      return;
+    }
+  }
+  dashboardTogglePump(name, newState, function(confirmed) { setChecked(confirmed === 1); });
+}
+window.sbPopupRelay = function(el) { sbToggleRelay(el.getAttribute('data-device'), el.checked ? 1 : 0, function(v){ el.checked = v; }); };
+function sbPopupControls(d) {
+  var on = sbRelayState(d);
+  var locked = (d.pressureLocked === true || _pressureLockedState[d.device] === true) && !on;
+  var nm = escapeForAttr(d.device);
+  return '<div style="margin-top:9px;padding:8px 10px;border:1.5px solid #bfdbfe;border-radius:9px;background:#f0f7ff;">' +
+    '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">' +
+      '<span style="font-size:12px;font-weight:700;color:#1e3a8a;">⚡ Booster Relay</span>' +
+      '<label class="toggle-switch" title="Toggle booster relay ON/OFF"><input type="checkbox"' + (on ? ' checked' : '') + ' data-device="' + nm + '" onchange="sbPopupRelay(this)"><span class="slider"></span></label>' +
+    '</div>' +
+    '<div style="margin-top:6px;font-size:11px;color:#334155;">🛡️ Dry-run protection always on: OFF at ≤ ' + ((pressureSettingsCache[d.device] || {}).minPsi || 20) + ' psi, resumes at ≥ ' + ((pressureSettingsCache[d.device] || {}).normalPsi || 50) + ' psi</div>' +
+    (locked ? '<div style="margin-top:6px;font-size:11px;font-weight:700;color:#b91c1c;">🛑 AUTO-OFF · low suction pressure — resumes at ' + ((pressureSettingsCache[d.device] || {}).normalPsi || 50) + ' psi</div>' : '') +
+  '</div>';
+}
 var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
 
 // Simple response cache for dashboard data to avoid redundant fetches
@@ -5333,6 +5395,7 @@ if (!isNaN(llvl)) {
             '<span class=\"dd-lbl\">Pressure:</span> <b style="color:' + pC + ';">' + (d.pressure || '0') + ' psi</b> ' +
             '<span class="' + pB + '" style="background:' + pC + ';color:white;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:bold;">' + pT + '</span><br>' +
             '<button onclick="showHistoricalGraph(\'' + escapeForAttr(d.device) + '\',\'pressure\')" style="margin-top:7px;width:100%;padding:5px 0;background:#4ade80;color:white;border:none;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;">📊 View Graph</button>' +
+            (isSuctionBooster(d.device) ? sbPopupControls(d) : '') +
           '</div>' +
           '<div class="dd-col dd-col-r" style="flex:1;min-width:0;border-left:2px solid #e5eef9;padding-left:14px;">' +
             '<div style="font-size:11.5px;font-weight:800;color:#5575a0;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;">⚙️ Pressure Thresholds</div>' +
@@ -5822,7 +5885,9 @@ function _firebaseDeviceToArray() {
       normalPsi: s.normalPsi || 50,
       maxPsi: s.maxPsi || 80,
       minLevel: r.minLevel || 20,
-      maxLevel: r.maxLevel || 250
+      maxLevel: r.maxLevel || 250,
+      pressureAuto: _pressureAutoState[name],
+      pressureLocked: _pressureLockedState[name]
     });
   });
   return arr;
@@ -6339,6 +6404,10 @@ function updateDeviceList(devices) {
     var isRes = (d.type&&d.type.toLowerCase().trim()==='reservoir')||name.includes('reservoir');
     var isPres = (d.type&&d.type.toLowerCase().trim()==='pressure')||name.includes('pressure');
     var isPS = (d.type&&d.type.toLowerCase().trim()==='pumping station')||name.includes('pumping station')||name.includes('pump')||name.includes('booster');
+    var isSB = isPres && isSuctionBooster(d.device);   // suction booster = pressure device with a relay
+    if (isSB) isPS = false;
+    if (d.pressureAuto !== undefined) _pressureAutoState[d.device] = d.pressureAuto;
+    if (d.pressureLocked !== undefined) _pressureLockedState[d.device] = d.pressureLocked;
     if (!isPres&&!isPS&&!isRes) return; if (isRes && !activeFilters.has('reservoir')) return; if (isPres && !activeFilters.has('pressure')) return; if (isPS && !activeFilters.has('pumping')) return;
     var effSt = derivePressureStatus(d);
     var sc = effSt==='Online'?'status-Online':effSt==='Offline'?'status-Offline':'status-Fault';
@@ -6480,8 +6549,24 @@ if (isResBooster) {
       var _presVal = parseFloat(d.pressure);
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
-      li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
-      li.addEventListener('click', function(){selectDevice(d.device);});
+      if (isSB) {
+         var _sbOn = sbRelayState(d);
+         li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span>'
+           + '<label class="toggle-switch" title="Toggle booster relay ON/OFF"><input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'"><span class="slider"></span></label></div>';
+         if (_pressureLockedState[d.device] === true && !_sbOn) {
+           var _sbBadge = document.createElement('div');
+           _sbBadge.className = 'auto-shutoff-badge';
+           _sbBadge.title = 'Relay held OFF by low suction pressure (Min ' + s.minPsi + ' psi). Resumes at ' + s.normalPsi + ' psi.';
+           _sbBadge.innerHTML = '🛑 AUTO-OFF · Low pressure';
+           li.appendChild(_sbBadge);
+         }
+         var _sbCb = li.querySelector('input[type="checkbox"]');
+         _sbCb.addEventListener('change', function(){ sbToggleRelay(d.device, _sbCb.checked ? 1 : 0, function(v){ _sbCb.checked = v; }); });
+         li.addEventListener('click', function(e){ if (e.target.tagName.toLowerCase() === 'input' || (e.target.closest && e.target.closest('.toggle-switch'))) return; selectDevice(d.device); });
+       } else {
+       li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span></div>';
+       li.addEventListener('click', function(){selectDevice(d.device);});
+       }
     } else {
       // ★ v3: commandedRelay = what dashboard ordered (PropertiesService source of truth)
       //        relay = what Smart Device actually has (sheet)
@@ -7242,7 +7327,7 @@ function _populatePumpLinkDeviceDropdowns() {
     var reservoirs   = devices.filter(function(d) { return (d.type||'').toLowerCase().trim() === 'reservoir' || (d.device||'').toLowerCase().includes('reservoir'); });
     var pumpStations = devices.filter(function(d) {
       var n = (d.device||'').toLowerCase(), t = (d.type||'').toLowerCase().trim();
-      return n.endsWith('pressurelog') || n.endsWith('reservoirlog') ? false : (n.includes('pump') || t === 'pump');
+      return n.endsWith('pressurelog') || n.endsWith('reservoirlog') ? false : (n.includes('pump') || t === 'pump' || isSuctionBooster(d.device));
     });
 
     reservoirs.forEach(function(d) {
