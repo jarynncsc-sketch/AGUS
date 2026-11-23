@@ -3249,6 +3249,7 @@ function isSuctionBooster(deviceName) {
   var n = (deviceName || '').toLowerCase();
   return n.includes('suction') && n.includes('booster');
 }
+var SB_OFF_PSI = 8, SB_ON_PSI = 10;   // hardcoded — must match the ESP32 firmware and GAS (SUCTION_OFF_PSI / SUCTION_ON_PSI)
 var _pressureAutoState = {};    // device -> auto-protect enabled (default ON)
 var _pressureLockedState = {};  // device -> currently held OFF by low pressure
 function sbRelayState(d) {
@@ -3279,7 +3280,7 @@ function sbToggleRelay(name, newState, setChecked) {
       showNotification('⛔ Cannot turn ON ' + name + ': ' + hb.reservoir + ' is at ' + hb.level.toFixed(0) + ' m³ (shutoff: ' + hb.shutoffLevel + ' m³). Wait for level to drop below resume (' + hb.resumeLevel + ' m³).', 'warning');
       return;
     }
-    var s = pressureSettingsCache[name] || { minPsi: 20 };
+    var s = { minPsi: SB_OFF_PSI, normalPsi: SB_ON_PSI };
     var psi = parseFloat(self.pressure);
     var _held = _pressureLockedState[name] === true;
     if ((!isNaN(psi) && psi <= s.minPsi) || (_held && (isNaN(psi) || psi < (s.normalPsi || 50)))) {
@@ -3300,8 +3301,8 @@ function sbPopupControls(d) {
       '<span style="font-size:12px;font-weight:700;color:#1e3a8a;">⚡ Booster Relay</span>' +
       '<label class="toggle-switch" title="Toggle booster relay ON/OFF"><input type="checkbox"' + (on ? ' checked' : '') + ' data-device="' + nm + '" onchange="sbPopupRelay(this)"><span class="slider"></span></label>' +
     '</div>' +
-    '<div style="margin-top:6px;font-size:11px;color:#334155;">🛡️ Dry-run protection always on: OFF at ≤ ' + ((pressureSettingsCache[d.device] || {}).minPsi || 20) + ' psi, resumes at ≥ ' + ((pressureSettingsCache[d.device] || {}).normalPsi || 50) + ' psi</div>' +
-    (locked ? '<div style="margin-top:6px;font-size:11px;font-weight:700;color:#b91c1c;">🛑 AUTO-OFF · low suction pressure — resumes at ' + ((pressureSettingsCache[d.device] || {}).normalPsi || 50) + ' psi</div>' : '') +
+    '<div style="margin-top:6px;font-size:11px;color:#334155;">🛡️ Dry-run protection always on: OFF at ≤ ' + SB_OFF_PSI + ' psi, resumes at ≥ ' + SB_ON_PSI + ' psi</div>' +
+    (locked ? '<div style="margin-top:6px;font-size:11px;font-weight:700;color:#b91c1c;">🛑 AUTO-OFF · low suction pressure — resumes at ' + SB_ON_PSI + ' psi</div>' : '') +
   '</div>';
 }
 var sessionToken = null; // set on login for GAS authenticated calls — passed to all authenticated GAS calls
@@ -6546,17 +6547,32 @@ if (isResBooster) {
       }
     } else if (isPres) {
       var s = pressureSettingsCache[d.device]||{minPsi:20,normalPsi:50,maxPsi:80};
+      if (isSB) s = { minPsi: SB_OFF_PSI, normalPsi: SB_ON_PSI, maxPsi: s.maxPsi };
       var _presVal = parseFloat(d.pressure);
       var pv = !isNaN(_presVal) ? Math.round(_presVal)+' psi' : '-- psi', pc='', bc='';
       if (!isNaN(_presVal)) { if(_presVal<s.minPsi){pc='low';bc='blink-alarm';alarm='low';}else if(_presVal>s.maxPsi){pc='high';bc='blink-alarm';alarm='high';}else pc='normal'; }
       if (isSB) {
          var _sbOn = sbRelayState(d);
-         li.innerHTML = '<span>'+d.device+'</span><div class="device-status">'+fi+'<span class="status-indicator '+sc+' '+fb+'"></span><span class="pressure-value '+pc+' '+bc+'">'+pv+'</span>'
-           + '<label class="toggle-switch" title="Toggle booster relay ON/OFF"><input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'"><span class="slider"></span></label></div>';
+         // Same layout as the Reservoir Booster rows: pressure value on top, then name + status + toggle row
+         li.innerHTML = ''
+           + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
+           +   '<span class="pressure-value '+pc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+pv+'</span>'
+           +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
+           +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
+           +     '<div style="display:flex;align-items:center;gap:6px;width:88px;min-width:88px;flex-shrink:0;justify-content:flex-start;overflow:visible;">'
+           +       (fi ? fi : '')
+           +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
+           +       '<label class="toggle-switch" title="Toggle booster relay ON/OFF">'
+           +         '<input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
+           +         '<span class="slider"></span>'
+           +       '</label>'
+           +     '</div>'
+           +   '</div>'
+           + '</div>';
          if (_pressureLockedState[d.device] === true && !_sbOn) {
            var _sbBadge = document.createElement('div');
            _sbBadge.className = 'auto-shutoff-badge';
-           _sbBadge.title = 'Relay held OFF by low suction pressure (Min ' + s.minPsi + ' psi). Resumes at ' + s.normalPsi + ' psi.';
+           _sbBadge.title = 'Relay held OFF by low suction pressure (below ' + SB_OFF_PSI + ' psi). Resumes above ' + SB_ON_PSI + ' psi.';
            _sbBadge.innerHTML = '🛑 AUTO-OFF · Low pressure';
            li.appendChild(_sbBadge);
          }
