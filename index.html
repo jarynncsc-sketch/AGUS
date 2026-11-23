@@ -6445,11 +6445,11 @@ if (isResBooster) {
 
   // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = ''
-    + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
-    +   '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+wv+'</span>'
-    +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-    +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
-    +     '<div style="display:flex;align-items:center;gap:6px;width:88px;min-width:88px;flex-shrink:0;justify-content:flex-start;overflow:visible;">'
+    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
+    +   '<span style="flex:1; min-width:0; text-align:left; font-weight:600; color:#004080; word-break:break-word;">'+d.device+'</span>'
+    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px; width:88px; min-width:88px; flex-shrink:0;">'
+    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; text-align:center; overflow:visible;">'+wv+'</span>'
+    +     '<div style="display:flex; align-items:center; justify-content:center; gap:6px;">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
     +       '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
@@ -6555,20 +6555,20 @@ if (isResBooster) {
          var _sbOn = sbRelayState(d);
          // Same layout as the Reservoir Booster rows: pressure value on top, then name + status + toggle row
          li.innerHTML = ''
-           + '<div style="display:flex; flex-direction:column; width:100%; gap:2px;">'
-           +   '<span class="pressure-value '+pc+' '+bc+'" style="font-size:13px; white-space:nowrap; overflow:visible;">'+pv+'</span>'
-           +   '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-           +     '<span style="font-weight:600; color:#004080; white-space:nowrap;">'+d.device+'</span>'
-           +     '<div style="display:flex;align-items:center;gap:6px;width:88px;min-width:88px;flex-shrink:0;justify-content:flex-start;overflow:visible;">'
-           +       (fi ? fi : '')
-           +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
-           +       '<label class="toggle-switch" title="Toggle booster relay ON/OFF">'
-           +         '<input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
-           +         '<span class="slider"></span>'
-           +       '</label>'
-           +     '</div>'
-           +   '</div>'
-           + '</div>';
+    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
+    +   '<span style="flex:1; min-width:0; text-align:left; font-weight:600; color:#004080; word-break:break-word;">'+d.device+'</span>'
+    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px; width:88px; min-width:88px; flex-shrink:0;">'
+    +     '<span class="pressure-value '+pc+' '+bc+'" style="font-size:13px; white-space:nowrap; text-align:center; overflow:visible;">'+pv+'</span>'
+    +     '<div style="display:flex; align-items:center; justify-content:center; gap:6px;">'
+    +       (fi ? fi : '')
+    +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +       '<label class="toggle-switch" title="Toggle booster relay ON/OFF">'
+    +         '<input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
+    +         '<span class="slider"></span>'
+    +       '</label>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
          if (_pressureLockedState[d.device] === true && !_sbOn) {
            var _sbBadge = document.createElement('div');
            _sbBadge.className = 'auto-shutoff-badge';
