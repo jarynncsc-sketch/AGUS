@@ -6444,12 +6444,11 @@ if (isResBooster) {
       : (_relayKnown(d.relay) ? _relayTrue(d.relay) : (resCommanded === 1 || resCommanded === true)));
 
   // Water level on top, then device name + status + toggle in one row below
-  li.innerHTML = ''
-    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-    +   '<span style="flex:1; min-width:0; text-align:left; font-weight:600; color:#004080; word-break:break-word;">'+d.device+'</span>'
-    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px; width:88px; min-width:88px; flex-shrink:0;">'
-    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="font-size:13px; white-space:nowrap; text-align:center; overflow:visible;">'+wv+'</span>'
-    +     '<div style="display:flex; align-items:center; justify-content:center; gap:6px;">'
+  li.innerHTML = '<span style="white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; flex:1 1 0; min-width:0; text-align:left; word-break:break-word; line-height:1.25;">'+d.device+'</span>'
+    + '<div class="device-status">'
+    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px;">'
+    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="margin-left:0; font-size:13px; white-space:nowrap; overflow:visible; max-width:none; flex:0 0 auto;">'+wv+'</span>'
+    +     '<div style="display:flex; align-items:center; gap:4px;">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
     +       '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
@@ -6554,12 +6553,11 @@ if (isResBooster) {
       if (isSB) {
          var _sbOn = sbRelayState(d);
          // Same layout as the Reservoir Booster rows: pressure value on top, then name + status + toggle row
-         li.innerHTML = ''
-    + '<div style="display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;">'
-    +   '<span style="flex:1; min-width:0; text-align:left; font-weight:600; color:#004080; word-break:break-word;">'+d.device+'</span>'
-    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px; width:88px; min-width:88px; flex-shrink:0;">'
-    +     '<span class="pressure-value '+pc+' '+bc+'" style="font-size:13px; white-space:nowrap; text-align:center; overflow:visible;">'+pv+'</span>'
-    +     '<div style="display:flex; align-items:center; justify-content:center; gap:6px;">'
+         li.innerHTML = '<span style="white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; flex:1 1 0; min-width:0; text-align:left; word-break:break-word; line-height:1.25;">'+d.device+'</span>'
+    + '<div class="device-status">'
+    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px;">'
+    +     '<span class="pressure-value '+pc+' '+bc+'" style="margin-left:0; font-size:13px; white-space:nowrap; overflow:visible; max-width:none; flex:0 0 auto;">'+pv+'</span>'
+    +     '<div style="display:flex; align-items:center; gap:4px;">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
     +       '<label class="toggle-switch" title="Toggle booster relay ON/OFF">'
