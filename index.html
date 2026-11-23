@@ -1987,6 +1987,16 @@
   #device-details{width:400px !important;min-width:400px !important;}
 }
 </style>
+<style id="value-align-with-toggle">
+/* Plain pressure / reservoir cards: the value pill takes the toggle's column
+   (same left edge + width as the relay toggle on the pump cards), so every card lines up. */
+.device-status > .pressure-value,
+.device-status > .waterlevel-value { margin-left:0 !important; width:60px !important; min-width:60px !important; max-width:60px !important; padding-left:0 !important; padding-right:0 !important; box-sizing:border-box !important; text-align:center !important; flex:0 0 60px !important; }
+@media screen and (max-width: 900px) {
+  .device-status > .pressure-value,
+  .device-status > .waterlevel-value { width:52px !important; min-width:52px !important; max-width:52px !important; flex:0 0 52px !important; }
+}
+</style>
 </head>
 <body>
 <canvas id="bg-canvas"></canvas>
