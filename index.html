@@ -422,11 +422,9 @@
      custom map controls (compass, satellite/street switcher) get the same single counter-invert. */
   body.dark-mode .ol-viewport canvas, body.dark-mode .ol-viewport img, body.dark-mode .ol-viewport video { filter: none !important; }
   body.dark-mode #map-compass, body.dark-mode #map-basemap { filter: invert(1) hue-rotate(180deg); }
-  body.dark-mode .top-card { background:#1e293b!important; }
-  body.dark-mode .nav-group-label { color:#94a3b8!important; }
-  body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
+  /* TOP CARDS over the map stay as in light mode (single counter-invert of the page filter). */
+  body.dark-mode #top-menu-bar { filter: invert(1) hue-rotate(180deg); }
   @keyframes spin { to { transform: rotate(360deg); } }
-  body.dark-mode #dark-mode-btn span { color:#facc15!important; }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js" data-agus-trusted="1"></script>
@@ -1908,23 +1906,23 @@
    Resting: white icon + white label + white square border, each with a dark shade outline.
    Hover / clicked (.active): filter removed => icon & label return to their original colours. */
 @media screen and (min-width: 901px) {
-  body:not(.dark-mode) #top-menu-bar .top-card:not(:hover):not(.active) {
+  body #top-menu-bar .top-card:not(:hover):not(.active) {
     background: transparent !important;
     border: 1px solid #fff !important;
     box-shadow: 0 0 0 1px rgba(0,25,60,.65), inset 0 0 0 1px rgba(0,25,60,.45), 0 2px 6px rgba(0,0,0,.35) !important;
   }
-  body:not(.dark-mode) #top-menu-bar .top-card:not(:hover):not(.active) svg {
+  body #top-menu-bar .top-card:not(:hover):not(.active) svg {
     filter: brightness(0) invert(1) drop-shadow(0 0 1px rgba(0,25,60,.95)) drop-shadow(0 1px 2px rgba(0,25,60,.85));
   }
-  body:not(.dark-mode) #top-menu-bar .top-card:not(:hover):not(.active) span:not(.date-picker-trigger) {
+  body #top-menu-bar .top-card:not(:hover):not(.active) span:not(.date-picker-trigger) {
     color: #fff !important;
     text-shadow: 0 0 2px rgba(0,25,60,.95), 0 1px 3px rgba(0,25,60,.9), 0 0 6px rgba(0,25,60,.6);
   }
-  body:not(.dark-mode) #top-menu-bar .nav-group-label {
+  body #top-menu-bar .nav-group-label {
     color: #fff !important;
     text-shadow: 0 0 2px rgba(0,25,60,.95), 0 1px 3px rgba(0,25,60,.9);
   }
-  body:not(.dark-mode) #top-menu-bar .nav-group-sep {
+  body #top-menu-bar .nav-group-sep {
     background: #fff !important;
     box-shadow: 0 0 0 1px rgba(0,25,60,.45);
   }
