@@ -424,6 +424,15 @@
   body.dark-mode #map-compass, body.dark-mode #map-basemap { filter: invert(1) hue-rotate(180deg); }
   /* TOP CARDS over the map stay as in light mode (single counter-invert of the page filter). */
   body.dark-mode #top-menu-bar { filter: invert(1) hue-rotate(180deg); }
+  /* DEVICE LIST cards: light-white outline in dark mode so each device stands out.
+     (page is inverted, so the colour is written dark: #0d0d0d displays as near-white) */
+  /* DEVICE LIST cards (light mode): thin soft-navy outline + faint shadow. */
+  body:not(.dark-mode) .device-list li { border:1px solid rgba(0,64,128,0.20) !important; box-shadow:0 1px 3px rgba(0,64,128,0.08); }
+  body:not(.dark-mode) .device-list li:hover { border-color:rgba(0,64,128,0.35) !important; }
+  body:not(.dark-mode) .device-list li.selected { border-color:#3b82f6 !important; box-shadow:0 0 0 2px rgba(59,130,246,0.2); }
+  body.dark-mode .device-list li { border:1.5px solid #0d0d0d !important; }
+  body.dark-mode .device-list li:hover { border-color:#262626 !important; }
+  body.dark-mode .device-list li.selected { border-color:#3b82f6 !important; }
   @keyframes spin { to { transform: rotate(360deg); } }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
