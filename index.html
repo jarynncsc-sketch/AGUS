@@ -433,6 +433,9 @@
   body.dark-mode .device-list li { border:1.3px solid #666666 !important; }   /* displays as light gray (~#999999) */
   body.dark-mode .device-list li:hover { border-color:#474747 !important; }   /* displays brighter (~#b8b8b8) */
   body.dark-mode .device-list li.selected { border-color:#3b82f6 !important; }
+  /* Outermost frames in dark mode use the same outline as the individual device cards:
+     the whole Smart Devices panel and the map area. */
+  body.dark-mode .card.device-list, body.dark-mode #map-container { border:1.3px solid #666666 !important; box-sizing:border-box !important; }
   @keyframes spin { to { transform: rotate(360deg); } }
   </style>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@7.5.0/ol.css" />
