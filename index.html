@@ -1996,6 +1996,16 @@
   .device-status > .pressure-value,
   .device-status > .waterlevel-value { width:52px !important; min-width:52px !important; max-width:52px !important; flex:0 0 52px !important; }
 }
+
+/* Booster cards: value sits exactly over the relay toggle (same column, same width); dot to its left. */
+.dev-relay-grid { display:grid; grid-template-columns:auto 60px; column-gap:6px; row-gap:3px; align-items:center; }
+.dev-relay-grid > .dev-relay-val { grid-column:2; grid-row:1; width:60px !important; min-width:60px !important; max-width:60px !important; margin:0 !important; padding-left:0 !important; padding-right:0 !important; box-sizing:border-box !important; text-align:center !important; font-size:13px; white-space:nowrap; overflow:visible; }
+.dev-relay-grid > .dev-relay-lead { grid-column:1; grid-row:2; display:flex; align-items:center; gap:4px; }
+.dev-relay-grid > .toggle-switch { grid-column:2; grid-row:2; justify-self:center; }
+@media screen and (max-width: 900px) {
+  .dev-relay-grid { grid-template-columns:auto 52px; column-gap:4px; }
+  .dev-relay-grid > .dev-relay-val { width:52px !important; min-width:52px !important; max-width:52px !important; }
+}
 </style>
 </head>
 <body>
@@ -6456,16 +6466,16 @@ if (isResBooster) {
   // Water level on top, then device name + status + toggle in one row below
   li.innerHTML = '<span style="white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; flex:1 1 0; min-width:0; text-align:left; word-break:break-word; line-height:1.25;">'+d.device+'</span>'
     + '<div class="device-status">'
-    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px;">'
-    +     '<span class="waterlevel-value '+wc+' '+bc+'" style="margin-left:0; font-size:13px; white-space:nowrap; overflow:visible; max-width:none; flex:0 0 auto;">'+wv+'</span>'
-    +     '<div style="display:flex; align-items:center; gap:4px;">'
+    +   '<div class="dev-relay-grid">'
+    +     '<span class="waterlevel-value dev-relay-val '+wc+' '+bc+'">'+wv+'</span>'
+    +     '<div class="dev-relay-lead">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +     '</div>'
     +       '<label class="toggle-switch" title="Toggle reservoir relay ON/OFF">'
     +         '<input type="checkbox"'+(resSwitchIsOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
     +         '<span class="slider"></span>'
     +       '</label>'
-    +     '</div>'
     +   '</div>'
     + '</div>';
 
@@ -6565,16 +6575,16 @@ if (isResBooster) {
          // Same layout as the Reservoir Booster rows: pressure value on top, then name + status + toggle row
          li.innerHTML = '<span style="white-space:normal !important; overflow:visible !important; text-overflow:clip !important; max-width:none !important; flex:1 1 0; min-width:0; text-align:left; word-break:break-word; line-height:1.25;">'+d.device+'</span>'
     + '<div class="device-status">'
-    +   '<div style="display:flex; flex-direction:column; align-items:center; gap:3px;">'
-    +     '<span class="pressure-value '+pc+' '+bc+'" style="margin-left:0; font-size:13px; white-space:nowrap; overflow:visible; max-width:none; flex:0 0 auto;">'+pv+'</span>'
-    +     '<div style="display:flex; align-items:center; gap:4px;">'
+    +   '<div class="dev-relay-grid">'
+    +     '<span class="pressure-value dev-relay-val '+pc+' '+bc+'">'+pv+'</span>'
+    +     '<div class="dev-relay-lead">'
     +       (fi ? fi : '')
     +       '<span class="status-indicator '+sc+' '+fb+'"></span>'
+    +     '</div>'
     +       '<label class="toggle-switch" title="Toggle booster relay ON/OFF">'
     +         '<input type="checkbox"'+(_sbOn?' checked':'')+' data-device="'+escapeForAttr(d.device)+'">'
     +         '<span class="slider"></span>'
     +       '</label>'
-    +     '</div>'
     +   '</div>'
     + '</div>';
          if (_pressureLockedState[d.device] === true && !_sbOn) {
