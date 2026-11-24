@@ -2018,6 +2018,15 @@
   .dev-relay-grid { grid-template-columns:auto 52px; column-gap:4px; }
   .dev-relay-grid > .dev-relay-val { width:52px !important; min-width:52px !important; max-width:52px !important; }
 }
+
+/* Equal inner margin: the gap from the card's left edge to the first letter of the name is the same as
+   the gap from the right edge to the last item (the timer icon). The status block is made exactly wide
+   enough to hold dot + toggle + timer, so nothing spills past the padding and toggles stay aligned. */
+.device-list li .sched-shortcut-btn { padding:0 !important; margin:0 !important; width:18px !important; min-width:18px !important; text-align:center; }
+.device-list li .device-status { width:100px !important; min-width:100px !important; }
+@media screen and (max-width: 900px) {
+  .device-list li .device-status { width:88px !important; min-width:88px !important; }
+}
 </style>
 </head>
 <body>
