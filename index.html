@@ -417,6 +417,11 @@
   body.dark-mode { filter: invert(1) hue-rotate(180deg); }
   body.dark-mode img, body.dark-mode canvas, body.dark-mode video, body.dark-mode .ol-viewport { filter: invert(1) hue-rotate(180deg); }
   body.dark-mode #bg-canvas { filter: invert(1) hue-rotate(180deg) brightness(0.7); }
+  /* MAP stays as in light mode: the page-level invert is cancelled once for the map viewport
+     (rule above), so canvases/tiles/icons inside it must NOT be inverted a third time, and the
+     custom map controls (compass, satellite/street switcher) get the same single counter-invert. */
+  body.dark-mode .ol-viewport canvas, body.dark-mode .ol-viewport img, body.dark-mode .ol-viewport video { filter: none !important; }
+  body.dark-mode #map-compass, body.dark-mode #map-basemap { filter: invert(1) hue-rotate(180deg); }
   body.dark-mode .top-card { background:#1e293b!important; }
   body.dark-mode .nav-group-label { color:#94a3b8!important; }
   body.dark-mode .nav-group-sep { background:rgba(148,163,184,0.2)!important; }
